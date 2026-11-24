@@ -30,53 +30,18 @@ pub(crate) fn change(
         if !piece.is_empty() {
             return Err(bad());
         }
-        items
-            .push(s::Item {
-                setting: setting(item.setting),
-                edit: match item.edit {
-                    w::SettingEdit::Removed => s::Edit::Removed,
-                    w::SettingEdit::Reset => s::Edit::Reset,
-                    w::SettingEdit::Set(value) => s::Edit::Set(setting_value(value.value, models, limits)?),
-                },
-            })
-            .expect("counted pieces");
+        let item = match mapped::setting_item_to_domain(item, &(models, limits)) {
+            Ok(item) => item,
+            Err(problem) => return Err(map_problem(problem)),
+        };
+        items.push(item).expect("counted pieces");
     }
     Ok(s::Change { against: v.against, items: items.into_boxed(), running: mapped::running_to_domain(v.running) })
 }
 fn map_problem(problem: w::Problem) -> Untranslatable {
     Untranslatable { path: problem.path }
 }
-fn setting(value: w::Setting) -> s::Setting {
-    mapped::setting_to_domain(value)
-}
-fn setting_value(
-    value: w::SettingValue,
-    models: &[crate::Model],
-    limits: &w::Limits,
-) -> Result<s::Value, Untranslatable> {
-    Ok(match value {
-        w::SettingValue::Limits(value) => s::Value::Limits(limit_overrides(value)),
-        w::SettingValue::Worker(value) => s::Value::Worker(Box::new(s::WorkerSetting {
-            number: value.number,
-            name: skein_lib::bytes::copy_of(value.name.as_ref()),
-            places: value.places,
-            digest: value.digest,
-            withdrawn: value.withdrawn,
-        })),
-        w::SettingValue::Provider(value) => {
-            let value = super::providers::decode(&value);
-            s::Value::Provider(Box::new(value))
-        }
-        w::SettingValue::Model(value) => s::Value::Model(Box::new(catalogue(*value))),
-        w::SettingValue::Application(value) => s::Value::Application(value.bytes),
-        w::SettingValue::Overlay(value) => s::Value::Overlay(Box::new(overlay(*value))),
-        w::SettingValue::Charter(value) => s::Value::Charter(Box::new(charter(*value))),
-        w::SettingValue::Template(value) => s::Value::Template(Box::new(template(*value, models, limits)?)),
-        w::SettingValue::Policy(value) => s::Value::Policy(Box::new(policy(*value, models, limits)?)),
-        w::SettingValue::Rules(value) => s::Value::Rules(Box::new(rules(*value, models, limits)?)),
-    })
-}
-fn model(value: w::SettingModel) -> c::Model {
+pub(crate) fn model_from_record(value: w::SettingModel) -> c::Model {
     let v = value;
     c::Model {
         provider: v.provider,
@@ -119,7 +84,7 @@ fn wake(value: w::WakePolicy) -> t::WakePolicy {
         timers: value.timers,
     }
 }
-fn charter(value: w::Charter) -> c::Charter {
+pub(crate) fn charter_from_record(value: w::Charter) -> c::Charter {
     let rest = value.rest;
     let resume = value.resume;
     let inspect = value.inspect;
@@ -129,33 +94,22 @@ fn charter(value: w::Charter) -> c::Charter {
     let v = value;
     let mut alternatives = List::with_capacity(v.alternatives.len());
     for value in v.alternatives.into_boxed() {
-        alternatives.push(model(value)).expect("same count");
+        alternatives.push(model_from_record(value)).expect("same count");
     }
     let mut documents = List::with_capacity(v.documents.len());
     for document in v.documents.into_boxed() {
-        documents
-            .push(c::Document {
-                connector: document.connector,
-                name: a::Name { segments: document.name.into_boxed() },
-                path: document.path,
-                heading: document.heading,
-            })
-            .expect("same count");
+        documents.push(charter_document_from_record(document)).expect("same count");
     }
     let mut parts = List::with_capacity(v.parts.len());
     for item in v.parts.into_boxed() {
-        parts.push(c::CharterPart { on: t::Reasons(item.on), instructions: item.instructions }).expect("same count");
+        parts.push(mapped::charter_part_to_domain(item)).expect("same count");
     }
     c::Charter {
         parts: parts.into_boxed(),
         rest,
         documents: documents.into_boxed(),
         number: v.number,
-        hosts: match v.hosts {
-            w::SettingHosts::Workers => jig_domain_fleet::Kinds::Workers,
-            w::SettingHosts::Engine => jig_domain_fleet::Kinds::Engine,
-            w::SettingHosts::Both => jig_domain_fleet::Kinds::Both,
-        },
+        hosts: mapped::setting_hosts_to_domain(v.hosts),
         spend: v.spend,
         wake: wake(v.wake),
         policy: c::RunPolicy {
@@ -166,7 +120,7 @@ fn charter(value: w::Charter) -> c::Charter {
             time: v.time,
             reserve_turns: v.reserve_turns,
             reserve_time: v.reserve_time,
-            model: model(v.model),
+            model: model_from_record(v.model),
             alternatives: alternatives.into_boxed(),
             inspect,
             modify,
@@ -175,6 +129,14 @@ fn charter(value: w::Charter) -> c::Charter {
             call_timeout: v.call_timeout,
             tools: crate::translate::convert::tools_to_domain(v.tools),
         },
+    }
+}
+pub(crate) fn charter_document_from_record(value: w::CharterDocument) -> c::Document {
+    c::Document {
+        connector: value.connector,
+        name: a::Name { segments: value.name.into_boxed() },
+        path: value.path,
+        heading: value.heading,
     }
 }
 fn authority(value: w::Authority, models: &[crate::Model], limits: &w::Limits) -> Result<a::Authority, Untranslatable> {
@@ -212,7 +174,7 @@ fn requirements(values: List<w::PolicyRequirement>) -> Box<[a::Requirement]> {
     }
     result.into_boxed()
 }
-fn policy(
+pub(crate) fn policy_from_record(
     value: w::SettingPolicy,
     models: &[crate::Model],
     limits: &w::Limits,
@@ -253,7 +215,11 @@ fn policy(
         templates: overrides,
     })
 }
-fn rules(value: w::Rules, models: &[crate::Model], limits: &w::Limits) -> Result<a::Rules, Untranslatable> {
+pub(crate) fn rules_from_record(
+    value: w::Rules,
+    models: &[crate::Model],
+    limits: &w::Limits,
+) -> Result<a::Rules, Untranslatable> {
     let v = value;
     let mut implies = List::with_capacity(v.implies.len());
     for value in v.implies.into_boxed() {
@@ -271,7 +237,11 @@ fn rules(value: w::Rules, models: &[crate::Model], limits: &w::Limits) -> Result
         requirements: requirements(v.requirements),
     })
 }
-fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> Result<c::Template, Untranslatable> {
+pub(crate) fn template_from_record(
+    value: w::Template,
+    models: &[crate::Model],
+    limits: &w::Limits,
+) -> Result<c::Template, Untranslatable> {
     let v = value;
     if v.name.cut {
         return Err(bad());
@@ -406,11 +376,11 @@ pub(crate) fn proposed(
     Ok(s::Proposed { against: change.against, items: change.items, reason: value.reason })
 }
 
-fn catalogue(value: w::CatalogueEntry) -> s::CatalogueModel {
+pub(crate) fn catalogue_from_record(value: w::CatalogueEntry) -> s::CatalogueModel {
     s::CatalogueModel {
         first_read: None,
         number: value.number,
-        model: model(value.model),
+        model: model_from_record(value.model),
         shown: value.shown,
         description: value.description,
         picker: value.picker,
@@ -429,83 +399,4 @@ fn task_later(value: p::LlmLater) -> t::LlmLater {
         main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
         subagents: subagents.into_boxed(),
     }
-}
-
-fn overlay(value: w::Overlay) -> s::Overlay {
-    let v = value;
-    let alternatives = match v.alternatives {
-        Some(items) => {
-            let mut alternatives = List::with_capacity(items.len());
-            for value in items.into_boxed() {
-                alternatives.push(model(value)).expect("same count");
-            }
-            Some(alternatives.into_boxed())
-        }
-        None => None,
-    };
-    let documents = match v.documents {
-        Some(items) => {
-            let mut documents = List::with_capacity(items.len());
-            for document in items.into_boxed() {
-                documents
-                    .push(c::Document {
-                        connector: document.connector,
-                        name: a::Name { segments: document.name.into_boxed() },
-                        path: document.path,
-                        heading: document.heading,
-                    })
-                    .expect("same count");
-            }
-            Some(documents.into_boxed())
-        }
-        None => None,
-    };
-    let mut parts = List::with_capacity(v.parts.len());
-    for item in v.parts.into_boxed() {
-        parts.push(c::CharterPart { on: t::Reasons(item.on), instructions: item.instructions }).expect("same count");
-    }
-    s::Overlay {
-        rest: v.rest,
-        inspect: v.inspect,
-        modify: v.modify,
-        shell: v.shell,
-        agents: v.agents,
-        waiting: v.waiting,
-        resume: v.resume,
-        turns: v.turns,
-        time: v.time,
-        reserve_turns: v.reserve_turns,
-        reserve_time: v.reserve_time,
-        call_timeout: v.call_timeout,
-        spend: v.spend,
-        model: match v.model {
-            Some(item) => Some(model(item)),
-            None => None,
-        },
-        alternatives,
-        documents,
-        parts: parts.into_boxed(),
-        instructions: v.instructions,
-        tools: match v.tools {
-            Some(item) => Some(crate::translate::convert::tools_to_domain(item)),
-            None => None,
-        },
-        hosts: match v.hosts {
-            Some(w::SettingHosts::Workers) => Some(jig_domain_fleet::Kinds::Workers),
-            Some(w::SettingHosts::Engine) => Some(jig_domain_fleet::Kinds::Engine),
-            Some(w::SettingHosts::Both) => Some(jig_domain_fleet::Kinds::Both),
-            None => None,
-        },
-    }
-}
-
-fn limit_overrides(value: w::LimitsValue) -> Box<[s::Override]> {
-    let values = value.overrides;
-    let mut overrides = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        overrides
-            .push(s::Override { name: value.name, value: value.value, reason: value.reason })
-            .expect("override count");
-    }
-    overrides.into_boxed()
 }

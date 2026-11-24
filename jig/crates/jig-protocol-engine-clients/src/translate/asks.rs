@@ -47,14 +47,9 @@ fn decode(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Ask, Untranslatable> {
     Ok(match record {
-        w::Ask::PauseWorker(value) => p::Ask::PauseWorker {
-            worker: value.worker,
-            mode: match value.mode {
-                w::WorkerPauseMode::Resume => jig_domain_link::PauseMode::Resume,
-                w::WorkerPauseMode::Pause => jig_domain_link::PauseMode::Pause,
-                w::WorkerPauseMode::Drain => jig_domain_link::PauseMode::Drain,
-            },
-        },
+        w::Ask::PauseWorker(value) => {
+            p::Ask::PauseWorker { worker: value.worker, mode: mapped::worker_pause_mode_to_domain(value.mode) }
+        }
         w::Ask::ReadLists(value) => p::Ask::AccountChange {
             holder: p::AccountHolder::Own,
             change: p::AccountChange::ReadLists { provider: value.provider },
@@ -150,7 +145,7 @@ fn decode(
         }
         w::Ask::AccountChange(value) => p::Ask::AccountChange {
             holder: mapped::ask_account_holder_to_domain(value.holder),
-            change: account_change(&value.change)?,
+            change: account_change(value.change)?,
         },
         w::Ask::SignIn(value) => p::Ask::AccountSignIn {
             holder: mapped::ask_account_holder_to_domain(value.holder),
@@ -163,11 +158,11 @@ fn decode(
         w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project, grace: value.grace },
         w::Ask::Rename(value) => {
             let v = value;
-            p::Ask::Rename { project: v.project, name: project_name(&v.name, w::paths::RENAME_NAME)? }
+            p::Ask::Rename { project: v.project, name: project_name(v.name, w::paths::RENAME_NAME)? }
         }
         w::Ask::MakeProject(value) => {
             let v = value;
-            p::Ask::MakeProject { name: project_name(&v.name, w::paths::MAKE_PROJECT_NAME)?, policy: v.policy }
+            p::Ask::MakeProject { name: project_name(v.name, w::paths::MAKE_PROJECT_NAME)?, policy: v.policy }
         }
         w::Ask::SetPool(value) => {
             let v = value;
@@ -475,31 +470,21 @@ fn pattern_bytes(value: &p::Pattern, fixed: usize) -> Option<u64> {
     })
 }
 
-fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
+fn account_change(value: w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
     Ok(match value {
         // These receive typed interim refusals before core translation (domain/terminal-login.md, 5).
-        w::AccountChange::LoginProgram(row) => p::AccountChange::LoginProgram {
-            provider: row.provider,
-            name: skein_lib::bytes::copy_of(row.name.as_ref()),
-        },
+        w::AccountChange::LoginProgram(row) => {
+            p::AccountChange::LoginProgram { provider: row.provider, name: row.name }
+        }
         w::AccountChange::CancelLogin(row) => p::AccountChange::CancelLogin { number: row.number },
-        w::AccountChange::LoginEnded(row) => p::AccountChange::LoginEnded {
-            number: row.number,
-            exit: match &row.exit {
-                w::LoginExit::Exited(value) => p::LoginExit::Exited { code: value.code },
-                w::LoginExit::Killed(value) => p::LoginExit::Killed { signal: value.signal },
-                w::LoginExit::NotStarted => p::LoginExit::NotStarted,
-            },
-        },
+        w::AccountChange::LoginEnded(row) => {
+            p::AccountChange::LoginEnded { number: row.number, exit: mapped::login_exit_to_domain(row.exit) }
+        }
         w::AccountChange::DeclareProgram(row) => {
             if jig_domain_link::SourceName::new(row.name.as_ref()).is_none() {
                 return Err(Untranslatable { path: w::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME });
             }
-            p::AccountChange::DeclareProgram {
-                provider: row.provider,
-                join: row.join,
-                name: skein_lib::bytes::copy_of(row.name.as_ref()),
-            }
+            p::AccountChange::DeclareProgram { provider: row.provider, join: row.join, name: row.name }
         }
         w::AccountChange::CheckProgram(row) => p::AccountChange::CheckProgram { source: row.source },
         w::AccountChange::MoveOut(row) => p::AccountChange::MoveOut { account: row.account },
@@ -521,16 +506,12 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
         }
         w::AccountChange::SetUses(row) => p::AccountChange::SetUses {
             account: row.account,
-            uses: match &row.uses {
+            uses: match row.uses {
                 None => None,
                 Some(uses) => {
                     let mut rows = List::with_capacity(uses.len());
-                    for use_ in uses {
-                        rows.push(match use_ {
-                            w::AccountUse::Party(value) => p::Use::Party(value.party),
-                            w::AccountUse::Project(value) => p::Use::Project(value.project),
-                        })
-                        .expect("reserved uses");
+                    for use_ in uses.into_boxed() {
+                        rows.push(mapped::account_use_to_domain(use_)).expect("reserved uses");
                     }
                     Some(rows.into_boxed())
                 }
@@ -539,10 +520,9 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
     })
 }
 
-#[expect(clippy::disallowed_methods, reason = "project names cross the wire as UTF-8 bytes")]
-fn project_name(bytes: &[u8], path: w::Path) -> Result<Box<str>, Untranslatable> {
-    match core::str::from_utf8(bytes) {
-        Ok(name) => Ok(name.into()),
+fn project_name(bytes: Box<[u8]>, path: w::Path) -> Result<Box<str>, Untranslatable> {
+    match skein_codec::convert::text_to_domain(bytes) {
+        Ok(name) => Ok(name),
         Err(_) => Err(Untranslatable { path }),
     }
 }

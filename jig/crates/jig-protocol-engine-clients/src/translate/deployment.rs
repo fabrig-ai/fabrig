@@ -1,9 +1,8 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
-use super::{chips, owner, pieces, refusals, task, w};
+use super::{chips, owner, pieces, w};
 use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
-use jig_domain_accounts as accounts;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -12,260 +11,12 @@ use skein_lib::{List, Writer};
 pub(super) fn host_kind(value: fleet::HostKind) -> w::HostKind {
     mapped::host_kind_to_record(&value)
 }
-fn attempt(value: fleet::AttemptState) -> w::AttemptState {
-    match value {
-        fleet::AttemptState::Waiting => w::AttemptState::Waiting,
-        fleet::AttemptState::Adopted => w::AttemptState::Adopted,
-        fleet::AttemptState::Claimed => w::AttemptState::Claimed,
-        fleet::AttemptState::Cancelled => w::AttemptState::Cancelled,
-        fleet::AttemptState::Handed => w::AttemptState::Handed,
-        fleet::AttemptState::Acknowledged => w::AttemptState::Acknowledged,
-        fleet::AttemptState::Stray => w::AttemptState::Stray,
-        fleet::AttemptState::Kept => w::AttemptState::Kept,
-        fleet::AttemptState::Fenced => w::AttemptState::Fenced,
-        fleet::AttemptState::Closed => w::AttemptState::Closed,
-    }
-}
-pub(super) fn hello(value: fleet::HelloRefusal) -> w::HelloRefusal {
-    mapped::hello_refusal_to_record(&value)
-}
-pub(crate) fn account_place(value: accounts::Place) -> w::AccountPlace {
-    match value {
-        accounts::Place::Directory => w::AccountPlace::Directory,
-        accounts::Place::File => w::AccountPlace::File,
-    }
-}
-pub(crate) fn account_unread(value: accounts::Unread) -> w::AccountUnread {
-    match value {
-        accounts::Unread::Unreadable => w::AccountUnread::Unreadable,
-        accounts::Unread::Refused => w::AccountUnread::Refused,
-        accounts::Unread::Failed => w::AccountUnread::Failed,
-        accounts::Unread::Stalled => w::AccountUnread::Stalled,
-        accounts::Unread::TooLarge => w::AccountUnread::TooLarge,
-    }
-}
-pub(crate) fn account_state(value: d::AccountState) -> w::AccountState {
-    match value {
-        d::AccountState::Granted => w::AccountState::Granted,
-        d::AccountState::Asking => w::AccountState::Asking,
-        d::AccountState::SignInAgain => w::AccountState::SignInAgain,
-        d::AccountState::Misconfigured => w::AccountState::Misconfigured,
-        d::AccountState::Cancelled => w::AccountState::Cancelled,
-        d::AccountState::Moving => w::AccountState::Moving,
-        d::AccountState::Closing => w::AccountState::Closing,
-        d::AccountState::Later { until } => w::AccountState::Later(w::AccountStateLater {
-            until: match until {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-        }),
-        d::AccountState::Unloaded { at, why } => {
-            w::AccountState::Unloaded(w::AccountStateUnloaded { at: account_place(at), why: account_unread(why) })
-        }
-    }
-}
-fn person_action(value: people::CapacityAction) -> w::PersonCapacityAction {
-    match value {
-        people::CapacityAction::AccountSignIn => w::PersonCapacityAction::AccountSignIn,
-        people::CapacityAction::AccountSignOut => w::PersonCapacityAction::AccountSignOut,
-        people::CapacityAction::AccountChange => w::PersonCapacityAction::AccountChange,
-        people::CapacityAction::Create => w::PersonCapacityAction::Create,
-        people::CapacityAction::Compound => w::PersonCapacityAction::Compound,
-        people::CapacityAction::Service => w::PersonCapacityAction::Service,
-        people::CapacityAction::Adoption => w::PersonCapacityAction::Adoption,
-        people::CapacityAction::Roles => w::PersonCapacityAction::Roles,
-        people::CapacityAction::Policy => w::PersonCapacityAction::Policy,
-        people::CapacityAction::Application { connector } => {
-            w::PersonCapacityAction::Application(w::PersonCapacityActionApplication { connector })
-        }
-        people::CapacityAction::Note { name } => w::PersonCapacityAction::Note(w::PersonCapacityActionNote { name }),
-        people::CapacityAction::Pool { person } => {
-            w::PersonCapacityAction::Pool(w::PersonCapacityActionPool { person })
-        }
-        people::CapacityAction::Escalation { task } => {
-            w::PersonCapacityAction::Escalation(w::PersonCapacityActionEscalation { task })
-        }
-        people::CapacityAction::Words { task } => w::PersonCapacityAction::Words(w::PersonCapacityActionWords { task }),
-        people::CapacityAction::Question { task, question } => {
-            w::PersonCapacityAction::Question(w::PersonCapacityActionQuestion { task, question })
-        }
-        people::CapacityAction::Amend { task } => w::PersonCapacityAction::Amend(w::PersonCapacityActionAmend { task }),
-        people::CapacityAction::Move { task } => {
-            w::PersonCapacityAction::MoveTask(w::PersonCapacityActionMove { task })
-        }
-        people::CapacityAction::TakePerson { task } => {
-            w::PersonCapacityAction::TakePerson(w::PersonCapacityActionTakePerson { task })
-        }
-        people::CapacityAction::HandBackPerson { task } => {
-            w::PersonCapacityAction::HandBackPerson(w::PersonCapacityActionHandBackPerson { task })
-        }
-        people::CapacityAction::AnswerPerson { task } => {
-            w::PersonCapacityAction::AnswerPerson(w::PersonCapacityActionAnswerPerson { task })
-        }
-        people::CapacityAction::Stop { task } => w::PersonCapacityAction::Stop(w::PersonCapacityActionStop { task }),
-        people::CapacityAction::Conclude { task } => {
-            w::PersonCapacityAction::Conclude(w::PersonCapacityActionConclude { task })
-        }
-        people::CapacityAction::Cancel { task } => {
-            w::PersonCapacityAction::Cancel(w::PersonCapacityActionCancel { task })
-        }
-        people::CapacityAction::Lift { hold } => w::PersonCapacityAction::Lift(w::PersonCapacityActionLift { hold }),
-        people::CapacityAction::Release { task } => {
-            w::PersonCapacityAction::Release(w::PersonCapacityActionRelease { task })
-        }
-        people::CapacityAction::Proposal { proposer, number } => {
-            w::PersonCapacityAction::Proposal(w::PersonCapacityActionProposal {
-                proposer: task::proposal(&d::ProposalRef { proposer, number }).proposer,
-                number,
-            })
-        }
-        people::CapacityAction::MarkSeen { seen } => {
-            w::PersonCapacityAction::MarkSeen(w::PersonCapacityActionMarkSeen {
-                seen: crate::generated::client::seen_through_to_record(&seen),
-            })
-        }
-    }
-}
-fn person_cause(value: people::CapacityCause) -> w::PersonCapacityCause {
-    match value {
-        people::CapacityCause::Requests { limit } => {
-            w::PersonCapacityCause::Requests(w::PersonCapacityCauseRequests { limit })
-        }
-        people::CapacityCause::Pending { limit } => {
-            w::PersonCapacityCause::Pending(w::PersonCapacityCausePending { limit })
-        }
-        people::CapacityCause::Waiters { limit } => {
-            w::PersonCapacityCause::Waiters(w::PersonCapacityCauseWaiters { limit })
-        }
-        people::CapacityCause::Limit { which } => {
-            w::PersonCapacityCause::Limit(w::PersonCapacityCauseLimit { which: refusals::limit(which) })
-        }
-    }
-}
-fn task_action(value: tasks::CapacityAction) -> w::TaskCapacityAction {
-    match value {
-        tasks::CapacityAction::Place { hold } => w::TaskCapacityAction::Place(w::TaskCapacityActionPlace { hold }),
-        tasks::CapacityAction::Release => w::TaskCapacityAction::Release,
-        tasks::CapacityAction::Move => w::TaskCapacityAction::MoveTask,
-        tasks::CapacityAction::Batch { first, members } => {
-            w::TaskCapacityAction::Batch(w::TaskCapacityActionBatch { first, members })
-        }
-        tasks::CapacityAction::Proposal { number } => {
-            w::TaskCapacityAction::Proposal(w::TaskCapacityActionProposal { number })
-        }
-        tasks::CapacityAction::PersonProposal { number } => {
-            w::TaskCapacityAction::PersonProposal(w::TaskCapacityActionPersonProposal { number })
-        }
-        tasks::CapacityAction::Message { task, number } => {
-            w::TaskCapacityAction::Message(w::TaskCapacityActionMessage { task, number })
-        }
-        tasks::CapacityAction::Introduce { left, right } => {
-            w::TaskCapacityAction::Introduce(w::TaskCapacityActionIntroduce { left, right })
-        }
-        tasks::CapacityAction::Subscription { number } => {
-            w::TaskCapacityAction::Subscription(w::TaskCapacityActionSubscription { number })
-        }
-        tasks::CapacityAction::Effect { entry } => w::TaskCapacityAction::Effect(w::TaskCapacityActionEffect { entry }),
-        tasks::CapacityAction::Claim { attempt } => {
-            w::TaskCapacityAction::Claim(w::TaskCapacityActionClaim { attempt })
-        }
-        tasks::CapacityAction::Source { funder } => {
-            w::TaskCapacityAction::Source(w::TaskCapacityActionSource { funder: owner::funder(funder) })
-        }
-    }
-}
-fn task_cause(value: tasks::CapacityCause) -> w::TaskCapacityCause {
-    match value {
-        tasks::CapacityCause::PlacedHolds { limit } => {
-            w::TaskCapacityCause::PlacedHolds(w::TaskCapacityCausePlacedHolds { limit })
-        }
-        tasks::CapacityCause::ProjectPlacedHolds { limit } => {
-            w::TaskCapacityCause::ProjectPlacedHolds(w::TaskCapacityCauseProjectPlacedHolds { limit })
-        }
-        tasks::CapacityCause::PartyPlacedHolds { limit } => {
-            w::TaskCapacityCause::PartyPlacedHolds(w::TaskCapacityCausePartyPlacedHolds { limit })
-        }
-        tasks::CapacityCause::Exemptions { limit } => {
-            w::TaskCapacityCause::Exemptions(w::TaskCapacityCauseExemptions { limit })
-        }
-        tasks::CapacityCause::Tasks { limit } => w::TaskCapacityCause::Tasks(w::TaskCapacityCauseTasks { limit }),
-        tasks::CapacityCause::CreationFlights { limit } => {
-            w::TaskCapacityCause::CreationFlights(w::TaskCapacityCauseCreationFlights { limit })
-        }
-        tasks::CapacityCause::ResourceReports { limit } => {
-            w::TaskCapacityCause::ResourceReports(w::TaskCapacityCauseResourceReports { limit })
-        }
-        tasks::CapacityCause::ProjectTasks { limit } => {
-            w::TaskCapacityCause::ProjectTasks(w::TaskCapacityCauseProjectTasks { limit })
-        }
-        tasks::CapacityCause::Tree { limit } => w::TaskCapacityCause::Tree(w::TaskCapacityCauseTree { limit }),
-        tasks::CapacityCause::Delegates { limit } => {
-            w::TaskCapacityCause::Delegates(w::TaskCapacityCauseDelegates { limit })
-        }
-        tasks::CapacityCause::Holdings { limit } => {
-            w::TaskCapacityCause::Holdings(w::TaskCapacityCauseHoldings { limit })
-        }
-        tasks::CapacityCause::HoldWaiters { limit } => {
-            w::TaskCapacityCause::HoldWaiters(w::TaskCapacityCauseHoldWaiters { limit })
-        }
-        tasks::CapacityCause::Proposals { limit } => {
-            w::TaskCapacityCause::Proposals(w::TaskCapacityCauseProposals { limit })
-        }
-        tasks::CapacityCause::References { limit } => {
-            w::TaskCapacityCause::References(w::TaskCapacityCauseReferences { limit })
-        }
-        tasks::CapacityCause::Subscriptions { limit } => {
-            w::TaskCapacityCause::Subscriptions(w::TaskCapacityCauseSubscriptions { limit })
-        }
-        tasks::CapacityCause::Funders { limit } => w::TaskCapacityCause::Funders(w::TaskCapacityCauseFunders { limit }),
-        tasks::CapacityCause::Writers { limit } => w::TaskCapacityCause::Writers(w::TaskCapacityCauseWriters { limit }),
-        tasks::CapacityCause::Inbox { task, messages, bytes } => {
-            w::TaskCapacityCause::Inbox(w::TaskCapacityCauseInbox { task, messages, bytes })
-        }
-    }
-}
 #[must_use]
 pub fn capacity(value: d::Capacity) -> w::Capacity {
-    w::Capacity { used: value.used, limit: value.limit }
-}
-fn location(value: d::RunLocation) -> w::RunLocation {
-    match value {
-        d::RunLocation::None => w::RunLocation::None,
-        d::RunLocation::Connected { channel, kind } => {
-            w::RunLocation::Connected(w::RunLocationConnected { channel, kind: host_kind(kind) })
-        }
-        d::RunLocation::Adrift { channel, until, remaining } => w::RunLocation::Adrift(w::RunLocationAdrift {
-            channel,
-            until: match until {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-            remaining,
-        }),
-    }
+    mapped::capacity_to_record(&value)
 }
 pub fn run(value: &d::HostRun, limits: &w::Limits) -> Result<w::HostRun, w::Problem> {
-    Ok(w::HostRun {
-        task: task::link(&value.task, limits)?,
-        attempt: value.attempt,
-        kept: value.kept,
-        listed: value.listed,
-        state: attempt(value.state),
-        location: location(value.location),
-        grace_until: match value.grace_until {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    })
-}
-fn host_rule(value: jig_domain_core_vocabulary::HostRule) -> w::HostRule {
-    use jig_domain_core_vocabulary::HostRule;
-    match value {
-        HostRule::Open => w::HostRule::Open,
-        HostRule::Person(party) => w::HostRule::Person(w::HostPerson { party }),
-        HostRule::Several => w::HostRule::Several,
-        HostRule::Unknown => w::HostRule::Unknown,
-    }
+    mapped::host_run_to_record(value, &(&[], limits))
 }
 pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> {
     let mut runs = List::with_capacity(value.runs.len());
@@ -280,7 +31,7 @@ pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> 
         connected: value.connected,
         cut: value.cut,
         name: value.name.clone(),
-        rule: host_rule(value.rule),
+        rule: mapped::host_rule_to_record(&value.rule),
         programs: super::programs::logins(&value.programs, limits, limits.host_programs, w::paths::HOST_PROGRAMS)?,
         channel: value.channel,
         kind: host_kind(value.kind),
@@ -328,7 +79,7 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
             w::paths::ACCOUNT_SOURCES,
         )?,
         generation: value.generation,
-        state: account_state(value.state),
+        state: mapped::account_state_to_record(&value.state),
         spent_until: match value.spent_until {
             Some(item) => Some(item.as_nanos()),
             None => None,
@@ -344,27 +95,12 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
 }
 #[must_use]
 pub fn person_refusal(value: &people::CapacityRefusal) -> w::PersonCapacityRefusal {
-    w::PersonCapacityRefusal {
-        key: w::RequestKey { person: value.key.person, key: value.key.key },
-        project: value.project,
-        action: person_action(value.action),
-        at: value.at.as_nanos(),
-        cause: person_cause(value.cause),
-    }
+    mapped::person_capacity_refusal_to_record(value)
 }
 #[must_use]
 pub fn task_refusal(value: &tasks::CapacityRefusal) -> w::TaskCapacityRefusal {
-    w::TaskCapacityRefusal {
-        request: w::TaskCapacityRequest {
-            project: value.request.project,
-            by: owner::requester(value.request.by),
-            action: task_action(value.request.action),
-            cause: task_cause(value.request.cause),
-        },
-        at: value.at.as_nanos(),
-    }
+    mapped::task_capacity_refusal_to_record(value)
 }
-#[expect(clippy::too_many_lines, reason = "one field-for-field deployment document translation")]
 pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployment, w::Problem> {
     let mut hosts = List::with_capacity(value.hosts.len());
     for row in &value.hosts {
@@ -383,21 +119,11 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
     let accounts = account_pieces(&accounts, limits.deployment_accounts, w::paths::DEPLOYMENT_ACCOUNTS, limits)?;
     let mut projects = List::with_capacity(value.projects.len());
     for row in &value.projects {
-        projects
-            .push(w::ProjectCapacity { project: row.project, tasks: capacity(row.tasks), proposals: row.proposals })
-            .expect("supplied rows fit");
+        projects.push(mapped::project_capacity_to_record(row)).expect("supplied rows fit");
     }
     let mut hello_refusals = List::with_capacity(value.hello_refusals.len());
     for row in &value.hello_refusals {
-        hello_refusals
-            .push(w::HelloRefusalLine {
-                channel: row.channel,
-                at: row.at.as_nanos(),
-                slots: row.slots,
-                stop_bound: row.stop_bound,
-                why: hello(row.why),
-            })
-            .expect("supplied rows fit");
+        hello_refusals.push(mapped::hello_refusal_line_to_record(row)).expect("supplied rows fit");
     }
     let mut person_room_refusals = List::with_capacity(value.person_room_refusals.len());
     for row in &value.person_room_refusals {
@@ -414,26 +140,7 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
 
     let mut worker_settings = List::with_capacity(value.worker_settings.len());
     for row in &value.worker_settings {
-        worker_settings
-            .push(w::WorkerState {
-                number: row.number,
-                name: row.name.clone(),
-                places: row.places,
-                digest: row.digest,
-                withdrawn: row.withdrawn,
-                linked: row.linked,
-                pause: match row.pause {
-                    jig_domain_link::PauseState::Taking => w::WorkerPause::Taking,
-                    jig_domain_link::PauseState::Paused => w::WorkerPause::Paused,
-                    jig_domain_link::PauseState::Draining => w::WorkerPause::Draining,
-                    jig_domain_link::PauseState::Drained => w::WorkerPause::Drained,
-                },
-                since: match row.since {
-                    Some(at) => Some(at.as_nanos()),
-                    None => None,
-                },
-            })
-            .expect("worker row count");
+        worker_settings.push(mapped::worker_state_to_record(row)).expect("worker row count");
     }
     Ok(w::Deployment {
         worker_settings,
@@ -444,9 +151,9 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
         providers: super::catalogue::offers(&value.providers, limits.deployment_providers, limits)?,
         key_bytes: value.key_bytes,
         readiness: super::catalogue::readiness(&value.readiness, limits.deployment_readiness, limits)?,
-        store: w::StoreFill { bytes: value.store.bytes, mark: value.store.mark },
+        store: mapped::store_fill_to_record(&value.store),
         census: match &value.census {
-            Some(value) => Some(store_census(value)),
+            Some(value) => Some(mapped::store_census_to_record(value)),
             None => None,
         },
         hosts,
@@ -469,29 +176,6 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
         task_room_refusals_forgotten: value.task_room_refusals_forgotten,
         connectors,
     })
-}
-fn store_census(value: &d::StoreCensus) -> w::StoreCensus {
-    let mut keyspaces = List::with_capacity(value.keyspaces.len());
-    for row in &value.keyspaces {
-        let mut heads = List::with_capacity(row.heads.len());
-        for head in &row.heads {
-            heads.push(w::CensusHead { head: head.head, rows: head.rows }).expect("supplied heads fit");
-        }
-        keyspaces
-            .push(w::CensusKeyspace {
-                prefix: row.prefix.clone(),
-                name: row.name.as_bytes().into(),
-                rows: row.rows,
-                keys: row.keys,
-                values: row.values,
-                heads,
-                puts: row.puts,
-                erases: row.erases,
-                written: row.written,
-            })
-            .expect("supplied keyspaces fit");
-    }
-    w::StoreCensus { commit: value.commit, since: value.since, keyspaces }
 }
 fn chip_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());

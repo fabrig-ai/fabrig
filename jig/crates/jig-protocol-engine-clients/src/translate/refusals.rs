@@ -252,46 +252,6 @@ fn names(values: &[u64], bound: u32, path: w::Path) -> Result<skein_lib::List<u6
     Ok(rows)
 }
 
-fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
-    match value {
-        p::SettingFault::Shape => w::SettingFault::Shape,
-        p::SettingFault::Count => w::SettingFault::Count,
-        p::SettingFault::Reference => w::SettingFault::Reference,
-        p::SettingFault::Rules => w::SettingFault::Rules,
-        p::SettingFault::Budget => w::SettingFault::Budget,
-        p::SettingFault::Grace => w::SettingFault::Grace,
-        p::SettingFault::Owner => w::SettingFault::Owner,
-        p::SettingFault::Judged => w::SettingFault::Judged,
-        p::SettingFault::Linked => w::SettingFault::Linked,
-        p::SettingFault::Accounts => w::SettingFault::Accounts,
-        p::SettingFault::Range => w::SettingFault::Range,
-    }
-}
-
-/// Translate the document refusal facts without checking the settings again.
-fn encode_setting_detail(value: p::SettingDetail) -> w::SettingDetail {
-    w::SettingDetail {
-        member: match value.member {
-            p::SettingMember::Documents => w::SettingMember::Documents,
-            p::SettingMember::NameSegments => w::SettingMember::NameSegments,
-            p::SettingMember::NameSegmentBytes => w::SettingMember::NameSegmentBytes,
-            p::SettingMember::Path => w::SettingMember::Path,
-            p::SettingMember::Heading => w::SettingMember::Heading,
-            p::SettingMember::Connector => w::SettingMember::Connector,
-            p::SettingMember::StoredPolicy => w::SettingMember::StoredPolicy,
-        },
-        rule: match value.rule {
-            p::SettingRule::Maximum => w::SettingRule::Maximum,
-            p::SettingRule::Minimum => w::SettingRule::Minimum,
-            p::SettingRule::Registered => w::SettingRule::Registered,
-        },
-        document: value.document,
-        segment: value.segment,
-        supplied: value.supplied,
-        bound: value.bound,
-    }
-}
-
 fn encode_malformed_settings(
     setting: p::Setting,
     fault: p::SettingFault,
@@ -299,9 +259,9 @@ fn encode_malformed_settings(
 ) -> w::Malformed {
     w::Malformed::Settings(w::MalformedSettings {
         setting: super::settings::name(setting),
-        fault: encode_setting_fault(fault),
+        fault: mapped::setting_fault_to_record(&fault),
         detail: match detail {
-            Some(value) => Some(encode_setting_detail(value)),
+            Some(value) => Some(mapped::setting_detail_to_record(&value)),
             None => None,
         },
     })

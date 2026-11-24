@@ -191,7 +191,7 @@ pub fn authority(
                 jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
                 models,
             ),
-            tools: crate::translate::convert::tools_to_record(value.tools),
+            tools: crate::translate::convert::tools_to_record(&value.tools),
             grants,
             delegation: w::Delegation { kinds, tasks: value.tasks, depth: value.depth },
             spend: value.ceiling.spend,

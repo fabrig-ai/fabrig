@@ -154,3 +154,73 @@ pub(crate) fn task_wait_invalid_to_record(value: &t::AccountWhy) -> w::TaskWaitI
 pub(crate) fn proposal_decision_created_to_record((first, last): &(u64, u64)) -> w::ProposalDecisionCreated {
     w::ProposalDecisionCreated { first: *first, last: *last }
 }
+
+pub(crate) use super::settings::{
+    catalogue as catalogue_entry_to_record, catalogue_from_record as catalogue_entry_to_domain,
+    charter as charter_to_record, charter_document as charter_document_to_record,
+    charter_document_from_record as charter_document_to_domain, charter_from_record as charter_to_domain,
+    head as revision_head_to_record, model as setting_model_to_record, model_from_record as setting_model_to_domain,
+};
+pub(crate) use super::settings::{provider_address_to_domain, provider_address_to_record};
+
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+pub(crate) fn account_refusal_to_record(value: &jig_domain_accounts::Refusal) -> w::AccountRefusal {
+    super::accounts::refusal(*value)
+}
+
+pub(crate) fn setting_policy_to_record(
+    value: &jig_domain_core_vocabulary::ConfiguredPolicy,
+    (models, limits): &(&[crate::Model], &w::Limits),
+) -> Result<w::SettingPolicy, w::Problem> {
+    super::settings::policy(value, models, limits)
+}
+
+pub(crate) fn rules_to_record(
+    value: &jig_domain_authority::Rules,
+    (models, limits): &(&[crate::Model], &w::Limits),
+) -> Result<w::Rules, w::Problem> {
+    super::settings::rules(value, models, limits)
+}
+
+pub(crate) fn template_to_record(
+    value: &jig_domain_core_vocabulary::Template,
+    (models, limits): &(&[crate::Model], &w::Limits),
+) -> Result<w::Template, w::Problem> {
+    super::me::template(value, models, limits)
+}
+
+pub(crate) fn setting_policy_to_domain(
+    value: w::SettingPolicy,
+    (models, limits): &(&[crate::Model], &w::Limits),
+) -> Result<jig_domain_core_vocabulary::ConfiguredPolicy, w::Problem> {
+    match super::settings::policy_from_record(value, models, limits) {
+        Ok(record) => Ok(record),
+        Err(problem) => Err(setting_input_problem(problem)),
+    }
+}
+
+pub(crate) fn rules_to_domain(
+    value: w::Rules,
+    (models, limits): &(&[crate::Model], &w::Limits),
+) -> Result<jig_domain_authority::Rules, w::Problem> {
+    match super::settings::rules_from_record(value, models, limits) {
+        Ok(record) => Ok(record),
+        Err(problem) => Err(setting_input_problem(problem)),
+    }
+}
+
+pub(crate) fn template_to_domain(
+    value: w::Template,
+    (models, limits): &(&[crate::Model], &w::Limits),
+) -> Result<jig_domain_core_vocabulary::Template, w::Problem> {
+    match super::settings::template_from_record(value, models, limits) {
+        Ok(record) => Ok(record),
+        Err(problem) => Err(setting_input_problem(problem)),
+    }
+}
+
+// These owner checks name only a path. Settings ingress reports that path,
+// not the codec reason, for both owner and generated input refusals.
+fn setting_input_problem(value: super::Untranslatable) -> w::Problem {
+    value.path.problem(skein_codec::Reason::Tag)
+}

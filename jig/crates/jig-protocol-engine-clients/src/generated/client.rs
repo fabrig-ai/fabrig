@@ -3108,6 +3108,16 @@ pub fn provisional_turn_name_to_record(value: &jig_domain_views::TurnName) -> ji
     }
 }
 
+#[must_use]
+pub fn provisional_turn_name_to_domain(record: jig_client_protocol_wire::v44::ProvisionalTurnName) -> jig_domain_views::TurnName {
+    let jig_client_protocol_wire::v44::ProvisionalTurnName { attempt: field_000000, number: field_000001, retry: field_000002 } = record;
+    jig_domain_views::TurnName {
+        attempt: field_000000,
+        turn: field_000001,
+        retry: field_000002
+    }
+}
+
 pub fn run_state_to_record(value: &jig_domain_core_vocabulary::documents::Run) -> Result<jig_client_protocol_wire::v44::RunState, jig_client_protocol_wire::v44::Problem> {
     let jig_domain_core_vocabulary::documents::Run { task: field_000000, attempt: field_000001, committed_turn: field_000002, writing: field_000003, call: field_000004 } = value;
     Ok(jig_client_protocol_wire::v44::RunState {
@@ -3298,5 +3308,2177 @@ pub fn tree_fold_to_record(value: &jig_domain_core_vocabulary::documents::Folded
         phases: phase_counts_to_record(field_000001),
         held_below: *field_000002
     }
+}
+
+#[must_use]
+pub fn store_fill_to_record(value: &jig_domain_core_vocabulary::documents::StoreFill) -> jig_client_protocol_wire::v44::StoreFill {
+    let jig_domain_core_vocabulary::documents::StoreFill { bytes: field_000000, mark: field_000001 } = value;
+    jig_client_protocol_wire::v44::StoreFill {
+        bytes: *field_000000,
+        mark: *field_000001
+    }
+}
+
+#[must_use]
+pub fn census_head_to_record(value: &jig_domain_core_vocabulary::documents::CensusHead) -> jig_client_protocol_wire::v44::CensusHead {
+    let jig_domain_core_vocabulary::documents::CensusHead { head: field_000000, rows: field_000001 } = value;
+    jig_client_protocol_wire::v44::CensusHead {
+        head: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        rows: *field_000001
+    }
+}
+
+#[must_use]
+pub fn census_keyspace_to_record(value: &jig_domain_core_vocabulary::documents::CensusKeyspace) -> jig_client_protocol_wire::v44::CensusKeyspace {
+    let jig_domain_core_vocabulary::documents::CensusKeyspace { prefix: field_000000, name: field_000001, rows: field_000002, keys: field_000003, values: field_000004, heads: field_000005, puts: field_000006, erases: field_000007, written: field_000008 } = value;
+    jig_client_protocol_wire::v44::CensusKeyspace {
+        prefix: field_000000.clone(),
+        name: skein_codec::convert::text_to_record(field_000001),
+        rows: *field_000002,
+        keys: *field_000003,
+        values: *field_000004,
+        heads: {
+            let source = field_000005;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = census_head_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        puts: *field_000006,
+        erases: *field_000007,
+        written: *field_000008
+    }
+}
+
+#[must_use]
+pub fn store_census_to_record(value: &jig_domain_core_vocabulary::documents::StoreCensus) -> jig_client_protocol_wire::v44::StoreCensus {
+    let jig_domain_core_vocabulary::documents::StoreCensus { commit: field_000000, since: field_000001, keyspaces: field_000002 } = value;
+    jig_client_protocol_wire::v44::StoreCensus {
+        commit: *field_000000,
+        since: *field_000001,
+        keyspaces: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = census_keyspace_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    }
+}
+
+#[must_use]
+pub fn capacity_to_record(value: &jig_domain_core_vocabulary::documents::Capacity) -> jig_client_protocol_wire::v44::Capacity {
+    let jig_domain_core_vocabulary::documents::Capacity { used: field_000000, limit: field_000001 } = value;
+    jig_client_protocol_wire::v44::Capacity {
+        used: *field_000000,
+        limit: *field_000001
+    }
+}
+
+#[must_use]
+pub fn project_capacity_to_record(value: &jig_domain_core_vocabulary::documents::ProjectCapacity) -> jig_client_protocol_wire::v44::ProjectCapacity {
+    let jig_domain_core_vocabulary::documents::ProjectCapacity { project: field_000000, tasks: field_000001, proposals: field_000002 } = value;
+    jig_client_protocol_wire::v44::ProjectCapacity {
+        project: *field_000000,
+        tasks: capacity_to_record(field_000001),
+        proposals: *field_000002
+    }
+}
+
+#[must_use]
+pub fn attempt_state_to_record(value: &jig_domain_fleet::AttemptState) -> jig_client_protocol_wire::v44::AttemptState {
+    match value {
+        jig_domain_fleet::AttemptState::Waiting => jig_client_protocol_wire::v44::AttemptState::Waiting,
+        jig_domain_fleet::AttemptState::Adopted => jig_client_protocol_wire::v44::AttemptState::Adopted,
+        jig_domain_fleet::AttemptState::Claimed => jig_client_protocol_wire::v44::AttemptState::Claimed,
+        jig_domain_fleet::AttemptState::Cancelled => jig_client_protocol_wire::v44::AttemptState::Cancelled,
+        jig_domain_fleet::AttemptState::Handed => jig_client_protocol_wire::v44::AttemptState::Handed,
+        jig_domain_fleet::AttemptState::Acknowledged => jig_client_protocol_wire::v44::AttemptState::Acknowledged,
+        jig_domain_fleet::AttemptState::Stray => jig_client_protocol_wire::v44::AttemptState::Stray,
+        jig_domain_fleet::AttemptState::Kept => jig_client_protocol_wire::v44::AttemptState::Kept,
+        jig_domain_fleet::AttemptState::Fenced => jig_client_protocol_wire::v44::AttemptState::Fenced,
+        jig_domain_fleet::AttemptState::Closed => jig_client_protocol_wire::v44::AttemptState::Closed,
+    }
+}
+
+#[must_use]
+pub fn run_location_to_record(value: &jig_domain_core_vocabulary::documents::RunLocation) -> jig_client_protocol_wire::v44::RunLocation {
+    match value {
+        jig_domain_core_vocabulary::documents::RunLocation::None => jig_client_protocol_wire::v44::RunLocation::None,
+        jig_domain_core_vocabulary::documents::RunLocation::Connected { channel: field_000000, kind: field_000001 } => jig_client_protocol_wire::v44::RunLocation::Connected(jig_client_protocol_wire::v44::RunLocationConnected {
+            channel: *field_000000,
+            kind: host_kind_to_record(field_000001)
+        }),
+        jig_domain_core_vocabulary::documents::RunLocation::Adrift { channel: field_000000, until: field_000001, remaining: field_000002 } => jig_client_protocol_wire::v44::RunLocation::Adrift(jig_client_protocol_wire::v44::RunLocationAdrift {
+            channel: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            until: match field_000001 {
+                Some(item) => {
+                    let converted = skein_codec::convert::wall_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            },
+            remaining: match field_000002 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+    }
+}
+
+pub fn host_run_to_record(value: &jig_domain_core_vocabulary::documents::HostRun, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::HostRun, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::documents::HostRun { task: field_000000, attempt: field_000001, kept: field_000002, listed: field_000003, state: field_000004, location: field_000005, grace_until: field_000006 } = value;
+    Ok(jig_client_protocol_wire::v44::HostRun {
+        task: task_link_to_record(field_000000, context)?,
+        attempt: *field_000001,
+        kept: *field_000002,
+        listed: *field_000003,
+        state: attempt_state_to_record(field_000004),
+        location: run_location_to_record(field_000005),
+        grace_until: match field_000006 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn program_failure_to_record(value: &jig_domain_link::SourceFailure) -> jig_client_protocol_wire::v44::ProgramFailure {
+    match value {
+        jig_domain_link::SourceFailure::Missing => jig_client_protocol_wire::v44::ProgramFailure::Missing,
+        jig_domain_link::SourceFailure::Deadline => jig_client_protocol_wire::v44::ProgramFailure::Deadline,
+        jig_domain_link::SourceFailure::Unreadable => jig_client_protocol_wire::v44::ProgramFailure::Unreadable,
+        jig_domain_link::SourceFailure::Exited => jig_client_protocol_wire::v44::ProgramFailure::Exited,
+        jig_domain_link::SourceFailure::Unconfigured => jig_client_protocol_wire::v44::ProgramFailure::Unconfigured,
+        jig_domain_link::SourceFailure::Unknown => jig_client_protocol_wire::v44::ProgramFailure::Unknown,
+        jig_domain_link::SourceFailure::Closed => jig_client_protocol_wire::v44::ProgramFailure::Closed,
+    }
+}
+
+#[must_use]
+pub fn program_state_to_record(value: &jig_domain_link::LoginState) -> jig_client_protocol_wire::v44::ProgramState {
+    match value {
+        jig_domain_link::LoginState::Usable => jig_client_protocol_wire::v44::ProgramState::Usable,
+        jig_domain_link::LoginState::NotSignedIn => jig_client_protocol_wire::v44::ProgramState::NotSignedIn,
+        jig_domain_link::LoginState::SignedInOtherwise(held) => jig_client_protocol_wire::v44::ProgramState::SignedInOtherwise(jig_client_protocol_wire::v44::ProgramOtherwise { method: crate::translate::convert::login_method_to_record(held) }),
+        jig_domain_link::LoginState::Failed { reason: field_000000, detail: field_000001 } => jig_client_protocol_wire::v44::ProgramState::Failed(jig_client_protocol_wire::v44::ProgramFailed {
+            reason: program_failure_to_record(field_000000),
+            detail: field_000001.clone()
+        }),
+    }
+}
+
+#[must_use]
+pub fn program_sign_out_to_record(value: &jig_domain_link::SignOutResult) -> jig_client_protocol_wire::v44::ProgramSignOut {
+    match value {
+        jig_domain_link::SignOutResult::SignedOut => jig_client_protocol_wire::v44::ProgramSignOut::SignedOut,
+        jig_domain_link::SignOutResult::Failed { reason: field_000000, detail: field_000001 } => jig_client_protocol_wire::v44::ProgramSignOut::Failed(jig_client_protocol_wire::v44::ProgramFailed {
+            reason: program_failure_to_record(field_000000),
+            detail: field_000001.clone()
+        }),
+    }
+}
+
+#[must_use]
+pub fn program_login_to_record(value: &jig_domain_core_vocabulary::documents::ProgramLogin) -> jig_client_protocol_wire::v44::ProgramLogin {
+    let jig_domain_core_vocabulary::documents::ProgramLogin { name: field_000000, state: field_000001, sign_out: field_000002, cleanup: field_000003, cut: field_000004 } = value;
+    jig_client_protocol_wire::v44::ProgramLogin {
+        name: field_000000.clone(),
+        state: match field_000001 {
+            Some(item) => {
+                let converted = program_state_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        sign_out: match field_000002 {
+            Some(item) => {
+                let converted = program_sign_out_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        cleanup: *field_000003,
+        cut: *field_000004
+    }
+}
+
+#[must_use]
+pub fn host_rule_to_record(value: &jig_domain_core_vocabulary::HostRule) -> jig_client_protocol_wire::v44::HostRule {
+    match value {
+        jig_domain_core_vocabulary::HostRule::Open => jig_client_protocol_wire::v44::HostRule::Open,
+        jig_domain_core_vocabulary::HostRule::Person(held) => jig_client_protocol_wire::v44::HostRule::Person(jig_client_protocol_wire::v44::HostPerson { party: *held }),
+        jig_domain_core_vocabulary::HostRule::Several => jig_client_protocol_wire::v44::HostRule::Several,
+        jig_domain_core_vocabulary::HostRule::Unknown => jig_client_protocol_wire::v44::HostRule::Unknown,
+    }
+}
+
+#[must_use]
+pub fn hello_refusal_line_to_record(value: &jig_domain_core_vocabulary::documents::HelloRefusalLine) -> jig_client_protocol_wire::v44::HelloRefusalLine {
+    let jig_domain_core_vocabulary::documents::HelloRefusalLine { channel: field_000000, at: field_000001, slots: field_000002, stop_bound: field_000003, why: field_000004 } = value;
+    jig_client_protocol_wire::v44::HelloRefusalLine {
+        channel: *field_000000,
+        at: skein_codec::convert::wall_to_record(field_000001),
+        slots: *field_000002,
+        stop_bound: *field_000003,
+        why: hello_refusal_to_record(field_000004)
+    }
+}
+
+#[must_use]
+pub fn request_key_to_record(value: &jig_domain_people::RequestKey) -> jig_client_protocol_wire::v44::RequestKey {
+    let jig_domain_people::RequestKey { person: field_000000, key: field_000001 } = value;
+    jig_client_protocol_wire::v44::RequestKey {
+        person: *field_000000,
+        key: *field_000001
+    }
+}
+
+#[must_use]
+pub fn person_capacity_action_to_record(value: &jig_domain_people::CapacityAction) -> jig_client_protocol_wire::v44::PersonCapacityAction {
+    match value {
+        jig_domain_people::CapacityAction::Create => jig_client_protocol_wire::v44::PersonCapacityAction::Create,
+        jig_domain_people::CapacityAction::Compound => jig_client_protocol_wire::v44::PersonCapacityAction::Compound,
+        jig_domain_people::CapacityAction::Application { connector: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Application(jig_client_protocol_wire::v44::PersonCapacityActionApplication {
+            connector: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Note { name: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Note(jig_client_protocol_wire::v44::PersonCapacityActionNote {
+            name: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Service => jig_client_protocol_wire::v44::PersonCapacityAction::Service,
+        jig_domain_people::CapacityAction::Adoption => jig_client_protocol_wire::v44::PersonCapacityAction::Adoption,
+        jig_domain_people::CapacityAction::Roles => jig_client_protocol_wire::v44::PersonCapacityAction::Roles,
+        jig_domain_people::CapacityAction::Policy => jig_client_protocol_wire::v44::PersonCapacityAction::Policy,
+        jig_domain_people::CapacityAction::Pool { person: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Pool(jig_client_protocol_wire::v44::PersonCapacityActionPool {
+            person: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Escalation { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Escalation(jig_client_protocol_wire::v44::PersonCapacityActionEscalation {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Proposal { proposer: field_000000, number: field_000001 } => jig_client_protocol_wire::v44::PersonCapacityAction::Proposal(jig_client_protocol_wire::v44::PersonCapacityActionProposal {
+            proposer: proposer_to_record(field_000000),
+            number: *field_000001
+        }),
+        jig_domain_people::CapacityAction::Words { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Words(jig_client_protocol_wire::v44::PersonCapacityActionWords {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Question { task: field_000000, question: field_000001 } => jig_client_protocol_wire::v44::PersonCapacityAction::Question(jig_client_protocol_wire::v44::PersonCapacityActionQuestion {
+            task: *field_000000,
+            question: *field_000001
+        }),
+        jig_domain_people::CapacityAction::Amend { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Amend(jig_client_protocol_wire::v44::PersonCapacityActionAmend {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Move { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::MoveTask(jig_client_protocol_wire::v44::PersonCapacityActionMove {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::TakePerson { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::TakePerson(jig_client_protocol_wire::v44::PersonCapacityActionTakePerson {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::HandBackPerson { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::HandBackPerson(jig_client_protocol_wire::v44::PersonCapacityActionHandBackPerson {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::AnswerPerson { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::AnswerPerson(jig_client_protocol_wire::v44::PersonCapacityActionAnswerPerson {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Stop { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Stop(jig_client_protocol_wire::v44::PersonCapacityActionStop {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Cancel { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Cancel(jig_client_protocol_wire::v44::PersonCapacityActionCancel {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Release { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Release(jig_client_protocol_wire::v44::PersonCapacityActionRelease {
+            task: *field_000000
+        }),
+        jig_domain_people::CapacityAction::MarkSeen { seen: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::MarkSeen(jig_client_protocol_wire::v44::PersonCapacityActionMarkSeen {
+            seen: seen_through_to_record(field_000000)
+        }),
+        jig_domain_people::CapacityAction::AccountSignIn => jig_client_protocol_wire::v44::PersonCapacityAction::AccountSignIn,
+        jig_domain_people::CapacityAction::AccountSignOut => jig_client_protocol_wire::v44::PersonCapacityAction::AccountSignOut,
+        jig_domain_people::CapacityAction::AccountChange => jig_client_protocol_wire::v44::PersonCapacityAction::AccountChange,
+        jig_domain_people::CapacityAction::Lift { hold: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Lift(jig_client_protocol_wire::v44::PersonCapacityActionLift {
+            hold: *field_000000
+        }),
+        jig_domain_people::CapacityAction::Conclude { task: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityAction::Conclude(jig_client_protocol_wire::v44::PersonCapacityActionConclude {
+            task: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn person_capacity_cause_to_record(value: &jig_domain_people::CapacityCause) -> jig_client_protocol_wire::v44::PersonCapacityCause {
+    match value {
+        jig_domain_people::CapacityCause::Requests { limit: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityCause::Requests(jig_client_protocol_wire::v44::PersonCapacityCauseRequests {
+            limit: *field_000000
+        }),
+        jig_domain_people::CapacityCause::Pending { limit: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityCause::Pending(jig_client_protocol_wire::v44::PersonCapacityCausePending {
+            limit: *field_000000
+        }),
+        jig_domain_people::CapacityCause::Waiters { limit: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityCause::Waiters(jig_client_protocol_wire::v44::PersonCapacityCauseWaiters {
+            limit: *field_000000
+        }),
+        jig_domain_people::CapacityCause::Limit { which: field_000000 } => jig_client_protocol_wire::v44::PersonCapacityCause::Limit(jig_client_protocol_wire::v44::PersonCapacityCauseLimit {
+            which: admission_limit_to_record(field_000000)
+        }),
+    }
+}
+
+#[must_use]
+pub fn person_capacity_refusal_to_record(value: &jig_domain_people::CapacityRefusal) -> jig_client_protocol_wire::v44::PersonCapacityRefusal {
+    let jig_domain_people::CapacityRefusal { key: field_000000, project: field_000001, action: field_000002, at: field_000003, cause: field_000004 } = value;
+    jig_client_protocol_wire::v44::PersonCapacityRefusal {
+        key: request_key_to_record(field_000000),
+        project: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        action: person_capacity_action_to_record(field_000002),
+        at: skein_codec::convert::wall_to_record(field_000003),
+        cause: person_capacity_cause_to_record(field_000004)
+    }
+}
+
+#[must_use]
+pub fn task_capacity_action_to_record(value: &jig_domain_tasks::CapacityAction) -> jig_client_protocol_wire::v44::TaskCapacityAction {
+    match value {
+        jig_domain_tasks::CapacityAction::Batch { first: field_000000, members: field_000001 } => jig_client_protocol_wire::v44::TaskCapacityAction::Batch(jig_client_protocol_wire::v44::TaskCapacityActionBatch {
+            first: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            members: *field_000001
+        }),
+        jig_domain_tasks::CapacityAction::Proposal { number: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityAction::Proposal(jig_client_protocol_wire::v44::TaskCapacityActionProposal {
+            number: *field_000000
+        }),
+        jig_domain_tasks::CapacityAction::PersonProposal { number: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityAction::PersonProposal(jig_client_protocol_wire::v44::TaskCapacityActionPersonProposal {
+            number: *field_000000
+        }),
+        jig_domain_tasks::CapacityAction::Message { task: field_000000, number: field_000001 } => jig_client_protocol_wire::v44::TaskCapacityAction::Message(jig_client_protocol_wire::v44::TaskCapacityActionMessage {
+            task: *field_000000,
+            number: *field_000001
+        }),
+        jig_domain_tasks::CapacityAction::Source { funder: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityAction::Source(jig_client_protocol_wire::v44::TaskCapacityActionSource {
+            funder: funder_to_record(field_000000)
+        }),
+        jig_domain_tasks::CapacityAction::Introduce { left: field_000000, right: field_000001 } => jig_client_protocol_wire::v44::TaskCapacityAction::Introduce(jig_client_protocol_wire::v44::TaskCapacityActionIntroduce {
+            left: *field_000000,
+            right: *field_000001
+        }),
+        jig_domain_tasks::CapacityAction::Subscription { number: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityAction::Subscription(jig_client_protocol_wire::v44::TaskCapacityActionSubscription {
+            number: *field_000000
+        }),
+        jig_domain_tasks::CapacityAction::Effect { entry: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityAction::Effect(jig_client_protocol_wire::v44::TaskCapacityActionEffect {
+            entry: *field_000000
+        }),
+        jig_domain_tasks::CapacityAction::Claim { attempt: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityAction::Claim(jig_client_protocol_wire::v44::TaskCapacityActionClaim {
+            attempt: *field_000000
+        }),
+        jig_domain_tasks::CapacityAction::Release => jig_client_protocol_wire::v44::TaskCapacityAction::Release,
+        jig_domain_tasks::CapacityAction::Move => jig_client_protocol_wire::v44::TaskCapacityAction::MoveTask,
+        jig_domain_tasks::CapacityAction::Place { hold: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityAction::Place(jig_client_protocol_wire::v44::TaskCapacityActionPlace {
+            hold: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn task_capacity_cause_to_record(value: &jig_domain_tasks::CapacityCause) -> jig_client_protocol_wire::v44::TaskCapacityCause {
+    match value {
+        jig_domain_tasks::CapacityCause::Tasks { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Tasks(jig_client_protocol_wire::v44::TaskCapacityCauseTasks {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::CreationFlights { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::CreationFlights(jig_client_protocol_wire::v44::TaskCapacityCauseCreationFlights {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::ResourceReports { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::ResourceReports(jig_client_protocol_wire::v44::TaskCapacityCauseResourceReports {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::ProjectTasks { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::ProjectTasks(jig_client_protocol_wire::v44::TaskCapacityCauseProjectTasks {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Tree { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Tree(jig_client_protocol_wire::v44::TaskCapacityCauseTree {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Delegates { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Delegates(jig_client_protocol_wire::v44::TaskCapacityCauseDelegates {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Inbox { task: field_000000, messages: field_000001, bytes: field_000002 } => jig_client_protocol_wire::v44::TaskCapacityCause::Inbox(jig_client_protocol_wire::v44::TaskCapacityCauseInbox {
+            task: *field_000000,
+            messages: *field_000001,
+            bytes: *field_000002
+        }),
+        jig_domain_tasks::CapacityCause::Holdings { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Holdings(jig_client_protocol_wire::v44::TaskCapacityCauseHoldings {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::HoldWaiters { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::HoldWaiters(jig_client_protocol_wire::v44::TaskCapacityCauseHoldWaiters {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Proposals { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Proposals(jig_client_protocol_wire::v44::TaskCapacityCauseProposals {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::References { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::References(jig_client_protocol_wire::v44::TaskCapacityCauseReferences {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Subscriptions { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Subscriptions(jig_client_protocol_wire::v44::TaskCapacityCauseSubscriptions {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Funders { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Funders(jig_client_protocol_wire::v44::TaskCapacityCauseFunders {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Writers { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Writers(jig_client_protocol_wire::v44::TaskCapacityCauseWriters {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::PlacedHolds { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::PlacedHolds(jig_client_protocol_wire::v44::TaskCapacityCausePlacedHolds {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::ProjectPlacedHolds { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::ProjectPlacedHolds(jig_client_protocol_wire::v44::TaskCapacityCauseProjectPlacedHolds {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::PartyPlacedHolds { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::PartyPlacedHolds(jig_client_protocol_wire::v44::TaskCapacityCausePartyPlacedHolds {
+            limit: *field_000000
+        }),
+        jig_domain_tasks::CapacityCause::Exemptions { limit: field_000000 } => jig_client_protocol_wire::v44::TaskCapacityCause::Exemptions(jig_client_protocol_wire::v44::TaskCapacityCauseExemptions {
+            limit: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn task_capacity_request_to_record(value: &jig_domain_tasks::Capacity) -> jig_client_protocol_wire::v44::TaskCapacityRequest {
+    let jig_domain_tasks::Capacity { project: field_000000, by: field_000001, action: field_000002, cause: field_000003 } = value;
+    jig_client_protocol_wire::v44::TaskCapacityRequest {
+        project: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        by: requester_to_record(field_000001),
+        action: task_capacity_action_to_record(field_000002),
+        cause: task_capacity_cause_to_record(field_000003)
+    }
+}
+
+#[must_use]
+pub fn task_capacity_refusal_to_record(value: &jig_domain_tasks::CapacityRefusal) -> jig_client_protocol_wire::v44::TaskCapacityRefusal {
+    let jig_domain_tasks::CapacityRefusal { request: field_000000, at: field_000001 } = value;
+    jig_client_protocol_wire::v44::TaskCapacityRefusal {
+        request: task_capacity_request_to_record(field_000000),
+        at: skein_codec::convert::wall_to_record(field_000001)
+    }
+}
+
+#[must_use]
+pub fn watch_refusal_to_record(value: &jig_domain_core_vocabulary::WatchRefusal) -> jig_client_protocol_wire::v44::WatchRefusal {
+    match value {
+        jig_domain_core_vocabulary::WatchRefusal::Unknown => jig_client_protocol_wire::v44::WatchRefusal::Unknown,
+        jig_domain_core_vocabulary::WatchRefusal::NotAllowed => jig_client_protocol_wire::v44::WatchRefusal::NotAllowed,
+        jig_domain_core_vocabulary::WatchRefusal::Busy => jig_client_protocol_wire::v44::WatchRefusal::Busy,
+        jig_domain_core_vocabulary::WatchRefusal::SignedOut => jig_client_protocol_wire::v44::WatchRefusal::SignedOut,
+    }
+}
+
+#[must_use]
+pub fn account_place_to_record(value: &jig_domain_accounts::Place) -> jig_client_protocol_wire::v44::AccountPlace {
+    match value {
+        jig_domain_accounts::Place::Directory => jig_client_protocol_wire::v44::AccountPlace::Directory,
+        jig_domain_accounts::Place::File => jig_client_protocol_wire::v44::AccountPlace::File,
+    }
+}
+
+#[must_use]
+pub fn account_unread_to_record(value: &jig_domain_accounts::Unread) -> jig_client_protocol_wire::v44::AccountUnread {
+    match value {
+        jig_domain_accounts::Unread::Unreadable => jig_client_protocol_wire::v44::AccountUnread::Unreadable,
+        jig_domain_accounts::Unread::Refused => jig_client_protocol_wire::v44::AccountUnread::Refused,
+        jig_domain_accounts::Unread::Failed => jig_client_protocol_wire::v44::AccountUnread::Failed,
+        jig_domain_accounts::Unread::Stalled => jig_client_protocol_wire::v44::AccountUnread::Stalled,
+        jig_domain_accounts::Unread::TooLarge => jig_client_protocol_wire::v44::AccountUnread::TooLarge,
+    }
+}
+
+#[must_use]
+pub fn account_state_to_record(value: &jig_domain_core_vocabulary::documents::AccountState) -> jig_client_protocol_wire::v44::AccountState {
+    match value {
+        jig_domain_core_vocabulary::documents::AccountState::Asking => jig_client_protocol_wire::v44::AccountState::Asking,
+        jig_domain_core_vocabulary::documents::AccountState::Granted => jig_client_protocol_wire::v44::AccountState::Granted,
+        jig_domain_core_vocabulary::documents::AccountState::Later { until: field_000000 } => jig_client_protocol_wire::v44::AccountState::Later(jig_client_protocol_wire::v44::AccountStateLater {
+            until: match field_000000 {
+                Some(item) => {
+                    let converted = skein_codec::convert::wall_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_domain_core_vocabulary::documents::AccountState::SignInAgain => jig_client_protocol_wire::v44::AccountState::SignInAgain,
+        jig_domain_core_vocabulary::documents::AccountState::Misconfigured => jig_client_protocol_wire::v44::AccountState::Misconfigured,
+        jig_domain_core_vocabulary::documents::AccountState::Unloaded { at: field_000000, why: field_000001 } => jig_client_protocol_wire::v44::AccountState::Unloaded(jig_client_protocol_wire::v44::AccountStateUnloaded {
+            at: account_place_to_record(field_000000),
+            why: account_unread_to_record(field_000001)
+        }),
+        jig_domain_core_vocabulary::documents::AccountState::Cancelled => jig_client_protocol_wire::v44::AccountState::Cancelled,
+        jig_domain_core_vocabulary::documents::AccountState::Closing => jig_client_protocol_wire::v44::AccountState::Closing,
+        jig_domain_core_vocabulary::documents::AccountState::Moving => jig_client_protocol_wire::v44::AccountState::Moving,
+    }
+}
+
+#[must_use]
+pub fn account_use_to_record(value: &jig_domain_accounts::Use) -> jig_client_protocol_wire::v44::AccountUse {
+    match value {
+        jig_domain_accounts::Use::Party(held) => jig_client_protocol_wire::v44::AccountUse::Party(jig_client_protocol_wire::v44::AccountUseParty { party: *held }),
+        jig_domain_accounts::Use::Project(held) => jig_client_protocol_wire::v44::AccountUse::Project(jig_client_protocol_wire::v44::AccountUseProject { project: *held }),
+    }
+}
+
+#[must_use]
+pub fn account_use_to_domain(record: jig_client_protocol_wire::v44::AccountUse) -> jig_domain_people::Use {
+    match record {
+        jig_client_protocol_wire::v44::AccountUse::Party(held) => jig_domain_people::Use::Party({
+            let jig_client_protocol_wire::v44::AccountUseParty { party: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::AccountUse::Project(held) => jig_domain_people::Use::Project({
+            let jig_client_protocol_wire::v44::AccountUseProject { project: held } = held;
+            held
+        }),
+    }
+}
+
+#[must_use]
+pub fn payer_readiness_to_record(value: &jig_domain_core_vocabulary::documents::PayerReadiness) -> jig_client_protocol_wire::v44::PayerReadiness {
+    let jig_domain_core_vocabulary::documents::PayerReadiness { provider: field_000000, payer: field_000001, readiness: field_000002, settled: field_000003 } = value;
+    jig_client_protocol_wire::v44::PayerReadiness {
+        provider: *field_000000,
+        payer: account_use_to_record(field_000001),
+        readiness: readiness_to_record(field_000002),
+        settled: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn login_exit_to_record(value: &jig_domain_accounts::LoginExit) -> jig_client_protocol_wire::v44::LoginExit {
+    match value {
+        jig_domain_accounts::LoginExit::Exited { code: field_000000 } => jig_client_protocol_wire::v44::LoginExit::Exited(jig_client_protocol_wire::v44::LoginExitExited {
+            code: *field_000000
+        }),
+        jig_domain_accounts::LoginExit::Killed { signal: field_000000 } => jig_client_protocol_wire::v44::LoginExit::Killed(jig_client_protocol_wire::v44::LoginExitKilled {
+            signal: *field_000000
+        }),
+        jig_domain_accounts::LoginExit::NotStarted => jig_client_protocol_wire::v44::LoginExit::NotStarted,
+    }
+}
+
+#[must_use]
+pub fn login_exit_to_domain(record: jig_client_protocol_wire::v44::LoginExit) -> jig_domain_people::LoginExit {
+    match record {
+        jig_client_protocol_wire::v44::LoginExit::Exited(held) => {
+            let jig_client_protocol_wire::v44::LoginExitExited { code: field_000000 } = held;
+            jig_domain_people::LoginExit::Exited {
+                code: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::LoginExit::Killed(held) => {
+            let jig_client_protocol_wire::v44::LoginExitKilled { signal: field_000000 } = held;
+            jig_domain_people::LoginExit::Killed {
+                signal: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::LoginExit::NotStarted => jig_domain_people::LoginExit::NotStarted,
+    }
+}
+
+#[must_use]
+pub fn account_holder_to_record(value: &jig_domain_accounts::Holder) -> jig_client_protocol_wire::v44::AccountHolder {
+    match value {
+        jig_domain_accounts::Holder::Deployment => jig_client_protocol_wire::v44::AccountHolder::Deployment,
+        jig_domain_accounts::Holder::Party(held) => jig_client_protocol_wire::v44::AccountHolder::Party(jig_client_protocol_wire::v44::AccountHolderParty { party: *held }),
+    }
+}
+
+#[must_use]
+pub fn account_kind_to_record(value: &jig_domain_accounts::Kind) -> jig_client_protocol_wire::v44::AccountKind {
+    match value {
+        jig_domain_accounts::Kind::SignIn => jig_client_protocol_wire::v44::AccountKind::SignIn,
+        jig_domain_accounts::Kind::Key => jig_client_protocol_wire::v44::AccountKind::Key,
+        jig_domain_accounts::Kind::Program => jig_client_protocol_wire::v44::AccountKind::Program,
+        jig_domain_accounts::Kind::None => jig_client_protocol_wire::v44::AccountKind::None,
+    }
+}
+
+#[must_use]
+pub fn account_bound_to_record(value: &jig_domain_accounts::Bound) -> jig_client_protocol_wire::v44::AccountBound {
+    match value {
+        jig_domain_accounts::Bound::Accounts => jig_client_protocol_wire::v44::AccountBound::Accounts,
+        jig_domain_accounts::Bound::HolderAccounts => jig_client_protocol_wire::v44::AccountBound::HolderAccounts,
+        jig_domain_accounts::Bound::Sources => jig_client_protocol_wire::v44::AccountBound::Sources,
+        jig_domain_accounts::Bound::SignIns => jig_client_protocol_wire::v44::AccountBound::SignIns,
+    }
+}
+
+#[must_use]
+pub fn account_key_failure_to_record(value: &jig_domain_accounts::KeyFailure) -> jig_client_protocol_wire::v44::AccountKeyFailure {
+    match value {
+        jig_domain_accounts::KeyFailure::TooLong => jig_client_protocol_wire::v44::AccountKeyFailure::TooLong,
+        jig_domain_accounts::KeyFailure::NotStored => jig_client_protocol_wire::v44::AccountKeyFailure::NotStored,
+    }
+}
+
+#[must_use]
+pub fn worker_pause_mode_to_domain(record: jig_client_protocol_wire::v44::WorkerPauseMode) -> jig_domain_link::PauseMode {
+    match record {
+        jig_client_protocol_wire::v44::WorkerPauseMode::Resume => jig_domain_link::PauseMode::Resume,
+        jig_client_protocol_wire::v44::WorkerPauseMode::Pause => jig_domain_link::PauseMode::Pause,
+        jig_client_protocol_wire::v44::WorkerPauseMode::Drain => jig_domain_link::PauseMode::Drain,
+    }
+}
+
+#[must_use]
+pub fn worker_pause_to_record(value: &jig_domain_link::PauseState) -> jig_client_protocol_wire::v44::WorkerPause {
+    match value {
+        jig_domain_link::PauseState::Taking => jig_client_protocol_wire::v44::WorkerPause::Taking,
+        jig_domain_link::PauseState::Paused => jig_client_protocol_wire::v44::WorkerPause::Paused,
+        jig_domain_link::PauseState::Draining => jig_client_protocol_wire::v44::WorkerPause::Draining,
+        jig_domain_link::PauseState::Drained => jig_client_protocol_wire::v44::WorkerPause::Drained,
+    }
+}
+
+#[must_use]
+pub fn account_failure_to_record(value: &jig_domain_accounts::Failure) -> jig_client_protocol_wire::v44::AccountFailure {
+    match value {
+        jig_domain_accounts::Failure::Later { after: field_000000 } => jig_client_protocol_wire::v44::AccountFailure::Later(jig_client_protocol_wire::v44::AccountFailureLater {
+            after: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_domain_accounts::Failure::SignInAgain => jig_client_protocol_wire::v44::AccountFailure::SignInAgain,
+        jig_domain_accounts::Failure::MissingScope { scope: field_000000 } => jig_client_protocol_wire::v44::AccountFailure::MissingScope(jig_client_protocol_wire::v44::AccountFailureMissingScope {
+            scope: *field_000000
+        }),
+        jig_domain_accounts::Failure::Misconfigured => jig_client_protocol_wire::v44::AccountFailure::Misconfigured,
+        jig_domain_accounts::Failure::Unloaded { at: field_000000, why: field_000001 } => jig_client_protocol_wire::v44::AccountFailure::Unloaded(jig_client_protocol_wire::v44::AccountFailureUnloaded {
+            at: account_place_to_record(field_000000),
+            why: account_unread_to_record(field_000001)
+        }),
+        jig_domain_accounts::Failure::Cancelled => jig_client_protocol_wire::v44::AccountFailure::Cancelled,
+    }
+}
+
+#[must_use]
+pub fn account_end_to_record(value: &jig_domain_accounts::End) -> jig_client_protocol_wire::v44::AccountEnd {
+    match value {
+        jig_domain_accounts::End::Made { account: field_000000, declined: field_000001 } => jig_client_protocol_wire::v44::AccountEnd::Made(jig_client_protocol_wire::v44::AccountEndMade {
+            account: *field_000000,
+            declined: *field_000001
+        }),
+        jig_domain_accounts::End::Renewed { account: field_000000, declined: field_000001 } => jig_client_protocol_wire::v44::AccountEnd::Renewed(jig_client_protocol_wire::v44::AccountEndRenewed {
+            account: *field_000000,
+            declined: *field_000001
+        }),
+        jig_domain_accounts::End::Refused { refusal: field_000000 } => jig_client_protocol_wire::v44::AccountEnd::Refused(jig_client_protocol_wire::v44::AccountEndRefused {
+            refusal: crate::translate::client::account_refusal_to_record(field_000000)
+        }),
+        jig_domain_accounts::End::Failed { failure: field_000000 } => jig_client_protocol_wire::v44::AccountEnd::Failed(jig_client_protocol_wire::v44::AccountEndFailed {
+            failure: account_failure_to_record(field_000000)
+        }),
+    }
+}
+
+#[must_use]
+pub fn account_source_to_record(value: &jig_domain_core_vocabulary::documents::SourceLine) -> jig_client_protocol_wire::v44::AccountSource {
+    let jig_domain_core_vocabulary::documents::SourceLine { name: field_000000, place: field_000001, number: field_000002, kind: field_000003, state: field_000004, usable: field_000005, expiring: field_000006, attention: field_000007, spent_until: field_000008 } = value;
+    jig_client_protocol_wire::v44::AccountSource {
+        name: match field_000000 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        place: *field_000001,
+        number: *field_000002,
+        kind: account_kind_to_record(field_000003),
+        state: account_state_to_record(field_000004),
+        usable: *field_000005,
+        expiring: *field_000006,
+        attention: *field_000007,
+        spent_until: match field_000008 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn account_list_failure_to_record(value: &jig_domain_accounts::ReadFailure) -> jig_client_protocol_wire::v44::AccountListFailure {
+    match value {
+        jig_domain_accounts::ReadFailure::Refused { status: field_000000 } => jig_client_protocol_wire::v44::AccountListFailure::Refused(jig_client_protocol_wire::v44::AccountListRefused {
+            status: *field_000000
+        }),
+        jig_domain_accounts::ReadFailure::Unreachable => jig_client_protocol_wire::v44::AccountListFailure::Unreachable,
+        jig_domain_accounts::ReadFailure::Unreadable => jig_client_protocol_wire::v44::AccountListFailure::Unreadable,
+        jig_domain_accounts::ReadFailure::Deadline => jig_client_protocol_wire::v44::AccountListFailure::Deadline,
+        jig_domain_accounts::ReadFailure::Agent => jig_client_protocol_wire::v44::AccountListFailure::Agent,
+        jig_domain_accounts::ReadFailure::Room => jig_client_protocol_wire::v44::AccountListFailure::Room,
+    }
+}
+
+#[must_use]
+pub fn account_list_to_record(value: &jig_domain_core_vocabulary::documents::AccountList) -> jig_client_protocol_wire::v44::AccountList {
+    let jig_domain_core_vocabulary::documents::AccountList { read: field_000000, tried: field_000001, failure: field_000002, left_out: field_000003 } = value;
+    jig_client_protocol_wire::v44::AccountList {
+        read: match field_000000 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        tried: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        failure: match field_000002 {
+            Some(item) => {
+                let converted = account_list_failure_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        left_out: *field_000003
+    }
+}
+
+#[must_use]
+pub fn account_sign_in_to_record(value: &jig_domain_core_vocabulary::documents::SignInLine) -> jig_client_protocol_wire::v44::AccountSignIn {
+    let jig_domain_core_vocabulary::documents::SignInLine { source: field_000000, provider: field_000001, holder: field_000002 } = value;
+    jig_client_protocol_wire::v44::AccountSignIn {
+        source: *field_000000,
+        provider: *field_000001,
+        holder: account_holder_to_record(field_000002)
+    }
+}
+
+#[must_use]
+pub fn account_last_end_to_record(value: &jig_domain_core_vocabulary::documents::LastEnd) -> jig_client_protocol_wire::v44::AccountLastEnd {
+    let jig_domain_core_vocabulary::documents::LastEnd { source: field_000000, end: field_000001 } = value;
+    jig_client_protocol_wire::v44::AccountLastEnd {
+        source: *field_000000,
+        end: account_end_to_record(field_000001)
+    }
+}
+
+#[must_use]
+pub fn terminal_login_to_record(value: &jig_domain_accounts::TerminalLogin) -> jig_client_protocol_wire::v44::TerminalLogin {
+    let jig_domain_accounts::TerminalLogin { number: field_000000, provider: field_000001, name: field_000002, cancelled: field_000003 } = value;
+    jig_client_protocol_wire::v44::TerminalLogin {
+        number: *field_000000,
+        provider: *field_000001,
+        name: field_000002.clone(),
+        cancelled: *field_000003
+    }
+}
+
+#[must_use]
+pub fn login_end_to_record(value: &jig_domain_accounts::LoginEnd) -> jig_client_protocol_wire::v44::LoginEnd {
+    match value {
+        jig_domain_accounts::LoginEnd::SignedIn { source: field_000000 } => jig_client_protocol_wire::v44::LoginEnd::SignedIn(jig_client_protocol_wire::v44::LoginEndSignedIn {
+            source: *field_000000
+        }),
+        jig_domain_accounts::LoginEnd::NotFinished { exit: field_000000 } => jig_client_protocol_wire::v44::LoginEnd::NotFinished(jig_client_protocol_wire::v44::LoginEndNotFinished {
+            exit: match field_000000 {
+                Some(item) => {
+                    let converted = login_exit_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_domain_accounts::LoginEnd::Cancelled => jig_client_protocol_wire::v44::LoginEnd::Cancelled,
+        jig_domain_accounts::LoginEnd::Refused { refusal: field_000000 } => jig_client_protocol_wire::v44::LoginEnd::Refused(jig_client_protocol_wire::v44::LoginEndRefused {
+            refusal: crate::translate::client::account_refusal_to_record(field_000000)
+        }),
+    }
+}
+
+#[must_use]
+pub fn account_lent_end_to_record(value: &jig_domain_accounts::LentEnd) -> jig_client_protocol_wire::v44::AccountLentEnd {
+    let jig_domain_accounts::LentEnd { number: field_000000, end: field_000001 } = value;
+    jig_client_protocol_wire::v44::AccountLentEnd {
+        number: *field_000000,
+        end: login_end_to_record(field_000001)
+    }
+}
+
+pub fn provider_list_to_record(value: &jig_domain_accounts::ProviderList) -> Result<jig_client_protocol_wire::v44::ProviderList, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_accounts::ProviderList { keep: field_000000, drop: field_000001 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderList {
+        keep: {
+            let source = field_000000;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_LIST_KEEP.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        drop: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_LIST_DROP.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn provider_list_to_domain(record: jig_client_protocol_wire::v44::ProviderList) -> jig_domain_accounts::ProviderList {
+    let jig_client_protocol_wire::v44::ProviderList { keep: field_000000, drop: field_000001 } = record;
+    jig_domain_accounts::ProviderList {
+        keep: {
+            let source = field_000000;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        drop: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    }
+}
+
+#[must_use]
+pub fn provider_transport_to_record(value: &jig_domain_core_vocabulary::settings::providers::Transport) -> jig_client_protocol_wire::v44::ProviderTransport {
+    match value {
+        jig_domain_core_vocabulary::settings::providers::Transport::Tls { server_name: field_000000, trust: field_000001 } => jig_client_protocol_wire::v44::ProviderTransport::Tls(jig_client_protocol_wire::v44::ProviderTls {
+            server_name: field_000000.clone(),
+            trust: match field_000001 {
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_domain_core_vocabulary::settings::providers::Transport::Plaintext => jig_client_protocol_wire::v44::ProviderTransport::Plaintext,
+    }
+}
+
+#[must_use]
+pub fn provider_transport_to_domain(record: jig_client_protocol_wire::v44::ProviderTransport) -> jig_domain_core_vocabulary::settings::providers::Transport {
+    match record {
+        jig_client_protocol_wire::v44::ProviderTransport::Tls(held) => {
+            let jig_client_protocol_wire::v44::ProviderTls { server_name: field_000000, trust: field_000001 } = held;
+            jig_domain_core_vocabulary::settings::providers::Transport::Tls {
+                server_name: field_000000,
+                trust: match field_000001 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::ProviderTransport::Plaintext => jig_domain_core_vocabulary::settings::providers::Transport::Plaintext,
+    }
+}
+
+pub fn provider_registration_to_record(value: &jig_domain_core_vocabulary::settings::providers::Registration) -> Result<jig_client_protocol_wire::v44::ProviderRegistration, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::settings::providers::Registration { issuer: field_000000, client: field_000001, scopes: field_000002, name_hint: field_000003, authorization: field_000004, token: field_000005, revocation: field_000006, keys: field_000007, endpoint_transport: field_000008, must_grant: field_000009, resource: field_000010, redirect_path: field_000011, redirect_port: field_000012 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderRegistration {
+        issuer: field_000000.clone(),
+        client: field_000001.clone(),
+        scopes: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_REGISTRATION_SCOPES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        name_hint: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        authorization: field_000004.clone(),
+        token: field_000005.clone(),
+        revocation: match field_000006 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: field_000007.clone(),
+        endpoint_transport: provider_transport_to_record(field_000008),
+        must_grant: {
+            let source = field_000009;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_REGISTRATION_MUST_GRANT.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        resource: match field_000010 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        redirect_path: field_000011.clone(),
+        redirect_port: match field_000012 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn provider_registration_to_domain(record: jig_client_protocol_wire::v44::ProviderRegistration) -> jig_domain_core_vocabulary::settings::providers::Registration {
+    let jig_client_protocol_wire::v44::ProviderRegistration { issuer: field_000000, client: field_000001, scopes: field_000002, name_hint: field_000003, authorization: field_000004, token: field_000005, revocation: field_000006, keys: field_000007, endpoint_transport: field_000008, must_grant: field_000009, resource: field_000010, redirect_path: field_000011, redirect_port: field_000012 } = record;
+    jig_domain_core_vocabulary::settings::providers::Registration {
+        issuer: field_000000,
+        client: field_000001,
+        scopes: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        name_hint: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        authorization: field_000004,
+        token: field_000005,
+        revocation: match field_000006 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: field_000007,
+        endpoint_transport: provider_transport_to_domain(field_000008),
+        must_grant: {
+            let source = field_000009;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        resource: match field_000010 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        redirect_path: field_000011,
+        redirect_port: match field_000012 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+pub fn provider_to_record(value: &jig_domain_core_vocabulary::settings::providers::Provider) -> Result<jig_client_protocol_wire::v44::Provider, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::settings::providers::Provider { name: field_000000, number: field_000001, endpoint: field_000002, direct: field_000003, list: field_000004, signed_in_plan: field_000005, manage_usage: field_000006, sign_in: field_000007, keys: field_000008, programs: field_000009 } = value;
+    Ok(jig_client_protocol_wire::v44::Provider {
+        name: field_000000.clone(),
+        number: *field_000001,
+        endpoint: match field_000002 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        direct: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        list: match field_000004 {
+            Some(item) => {
+                let converted = provider_list_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        signed_in_plan: *field_000005,
+        manage_usage: match field_000006 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        sign_in: match field_000007 {
+            Some(item) => {
+                let converted = provider_registration_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: *field_000008,
+        programs: {
+            let source = field_000009;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_PROGRAMS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn provider_to_domain(record: jig_client_protocol_wire::v44::Provider) -> jig_domain_core_vocabulary::settings::providers::Provider {
+    let jig_client_protocol_wire::v44::Provider { name: field_000000, number: field_000001, endpoint: field_000002, direct: field_000003, list: field_000004, signed_in_plan: field_000005, manage_usage: field_000006, sign_in: field_000007, keys: field_000008, programs: field_000009 } = record;
+    jig_domain_core_vocabulary::settings::providers::Provider {
+        name: field_000000,
+        number: field_000001,
+        endpoint: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        direct: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        list: match field_000004 {
+            Some(item) => {
+                let converted = provider_list_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        signed_in_plan: field_000005,
+        manage_usage: match field_000006 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        sign_in: match field_000007 {
+            Some(item) => {
+                let converted = provider_registration_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: field_000008,
+        programs: {
+            let source = field_000009;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    }
+}
+
+#[must_use]
+pub fn provider_header_to_record(value: &jig_domain_core_vocabulary::settings::providers::Header) -> jig_client_protocol_wire::v44::ProviderHeader {
+    let jig_domain_core_vocabulary::settings::providers::Header { name: field_000000, value: field_000001 } = value;
+    jig_client_protocol_wire::v44::ProviderHeader {
+        name: field_000000.clone(),
+        value: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn provider_header_to_domain(record: jig_client_protocol_wire::v44::ProviderHeader) -> jig_domain_core_vocabulary::settings::providers::Header {
+    let jig_client_protocol_wire::v44::ProviderHeader { name: field_000000, value: field_000001 } = record;
+    jig_domain_core_vocabulary::settings::providers::Header {
+        name: field_000000,
+        value: field_000001
+    }
+}
+
+pub fn provider_endpoint_to_record(value: &jig_domain_core_vocabulary::settings::providers::Endpoint) -> Result<jig_client_protocol_wire::v44::ProviderEndpoint, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::settings::providers::Endpoint { name: field_000000, number: field_000001, dialect: field_000002, provider: field_000003, program: field_000004, address: field_000005, transport: field_000006, headers: field_000007, connect: field_000008, handshake: field_000009 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderEndpoint {
+        name: field_000000.clone(),
+        number: *field_000001,
+        dialect: *field_000002,
+        provider: field_000003.clone(),
+        program: match field_000004 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        address: crate::translate::client::provider_address_to_record(field_000005),
+        transport: provider_transport_to_record(field_000006),
+        headers: {
+            let source = field_000007;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_ENDPOINT_HEADERS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = provider_header_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        connect: *field_000008,
+        handshake: *field_000009
+    })
+}
+
+#[must_use]
+pub fn provider_endpoint_to_domain(record: jig_client_protocol_wire::v44::ProviderEndpoint) -> jig_domain_core_vocabulary::settings::providers::Endpoint {
+    let jig_client_protocol_wire::v44::ProviderEndpoint { name: field_000000, number: field_000001, dialect: field_000002, provider: field_000003, program: field_000004, address: field_000005, transport: field_000006, headers: field_000007, connect: field_000008, handshake: field_000009 } = record;
+    jig_domain_core_vocabulary::settings::providers::Endpoint {
+        name: field_000000,
+        number: field_000001,
+        dialect: field_000002,
+        provider: field_000003,
+        program: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        address: crate::translate::client::provider_address_to_domain(field_000005),
+        transport: provider_transport_to_domain(field_000006),
+        headers: {
+            let source = field_000007;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = provider_header_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        connect: field_000008,
+        handshake: field_000009
+    }
+}
+
+pub fn provider_setting_to_record(value: &jig_domain_core_vocabulary::settings::providers::ProviderSetting) -> Result<jig_client_protocol_wire::v44::ProviderSetting, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::settings::providers::ProviderSetting { provider: field_000000, endpoints: field_000001, withdrawn: field_000002 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderSetting {
+        provider: provider_to_record(field_000000)?,
+        endpoints: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_SETTING_ENDPOINTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = provider_endpoint_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        withdrawn: *field_000002
+    })
+}
+
+#[must_use]
+pub fn provider_setting_to_domain(record: jig_client_protocol_wire::v44::ProviderSetting) -> jig_domain_core_vocabulary::settings::providers::ProviderSetting {
+    let jig_client_protocol_wire::v44::ProviderSetting { provider: field_000000, endpoints: field_000001, withdrawn: field_000002 } = record;
+    jig_domain_core_vocabulary::settings::providers::ProviderSetting {
+        provider: provider_to_domain(field_000000),
+        endpoints: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = provider_endpoint_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        withdrawn: field_000002
+    }
+}
+
+#[must_use]
+pub fn worker_setting_to_record(value: &jig_domain_core_vocabulary::settings::WorkerSetting) -> jig_client_protocol_wire::v44::WorkerSetting {
+    let jig_domain_core_vocabulary::settings::WorkerSetting { number: field_000000, name: field_000001, places: field_000002, digest: field_000003, withdrawn: field_000004 } = value;
+    jig_client_protocol_wire::v44::WorkerSetting {
+        number: *field_000000,
+        name: field_000001.clone(),
+        places: *field_000002,
+        digest: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        withdrawn: *field_000004
+    }
+}
+
+#[must_use]
+pub fn worker_setting_to_domain(record: jig_client_protocol_wire::v44::WorkerSetting) -> jig_domain_core_vocabulary::settings::WorkerSetting {
+    let jig_client_protocol_wire::v44::WorkerSetting { number: field_000000, name: field_000001, places: field_000002, digest: field_000003, withdrawn: field_000004 } = record;
+    jig_domain_core_vocabulary::settings::WorkerSetting {
+        number: field_000000,
+        name: field_000001,
+        places: field_000002,
+        digest: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        withdrawn: field_000004
+    }
+}
+
+#[must_use]
+pub fn worker_state_to_record(value: &jig_domain_core_vocabulary::documents::WorkerState) -> jig_client_protocol_wire::v44::WorkerState {
+    let jig_domain_core_vocabulary::documents::WorkerState { number: field_000000, name: field_000001, places: field_000002, digest: field_000003, withdrawn: field_000004, linked: field_000005, since: field_000006, pause: field_000007 } = value;
+    jig_client_protocol_wire::v44::WorkerState {
+        number: *field_000000,
+        name: field_000001.clone(),
+        places: *field_000002,
+        digest: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        withdrawn: *field_000004,
+        linked: *field_000005,
+        since: match field_000006 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        pause: worker_pause_to_record(field_000007)
+    }
+}
+
+#[must_use]
+pub fn setting_hosts_to_record(value: &jig_domain_fleet::Kinds) -> jig_client_protocol_wire::v44::SettingHosts {
+    match value {
+        jig_domain_fleet::Kinds::Workers => jig_client_protocol_wire::v44::SettingHosts::Workers,
+        jig_domain_fleet::Kinds::Engine => jig_client_protocol_wire::v44::SettingHosts::Engine,
+        jig_domain_fleet::Kinds::Both => jig_client_protocol_wire::v44::SettingHosts::Both,
+    }
+}
+
+#[must_use]
+pub fn setting_hosts_to_domain(record: jig_client_protocol_wire::v44::SettingHosts) -> jig_domain_fleet::Kinds {
+    match record {
+        jig_client_protocol_wire::v44::SettingHosts::Workers => jig_domain_fleet::Kinds::Workers,
+        jig_client_protocol_wire::v44::SettingHosts::Engine => jig_domain_fleet::Kinds::Engine,
+        jig_client_protocol_wire::v44::SettingHosts::Both => jig_domain_fleet::Kinds::Both,
+    }
+}
+
+#[must_use]
+pub fn charter_part_to_record(value: &jig_domain_core_vocabulary::CharterPart) -> jig_client_protocol_wire::v44::CharterPart {
+    let jig_domain_core_vocabulary::CharterPart { on: field_000000, instructions: field_000001 } = value;
+    jig_client_protocol_wire::v44::CharterPart {
+        on: crate::translate::convert::reasons_to_record(field_000000),
+        instructions: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn charter_part_to_domain(record: jig_client_protocol_wire::v44::CharterPart) -> jig_domain_core_vocabulary::CharterPart {
+    let jig_client_protocol_wire::v44::CharterPart { on: field_000000, instructions: field_000001 } = record;
+    jig_domain_core_vocabulary::CharterPart {
+        on: crate::translate::convert::reasons_to_domain(field_000000),
+        instructions: field_000001
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
+pub fn overlay_to_record(value: &jig_domain_core_vocabulary::settings::Overlay) -> Result<jig_client_protocol_wire::v44::Overlay, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::settings::Overlay { rest: field_000000, model: field_000001, alternatives: field_000002, inspect: field_000003, modify: field_000004, shell: field_000005, agents: field_000006, tools: field_000007, hosts: field_000008, waiting: field_000009, resume: field_000010, turns: field_000011, time: field_000012, reserve_turns: field_000013, reserve_time: field_000014, call_timeout: field_000015, spend: field_000016, documents: field_000017, instructions: field_000018, parts: field_000019 } = value;
+    Ok(jig_client_protocol_wire::v44::Overlay {
+        rest: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        model: match field_000001 {
+            Some(item) => {
+                let converted = crate::translate::client::setting_model_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        alternatives: match field_000002 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::OVERLAY_ALTERNATIVES.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = crate::translate::client::setting_model_to_record(item)?;
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
+            None => None,
+        },
+        inspect: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        modify: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        shell: match field_000005 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        agents: match field_000006 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        tools: match field_000007 {
+            Some(item) => {
+                let converted = crate::translate::convert::tools_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        hosts: match field_000008 {
+            Some(item) => {
+                let converted = setting_hosts_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        waiting: match field_000009 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        resume: match field_000010 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        turns: match field_000011 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        time: match field_000012 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        reserve_turns: match field_000013 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        reserve_time: match field_000014 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        call_timeout: match field_000015 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        spend: match field_000016 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        documents: match field_000017 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::OVERLAY_DOCUMENTS.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = crate::translate::client::charter_document_to_record(item)?;
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
+            None => None,
+        },
+        instructions: field_000018.clone(),
+        parts: {
+            let source = field_000019;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::OVERLAY_PARTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = charter_part_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
+#[must_use]
+pub fn overlay_to_domain(record: jig_client_protocol_wire::v44::Overlay) -> jig_domain_core_vocabulary::settings::Overlay {
+    let jig_client_protocol_wire::v44::Overlay { rest: field_000000, model: field_000001, alternatives: field_000002, inspect: field_000003, modify: field_000004, shell: field_000005, agents: field_000006, tools: field_000007, hosts: field_000008, waiting: field_000009, resume: field_000010, turns: field_000011, time: field_000012, reserve_turns: field_000013, reserve_time: field_000014, call_timeout: field_000015, spend: field_000016, documents: field_000017, instructions: field_000018, parts: field_000019 } = record;
+    jig_domain_core_vocabulary::settings::Overlay {
+        rest: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        model: match field_000001 {
+            Some(item) => {
+                let converted = crate::translate::client::setting_model_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        alternatives: match field_000002 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = crate::translate::client::setting_model_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                };
+                Some(converted)
+            }
+            None => None,
+        },
+        inspect: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        modify: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        shell: match field_000005 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        agents: match field_000006 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        tools: match field_000007 {
+            Some(item) => {
+                let converted = crate::translate::convert::tools_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        hosts: match field_000008 {
+            Some(item) => {
+                let converted = setting_hosts_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        waiting: match field_000009 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        resume: match field_000010 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        turns: match field_000011 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        time: match field_000012 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        reserve_turns: match field_000013 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        reserve_time: match field_000014 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        call_timeout: match field_000015 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        spend: match field_000016 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        documents: match field_000017 {
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = crate::translate::client::charter_document_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                };
+                Some(converted)
+            }
+            None => None,
+        },
+        instructions: field_000018,
+        parts: {
+            let source = field_000019;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = charter_part_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    }
+}
+
+#[must_use]
+pub fn override_to_record(value: &jig_domain_core_vocabulary::settings::Override) -> jig_client_protocol_wire::v44::Override {
+    let jig_domain_core_vocabulary::settings::Override { name: field_000000, value: field_000001, reason: field_000002 } = value;
+    jig_client_protocol_wire::v44::Override {
+        name: field_000000.clone(),
+        value: *field_000001,
+        reason: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn override_to_domain(record: jig_client_protocol_wire::v44::Override) -> jig_domain_core_vocabulary::settings::Override {
+    let jig_client_protocol_wire::v44::Override { name: field_000000, value: field_000001, reason: field_000002 } = record;
+    jig_domain_core_vocabulary::settings::Override {
+        name: field_000000,
+        value: field_000001,
+        reason: field_000002
+    }
+}
+
+pub fn setting_value_to_record(value: &jig_domain_core_vocabulary::settings::Value, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::SettingValue, jig_client_protocol_wire::v44::Problem> {
+    Ok(match value {
+        jig_domain_core_vocabulary::settings::Value::Charter(held) => jig_client_protocol_wire::v44::SettingValue::Charter(Box::new(crate::translate::client::charter_to_record(held)?)),
+        jig_domain_core_vocabulary::settings::Value::Template(held) => jig_client_protocol_wire::v44::SettingValue::Template(Box::new(crate::translate::client::template_to_record(held, context)?)),
+        jig_domain_core_vocabulary::settings::Value::Policy(held) => jig_client_protocol_wire::v44::SettingValue::Policy(Box::new(crate::translate::client::setting_policy_to_record(held, context)?)),
+        jig_domain_core_vocabulary::settings::Value::Rules(held) => jig_client_protocol_wire::v44::SettingValue::Rules(Box::new(crate::translate::client::rules_to_record(held, context)?)),
+        jig_domain_core_vocabulary::settings::Value::Application(held) => jig_client_protocol_wire::v44::SettingValue::Application(jig_client_protocol_wire::v44::ApplicationValue { bytes: held.clone() }),
+        jig_domain_core_vocabulary::settings::Value::Model(held) => jig_client_protocol_wire::v44::SettingValue::Model(Box::new(crate::translate::client::catalogue_entry_to_record(held)?)),
+        jig_domain_core_vocabulary::settings::Value::Overlay(held) => jig_client_protocol_wire::v44::SettingValue::Overlay(Box::new(overlay_to_record(held)?)),
+        jig_domain_core_vocabulary::settings::Value::Worker(held) => jig_client_protocol_wire::v44::SettingValue::Worker(Box::new(worker_setting_to_record(held))),
+        jig_domain_core_vocabulary::settings::Value::Provider(held) => jig_client_protocol_wire::v44::SettingValue::Provider(Box::new(provider_setting_to_record(held)?)),
+        jig_domain_core_vocabulary::settings::Value::Limits(held) => jig_client_protocol_wire::v44::SettingValue::Limits(jig_client_protocol_wire::v44::LimitsValue { overrides: {
+                let source = held;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::LIMITS_VALUE_OVERRIDES.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = override_to_record(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            } }),
+    })
+}
+
+pub fn setting_value_to_domain(record: jig_client_protocol_wire::v44::SettingValue, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_domain_core_vocabulary::settings::Value, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::SettingValue::Charter(held) => jig_domain_core_vocabulary::settings::Value::Charter(Box::new(crate::translate::client::charter_to_domain(*held))),
+        jig_client_protocol_wire::v44::SettingValue::Template(held) => jig_domain_core_vocabulary::settings::Value::Template(Box::new(crate::translate::client::template_to_domain(*held, context)?)),
+        jig_client_protocol_wire::v44::SettingValue::Policy(held) => jig_domain_core_vocabulary::settings::Value::Policy(Box::new(crate::translate::client::setting_policy_to_domain(*held, context)?)),
+        jig_client_protocol_wire::v44::SettingValue::Rules(held) => jig_domain_core_vocabulary::settings::Value::Rules(Box::new(crate::translate::client::rules_to_domain(*held, context)?)),
+        jig_client_protocol_wire::v44::SettingValue::Application(held) => jig_domain_core_vocabulary::settings::Value::Application({
+            let jig_client_protocol_wire::v44::ApplicationValue { bytes: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::SettingValue::Model(held) => jig_domain_core_vocabulary::settings::Value::Model(Box::new(crate::translate::client::catalogue_entry_to_domain(*held))),
+        jig_client_protocol_wire::v44::SettingValue::Overlay(held) => jig_domain_core_vocabulary::settings::Value::Overlay(Box::new(overlay_to_domain(*held))),
+        jig_client_protocol_wire::v44::SettingValue::Worker(held) => jig_domain_core_vocabulary::settings::Value::Worker(Box::new(worker_setting_to_domain(*held))),
+        jig_client_protocol_wire::v44::SettingValue::Provider(held) => jig_domain_core_vocabulary::settings::Value::Provider(Box::new(provider_setting_to_domain(*held))),
+        jig_client_protocol_wire::v44::SettingValue::Limits(held) => jig_domain_core_vocabulary::settings::Value::Limits({
+            let jig_client_protocol_wire::v44::LimitsValue { overrides: held } = held;
+            {
+                let source = held;
+                let count = source.len();
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.into_boxed() {
+                    let converted = override_to_domain(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                Box::from(translated)
+            }
+        }),
+    })
+}
+
+pub fn setting_edit_to_domain(record: jig_client_protocol_wire::v44::SettingEdit, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_domain_core_vocabulary::settings::Edit, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::SettingEdit::Set(held) => jig_domain_core_vocabulary::settings::Edit::Set({
+            let jig_client_protocol_wire::v44::SettingSet { value: held } = held;
+            setting_value_to_domain(held, context)?
+        }),
+        jig_client_protocol_wire::v44::SettingEdit::Removed => jig_domain_core_vocabulary::settings::Edit::Removed,
+        jig_client_protocol_wire::v44::SettingEdit::Reset => jig_domain_core_vocabulary::settings::Edit::Reset,
+    })
+}
+
+pub fn setting_item_to_domain(record: jig_client_protocol_wire::v44::SettingItem, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_domain_core_vocabulary::settings::Item, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::SettingItem { setting: field_000000, edit: field_000001 } = record;
+    Ok(jig_domain_core_vocabulary::settings::Item {
+        setting: setting_to_domain(field_000000),
+        edit: setting_edit_to_domain(field_000001, context)?
+    })
+}
+
+#[must_use]
+pub fn model_act_to_domain(record: jig_client_protocol_wire::v44::ModelAct) -> jig_domain_core_vocabulary::settings::catalogue::ModelAct {
+    match record {
+        jig_client_protocol_wire::v44::ModelAct::Picker(held) => {
+            let jig_client_protocol_wire::v44::ModelPicker { number: field_000000, on: field_000001 } = held;
+            jig_domain_core_vocabulary::settings::catalogue::ModelAct::Picker {
+                number: field_000000,
+                on: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::ModelAct::Add(held) => {
+            let jig_client_protocol_wire::v44::ModelAdd { provider: field_000000, name: field_000001 } = held;
+            jig_domain_core_vocabulary::settings::catalogue::ModelAct::Add {
+                provider: field_000000,
+                name: field_000001
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn setting_fault_to_record(value: &jig_domain_people::SettingFault) -> jig_client_protocol_wire::v44::SettingFault {
+    match value {
+        jig_domain_people::SettingFault::Shape => jig_client_protocol_wire::v44::SettingFault::Shape,
+        jig_domain_people::SettingFault::Count => jig_client_protocol_wire::v44::SettingFault::Count,
+        jig_domain_people::SettingFault::Reference => jig_client_protocol_wire::v44::SettingFault::Reference,
+        jig_domain_people::SettingFault::Rules => jig_client_protocol_wire::v44::SettingFault::Rules,
+        jig_domain_people::SettingFault::Budget => jig_client_protocol_wire::v44::SettingFault::Budget,
+        jig_domain_people::SettingFault::Grace => jig_client_protocol_wire::v44::SettingFault::Grace,
+        jig_domain_people::SettingFault::Owner => jig_client_protocol_wire::v44::SettingFault::Owner,
+        jig_domain_people::SettingFault::Judged => jig_client_protocol_wire::v44::SettingFault::Judged,
+        jig_domain_people::SettingFault::Linked => jig_client_protocol_wire::v44::SettingFault::Linked,
+        jig_domain_people::SettingFault::Accounts => jig_client_protocol_wire::v44::SettingFault::Accounts,
+        jig_domain_people::SettingFault::Range => jig_client_protocol_wire::v44::SettingFault::Range,
+    }
+}
+
+#[must_use]
+pub fn setting_member_to_record(value: &jig_domain_people::SettingMember) -> jig_client_protocol_wire::v44::SettingMember {
+    match value {
+        jig_domain_people::SettingMember::Documents => jig_client_protocol_wire::v44::SettingMember::Documents,
+        jig_domain_people::SettingMember::NameSegments => jig_client_protocol_wire::v44::SettingMember::NameSegments,
+        jig_domain_people::SettingMember::NameSegmentBytes => jig_client_protocol_wire::v44::SettingMember::NameSegmentBytes,
+        jig_domain_people::SettingMember::Path => jig_client_protocol_wire::v44::SettingMember::Path,
+        jig_domain_people::SettingMember::Heading => jig_client_protocol_wire::v44::SettingMember::Heading,
+        jig_domain_people::SettingMember::Connector => jig_client_protocol_wire::v44::SettingMember::Connector,
+        jig_domain_people::SettingMember::StoredPolicy => jig_client_protocol_wire::v44::SettingMember::StoredPolicy,
+    }
+}
+
+#[must_use]
+pub fn setting_rule_to_record(value: &jig_domain_people::SettingRule) -> jig_client_protocol_wire::v44::SettingRule {
+    match value {
+        jig_domain_people::SettingRule::Maximum => jig_client_protocol_wire::v44::SettingRule::Maximum,
+        jig_domain_people::SettingRule::Minimum => jig_client_protocol_wire::v44::SettingRule::Minimum,
+        jig_domain_people::SettingRule::Registered => jig_client_protocol_wire::v44::SettingRule::Registered,
+    }
+}
+
+#[must_use]
+pub fn setting_detail_to_record(value: &jig_domain_people::SettingDetail) -> jig_client_protocol_wire::v44::SettingDetail {
+    let jig_domain_people::SettingDetail { member: field_000000, document: field_000001, segment: field_000002, rule: field_000003, supplied: field_000004, bound: field_000005 } = value;
+    jig_client_protocol_wire::v44::SettingDetail {
+        member: setting_member_to_record(field_000000),
+        document: *field_000001,
+        segment: *field_000002,
+        rule: setting_rule_to_record(field_000003),
+        supplied: *field_000004,
+        bound: *field_000005
+    }
+}
+
+#[must_use]
+pub fn setting_follows_to_record(value: &jig_domain_core_vocabulary::documents::Follows) -> jig_client_protocol_wire::v44::SettingFollows {
+    match value {
+        jig_domain_core_vocabulary::documents::Follows::Default => jig_client_protocol_wire::v44::SettingFollows::Default,
+        jig_domain_core_vocabulary::documents::Follows::Change => jig_client_protocol_wire::v44::SettingFollows::Change,
+        jig_domain_core_vocabulary::documents::Follows::Overlay => jig_client_protocol_wire::v44::SettingFollows::Overlay,
+    }
+}
+
+#[must_use]
+pub fn application_follows_to_record(value: &jig_domain_core_vocabulary::settings::application::Follows) -> jig_client_protocol_wire::v44::ApplicationFollows {
+    match value {
+        jig_domain_core_vocabulary::settings::application::Follows::Default => jig_client_protocol_wire::v44::ApplicationFollows::Default,
+        jig_domain_core_vocabulary::settings::application::Follows::Changed { revision: field_000000 } => jig_client_protocol_wire::v44::ApplicationFollows::Changed(jig_client_protocol_wire::v44::ApplicationRevision {
+            revision: *field_000000
+        }),
+        jig_domain_core_vocabulary::settings::application::Follows::Removed { revision: field_000000 } => jig_client_protocol_wire::v44::ApplicationFollows::Removed(jig_client_protocol_wire::v44::ApplicationRevision {
+            revision: *field_000000
+        }),
+    }
+}
+
+pub fn application_state_to_record(value: &jig_domain_core_vocabulary::settings::application::State) -> Result<jig_client_protocol_wire::v44::ApplicationState, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::settings::application::State { follows: field_000000, size: field_000001, charters: field_000002 } = value;
+    Ok(jig_client_protocol_wire::v44::ApplicationState {
+        follows: application_follows_to_record(field_000000),
+        size: *field_000001,
+        charters: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::APPLICATION_STATE_CHARTERS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = *item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+pub fn setting_line_to_record(value: &jig_domain_core_vocabulary::documents::SettingLine) -> Result<jig_client_protocol_wire::v44::SettingLine, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::documents::SettingLine { setting: field_000000, name: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = value;
+    Ok(jig_client_protocol_wire::v44::SettingLine {
+        setting: setting_to_record(field_000000),
+        name: match field_000001 {
+            Some(item) => {
+                let converted = document_text_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        follows: setting_follows_to_record(field_000002),
+        last: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        application: match field_000004 {
+            Some(item) => {
+                let converted = application_state_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn revision_decider_to_record(value: &jig_domain_core_vocabulary::settings::Decider) -> jig_client_protocol_wire::v44::RevisionDecider {
+    match value {
+        jig_domain_core_vocabulary::settings::Decider::FirstStart => jig_client_protocol_wire::v44::RevisionDecider::FirstStart,
+        jig_domain_core_vocabulary::settings::Decider::Release => jig_client_protocol_wire::v44::RevisionDecider::Release,
+        jig_domain_core_vocabulary::settings::Decider::Party(held) => jig_client_protocol_wire::v44::RevisionDecider::Party(jig_client_protocol_wire::v44::RevisionParty { number: *held }),
+        jig_domain_core_vocabulary::settings::Decider::List { provider: field_000000 } => jig_client_protocol_wire::v44::RevisionDecider::List(jig_client_protocol_wire::v44::RevisionList {
+            provider: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn held_revision_to_record(value: &jig_domain_core_vocabulary::documents::HeldRevision) -> jig_client_protocol_wire::v44::HeldRevision {
+    let jig_domain_core_vocabulary::documents::HeldRevision { head: field_000000, holders: field_000001 } = value;
+    jig_client_protocol_wire::v44::HeldRevision {
+        head: crate::translate::client::revision_head_to_record(field_000000),
+        holders: *field_000001
+    }
+}
+
+#[must_use]
+pub fn settings_proposal_to_record(value: &jig_domain_core_vocabulary::documents::SettingsProposal) -> jig_client_protocol_wire::v44::SettingsProposal {
+    let jig_domain_core_vocabulary::documents::SettingsProposal { proposer: field_000000, number: field_000001 } = value;
+    jig_client_protocol_wire::v44::SettingsProposal {
+        proposer: proposer_to_record(field_000000),
+        number: *field_000001
+    }
+}
+
+pub fn settings_document_to_record(value: &jig_domain_core_vocabulary::documents::Settings) -> Result<jig_client_protocol_wire::v44::SettingsDocument, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::documents::Settings { newest: field_000000, settings: field_000001, held: field_000002, pending: field_000003 } = value;
+    Ok(jig_client_protocol_wire::v44::SettingsDocument {
+        newest: *field_000000,
+        settings: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = setting_line_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        held: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = held_revision_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        pending: {
+            let source = field_000003;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = settings_proposal_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn sized_edit_to_record(value: &jig_domain_core_vocabulary::settings::application::SizedEdit) -> jig_client_protocol_wire::v44::SizedEdit {
+    match value {
+        jig_domain_core_vocabulary::settings::application::SizedEdit::Set { size: field_000000 } => jig_client_protocol_wire::v44::SizedEdit::Set(jig_client_protocol_wire::v44::ApplicationSize {
+            size: *field_000000
+        }),
+        jig_domain_core_vocabulary::settings::application::SizedEdit::Remove => jig_client_protocol_wire::v44::SizedEdit::Remove,
+        jig_domain_core_vocabulary::settings::application::SizedEdit::Reset => jig_client_protocol_wire::v44::SizedEdit::Reset,
+    }
+}
+
+pub fn setting_document_to_record(value: &jig_domain_core_vocabulary::reads::SettingDocument, context: &(&[crate::Model] , &jig_client_protocol_wire::Limits)) -> Result<jig_client_protocol_wire::v44::SettingDocument, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::reads::SettingDocument { setting: field_000000, revision: field_000001, value: field_000002, application: field_000003, proposed: field_000004, overlay: field_000005 } = value;
+    Ok(jig_client_protocol_wire::v44::SettingDocument {
+        setting: setting_to_record(field_000000),
+        revision: *field_000001,
+        value: match field_000002 {
+            Some(item) => {
+                let converted = setting_value_to_record(item, context)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        application: match field_000003 {
+            Some(item) => {
+                let converted = application_state_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        proposed: match field_000004 {
+            Some(item) => {
+                let converted = sized_edit_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        overlay: match field_000005 {
+            Some(item) => {
+                let converted = overlay_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn revision_row_to_record(value: &jig_domain_core_vocabulary::reads::RevisionRow) -> jig_client_protocol_wire::v44::RevisionRow {
+    let jig_domain_core_vocabulary::reads::RevisionRow { head: field_000000, items: field_000001, more: field_000002 } = value;
+    jig_client_protocol_wire::v44::RevisionRow {
+        head: crate::translate::client::revision_head_to_record(field_000000),
+        items: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = revision_item_head_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        more: *field_000002
+    }
+}
+
+#[must_use]
+pub fn revisions_page_to_record(value: &jig_domain_core_vocabulary::reads::RevisionsPage) -> jig_client_protocol_wire::v44::RevisionsPage {
+    let jig_domain_core_vocabulary::reads::RevisionsPage { rows: field_000000, next: field_000001, forgotten: field_000002 } = value;
+    jig_client_protocol_wire::v44::RevisionsPage {
+        rows: {
+            let source = field_000000;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source {
+                let converted = revision_row_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        next: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        forgotten: *field_000002
+    }
+}
+
+#[must_use]
+pub fn task_text_field_to_record(value: &jig_domain_core_vocabulary::reads::TaskTextField) -> jig_client_protocol_wire::v44::TaskTextField {
+    match value {
+        jig_domain_core_vocabulary::reads::TaskTextField::Specification => jig_client_protocol_wire::v44::TaskTextField::Specification,
+        jig_domain_core_vocabulary::reads::TaskTextField::Instructions => jig_client_protocol_wire::v44::TaskTextField::Instructions,
+        jig_domain_core_vocabulary::reads::TaskTextField::Result => jig_client_protocol_wire::v44::TaskTextField::Result,
+    }
+}
+
+#[must_use]
+pub fn task_text_field_to_domain(record: jig_client_protocol_wire::v44::TaskTextField) -> jig_domain_core_vocabulary::reads::TaskTextField {
+    match record {
+        jig_client_protocol_wire::v44::TaskTextField::Specification => jig_domain_core_vocabulary::reads::TaskTextField::Specification,
+        jig_client_protocol_wire::v44::TaskTextField::Instructions => jig_domain_core_vocabulary::reads::TaskTextField::Instructions,
+        jig_client_protocol_wire::v44::TaskTextField::Result => jig_domain_core_vocabulary::reads::TaskTextField::Result,
+    }
+}
+
+#[must_use]
+pub fn task_text_to_record(value: &jig_domain_core_vocabulary::reads::TaskText) -> jig_client_protocol_wire::v44::TaskText {
+    let jig_domain_core_vocabulary::reads::TaskText { task: field_000000, field: field_000001, from: field_000002, total: field_000003, next: field_000004, bytes: field_000005 } = value;
+    jig_client_protocol_wire::v44::TaskText {
+        task: *field_000000,
+        field: task_text_field_to_record(field_000001),
+        from: *field_000002,
+        total: *field_000003,
+        next: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        words: field_000005.clone()
+    }
+}
+
+pub fn application_review_to_record(value: &jig_domain_core_vocabulary::documents::ApplicationReview) -> Result<jig_client_protocol_wire::v44::ApplicationReview, jig_client_protocol_wire::v44::Problem> {
+    let jig_domain_core_vocabulary::documents::ApplicationReview { edit: field_000000, now: field_000001 } = value;
+    Ok(jig_client_protocol_wire::v44::ApplicationReview {
+        edit: sized_edit_to_record(field_000000),
+        now: match field_000001 {
+            Some(item) => {
+                let converted = application_state_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        }
+    })
 }
 
