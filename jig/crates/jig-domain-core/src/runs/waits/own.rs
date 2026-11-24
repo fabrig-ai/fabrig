@@ -143,7 +143,7 @@ impl Own {
                     if let Some(report) = core.reported_waits.get(&row.number) {
                         for wait in report {
                             let since = core.wait_since(wait.kind, wait.since);
-                            let bound = super::reports::bound(limits, row, wait, since);
+                            let bound = super::reports::bound(limits, tasks::deadline(row, core.run_wall), wait, since);
                             self.push(row.number, wait.kind, wait.object.clone(), since, bound);
                         }
                     } else {
@@ -157,8 +157,8 @@ impl Own {
                         row.number,
                         WaitKind::Delegate,
                         WaitObject::Task(*number),
-                        core.wait_since(WaitKind::Delegate, delegate.created_at),
-                        deadline(row),
+                        core.wait_since(WaitKind::Delegate, after_release(row, delegate.created_at)),
+                        deadline(core, row),
                     );
                 }
             }
@@ -200,7 +200,7 @@ impl Own {
                 WaitKind::Question,
                 WaitObject::Question { number: credit.number, answerer },
                 since,
-                clock(since, limits.waits.question, row.authority.budget.deadline, AtBound::PassUp),
+                clock(since, limits.waits.question, tasks::deadline(row, core.run_wall), AtBound::PassUp),
             );
         }
     }
@@ -215,8 +215,8 @@ impl Own {
                         break;
                     }
                 }
-                let since = core.wait_since(WaitKind::Dependency, since);
-                self.push(row.number, WaitKind::Dependency, WaitObject::Task(*number), since, deadline(row));
+                let since = core.wait_since(WaitKind::Dependency, after_release(row, since));
+                self.push(row.number, WaitKind::Dependency, WaitObject::Task(*number), since, deadline(core, row));
             }
         }
     }
@@ -249,19 +249,7 @@ impl Own {
         } else {
             return;
         };
-        let (kind, figure, reset) = match wait {
-            TaskRunWait::Worker { until, .. } => (WaitKind::Host, limits.waits.host, Some(until)),
-            TaskRunWait::Host
-            | TaskRunWait::Refused(_)
-            | TaskRunWait::Account { why: TaskWaitWhy::Host | TaskWaitWhy::Untooled { .. }, .. } => {
-                (WaitKind::Host, limits.waits.host, None)
-            }
-            TaskRunWait::Account {
-                why: TaskWaitWhy::Source(TaskSourceState::Later { until } | TaskSourceState::Limited { until }),
-                ..
-            } => (WaitKind::Account, limits.waits.account, until),
-            TaskRunWait::Account { .. } | TaskRunWait::Credential => (WaitKind::Account, limits.waits.account, None),
-        };
+        let (kind, figure, reset) = run_clock(limits.waits, wait);
         let since = core.wait_since(kind, row.phase_since);
         let from = since.max(reset.unwrap_or(since));
         self.push(
@@ -269,7 +257,7 @@ impl Own {
             kind,
             WaitObject::Run(wait),
             since,
-            clock(from, figure, row.authority.budget.deadline, AtBound::Hold),
+            clock(from, figure, tasks::deadline(row, core.run_wall), AtBound::Hold),
         );
     }
 
@@ -288,14 +276,42 @@ impl Own {
                 tasks::SubscriptionKind::Task { .. } | tasks::SubscriptionKind::Topic { .. } => {}
             }
         }
-        let bound = if row.authority.budget.deadline.is_none()
+        let bound = if tasks::deadline(row, core.run_wall).is_none()
             && (row.flags.conversation || row.flags.ended_by == tasks::EndedBy::Standing)
         {
             Bound::None(Unbounded::Standing)
         } else {
-            clock(since, limits.waits.news, row.authority.budget.deadline, AtBound::Hold)
+            clock(since, limits.waits.news, tasks::deadline(row, core.run_wall), AtBound::Hold)
         };
         self.push(row.number, WaitKind::News, WaitObject::News { subscriptions, timer }, since, bound);
+    }
+}
+
+// Release starts a new task wait. The original additions and delegate
+// creations are still the facts for waits that haven't been released.
+fn after_release(row: &TaskRecord, since: Wall) -> Wall {
+    if row.due_reason == tasks::Why::Released
+        && let Phase::Waiting | Phase::Active(tasks::Active::Idle) = row.phase
+    {
+        since.max(row.phase_since)
+    } else {
+        since
+    }
+}
+
+pub(super) fn run_clock(figures: crate::Figures, wait: TaskRunWait) -> (WaitKind, Duration, Option<Wall>) {
+    match wait {
+        TaskRunWait::Worker { until, .. } => (WaitKind::Host, figures.host, Some(until)),
+        TaskRunWait::Host
+        | TaskRunWait::Refused(_)
+        | TaskRunWait::Account { why: TaskWaitWhy::Host | TaskWaitWhy::Untooled { .. }, .. } => {
+            (WaitKind::Host, figures.host, None)
+        }
+        TaskRunWait::Account {
+            why: TaskWaitWhy::Source(TaskSourceState::Later { until } | TaskSourceState::Limited { until }),
+            ..
+        } => (WaitKind::Account, figures.account, until),
+        TaskRunWait::Account { .. } | TaskRunWait::Credential => (WaitKind::Account, figures.account, None),
     }
 }
 
@@ -395,7 +411,7 @@ fn entry(
 ) -> Wait {
     let since = core.wait_since(WaitKind::Party, since);
     let (figure, deadline) = match kind {
-        EntryKind::Question { .. } => (limits.waits.party, row.authority.budget.deadline),
+        EntryKind::Question { .. } => (limits.waits.party, tasks::deadline(row, core.run_wall)),
         EntryKind::Escalation { .. } => (limits.tasks.escalation_stall, None),
         EntryKind::Proposal { .. } => (limits.tasks.proposal_stall, None),
         EntryKind::PersonTask => (row.person_wait.expect("answerable person interval").stall, None),
@@ -440,13 +456,17 @@ fn not_before(bound: Bound, since: Wall) -> Bound {
 }
 
 pub(super) fn clock(since: Wall, figure: Duration, deadline: Option<Wall>, then: AtBound) -> Bound {
-    let due = Wall::from_nanos(since.as_nanos().saturating_add(figure.as_nanos()));
+    let due = figure_at(since, figure);
     Bound::At { at: due.min(deadline.unwrap_or(due)), then }
 }
 
-fn deadline(row: &TaskRecord) -> Bound {
-    match row.authority.budget.deadline {
+fn deadline(core: &Core, row: &TaskRecord) -> Bound {
+    match tasks::deadline(row, core.run_wall) {
         Some(at) => Bound::At { at, then: AtBound::Hold },
         None => Bound::None(Unbounded::NoDeadline),
     }
+}
+
+pub(super) fn figure_at(since: Wall, figure: Duration) -> Wall {
+    Wall::from_nanos(since.as_nanos().saturating_add(figure.as_nanos()))
 }

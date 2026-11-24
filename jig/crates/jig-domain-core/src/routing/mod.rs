@@ -367,6 +367,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
     if core.start_failure().is_some() {
@@ -388,6 +389,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut work = Queue::uncapped();
     let mut out = route_account(core, env, &mut work, accounts::Event::Want);
     assert!(work.is_empty(), "wanting the accounts answers no party");
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     if core.start_phase().is_some() {
         let mut writes = Queue::uncapped();
@@ -452,6 +454,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -799,6 +802,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             assert!(work.is_empty(), "people expirations produce no sibling continuations");
             requests
         }
+        Timer::WaitBounds => crate::runs::waits::alarm::fire(core, env),
         Timer::Tasks => {
             let mut out = Queue::uncapped();
             step::fire_tasks(core, env, &mut out);
@@ -865,6 +869,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
     };
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
 }

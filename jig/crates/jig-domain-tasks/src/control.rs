@@ -1132,10 +1132,11 @@ pub(crate) fn apply_release(
         Phase::Held { why: crate::Hold::Circle, .. } => true,
         Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => false,
     };
+    let keeps_place = crate::holds::kept_place(&task.record);
     task.record.narrowing |= crate::run::run_attempt(&next).is_some();
     task.record.phase = crate::run::ends::for_record(&task.record).amended(task.record.executor, next);
     task.record.due_reason = crate::Why::Released;
-    if task.record.phase == Phase::Waiting && !circle {
+    if task.record.phase == Phase::Waiting && !circle && !keeps_place {
         task.record.hold_wait_since = None;
         task.record.hold_bound_since = None;
     }

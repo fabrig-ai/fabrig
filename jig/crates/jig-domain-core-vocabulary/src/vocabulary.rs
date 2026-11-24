@@ -1652,6 +1652,8 @@ pub enum EscalationChoice {
 pub enum Timer {
     /// Sign-in and retained keyed-answer expiration.
     People,
+    /// Bounds of a task's own waits.
+    WaitBounds,
     /// Task deadlines and standing work.
     Tasks,
     /// Missing batch reports reach their bound (domain/tasks/holds.md, 2).
@@ -2028,7 +2030,7 @@ impl Timer {
     #[must_use]
     pub const fn new_work(self) -> bool {
         match self {
-            Self::Tasks => true,
+            Self::Tasks | Self::WaitBounds => true,
             Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention | Self::Resources => false,
         }
     }
@@ -2063,7 +2065,7 @@ impl Timer {
 
 pub fn waits(timer: Timer) -> bool {
     match timer {
-        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
+        Timer::People | Timer::WaitBounds | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
         Timer::Account | Timer::Resources => false,
     }
 }

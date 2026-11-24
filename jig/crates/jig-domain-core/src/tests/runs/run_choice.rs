@@ -3056,6 +3056,39 @@ fn account_wait_counts_from_the_later_source_reset_or_retry() {
 }
 
 #[test]
+fn the_bound_alarm_counts_two_hours_from_an_unmoved_account_reset() {
+    let (mut core, limits) = ready(false);
+    core.opened = true;
+    suspended_on_second(&mut core, &limits);
+    let reset = Duration::from_secs(3_600).as_nanos();
+    let start = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    crate::runs::waits::alarm::restore(&mut core, &start);
+    drop(step(
+        &mut core,
+        &start,
+        Event::Account(accounts::Event::Limited { account: 1, reset: Some(Time::from_nanos(reset)) }),
+    ));
+    let at = reset + Duration::from_secs(2 * 3_600).as_nanos();
+    assert_eq!(core.wait_alarms.at(TASK), Some(Time::from_nanos(at)));
+    // The account owner may make the wait move when it checks that reset.
+    // Keep its input unchanged here and step only the bound alarm.
+    for nanos in [at - 1, at] {
+        let env = Env { now: Time::from_nanos(nanos), wall: Wall::from_nanos(nanos), limits };
+        let _out = fire(&mut core, &env, Timer::WaitBounds);
+        let row = core.tasks.task(TASK).unwrap();
+        if nanos == at {
+            let tasks::Phase::Held { why: tasks::Hold::Waited, source: Some(source), .. } = &row.phase else {
+                panic!("{:?}", row.phase)
+            };
+            let tasks::HoldSource::Wait { words } = source.as_ref() else { panic!("{source:?}") };
+            assert!(core::str::from_utf8(words).unwrap().contains("account 0 source 1: limited until"));
+        } else {
+            assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+        }
+    }
+}
+
+#[test]
 fn host_wait_counts_from_the_end_of_the_workers_suspension() {
     use crate::{AtBound, Bound, Wait, WaitKind, WaitObject};
     use tasks::EscalationHolder;

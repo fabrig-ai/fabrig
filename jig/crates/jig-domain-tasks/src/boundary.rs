@@ -2542,6 +2542,8 @@ pub enum Cause {
     /// Loss, fleet refusal or invalid-answer normalization supplied by root; performs lifecycle
     /// admission without charging and still owes one terminal reply.
     Unpriced,
+    /// The core cancelled a waiting attempt at a turn boundary.
+    Parked { cumulative: Option<u64> },
 }
 
 /// A dependency an amendment added to a live task (domain/tasks/changes.md).

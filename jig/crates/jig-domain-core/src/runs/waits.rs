@@ -1,6 +1,7 @@
 //! Task waits and their readings (jig/docs/design/domain/engine/waits.md, 4).
 pub use jig_domain_core_vocabulary::runs::waits::*;
 
+pub(crate) mod alarm;
 mod own;
 mod reports;
 
@@ -57,6 +58,10 @@ impl Core {
     /// A task's own records for the quiet-point check, including those beyond document lines.
     #[must_use]
     pub fn inspection_wait_records(&self, row: &tasks::TaskRecord) -> Box<[Wait]> {
+        self.own_waits(row, activity(self, row)).into_boxed()
+    }
+
+    fn own_waits(&self, row: &tasks::TaskRecord, (working, parked): (bool, Option<Wall>)) -> own::Records {
         let limits = &self.wait_limits;
         let mut own = own::Own::new();
         let inbox = self.waiting_entries(limits, row);
@@ -65,9 +70,8 @@ impl Core {
                 own.party(self, limits, row, &fact);
             }
         }
-        let (working, parked) = activity(self, row);
         own.finish(self, limits, row, working, parked, due_wait(self, row));
-        own.into_records().into_boxed()
+        own.into_records()
     }
 
     /// The compatibility summary of the waits in a live subtree.

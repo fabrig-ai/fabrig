@@ -36,6 +36,7 @@ pub const KINDS: &[&str] = &[
     "held: uncertain",
     "held: budget",
     "held: deadline",
+    "held: wait past its bound",
     "held: holds waited",
     "held: resource unavailable",
     "held: resource access",

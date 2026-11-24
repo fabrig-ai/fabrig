@@ -175,7 +175,7 @@ pub(crate) fn activation(
     cumulative: u64,
     out: &mut Queue<Request>,
 ) {
-    let crate::run::Ended { number, attempt, end, saved } = ended;
+    let crate::run::Ended { number, attempt, end, saved, park } = ended;
     if !domain.ready() {
         return refused(to, Some(number), Refusal::NotReady, out);
     }
@@ -302,7 +302,7 @@ pub(crate) fn activation(
         domain,
         environment,
         to,
-        crate::run::Ended { number, attempt, end: end.clone(), saved },
+        crate::run::Ended { number, attempt, end: end.clone(), saved, park },
         out,
     );
     match (&end, result_admitted) {

@@ -173,7 +173,7 @@ pub use control::{
     AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Fail, Held,
     History, HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
-pub use domain::{Domain, ViewTask, fire, step, view_phase};
+pub use domain::{Domain, ViewTask, deadline, fire, step, view_phase};
 pub use escalation::{
     Escalation, EscalationContext, EscalationDecider, EscalationDecision, EscalationHolder, EscalationOutcome,
 };

@@ -916,10 +916,17 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                     domain,
                     env,
                     reply_to,
-                    crate::run::Ended { number: task, attempt, end, saved },
+                    crate::run::Ended { number: task, attempt, end, saved, park: false },
                     cumulative,
                     out,
                 );
+            }
+            crate::Cause::Parked { cumulative } => {
+                let ended = crate::run::Ended { number: task, attempt, end: crate::End::Parked, saved, park: true };
+                match cumulative {
+                    Some(cumulative) => crate::admission::activation(domain, env, reply_to, ended, cumulative, out),
+                    None => crate::run::activation(domain, env, reply_to, ended, out),
+                }
             }
             crate::Cause::Unpriced => match end {
                 crate::End::FinishedWithFollowups { .. } => {
@@ -932,7 +939,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                             domain,
                             env,
                             reply_to,
-                            crate::run::Ended { number: task, attempt, end, saved },
+                            crate::run::Ended { number: task, attempt, end, saved, park: false },
                             out,
                         );
                     } else {
@@ -952,7 +959,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                         domain,
                         env,
                         reply_to,
-                        crate::run::Ended { number: task, attempt, end, saved },
+                        crate::run::Ended { number: task, attempt, end, saved, park: false },
                         out,
                     );
                 }
@@ -1015,7 +1022,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     crate::settings::released(domain, held, out);
 }
 
-pub(crate) fn deadline(record: &TaskRecord, wall: Wall) -> Option<Wall> {
+/// The deadline that admission and wait records use, including time spent suspended.
+#[must_use]
+pub fn deadline(record: &TaskRecord, wall: Wall) -> Option<Wall> {
     let deadline = record.authority.budget.deadline?;
     let age = match record.suspension {
         Some(suspension) => wall.as_nanos().saturating_sub(suspension.since.as_nanos()),
@@ -1045,16 +1054,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         match task.record.phase {
             Phase::Active(Active::Due | Active::Idle) if crate::person::deadline(task).is_some() => {
                 out.push(Request::PersonStallDue { task: number });
-            }
-            Phase::Active(Active::Idle)
-                if match deadline(&task.record, env.wall) {
-                    Some(wall) => env.wall > wall,
-                    None => false,
-                } =>
-            {
-                task.record.phase = Phase::Active(Active::Due);
-                publish(domain, env, number, out);
-                activate(domain, number, out);
             }
             Phase::Active(Active::Due) if task.record.suspension.is_some() => {
                 task.alarm = None;
@@ -1405,28 +1404,15 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
 pub(crate) fn schedule_alarm(domain: &mut Domain, env: &Env<Limits>, number: u64) {
     let task = task_mut(domain, number).expect("scheduled task is live");
     let person_deadline = crate::person::deadline(task);
-    // Admission permits equality with the wall. Wake just after it, without
-    // another alarm or a durable deadline carrier (domain/authority-budgets.md, 1).
-    let wall = match deadline(&task.record, env.wall) {
-        Some(wall) => match wall.as_nanos().checked_add(1) {
-            Some(nanos) => Some(Wall::from_nanos(nanos)),
-            None => None,
-        },
-        None => None,
-    };
     let until = match task.record.phase {
         Phase::Active(Active::Due | Active::Idle) if person_deadline.is_some() => person_deadline,
-        Phase::Active(Active::Idle) => wall,
         Phase::Active(Active::Due) => match task.record.suspension {
             Some(suspension) if suspension.until > env.wall => Some(suspension.until),
             Some(_) | None => None,
         },
-        Phase::Active(Active::BackingOff { until }) => Some(match wall {
-            Some(wall) => until.min(wall),
-            None => until,
-        }),
+        Phase::Active(Active::BackingOff { until }) => Some(until),
         Phase::Waiting
-        | Phase::Active(Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
+        | Phase::Active(Active::Idle | Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
         | Phase::Closing(_)
         | Phase::Held { .. }
         | Phase::Ended(_) => None,

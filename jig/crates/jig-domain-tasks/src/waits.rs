@@ -61,7 +61,7 @@ pub(crate) fn valid(limits: &Limits) -> bool {
 pub(crate) fn refresh(domain: &mut Domain, number: u64) {
     let row = record(domain, number).expect("published live row");
     let phase = WaitPhase::for_phase(&row.phase);
-    let queued = crate::holds::queued(domain, row);
+    let queued = crate::holds::has_place(domain, row);
     if let Some(old) = domain.waits.rows.get(&number)
         && old.holdings == row.holdings
         && old.pending == row.waiting_on
