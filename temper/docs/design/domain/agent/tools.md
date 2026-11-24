@@ -138,14 +138,17 @@
   not grant messages or amendments to ended tasks, or the subscribe family.
 - **A run's subscriptions take its task's room.** `subscribe`, to a task
   or a timer, and `subscribe_forge` each take one of the task's
-  subscriptions, at most `tasks.subscriptions` (jig's `domain/tasks/messages.md`, 4, and `jig/docs/design/domain/tasks/README.md`, 6
+  subscriptions, in its one room of `tasks.subscriptions` and one more
+  (jig's `domain/tasks/messages.md`, 4, and `jig/docs/design/domain/tasks/README.md`, 6
   ), where the topics the core keeps for a goal
   (`../forge/topics.md`, 1.2) count too, and so does the project's
-  findings topic the root keeps for a finding's holder, which alone is
-  admitted one past that room (`../areas.md`, section 5). A call past that room is refused, saying
+  findings topic the root keeps for a finding's holder, all alike and
+  in any order (`../areas.md`, section 5). `subscribe` to a task names
+  one the task references or any live task of its project that its
+  tree's requester reads (jig's `domain/tasks/messages.md`, 5). A call past that room is refused, saying
   why, as jig's `domain/engine/executors-tools.md`, 1 has every refusal do:
   `subscribe` answers "Refused: task 4 busy: it holds its most
-  subscriptions (at most 4, counting the topics the engine keeps for a
+  subscriptions (at most 5, counting the topics the engine keeps for a
   goal); unsubscribe one it made to make room", and `subscribe_forge`
   names `tasks.subscriptions` as its own room's refusals do. A
   subscription that would leave no room in the task's inbox for its news

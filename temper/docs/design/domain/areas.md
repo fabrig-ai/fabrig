@@ -129,20 +129,21 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   `P/N` the project's and the finding's numbers; `no area` where it has
   none; the third line for a hand-off alone, `WHO` as `task N` or
   `party N`; the body cut from its end, marked `[cut]`.
-- **Its subscription is apart from the task's room.** The root asks
-  for it as the topic jig admits one past the task's
-  `tasks.subscriptions` (jig's `domain/tasks/messages.md`, 4), so a
-  holder whose own subscriptions fill that bound, as a triager waiting
-  on four people's answers does in stock, is subscribed all the same,
-  and no later subscription can take its place: the task's own stop at
-  the bound, counting it, as they did when it came first. Its news has
+- **Its subscription takes the holder's room as any does.** The root
+  asks for it as an ordinary topic, in the task's one room of
+  `tasks.subscriptions` and one more, where tasks, topics and timers
+  count alike, in any order (jig's `domain/tasks/messages.md`, 4). So a
+  triager waiting on four people's answers in stock holds the findings
+  topic too, whether it watched them first or took the topic first.
+  A holder whose own subscriptions fill the room is refused it as any
+  topic is, and keeps the finding unheard, as below. Its news has
   a merged slot in the task's inbox, kept from the subscription on
   (jig's `domain/tasks/messages.md`, 2). A goal a finding is routed to
   is subscribed the same way (`findings.md`, section 6).
 - **A finding never waits on it.** A filing, a hand-off or a route is
   written whatever its holder's room, and refused only for its own
   (`findings.md`, section 4). Where the subscription can't be made,
-  the holder's inbox having no room for its slot or the forge's
+  the holder's room or its inbox having no room for its slot, or the forge's
   subscriptions full (`forge.subscriptions`), the finding is written
   and its holder isn't told: it reads it with its `finding` tool's
   `list` (section 7), and its next finding asks for the subscription
@@ -236,11 +237,11 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   reaching the area's owner with its why; a finding no area fits staying
   with the triager; an act by one who doesn't own it refused; kinds 14
   and 15 judged; a save moving open findings and telling their new
-  owners; a triager whose subscriptions fill `tasks.subscriptions`,
-  each on a person task still waiting, taking a filed finding and a
-  handed-on one and hearing each through the findings topic; a holder
-  whose inbox has no room for the subscription's slot keeping the
-  finding unheard.
+  owners; a triager watching `tasks.subscriptions` person tasks still
+  waiting, taking a filed finding and a handed-on one and hearing each
+  through the findings topic, whether its watches came first or the
+  topic did; a holder whose room or inbox has no room for the
+  subscription keeping the finding unheard.
 - **Fuzzy:** random areas, triagers, owners standing or not, filings,
   hand-offs and saves: after each step every finding has exactly one
   holder, the rule's, and each news went to the holder the rule gave

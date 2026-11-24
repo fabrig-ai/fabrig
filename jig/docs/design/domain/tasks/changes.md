@@ -96,10 +96,12 @@
     outside its reach, and the other refusals stay told apart.
   - *An ended one* is judged on its stored row, which the core loads
     (../engine/decisions.md, 1.3), by its place in the tree, as a live one is. For a
-    task amender, it is reached when the amender was introduced to it (`messages.md`, 5), or
+    task amender, it is reached when the amender was introduced to it (`messages.md`, 5),
     when its requesters, read up the tree until the first live one, reach
     the amender: a former delegate is one, and nothing above the
-    amender's depth is read. For a party, it is reached when it or its
+    amender's depth is read; or when it is of the amender's project and
+    the amender's tree's requester reads it (`messages.md`, 5, *Waits by
+    reading*). For a party, it is reached when it or its
     root was the party's request, or the party reaches its live root; a
     maintainer reaches any task of the project. A stub the working set
     keeps of it holds no place, and a live task naming it widens no
