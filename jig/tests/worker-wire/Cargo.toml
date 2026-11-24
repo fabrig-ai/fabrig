@@ -15,6 +15,7 @@ doctest = false
 skein-heap.workspace = true
 skein-scratch.workspace = true
 jig-protocol-worker-wire.workspace = true
+skein-codec.workspace = true
 skein-codegen.workspace = true
 skein-lib.workspace = true
 

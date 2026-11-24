@@ -2774,6 +2774,7 @@ name = "jig-worker-wire-world"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-worker-wire",
+ "skein-codec",
  "skein-codegen",
  "skein-heap",
  "skein-lib",
