@@ -3,7 +3,7 @@ use super::{
     Absent, DropField, Field, Inner, Kind, Mode, Narrowed, Node, Plan, Read, ReadKind, Refusal, Refused, Source,
     Underived, Variant, Why, add,
 };
-use crate::patch::{Comparison, Target, compare_held, compare_leaf, compare_types, integer_width, payload_matches};
+use crate::patch::{Comparison, compare_held, compare_leaf, compare_types, integer_width, payload_matches};
 use crate::schema::{
     DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
 };
@@ -93,64 +93,96 @@ fn text<'a>(texts: &'a [&Schema], at: u32) -> &'a Schema {
 fn location(text: u32, at: At) -> Location {
     Location { text, at, variant: None }
 }
-fn former(old: &Schema, new: &Schema, at: DeclIx) -> Option<DeclIx> {
-    if let Some(found) = old.find(new.spelled(new.declaration(at).name)) {
-        return Some(found);
-    }
-    for &name in new.was(Named::Declaration(at)) {
-        if let Some(found) = old.find(new.spelled(name)) {
-            return Some(found);
-        }
-    }
-    None
-}
 fn parts(shape: Shape) -> (u32, u32) {
     match shape {
         Shape::Record { first, count, .. } => (first.index(), count),
         Shape::Enum { first, count } => (first.index(), count),
     }
 }
-fn target(shape: Shape, at: u32) -> Target {
-    match shape {
-        Shape::Record { .. } => Target::Field(FieldIx::new(at)),
-        Shape::Enum { .. } => Target::Variant(VariantIx::new(at)),
-    }
+#[derive(Clone, Copy)]
+struct Names<'a> {
+    schema: &'a Schema,
+    shape: Option<Shape>,
 }
-fn name(schema: &Schema, at: Target) -> Span {
-    match at {
-        Target::Declaration(at) => schema.declaration(at).name,
-        Target::Field(at) => schema.field(at).name,
-        Target::Variant(at) => schema.variant(at).name,
+
+impl<'a> Names<'a> {
+    fn range(self) -> core::ops::Range<u32> {
+        let (first, count) = match self.shape {
+            Some(shape) => parts(shape),
+            None => (0, self.schema.declarations()),
+        };
+        first..add(first, count)
     }
-}
-fn named_part(at: Target) -> Named {
-    match at {
-        Target::Declaration(at) => Named::Declaration(at),
-        Target::Field(at) => Named::Field(at),
-        Target::Variant(at) => Named::Variant(at),
-    }
-}
-fn find_part(schema: &Schema, shape: Shape, spelled: &[u8]) -> Option<Target> {
-    let (first, count) = parts(shape);
-    for at in first..add(first, count) {
-        let at = target(shape, at);
-        if schema.spelled(name(schema, at)) == spelled {
-            return Some(at);
+
+    fn member(self, at: u32) -> Named {
+        match self.shape {
+            Some(Shape::Record { .. }) => Named::Field(FieldIx::new(at)),
+            Some(Shape::Enum { .. }) => Named::Variant(VariantIx::new(at)),
+            None => Named::Declaration(DeclIx::new(at)),
         }
     }
-    None
-}
-fn matched_part(old: &Schema, shape: Shape, new: &Schema, current: Target) -> Option<Target> {
-    // A current name present in the old scope takes precedence over its former names.
-    if let Some(found) = find_part(old, shape, new.spelled(name(new, current))) {
-        return Some(found);
+
+    fn spelled(self, member: Named) -> &'a [u8] {
+        let span = match member {
+            Named::Declaration(at) => self.schema.declaration(at).name,
+            Named::Field(at) => self.schema.field(at).name,
+            Named::Variant(at) => self.schema.variant(at).name,
+        };
+        self.schema.spelled(span)
     }
-    for &was in new.was(named_part(current)) {
-        if let Some(found) = find_part(old, shape, new.spelled(was)) {
+
+    #[expect(clippy::manual_map, reason = "step code enumerates options without callbacks")]
+    fn current(self, name: &[u8]) -> Option<Named> {
+        if self.shape.is_none() {
+            return match self.schema.find(name) {
+                Some(at) => Some(Named::Declaration(at)),
+                None => None,
+            };
+        }
+        for at in self.range() {
+            let part = self.member(at);
+            if self.spelled(part) == name {
+                return Some(part);
+            }
+        }
+        None
+    }
+
+    fn preferred(self, other: Self, part: Named, policy: Policy) -> Option<Named> {
+        let name = other.spelled(part);
+        if let Some(found) = self.current(name) {
             return Some(found);
         }
+        for &was in other.schema.was(part) {
+            if let Some(found) = self.current(other.schema.spelled(was)) {
+                return Some(found);
+            }
+        }
+        if let Policy::Between(_) = policy {
+            for at in self.range() {
+                let member = self.member(at);
+                for &was in self.schema.was(member) {
+                    if self.schema.spelled(was) == name {
+                        return Some(member);
+                    }
+                }
+            }
+        }
+        None
     }
-    None
+
+    fn matched(self, other: Self, part: Named, policy: Policy) -> Option<Named> {
+        let found = self.preferred(other, part, policy)?;
+        // A confirmed rename works in both directions. If several live names
+        // occur in a history, accept only the pairing both directions choose.
+        if let Policy::Between(_) = policy
+            && self.spelled(found) != other.spelled(part)
+            && other.preferred(self, found, policy) != Some(part)
+        {
+            return None;
+        }
+        Some(found)
+    }
 }
 
 fn tombstone_named(schema: &Schema, first: FieldIx, count: u32, name: &[u8]) -> Option<FieldIx> {
@@ -248,8 +280,16 @@ impl Builder {
         let old = text(olds, a);
         let new = text(news, b);
         let mut matching = List::with_capacity(new.declarations());
+        let old_names = Names { schema: old, shape: None };
+        let new_names = Names { schema: new, shape: None };
         for at in 0..new.declarations() {
-            matching.push(former(old, new, DeclIx::new(at))).expect("one declaration match slot per text declaration");
+            let part = Named::Declaration(DeclIx::new(at));
+            let found = match old_names.matched(new_names, part, self.policy) {
+                Some(Named::Declaration(at)) => Some(at),
+                None => None,
+                Some(Named::Field(_) | Named::Variant(_)) => unreachable!("declaration matching"),
+            };
+            matching.push(found).expect("one declaration match slot per text declaration");
         }
         let at = self.pairs.len();
         self.pairs.push(Pair { old: a, new: b, matching }).expect("text pairs bounded by the reach");
@@ -389,9 +429,13 @@ impl Builder {
         if self.pairs.get(pair).expect("text pair").matching.get(b.index()).copied().flatten() != Some(a) {
             return Err(place.error(Why::Retyped));
         }
-        match (old.declaration(a).shape, new.declaration(b).shape) {
+        let old_shape = old.declaration(a).shape;
+        let new_shape = new.declaration(b).shape;
+        let old_names = Names { schema: old, shape: Some(old_shape) };
+        let new_names = Names { schema: new, shape: Some(new_shape) };
+        match (old_shape, new_shape) {
             (
-                sa @ Shape::Record { first: af, count: ac, versioned: av },
+                Shape::Record { first: af, count: ac, versioned: av },
                 Shape::Record { first: bf, count: bc, versioned: bv },
             ) => {
                 let mut fields = List::with_capacity(bc);
@@ -409,10 +453,10 @@ impl Builder {
                 for offset in 0..bc {
                     let field = FieldIx::new(add(bf.index(), offset));
                     let part = Place { part: Some(new.field(field).name), ..place };
-                    let source = match matched_part(old, sa, new, Target::Field(field)) {
-                        Some(Target::Field(at)) => Some(at),
+                    let source = match old_names.matched(new_names, Named::Field(field), self.policy) {
+                        Some(Named::Field(at)) => Some(at),
                         None => None,
-                        Some(Target::Declaration(_) | Target::Variant(_)) => unreachable!("field matching"),
+                        Some(Named::Declaration(_) | Named::Variant(_)) => unreachable!("field matching"),
                     };
                     let field = if let Some(source) = source {
                         let old_offset = source.index().checked_sub(af.index()).expect("field in matched record");
@@ -459,7 +503,7 @@ impl Builder {
                     in_place,
                 })
             }
-            (sa @ Shape::Enum { first: af, count: ac }, sb @ Shape::Enum { first: bf, .. }) => {
+            (Shape::Enum { first: af, count: ac }, Shape::Enum { first: bf, .. }) => {
                 let mut variants = List::with_capacity(ac);
                 for offset in 0..ac {
                     let source = VariantIx::new(add(af.index(), offset));
@@ -470,10 +514,11 @@ impl Builder {
                         continue;
                     }
                     let mut found = None;
-                    let (first, count) = parts(sb);
-                    for index in first..add(first, count) {
+                    for index in new_names.range() {
                         let dest = VariantIx::new(index);
-                        if matched_part(old, sa, new, Target::Variant(dest)) == Some(Target::Variant(source)) {
+                        if old_names.matched(new_names, Named::Variant(dest), self.policy)
+                            == Some(Named::Variant(source))
+                        {
                             found = Some(dest);
                             break;
                         }
@@ -977,9 +1022,11 @@ pub(super) fn plan(
         let b = new_root.variant.expect("both roots are broad");
         let old_enum = leading(old, old_root);
         let new_enum = leading(new, new_root);
+        let old_names = Names { schema: old, shape: Some(old.declaration(old_enum).shape) };
+        let new_names = Names { schema: new, shape: Some(new.declaration(new_enum).shape) };
         if builder.pairs.get(pair).expect("root pair").matching.get(new_enum.index()).copied().flatten()
             != Some(old_enum)
-            || matched_part(old, old.declaration(old_enum).shape, new, Target::Variant(b)) != Some(Target::Variant(a))
+            || old_names.matched(new_names, Named::Variant(b), policy) != Some(Named::Variant(a))
         {
             return Err(Place { part: Some(new.variant(b).name), ..place }.error(Why::Root));
         }

@@ -575,6 +575,34 @@ fn former_declaration_field_and_variant_names_match() {
 }
 
 #[test]
+fn between_matches_former_names_in_both_directions() {
+    let old = schema("record A { a: u8 n: u16 } enum R { off, a: A }", 1);
+    let new = schema("record B was A { n: u16 b was a: u8 } enum S was R { b was a: B, off }", 2);
+    let old_root = root(&old, Some(b"a"));
+    let new_root = new.root(b"S", Some(b"b")).expect("renamed root and variant");
+    let before = &[1, 5, 0, 9];
+    let after = &[0, 0, 9, 5];
+    for mode in [Mode::Keep, Mode::Read] {
+        let forward =
+            Plan::between(mode, &old, old_root, &[], &new, new_root, &[]).expect("match target's former names");
+        check(&forward, before, after, false);
+        let back = Plan::between(mode, &new, new_root, &[], &old, old_root, &[]).expect("match source's former names");
+        check(&back, after, before, false);
+    }
+}
+
+#[test]
+fn between_restores_the_unmatched_field_when_two_live_names_are_in_a_history() {
+    let old = "record R { a: u8 b: u8 = 7 }";
+    let new = "record R { c was a was b: u8 }";
+    let keep = between(Mode::Keep, old, new).expect("c matches a, not both a and b");
+    check(&keep, &[5, 7], &[5], false);
+    check_refusal(&keep, &[5, 9], &[], (Refused::Field, "R", "b"));
+    let read = between(Mode::Read, new, old).expect("only a is restored from c");
+    check(&read, &[5], &[5, 7], false);
+}
+
+#[test]
 fn unmatched_roots_reshapes_and_changed_payloads_are_underived() {
     let old = schema("record R {}", 1);
     let new = schema("record S {}", 2);
