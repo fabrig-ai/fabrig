@@ -1,8 +1,10 @@
 //! Subprocess fixtures apply their figures through ctl before restarting
 //! (temper/docs/design/protocol/configuration/limit-settings.md, 8).
 use jig_client_protocol_wire::Record as _;
+use jig_domain_core::settings::Override;
 use serde_json::{Value, json};
 use std::{fs, path::Path};
+use temper_engine_service::startup::{self, LimitKind};
 use temper_playground::documents::Configuration;
 
 /// Keep figures beside, never inside, the deployment document while composing a fixture.
@@ -39,6 +41,91 @@ pub fn figures_bytes(configuration: &Configuration) -> Vec<u8> {
         })
         .collect();
     serde_json::to_vec(&json!({"limits":jig,"temper-limits":own})).expect("fixture limits")
+}
+
+/// The one composition used for a held start and its subsequent owner change.
+#[derive(Debug)]
+pub struct Bootstrap {
+    jig: Vec<Override>,
+    temper: Vec<Override>,
+}
+impl Bootstrap {
+    /// `agent` is the local worker's declaration, not the declarations of remote workers.
+    pub fn compose(figures: &[u8], agent: Option<&temper_service_core::agent::Declaration>) -> Result<Self, String> {
+        let figures: Value = serde_json::from_slice(figures).expect("fixture figures JSON");
+        let mut jig = overrides(&figures["limits"]);
+        let mut temper = overrides(&figures["temper-limits"]);
+        let floors = startup::carrier_floors(agent, &jig, &temper)
+            .map_err(|why| String::from_utf8_lossy(&startup::lines(&why)).into_owned())?;
+        for (kind, name, needs) in &floors {
+            let overrides = match kind {
+                LimitKind::Jig => &mut jig,
+                LimitKind::Temper => &mut temper,
+            };
+            raise_to(overrides, name, *needs);
+        }
+        jig.sort_by(|left, right| left.name.cmp(&right.name));
+        temper.sort_by(|left, right| left.name.cmp(&right.name));
+        Ok(Self { jig, temper })
+    }
+
+    #[must_use]
+    pub fn held(&self) -> String {
+        held_text(&self.overrides())
+    }
+
+    #[must_use]
+    pub fn overrides(&self) -> Vec<(&str, &str, u64, &str)> {
+        let mut overrides = Vec::new();
+        for (kind, items) in [(LimitKind::Jig, &self.jig), (LimitKind::Temper, &self.temper)] {
+            for item in items {
+                overrides.push((word(kind.name()), word(&item.name), item.value, word(&item.reason)));
+            }
+        }
+        overrides
+    }
+
+    fn bytes(&self) -> Vec<u8> {
+        let items = |overrides: &[Override]| -> Vec<_> {
+            overrides
+                .iter()
+                .map(|item| json!({"name":word(&item.name),"value":item.value,"reason":word(&item.reason)}))
+                .collect()
+        };
+        serde_json::to_vec(&json!({"limits":items(&self.jig),"temper-limits":items(&self.temper)}))
+            .expect("figures JSON")
+    }
+
+    /// A fresh store with empty lists needs no sitting unless another edit needs it.
+    #[must_use]
+    pub fn needs_sitting(&self, local: Option<&[u8]>, extra: bool, previously_applied: bool) -> bool {
+        !self.jig.is_empty() || !self.temper.is_empty() || local.is_some() || extra || previously_applied
+    }
+}
+
+fn word(bytes: &[u8]) -> &str {
+    std::str::from_utf8(bytes).expect("fixture JSON text")
+}
+
+fn overrides(items: &Value) -> Vec<Override> {
+    items
+        .as_array()
+        .expect("fixture override list")
+        .iter()
+        .map(|item| Override {
+            name: item["name"].as_str().expect("limit name").as_bytes().into(),
+            value: item["value"].as_u64().expect("limit figure"),
+            reason: item["reason"].as_str().expect("limit reason").as_bytes().into(),
+        })
+        .collect()
+}
+
+fn raise_to(items: &mut Vec<Override>, name: &[u8], needs: u64) {
+    if let Some(item) = items.iter_mut().find(|item| item.name.as_ref() == name) {
+        item.value = item.value.max(needs);
+    } else {
+        items.push(Override { name: name.into(), value: needs, reason: b"subprocess fixture".as_slice().into() });
+    }
 }
 
 /// Continue a fixture edit without losing its non-document figures.
@@ -139,84 +226,47 @@ fn install_at_with(directories: &temper_box_shell::directories::Directories, ext
     }
     let bytes = fs::read(&pending).expect("fixture limits");
     let applied = data.join("fixture-limits-applied.json");
-    if fs::read(&applied).ok().as_deref() == Some(bytes.as_slice()) {
+    let previous = fs::read(&applied).ok();
+    if previous.as_deref() == Some(bytes.as_slice()) {
         assert!(extra.is_empty(), "additional bootstrap settings require a fresh fixture");
         return;
     }
-    let mut value = configuration(directory);
-    let is_box = value["workers"].as_array().is_some_and(|workers| !workers.is_empty());
-    let sources = if is_box {
-        let agent = temper_agent_fixtures::read(directory);
-        value.limits.tool_payload =
-            u32::try_from(agent["profile"]["declared"]["tool_payload"].as_u64().expect("agent payload"))
-                .expect("payload");
-        temper_service_core::derived::Sources {
-            turn: super::configuration::turn_bounds::turn_body(&agent),
-            payload: value.limits.tool_payload,
-            inbox: u32::try_from(agent["profile"]["policy"]["inbox"].as_u64().unwrap_or(82)).expect("inbox"),
-            unacknowledged: u32::try_from(agent["profile"]["policy"]["unacknowledged"].as_u64().unwrap_or(8))
-                .expect("unacknowledged"),
-        }
+    let path = directory.join(temper_config_shell::FILE);
+    let shape = super::read_file_shape(&path);
+    let agent = if shape == temper_config_shell::Shape::Standalone {
+        let document = super::start_document(&path, shape);
+        document["workers"].as_array().filter(|workers| !workers.is_empty()).map(|_| {
+            let providers = temper_service_shell::providers::read(
+                &data.join("providers.setting"),
+                temper_service::stock::providers(),
+                &mut Vec::new(),
+            );
+            let agent = temper_agent_fixtures::with_figures(
+                &document,
+                &temper_agent_fixtures::agent_figures(data),
+                data,
+                &providers,
+            );
+            super::prepare_agent(serde_json::to_vec(&agent).expect("fixture agent JSON").into_boxed_slice())
+                .agent
+                .declaration()
+        })
     } else {
-        temper_service_core::derived::Sources {
-            payload: value.limits.tool_payload,
-            ..temper_service_core::derived::STOCK
-        }
+        None
     };
-    let (floor, own_floor) = temper_service::limits::base(value.limits.live_goals, value.limits.tool_payload, sources)
-        .expect("fixture derivation");
-    for name in [
-        "tasks.message_bytes",
-        "tasks.result_bytes",
-        "tasks.inbox_bytes",
-        "core.call_answer_bytes",
-        "io.output",
-        "hub.turn_bytes",
-        "hub.transcript_bytes",
-        "hub.turn_queue_bytes",
-        "core.resume_bytes",
-        "hub.outcome_bytes",
-    ] {
-        let row = jig_protocol_config::names::find(name.as_bytes()).expect("carrier");
-        let (old, least) = ((row.value)(&value.jig), (row.value)(&floor));
-        if old < least {
-            eprintln!("fixture carrier {name}: {old} -> {least}");
-            jig_protocol_config::overrides::apply(&mut value.jig, name.as_bytes(), least).expect("carrier floor");
-        }
+    let bootstrap = Bootstrap::compose(&bytes, agent.as_ref()).expect("fixture carrier derivation");
+    let bytes = bootstrap.bytes();
+    let local = data.join("local-worker-settings.json");
+    let local = local.exists().then(|| fs::read(local).expect("local worker settings"));
+    super::write_private(&pending, &bytes);
+    if previous.as_deref() == Some(bytes.as_slice()) {
+        assert!(extra.is_empty(), "additional bootstrap settings require a fresh fixture");
+        return;
     }
-    for name in [
-        "forge.client.op_bytes",
-        "forge.client.answer_bytes",
-        "root.journal.transcript_bytes",
-        "root.loads.transcript_bytes",
-        "root.loads.bytes",
-        "root.loads.reply_bytes",
-        "root.loads.read_bytes",
-    ] {
-        let row = temper_service::limits::find(name.as_bytes()).expect("carrier");
-        let (old, least) = ((row.value)(&value.limits), (row.value)(&own_floor));
-        if old < least {
-            eprintln!("fixture carrier {name}: {old} -> {least}");
-            temper_service::limits::apply(&mut value.limits, name.as_bytes(), least).expect("carrier floor");
-        }
+    if bootstrap.needs_sitting(local.as_deref(), !extra.is_empty(), previous.is_some()) {
+        apply_with(directories, shape, &bootstrap, local, extra);
     }
-    if extra.is_empty() {
-        remember(directory, &value);
-    } else {
-        // These owner edits, not fixture copies, supply any provider changes.
-        remember_figures(directory, &value);
-    }
-    let figures: Value =
-        serde_json::from_slice(&fs::read(&pending).expect("normalized figures")).expect("figures JSON");
-    let mut overrides = Vec::new();
-    for kind in ["limits", "temper-limits"] {
-        for item in figures[kind].as_array().expect("kind figures") {
-            let name = item["name"].as_str().expect("name");
-            overrides.push((kind, name, item["value"].as_u64().expect("figure"), "subprocess fixture"));
-        }
-    }
-    apply_with(directories, &overrides, extra);
-    super::write_private(&applied, &fs::read(pending).expect("applied figures"));
+    super::write_private(&applied, &bytes);
 }
 
 /// Write the operator's bootstrap file for the same figures the setting takes.
@@ -239,30 +289,33 @@ pub fn held_text(overrides: &[(&str, &str, u64, &str)]) -> String {
 /// settings, drain, and remove the file. The next serve takes the settings.
 fn apply_with(
     directories: &temper_box_shell::directories::Directories,
-    overrides: &[(&str, &str, u64, &str)],
+    shape: temper_config_shell::Shape,
+    bootstrap: &Bootstrap,
+    local: Option<Vec<u8>>,
     extra: Vec<super::ctl::Step>,
 ) {
     use super::ctl::{Call, Step, Story};
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
     let directory = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
-    hold(directory, overrides);
+    super::write_private(&directory.join("limits-held"), bootstrap.held().as_bytes());
     let mut steps = vec![Step::Run(Call::sign_in().in_directory("limit-owner"))];
-    steps.extend(super::ctl::limit_settings(directory, overrides).into_iter().chain(extra).map(|step| match step {
-        Step::Run(call) => Step::Run(call.in_directory("limit-owner")),
-        Step::Then(next) => Step::Then(Box::new(move |calls| next(calls).in_directory("limit-owner"))),
-        _ => unreachable!("bootstrap settings steps are calls"),
-    }));
+    steps.extend(super::ctl::limit_settings(directory, &bootstrap.overrides(), local).into_iter().chain(extra).map(
+        |step| match step {
+            Step::Run(call) => Step::Run(call.in_directory("limit-owner")),
+            Step::Then(next) => Step::Then(Box::new(move |calls| next(calls).in_directory("limit-owner"))),
+            Step::ThenIf(next) => {
+                Step::ThenIf(Box::new(move |calls| next(calls).map(|call| call.in_directory("limit-owner"))))
+            }
+            _ => unreachable!("bootstrap settings steps are calls"),
+        },
+    ));
     steps.push(Step::Run(Call::new(&["sign-out"]).in_directory("limit-owner")));
     let command = skein_world::end_to_end::Command {
-        program: skein_scratch::paths::binary("temper-box").with_file_name(
-            match super::read_file_shape(
-                &Path::new(std::ffi::OsStr::from_bytes(&directories.config)).join(temper_config_shell::FILE),
-            ) {
-                temper_config_shell::Shape::Standalone => "temper-box",
-                temper_config_shell::Shape::EngineAlone => "temper-engine",
-                temper_config_shell::Shape::WorkerAlone => panic!("a worker alone has no limit settings store"),
-            },
-        ),
+        program: skein_scratch::paths::binary("temper-box").with_file_name(match shape {
+            temper_config_shell::Shape::Standalone => "temper-box",
+            temper_config_shell::Shape::EngineAlone => "temper-engine",
+            temper_config_shell::Shape::WorkerAlone => panic!("a worker alone has no limit settings store"),
+        }),
         arguments: std::iter::once("serve".into())
             .chain(directories.flags().into_vec().into_iter().map(|word| std::ffi::OsString::from_vec(word.into_vec())))
             .collect(),

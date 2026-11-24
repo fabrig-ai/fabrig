@@ -379,7 +379,7 @@ impl ProviderCopies {
     }
 }
 
-fn cluster_turn_description(root: &Path) -> support::cluster::Cluster {
+pub(super) fn cluster_turn_description(root: &Path) -> support::cluster::Cluster {
     let mut cluster = support::cluster::Cluster::description_from(root, &cluster_turn_setup::fixture());
     cluster_turn_setup::bind_addresses(
         &mut cluster,
@@ -880,18 +880,7 @@ fn elsewhere_reads_the_connected_project() {
 #[test]
 fn ctl_limit_settings_apply_both_kinds_in_one_revision() {
     let root = Path::new("/fixture/limit-settings-step");
-    let reads: Vec<_> = [
-        serde_json::json!({"newest":7}),
-        serde_json::json!({"setting":{"kind":"limits"},"value":[]}),
-        serde_json::json!({"setting":{"kind":"temper-limits"},"value":[]}),
-    ]
-    .into_iter()
-    .map(|value| support::Ended {
-        exit: Some(skein_io::kernel::Exit::Code(0)),
-        stdout: serde_json::to_vec(&value).expect("read JSON"),
-        stderr: Vec::new(),
-    })
-    .collect();
+    let reads = limit_reads(&json!([]), &json!([]));
     let overrides =
         [("temper-limits", "tool_payload", 2048, "small agent"), ("limits", "tasks.tasks", 8, "small task set")];
     assert_eq!(support::limit_settings::held_text(&overrides), "tool_payload 2048\ntasks.tasks 8\n");
@@ -900,7 +889,8 @@ fn ctl_limit_settings_apply_both_kinds_in_one_revision() {
     let call = support::ctl::limit_settings_apply_with(root, &overrides, &reads, None, |path, bytes| {
         assert_eq!(path, file);
         captured = Some(json_bytes(bytes));
-    });
+    })
+    .expect("figures change the fresh settings");
     assert_eq!(
         call.arguments(),
         support::ctl::Call::new(&[
@@ -922,6 +912,38 @@ fn ctl_limit_settings_apply_both_kinds_in_one_revision() {
             {"setting":{"kind":"temper-limits"},"set":[{"name":"tool_payload","value":2048,"reason":"small agent"}]}
         ]})
     );
+}
+
+#[test]
+fn ctl_skips_a_limit_change_already_held() {
+    const TASKS: u64 = 8; // The cluster fixture's tasks.tasks.
+    let current = json!([{"name":"tasks.tasks","value":TASKS,"reason":"small task set"}]);
+    let reads = limit_reads(&current, &json!([]));
+    let overrides = [("limits", "tasks.tasks", TASKS, "small task set")];
+    let mut writes = 0;
+    let call = support::ctl::limit_settings_apply_with(
+        Path::new("/fixture/limit-settings-step"),
+        &overrides,
+        &reads,
+        None,
+        |_, _| writes += 1,
+    );
+    assert_eq!((call.is_none(), writes), (true, 0));
+}
+
+pub(super) fn limit_reads(jig: &Value, temper: &Value) -> Vec<support::Ended> {
+    [
+        json!({"newest":7}),
+        json!({"setting":{"kind":"limits"},"value":jig}),
+        json!({"setting":{"kind":"temper-limits"},"value":temper}),
+    ]
+    .into_iter()
+    .map(|value| support::Ended {
+        exit: Some(skein_io::kernel::Exit::Code(0)),
+        stdout: serde_json::to_vec(&value).expect("read JSON"),
+        stderr: Vec::new(),
+    })
+    .collect()
 }
 
 fn json_bytes(bytes: &[u8]) -> Value {

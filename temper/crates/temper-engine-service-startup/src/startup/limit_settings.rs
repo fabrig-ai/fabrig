@@ -66,10 +66,7 @@ impl LimitInputs {
         is_box: bool,
         base: Option<(&config::Limits, &limits::Limits)>,
     ) -> Self {
-        let sources = match agent {
-            Some(agent) => Sources::agent(agent),
-            None => derived::STOCK,
-        };
+        let sources = limit_sources(agent);
         Self {
             document: bytes::copy_of(document),
             directories: directories.clone(),
@@ -101,11 +98,23 @@ impl LimitInputs {
     pub fn stock(&self) -> Result<(config::Limits, limits::Limits), Problems> {
         match self.base {
             Some(base) => Ok(base),
-            None => match limits::base(derived::LIVE_GOALS, derived::STOCK.payload, derived::STOCK) {
-                Ok(base) => Ok(base),
-                Err(found) => Err(Problems::jig(single(found), &Path::root())),
-            },
+            None => stock(),
         }
+    }
+}
+fn limit_sources(agent: Option<&settings::Agent>) -> Sources {
+    match agent {
+        Some(agent) => Sources::agent(agent),
+        None => derived::STOCK,
+    }
+}
+fn stock() -> Result<(config::Limits, limits::Limits), Problems> {
+    base(derived::LIVE_GOALS, derived::STOCK.payload, derived::STOCK)
+}
+fn base(goals: u32, payload: u32, source: Sources) -> Result<(config::Limits, limits::Limits), Problems> {
+    match limits::base(goals, payload, source) {
+        Ok(base) => Ok(base),
+        Err(found) => Err(Problems::jig(single(found), &Path::root())),
     }
 }
 fn single(found: config::Problem) -> config::Problems {
@@ -143,20 +152,60 @@ pub fn resolve_limits(inputs: &LimitInputs, jig: &[Override], temper: &[Override
     checked_limits(inputs, jig, temper, true, None)
 }
 
+/// A carrier that falls short of the derivation, with the figure it needs.
+#[derive(Clone, Copy, Debug)]
+struct CarrierFloor {
+    name: &'static [u8],
+    needs: u64,
+    has: u64,
+    of: &'static [u8],
+}
+
+type CarrierMinimum = (LimitKind, &'static [u8], u64);
+
+/// Carrier shortfalls for an untyped deployment. Report them in dependency
+/// order, using the raised figure for any carrier downstream of a shortfall.
+/// This is not admission: use `resolve_limits` to check the whole set.
+pub fn carrier_floors(
+    agent: Option<&settings::Agent>,
+    jig: &[Override],
+    temper: &[Override],
+) -> Result<List<CarrierMinimum>, Problems> {
+    let source = limit_sources(agent);
+    let (base, own_base, _) = derived_base(&stock()?, source, false, jig, temper)?;
+    let jig_floors = jig_floors(&base, jig, true);
+    let resume = effective(&jig_floors, b"core.resume_bytes", jig_figure(&base, jig, b"core.resume_bytes"));
+    let result = effective(&jig_floors, b"tasks.result_bytes", jig_figure(&base, jig, b"tasks.result_bytes"));
+    let own = own_overrides(own_base, temper)?;
+    let mut own_floors = derived_floors(&own_base, &own, resume);
+    let op = effective(&own_floors, b"forge.client.op_bytes", u64::from(own.forge.client.op_bytes));
+    // An absent body override already follows the operation figure.
+    let op = forge_op_floor(&mut own_floors, op, result);
+    if let Some(body) = supplied(temper, b"forge_component.body_bytes") {
+        forge_body_floor(&mut own_floors, body, op);
+    }
+    let mut floors = List::uncapped();
+    for (kind, shortfalls) in [(LimitKind::Jig, jig_floors), (LimitKind::Temper, own_floors)] {
+        for floor in &shortfalls {
+            floors.push((kind, floor.name, floor.needs)).expect("one row per carrier shortfall");
+        }
+    }
+    Ok(floors)
+}
+
 /// The immutable stock and store envelope, prepared once for related mutations.
 pub(crate) struct Preflight {
-    stock_jig: config::Limits,
-    stock_own: limits::Limits,
+    stock: (config::Limits, limits::Limits),
     store: jig_protocol_store::Limits,
 }
 
 impl Preflight {
     pub(crate) fn new(inputs: &LimitInputs) -> Result<Self, Problems> {
-        let (stock_jig, stock_own) = inputs.stock()?;
+        let stock = inputs.stock()?;
         let (mut store_jig, store_own) = inputs.store_base()?;
         let stock_root = super::engine_limits(&mut store_jig, &store_own, None)?;
         let store = super::checked_store(&stock_root, &store_jig.store, None)?;
-        Ok(Self { stock_jig, stock_own, store: *store.limits() })
+        Ok(Self { stock, store: *store.limits() })
     }
 
     /// Use the same preflight as startup; composed relations retain the full start.
@@ -199,7 +248,6 @@ fn checked_limits(
         Err(problems) => Err(named(problems, &jig, &temper)),
     }
 }
-#[expect(clippy::too_many_lines, reason = "the settings preflight retains one checked ordering")]
 fn preflight(
     inputs: &LimitInputs,
     jig: &[Override],
@@ -207,44 +255,9 @@ fn preflight(
     left_out: List<LeftOut>,
     prepared: &Preflight,
 ) -> Result<Resolved, Problems> {
-    let Preflight { stock_jig, stock_own, store } = *prepared;
-    let mut sources = stock_own;
-    for item in temper {
-        if item.name.as_ref() == b"live_goals" && item.value > u64::from(derived::STORE_LIVE_GOALS) {
-            return Err(super::problem(
-                Path::root().member(b"live_goals"),
-                What::Half(super::EngineWhat::StoreLiveGoals { count: item.value, bound: derived::STORE_LIVE_GOALS }),
-            ));
-        }
-        if (item.name.as_ref() == b"live_goals" || item.name.as_ref() == b"tool_payload")
-            && let Err(why) = limits::apply(&mut sources, &item.name, item.value)
-        {
-            return Err(super::problem(Path::root().member(&item.name), What::Override(why)));
-        }
-    }
-    let source = inputs.sources;
-    let payload = source.payload.max(sources.tool_payload);
-    let (mut base, mut own) = if inputs.base.is_some()
-        && sources.live_goals == stock_own.live_goals
-        && sources.tool_payload == stock_own.tool_payload
-    {
-        (stock_jig, stock_own)
-    } else {
-        match limits::base(sources.live_goals, sources.tool_payload, source) {
-            Ok(base) => base,
-            Err(found) => return Err(Problems::jig(single(found), &Path::root())),
-        }
-    };
-    let minimum_own = own;
-    if inputs.base.is_none() {
-        base.core.fleet.grace = super::worker_fleet_grace(&base);
-    }
-    if !jig.is_empty() {
-        derived::follow_task_overrides(&mut base, jig);
-    }
-    let minimum_jig = base;
+    let (base, own_base, payload) = derived_base(&prepared.stock, inputs.sources, inputs.base.is_some(), jig, temper)?;
     let mut early = Problems::empty();
-    jig_floors(&minimum_jig, jig, &mut early);
+    report_floors(&jig_floors(&base, jig, false), &mut early);
     if !early.is_empty() {
         return Err(early);
     }
@@ -252,11 +265,8 @@ fn preflight(
         Ok(jig) => jig,
         Err(found) => return Err(Problems::jig(found, &Path::root())),
     };
-    for item in temper {
-        if let Err(why) = limits::apply(&mut own, &item.name, item.value) {
-            return Err(super::problem(Path::root().member(&item.name), What::Override(why)));
-        }
-    }
+    let mut own = own_overrides(own_base, temper)?;
+    let store = prepared.store;
     if inputs.is_box && inputs.base.is_none() {
         let document = match config::document(
             &inputs.document,
@@ -295,8 +305,12 @@ fn preflight(
             own.forge.landings.min(own.forge.holds.checked_div(own.forge.landing_members).unwrap_or(0));
     }
     let mut floors = Problems::empty();
-    derived_floors(&minimum_own, &jig, &own, &mut floors);
-    related_limits(&jig, &own, &mut floors);
+    let mut carriers = derived_floors(&own_base, &own, u64::from(jig.core.resume_bytes));
+    let op = u64::from(own.forge.client.op_bytes);
+    forge_op_floor(&mut carriers, op, u64::from(jig.core.tasks.result_bytes));
+    forge_body_floor(&mut carriers, u64::from(own.forge_component.body_bytes), op);
+    report_floors(&carriers, &mut floors);
+    related_limits(&own, &mut floors);
     super::application::tier_bounds(&own, &mut floors);
     if !floors.is_empty() {
         return Err(floors);
@@ -316,6 +330,52 @@ fn preflight(
     }
     jig.store = store;
     Ok(Resolved { jig, temper: own, root, left_out, store, payload })
+}
+
+fn derived_base(
+    stock: &(config::Limits, limits::Limits),
+    source: Sources,
+    typed: bool,
+    jig: &[Override],
+    temper: &[Override],
+) -> Result<(config::Limits, limits::Limits, u32), Problems> {
+    let mut figures = stock.1;
+    for item in temper {
+        if item.name.as_ref() == b"live_goals" && item.value > u64::from(derived::STORE_LIVE_GOALS) {
+            return Err(super::problem(
+                Path::root().member(b"live_goals"),
+                What::Half(super::EngineWhat::StoreLiveGoals { count: item.value, bound: derived::STORE_LIVE_GOALS }),
+            ));
+        }
+        if (item.name.as_ref() == b"live_goals" || item.name.as_ref() == b"tool_payload")
+            && let Err(why) = limits::apply(&mut figures, &item.name, item.value)
+        {
+            return Err(super::problem(Path::root().member(&item.name), What::Override(why)));
+        }
+    }
+    let payload = source.payload.max(figures.tool_payload);
+    let (mut jig_base, own) =
+        if typed && figures.live_goals == stock.1.live_goals && figures.tool_payload == stock.1.tool_payload {
+            *stock
+        } else {
+            base(figures.live_goals, figures.tool_payload, source)?
+        };
+    if !typed {
+        jig_base.core.fleet.grace = super::worker_fleet_grace(&jig_base);
+    }
+    if !jig.is_empty() {
+        derived::follow_task_overrides(&mut jig_base, jig);
+    }
+    Ok((jig_base, own, payload))
+}
+
+fn own_overrides(mut own: limits::Limits, temper: &[Override]) -> Result<limits::Limits, Problems> {
+    for item in temper {
+        if let Err(why) = limits::apply(&mut own, &item.name, item.value) {
+            return Err(super::problem(Path::root().member(&item.name), What::Override(why)));
+        }
+    }
+    Ok(own)
 }
 
 fn complete(inputs: &LimitInputs, resolved: Resolved) -> Result<Resolved, Problems> {
@@ -348,7 +408,8 @@ fn complete(inputs: &LimitInputs, resolved: Resolved) -> Result<Resolved, Proble
     Ok(Resolved { jig, temper: own, root, left_out, store, payload })
 }
 
-fn jig_floors(base: &config::Limits, overrides: &[Override], problems: &mut Problems) {
+fn jig_floors(base: &config::Limits, overrides: &[Override], repairs: bool) -> List<CarrierFloor> {
+    let mut floors = List::uncapped();
     for name in [
         b"tasks.message_bytes".as_slice(),
         b"tasks.result_bytes",
@@ -362,25 +423,34 @@ fn jig_floors(base: &config::Limits, overrides: &[Override], problems: &mut Prob
         b"hub.outcome_bytes",
         b"core.call_answer_bytes",
     ] {
-        let row = config::names::find(name).expect("derived jig name");
-        let needs = (row.value)(base);
-        if let Some(has) = supplied(overrides, name)
-            && has < needs
-        {
-            problems.push(Path::root().member(name), What::Short { bytes: has, of: b"the source's derivation", needs });
+        if let Some(has) = supplied(overrides, name) {
+            carrier(&mut floors, name, has, jig_figure(base, &[], name), b"the source's derivation");
         }
     }
     // These two carriers also follow explicitly overridden same-set sources.
-    let message = supplied(overrides, b"tasks.message_bytes").unwrap_or(u64::from(base.core.tasks.message_bytes));
-    let result = supplied(overrides, b"tasks.result_bytes").unwrap_or(u64::from(base.core.tasks.result_bytes));
-    floor(problems, b"tasks.message_bytes", message, result, b"tasks.result_bytes");
-    let resume = supplied(overrides, b"core.resume_bytes").unwrap_or(u64::from(base.core.resume_bytes));
-    let transcript = supplied(overrides, b"hub.transcript_bytes").unwrap_or(base.hub.transcript_bytes);
+    let message = jig_figure(base, overrides, b"tasks.message_bytes");
+    let result = jig_figure(base, overrides, b"tasks.result_bytes");
+    let resume = jig_figure(base, overrides, b"core.resume_bytes");
+    let transcript = jig_figure(base, overrides, b"hub.transcript_bytes");
+    let (result, resume) = if repairs {
+        (effective(&floors, b"tasks.result_bytes", result), effective(&floors, b"core.resume_bytes", resume))
+    } else {
+        (result, resume)
+    };
+    carrier(&mut floors, b"tasks.message_bytes", message, result, b"tasks.result_bytes");
     let needs =
         resume.checked_add(12_u64.checked_mul(resume / 4).expect("u32 resume carrier")).expect("u32 resume window");
-    floor(problems, b"hub.transcript_bytes", transcript, needs, b"core.resume_bytes");
+    carrier(&mut floors, b"hub.transcript_bytes", transcript, needs, b"core.resume_bytes");
+    floors
 }
-fn derived_floors(own_base: &limits::Limits, jig: &config::Limits, own: &limits::Limits, problems: &mut Problems) {
+
+fn jig_figure(base: &config::Limits, overrides: &[Override], name: &[u8]) -> u64 {
+    let row = config::names::find(name).expect("derived jig name");
+    supplied(overrides, name).unwrap_or((row.value)(base))
+}
+
+fn derived_floors(own_base: &limits::Limits, own: &limits::Limits, resume: u64) -> List<CarrierFloor> {
+    let mut floors = List::uncapped();
     for name in [
         b"root.journal.transcript_bytes".as_slice(),
         b"root.loads.transcript_bytes",
@@ -394,12 +464,13 @@ fn derived_floors(own_base: &limits::Limits, jig: &config::Limits, own: &limits:
         let row = limits::find(name).expect("derived temper name");
         let (has, needs) = ((row.value)(own), (row.value)(own_base));
         let (needs, source) = if name == b"root.journal.transcript_bytes" {
-            (needs.max(u64::from(jig.core.resume_bytes)), b"the source's derivation (core.resume_bytes)".as_slice())
+            (needs.max(resume), b"the source's derivation (core.resume_bytes)".as_slice())
         } else {
             (needs, b"the source's derivation".as_slice())
         };
-        floor(problems, name, has, needs, source);
+        carrier(&mut floors, name, has, needs, source);
     }
+    floors
 }
 
 fn floor(problems: &mut Problems, name: &[u8], has: u64, needs: u64, source: &'static [u8]) {
@@ -407,26 +478,54 @@ fn floor(problems: &mut Problems, name: &[u8], has: u64, needs: u64, source: &'s
         problems.push(Path::root().member(name), What::Short { bytes: has, of: source, needs });
     }
 }
+fn forge_op_floor(floors: &mut List<CarrierFloor>, has: u64, result: u64) -> u64 {
+    carrier(floors, b"forge.client.op_bytes", has, result, b"the source's derivation (tasks.result_bytes)");
+    has.max(result)
+}
+
+fn forge_body_floor(floors: &mut List<CarrierFloor>, has: u64, op: u64) {
+    let needs = match u32::try_from(op) {
+        Ok(op) => derived::forge_body(op).unwrap_or(u32::MAX),
+        Err(_) => u32::MAX,
+    };
+    carrier(
+        floors,
+        b"forge_component.body_bytes",
+        has,
+        u64::from(needs),
+        b"the source's derivation (forge.client.op_bytes)",
+    );
+}
+
+fn carrier(floors: &mut List<CarrierFloor>, name: &'static [u8], has: u64, needs: u64, of: &'static [u8]) {
+    if has < needs {
+        floors.push(CarrierFloor { name, needs, has, of }).expect("one row per carrier check");
+    }
+}
+
+fn effective(floors: &List<CarrierFloor>, name: &[u8], mut value: u64) -> u64 {
+    for floor in floors {
+        if floor.name == name {
+            value = value.max(floor.needs);
+        }
+    }
+    value
+}
+
+fn report_floors(floors: &List<CarrierFloor>, problems: &mut Problems) {
+    for entry in floors {
+        floor(problems, entry.name, entry.has, entry.needs, entry.of);
+    }
+}
+
 /// Name related settings before whole-domain or codec validity can hide the relation.
-fn related_limits(jig: &config::Limits, own: &limits::Limits, problems: &mut Problems) {
+fn related_limits(own: &limits::Limits, problems: &mut Problems) {
     for (name, has, needs, source) in [
         (
-            b"forge.client.op_bytes".as_slice(),
-            u64::from(own.forge.client.op_bytes),
-            u64::from(jig.core.tasks.result_bytes),
-            b"the source's derivation (tasks.result_bytes)".as_slice(),
-        ),
-        (
-            b"forge_component.body_bytes".as_slice(),
-            u64::from(own.forge_component.body_bytes),
-            u64::from(derived::forge_body(own.forge.client.op_bytes).unwrap_or(u32::MAX)),
-            b"the source's derivation (forge.client.op_bytes)".as_slice(),
-        ),
-        (
-            b"root.brief.read_bytes",
+            b"root.brief.read_bytes".as_slice(),
             u64::from(own.root.brief.read_bytes),
             u64::from(own.root.brief.budgets.task),
-            b"the source's derivation (root.brief.budgets.task)",
+            b"the source's derivation (root.brief.budgets.task)".as_slice(),
         ),
         (
             b"forge.brief_bytes",
