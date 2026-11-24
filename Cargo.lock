@@ -6099,6 +6099,7 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "skein-fail-stop",
  "skein-scratch",
  "temper-client-journeys-kit",

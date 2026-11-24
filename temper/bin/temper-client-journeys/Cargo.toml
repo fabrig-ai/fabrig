@@ -21,6 +21,7 @@ temper-client-journeys-tool.workspace = true
 skein-fail-stop.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 temper-client-journeys-kit.workspace = true
 skein-scratch.workspace = true
 temper-client-shell-web.workspace = true

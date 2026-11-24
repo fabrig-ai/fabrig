@@ -3,7 +3,7 @@ use crate::{Build, REPOSITORY, Refusal, output};
 use crate::{
     EnvironmentEntry, TABLE,
     host::Host,
-    table::{CAUTION, DRIVE, JOURNEY_WALK, LOOK_REFRESH, PRINT, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK},
+    table::{CAUTION, DRIVE, JOURNEY_WALK, LOOK_REFRESH, PRINT, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, WRITER},
 };
 use skein_shell::{Front, Table};
 use std::process::ExitCode;
@@ -46,6 +46,9 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
                 return session_exit(crate::journey_walk::run(rest, &environment));
             } else if *command == DRIVE {
                 return drive(rest, &environment);
+            } else if *command == WRITER {
+                let mut host = Host::real(environment);
+                return ExitCode::from(crate::writer::run(rest, &mut host, std::process::id()));
             } else if *command == LOOK_REFRESH {
                 return ExitCode::from(crate::look_refresh::run(
                     rest,

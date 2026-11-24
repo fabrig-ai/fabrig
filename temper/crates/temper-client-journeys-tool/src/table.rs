@@ -263,6 +263,94 @@ pub(crate) const JOURNEY_WALK: Command = Command {
     ..BASE
 };
 
+pub(crate) const BUNDLE: Variable = Variable {
+    name: "TEMPER_INTERNAL_BUNDLE",
+    set: Set::Internal,
+    form: "none",
+    line: "The writer sets this for the page print so it builds no browser bundle.",
+    absent: "The writer sets none even where the caller gives no value.",
+    notes: "The journeys tool itself builds no bundle.",
+    way: Way::Sets,
+};
+
+const WRITER_FLAGS: Settings = Settings {
+    tool: "temper-client-journeys writer",
+    about: "The change to offer and where to write it.",
+    table: &[
+        Setting {
+            name: "project",
+            value: "PROJECT",
+            about: "Open the change in this project.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Omit for a local commit unless --push is given.",
+        },
+        Setting {
+            name: "budget",
+            value: "AMOUNT",
+            about: "Give the change this budget.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "With a project, give this or --as-allowed.",
+        },
+        Setting {
+            name: "branch",
+            value: "NAME",
+            about: "Write on this local branch.",
+            fallback: Fallback::Text("journey-pages"),
+            set: Set::Internal,
+            twin: None,
+            notes: "Only the project's default writer branch can be force-pushed.",
+        },
+        Setting {
+            name: "push",
+            value: "REMOTE",
+            about: "Push to this configured remote.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Defaults to origin with --project; otherwise no push.",
+        },
+        Setting {
+            name: "prepared",
+            value: "DIR",
+            about: "Accepted for compatibility.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Has no effect.",
+        },
+        Setting {
+            name: "within",
+            value: "DURATION",
+            about: "Accept digits then s, m or h.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Has no effect.",
+        },
+    ],
+};
+pub(crate) const WRITER: Command = Command {
+    reach: Reach::Words(&["writer"]),
+    forms: &[
+        "[--project PROJECT (--budget AMOUNT | --as-allowed)] [--branch NAME] [--push REMOTE] [--prepared DIR] [--within DURATION]",
+    ],
+    line: "Print journey pages on main's fetched tip and offer the changed files.",
+    settings: &[&WRITER_FLAGS],
+    switches: &[Switch {
+        name: "as-allowed",
+        set: Set::Internal,
+        line: "Open with the project's allowance instead of an explicit budget.",
+        notes: "Requires --project.",
+    }],
+    variables: &[&BUNDLE, &PATH],
+    notes: "--prepared DIR and --within DURATION have no effect: temper-client-walk pages walks no box",
+    ..BASE
+};
+
 pub(crate) const LOOK_REFRESH: Command = Command {
     reach: Reach::Words(&["look-refresh"]),
     line: "Rebase the checked-out look-requests or tui-requests branch on origin/main and push with its saved lease.",
@@ -276,8 +364,8 @@ pub const TABLE: Table = Table {
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST, LOOK_REFRESH],
+    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST, WRITER, LOOK_REFRESH],
     settings: &[],
-    variables: &[&CHROMIUM, &PATH],
+    variables: &[&CHROMIUM, &PATH, &BUNDLE],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",
 };
