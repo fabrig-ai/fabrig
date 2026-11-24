@@ -66,3 +66,5 @@ name.
 
 | Slow test (`browser_real`) | Held by |
 |---|---|
+| `chromium_finds_a_sentence_by_a_few_of_its_words` | `skein-browser-world::suite` / `words::a_find_by_words_keeps_only_the_matching_sentence` holds the kit's filtering and whole returned name; `skein-browser-world` (lib) / `tests::a_find_by_words_asks_without_a_name` holds the command shape. `skein-browser-world::browser_real` / `chromium_opens_finds_and_presses_a_button` holds Chromium's `StaticText` reply on the button page. |
+| `chromium_reports_a_selector_without_an_element` | `skein-browser-world` (lib) / `tests::attribute::a_selector_without_an_element_returns_no_element` holds `nodeId: 0` becoming `Read::NoElement`. `skein-browser-world::browser_real` / `chromium_reads_the_first_hidden_inputs_value_attribute` holds the native `.absent` read on the same page as the hidden inputs. |
