@@ -371,7 +371,7 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
     changed
 }
 
-/// Register the pause and landing layouts, retiring earlier layouts only for unused types.
+/// Register the pause, landing and closer layouts, retiring earlier layouts only for unused types.
 fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps, temper_text: [u8; 32]) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
@@ -391,6 +391,7 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps, temper_text: 
         (Owner::Jig, "jig-store-people", "acted"),
         (Owner::Application, "temper-store", "application"),
         (Owner::Application, "temper-store", "landing"),
+        (Owner::Application, "temper-store", "closer"),
     ] {
         let family = CURRENT_SETS
             .sets
