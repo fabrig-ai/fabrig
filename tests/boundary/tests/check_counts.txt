@@ -13,7 +13,7 @@ hearth/tests/template/src/generate.rs
 hearth/tests/template/src/generate/template.rs
 hearth/tests/tree/src/mutate.rs
 jig/testing/jig-conformance/src/store_check.rs
-jig/tests/client-protocol/tests/suite/fuzzy/public_path.rs
+jig/tests/client-protocol/src/public_path.rs
 jig/tests/core/src/agents_tools.rs
 jig/tests/core/tests/support/amendment_funding.rs
 skein/testing/skein-json-kit/src/generate.rs

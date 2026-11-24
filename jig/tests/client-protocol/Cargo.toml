@@ -11,6 +11,7 @@ jig-client-protocol-kit.workspace = true
 jig-client.workspace = true
 jig-client-shell-native.workspace = true
 jig-test-service.workspace = true
+skein-checks.workspace = true
 skein-lib.workspace = true
 skein-http.workspace = true
 skein-io.workspace = true
@@ -22,6 +23,8 @@ jig-client-protocol-http.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-domain-core.workspace = true
 jig-client-kit.workspace = true
+jig-protocol-engine-clients.workspace = true
+jig-protocol-engine-clients-http.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
@@ -43,7 +46,6 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
-skein-checks.workspace = true
 jig-domain-notes.workspace = true
 jig-protocol-transcript.workspace = true
 smith-transcript.workspace = true
@@ -53,8 +55,6 @@ jig-test-connector.workspace = true
 jig-client-view.workspace = true
 jig-client-protocol-link.workspace = true
 jig-client-test-records.workspace = true
-jig-protocol-engine-clients.workspace = true
-jig-protocol-engine-clients-http.workspace = true
 jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
 jig-test-domain.workspace = true
