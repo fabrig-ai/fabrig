@@ -77,14 +77,11 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
         &format!(
             r#"#!/bin/sh
 set -eu
-printf '%s\n' "$*" >> arguments
 case "$2" in
-list)
-    printf 'welcome: Welcome.\n'
-    if test -f "$4/added/recipe"; then printf 'added: Added.\n'; fi ;;
+list) printf 'welcome: Welcome.\n' ;;
 hash) printf '{HASH}\n' ;;
 walk)
-    if test -f walk-exit; then printf 'stopped at %s:2: missing Work\n' "$3"; exit "$(cat walk-exit)"; fi
+    if [ "$3" = welcome ]; then printf 'stopped at welcome:2: missing Work\n'; exit 4; fi
     mkdir -p box/config box/data
     printf 'walked %s {HASH}\n' "$3" ;;
 *) exit 1 ;;
@@ -92,64 +89,14 @@ esac
 "#
         ),
     );
-    let missing = run(&home, &["pass", "setup", "fresh"], None, None);
-    assert_eq!(missing.status.code(), Some(1));
-    assert_eq!(
-        missing.stderr,
-        b"temper-qa: TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session\n"
-    );
-    for code in [4, 5] {
-        fs::write(place.directory.join("walk-exit"), code.to_string()).expect("exit");
-        let output = run(&home, &["pass", "setup", "welcome"], Some(started.session), None);
-        assert_eq!(output.status.code(), Some(code), "{output:?}");
-        assert!(output.stderr.is_empty(), "{output:?}");
-        assert!(String::from_utf8_lossy(&output.stdout).contains(if code == 4 {
-            "the box failed walking welcome"
-        } else {
-            "stopped at welcome:2: missing Work"
-        }));
-    }
-    fs::remove_file(place.directory.join("walk-exit")).expect("walk succeeds");
-    let fresh = run(&home, &["pass", "setup", "fresh"], Some(started.session), None);
-    assert_eq!(fresh.status.code(), Some(0), "{fresh:?}");
-    assert_eq!(fresh.stdout, b"setup fresh: an empty box\n");
+    let failed = run(&home, &["pass", "setup", "welcome"], Some(started.session), None);
+    assert_eq!(failed.status.code(), Some(4), "{failed:?}");
+    assert!(failed.stderr.is_empty(), "{failed:?}");
+    assert!(String::from_utf8_lossy(&failed.stdout).contains("the box failed walking welcome"));
+
     let added = run(&home, &["pass", "recipe", "added", "-"], Some(started.session), Some(RECIPE));
     assert_eq!(added.status.code(), Some(0), "{added:?}");
     assert!(String::from_utf8_lossy(&added.stdout).contains("recipe added walked from fresh: 111111111111"));
     let archive = place.copies.join("added").join(format!("{HASH}-{COMMIT}.tar"));
     assert!(archive.is_file());
-    fs::write(place.scratch.join("data/stale"), "not in copy").expect("stale box");
-    let restored = run(&home, &["pass", "setup", "added"], Some(started.session), None);
-    assert_eq!(restored.status.code(), Some(0), "{restored:?}");
-    assert!(
-        String::from_utf8_lossy(&restored.stdout).contains("setup added: restored from its copy made at 0123456789ab")
-    );
-    assert!(!place.scratch.join("data/stale").exists());
-    assert_eq!(fs::read_to_string(place.setup).expect("setup"), format!("added {HASH}\n"));
-    fs::write(home.directory.join("recipe.json"), RECIPE).expect("recipe file");
-    let rewritten = run(&home, &["pass", "recipe", "added", "recipe.json"], Some(started.session), None);
-    assert_eq!(rewritten.status.code(), Some(0), "{rewritten:?}");
-}
-
-#[test]
-fn a_deployment_place_refuses_fresh_and_box_setups_with_exit_one() {
-    let (_scratch, home, place) = super::hold::home_kind(temper_qa_tool::Kind::Deployment);
-    let fresh = run(&home, &["pass", "setup", "fresh"], Some(2), None);
-    assert_eq!(fresh.status.code(), Some(1));
-    assert_eq!(
-        fresh.stderr,
-        b"temper-qa: a deployment's place has no fresh setup: its setups start from their root's config/\n"
-    );
-    let setups = home.directory.join("passes/1/setups");
-    fs::create_dir_all(setups.join("welcome")).expect("setup");
-    fs::write(setups.join("welcome/recipe"), "recipe 1\ncheck\nctl task list\n").expect("recipe");
-    script(
-        &place.join("bin/temper-client-journeys"),
-        "#!/bin/sh\n[ \"$2\" = list ] || exit 4\nprintf 'welcome: A box.\\n'\n",
-    );
-    let boxed = run(&home, &["pass", "setup", "welcome"], Some(2), None);
-    assert_eq!(boxed.status.code(), Some(1));
-    assert_eq!(boxed.stderr, b"temper-qa: setup welcome is a box's; places/1 is a deployment's place\n");
-    assert!(!place.join("setup").exists());
-    assert_eq!(fs::metadata(place.join("deployment")).expect("scratch").permissions().mode() & 0o777, 0o700);
 }

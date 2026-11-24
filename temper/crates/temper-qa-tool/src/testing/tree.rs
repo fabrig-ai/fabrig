@@ -299,6 +299,7 @@ impl Tree {
     }
 
     fn open_file(&self, path: &Path, options: WriteOptions) -> io::Result<FileHandle> {
+        let opened_as = self.absolute(path);
         let path = self.walk(path, options.way != WriteMode::New, true)?;
         let entry = match self.entry(&path) {
             Ok(_) if options.way == WriteMode::New => return Err(ErrorKind::AlreadyExists.into()),
@@ -325,6 +326,7 @@ impl Tree {
         }
         Ok(FileHandle {
             entry,
+            opened_as,
             offset: 0,
             append: options.way == WriteMode::Append,
             readable: options.read,
@@ -337,7 +339,32 @@ impl Tree {
         if !matches!(entry.borrow().contents, Contents::File(_)) {
             return Err(not_file(&entry.borrow().contents));
         }
-        Ok(FileHandle { entry, offset: 0, append: false, readable: true, writable: false })
+        Ok(FileHandle {
+            entry,
+            opened_as: self.absolute(path),
+            offset: 0,
+            append: false,
+            readable: true,
+            writable: false,
+        })
+    }
+
+    fn entry_facts(&self, entry: &Entry) -> PathFacts {
+        let inode = entry.borrow();
+        let links = self.state.borrow().entries.values().filter(|other| Rc::ptr_eq(other, entry)).count();
+        let size = match &inode.contents {
+            Contents::File(bytes) => bytes.len(),
+            Contents::Link(path) => path.as_os_str().as_bytes().len(),
+            Contents::Directory | Contents::Socket(_) => 0,
+        };
+        PathFacts {
+            kind: inode.contents.kind(),
+            size: size as u64,
+            mode: inode.mode,
+            device: inode.device,
+            inode: inode.number,
+            links: links as u64,
+        }
     }
 }
 
@@ -351,6 +378,7 @@ fn not_file(contents: &Contents) -> io::Error {
 #[derive(Debug)]
 pub struct FileHandle {
     entry: Entry,
+    opened_as: PathBuf,
     offset: usize,
     append: bool,
     readable: bool,
@@ -455,9 +483,17 @@ impl FilesFace for Tree {
         self.open_file(path, options)
     }
 
+    fn reader_facts(&mut self, file: &FileHandle) -> io::Result<PathFacts> {
+        Ok(self.entry_facts(&file.entry))
+    }
+
     fn writer_permissions(&mut self, file: &FileHandle, mode: u32) -> io::Result<()> {
         file.entry.borrow_mut().mode = mode;
         Ok(())
+    }
+
+    fn sync_writer(&mut self, file: &FileHandle) -> io::Result<()> {
+        self.fault(&file.opened_as, FileOp::Sync)
     }
 
     fn open_log_tail(&mut self, path: &Path) -> Result<FileHandle, Refusal> {
@@ -597,21 +633,7 @@ impl FilesFace for Tree {
     fn facts(&mut self, path: &Path, follow: bool) -> io::Result<PathFacts> {
         self.fault(path, FileOp::Facts)?;
         let entry = self.entry(&self.walk(path, follow, false)?)?;
-        let inode = entry.borrow();
-        let links = self.state.borrow().entries.values().filter(|other| Rc::ptr_eq(other, &entry)).count();
-        let size = match &inode.contents {
-            Contents::File(bytes) => bytes.len(),
-            Contents::Link(path) => path.as_os_str().as_bytes().len(),
-            Contents::Directory | Contents::Socket(_) => 0,
-        };
-        Ok(PathFacts {
-            kind: inode.contents.kind(),
-            size: size as u64,
-            mode: inode.mode,
-            device: inode.device,
-            inode: inode.number,
-            links: links as u64,
-        })
+        Ok(self.entry_facts(&entry))
     }
 
     fn permissions(&mut self, path: &Path, mode: u32) -> io::Result<()> {
