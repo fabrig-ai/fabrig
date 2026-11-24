@@ -73,8 +73,16 @@
   The slot-host story still belongs here: its loop starts the shipped
   owned-slot subprocess and real Forgejo. Its referee polls the marker
   promptly instead of waiting for the fixture shell's 30-second sleep.
-  The plan-face landing remains separate as the offline proof of the
-  shared live driver's model face (`live-tier.md`).
+  The plan's model face stays a story of its own, ending at its chat's
+  reply (*The plan's model face, offline*, below).
+
+- **One real owned-Forgejo landing** (skein/docs/foundation/testing-strategy.md, 2.9 and 9):
+  the first owned repository's story (below). A story that walked
+  another landing, a playground's copy or a repeated command path to
+  reach its assertions is gone or shortened to its boundary, and the
+  lower test holding each of its assertions is named beside it in
+  `../../development/slow-tests-moves-2026-11-23-temper-forgejo.md`;
+  a finding there is reproduced in that holder, not by a story here.
 
 - **Landing by turn's behaviours are the engine's worlds'**
   (skein/docs/foundation/testing-strategy.md, 1 and 2.9; the user's
@@ -312,33 +320,13 @@
   person, makes the repository in the setup's org through Forgejo's API,
   with Actions and a workflow whose job runs the repository's check on the
   runner. Never an existing Forgejo.
-- **CI on, webhooks on.** The repository is adopted with "It runs CI"
-  checked, and the project's landing rule asks for CI and for no gate or
-  approval (`"ci": true`, `"gates": []`, `"approvals": []`;
-  ../protocol/configuration/engine.md): the change lands once its job,
-  run by the owned runner, has passed on its head. The webhooks' listener
-  is configured, and the org's hook reaches it.
-- **The story,** one test:
-  1. the person signs in by the link the binary prints, and adds the
-     test's key as the deployment's on the accounts page
-     (../client/root.md, 1.6), which shows its account usable (`real-loop.md`);
-  2. a chat is answered;
-  3. a repository is adopted through temper's client, as above;
-  4. a goal is given whose change, its CI passed, lands on the owned
-     Forgejo, pushed by real git;
-  5. the binary crashes: its whole tree is killed at once, as a
-     supervisor ends a crashed service's (skein's `runtime/shell.md`, 12), and
-     once nothing of it runs, it is started again on the same directory;
-  6. the person finds the work, and the change's branch on the forge is
-     at the run's commit.
-
-  The person reads the chat that gives the goal, finds the goal on the
-  board and its plan on its page, and finds the same after the restart.
-  The forge's state is the story's proof of the change, read through
-  Forgejo's API.
-  This same story raises the keep's polling intervals and the change's
-  stall past its patience, with a slow CI job, so it also proves that
-  deliveries carry the job's end (../protocol/setup/testing.md, 4).
+- **A real Forgejo's deliveries,** one short test on the owned Forgejo
+  and its runner, its hook at a receiver of the test's own: a push to
+  `main` is delivered as `push`, and the end of the CI job that push
+  started as the job's event reconcile's hook asks for, each signed
+  with the secret reconcile drew and naming the pushed commit. What
+  temper does with a delivery is the protocol-forge world's
+  (../protocol/setup/webhooks.md, 1, *Checked*).
 
 - **The build it runs in.** The tier runs the binary its build made,
   with or without its browser (`TEMPER_INTERNAL_BUNDLE`; ../client/web/bundle.md,
@@ -346,10 +334,10 @@
   shows the browser (init's line for no browser, the page at `/`), the
   test expects what the binary holds, as `temper_box_shell::bundle::OWN` says,
   never one build's answer alone.
-- **Its endings.** The landing story's crash
-  proves what a crash of every process keeps on disk, the page cache
-  surviving it, not what a power loss does, which the one-process world
-  draws (`tiers.md`, 1.5). Every end outside a named crash, cancellation or setup cut, is a deployment's healthy stop
+- **Its endings.** What a crash of every process keeps on disk is the
+  one-process world's, which draws a power loss too (`tiers.md`, 1.5);
+  a killed serve started again on its directory is this tier's
+  (`a_killed_serve_keeps_its_port_and_prints_a_fresh_link`). Every end outside a named crash, cancellation or setup cut, is a deployment's healthy stop
   (skein's `runtime/shell.md`, 12): the test sends `Terminate`, the engine
   drains (`../domain/root-restart.md`, 1.2), the service closes what it started, and the
   binary exits 0 with none of its tree running. A process left at that
@@ -358,7 +346,7 @@
 - **The terminal,** a second test, on a scratch directory of its own:
   `temper-box open DIRECTORY LINK` with stdin and stdout piped signs in by
   the link `temper-box serve` printed, prints the inbox, adopts a repository
-  as above by commands (the form's fields written with `n words`, then
+  of the owned Forgejo by commands (the form's fields written with `n words`, then
   Adopt pressed with `n`), and exits 0 on `q` after a drained close. Its
   referee reads the printed pages (the inbox and the adoption's
   outcome) and the exit status.
@@ -376,8 +364,12 @@
   change with real git. The owned runner first fails because the release
   note is absent. Its output reaches the repair's brief; the repair adds
   that note, CI passes at the repaired head, and a blocking agent review
-  approves that same head before landing. A second box finds the same
+  approves that same head before landing. Forgejo's API, read apart
+  from temper, gives the pull merged, its head's CI passed and `main`
+  at the merge, holding the change's file. A second box finds the same
   task, head and merge without replaying setup or making another task.
+  It is the tier's one real owned-Forgejo landing: real git, the owned
+  runner, the merge and `main` read back.
   Its fresh admin handover is consumed and revokes an independent older
   admin oracle. No credential is borrowed or printed. The fixture sets
   the stock charters' parking intervals to one millisecond: parking time
@@ -401,6 +393,16 @@
   provider's identity cannot pass. The forge is then connected as its
   admin by the handover file, as `temper help server`'s walk does, and
   the page answers with its forge's meta (../protocol/openid-provider.md, 7).
+  One test, `an_owned_forgejo_signs_its_people_in_through_temper`, on one
+  Forgejo, walks both of temper's sources in turn, its serve started
+  again with each source's configuration, since a serve's clients are
+  fixed at its start, and once more for the links-only restart: first a
+  public source, added by `forge source` twice and kept once, whose
+  exchange joins the owner's existing account to its `sub`; then the
+  confidential source above, its secret on no output, the member made,
+  the links-only restart (`../draft/dogfood-hacks.md`, 2.8) and the
+  admin's connect. The box's one click is a test of its own
+  (`a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click`).
   It aims at 2 s, as a world's story
   does (`checks.md`, 1), and takes about 3 s whole: about 2.5 s is the owned
   Forgejo's preparation and start, as every owned-Forgejo story pays,
@@ -431,42 +433,24 @@
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once
   (../protocol/setup/README.md, sections 3 and 5).
-- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`testing/temper-box-kit/src/forge_land.rs`): "A
-  Forgejo set up from the client" (above), its set-up, first repository
-  and landing reused, carried on with ChatGPT's sign-in as above, a
-  chat on the plan, and a restart from a fresh client. The module writes
-  the story once, its model side a face: the fake issuer and the fake
-  LLM peer here, ChatGPT itself in the live tier (`live-tier.md`), which reuses
-  every step and check but the face's:
-  - *the box and its forge:* `temper-box init --box` into three empty private
-    directories, the sign-in's and the LLM endpoint's addresses swapped
-    for the fakes', then `temper box` on them, which reads that
-    document; the owned forge set up from the client and `work/hello` made and
-    adopted into project 1, by that story's steps;
-  - *the change:* the owner connects ChatGPT (`account connect 1`,
-    `account list --until settled`) and opens a chat on gpt-6-luna in
-    project 1 asking for one README line, unique to the run. The
-    chat's agent calls `change`, naming `work/hello`, and the root
-    delegates the change procedure on it (../domain/agent/tools-change.md, 1; ../domain/forge/change/README.md
-    ); the coder edits on the plan's grant, its
-    pull's starter workflow passes on the owned runner, the change
-    lands with no review, since init's landing rule names no gate, and
-    the chat's reply, its turn's text with no `finish` (../domain/agent/charter.md, 5),
-    follows the procedure's result. The peer observes a bearer on every
-    request, the coder's too;
-  - *the restart:* the box stops, exit 0, with nothing left, and a
-    second box starts on the same directories. A fresh client root,
-    signed in by the new printed link, reads the same chat and its
-    reply, and the change's task ended landed with the same pull and
-    merge commit, and no task beyond the chat, its change and its
-    producer. Close ends the chat with its closing turn, and no task of
-    the project is left live;
-  - *its referee:* temper's reads, with no credential, give the
-    landing, its pull, its merge commit and its checks at the pull's
-    head, in both boxes alike, so nothing was pushed or merged twice;
-    the forge's own state is checked as that story checks it. The
-    peer's requests number the script's, each answered, the closing
-    turn's included.
+- **The plan's model face, offline**
+  (`testing/temper-box-kit/src/forge_land.rs`), one test,
+  `a_persons_plan_is_connected_and_answers_a_chat_with_its_bearer_on_every_request`:
+  the shipped box on its fakes, the fake issuer standing for ChatGPT's
+  sign-in and the fake LLM peer, over TLS, for its model. The owner
+  signs in by the printed link, reads `me`, connects ChatGPT
+  (`account connect 1`, its authorization followed by the fake
+  visitor) and reads `account list --until settled`: provider 1, a
+  plan, held by the signed-in party, its sign-in source granted and
+  usable. A chat on gpt-6-luna asks for a reply unique to the run, and
+  its turn's text is committed (../domain/agent/charter.md, 5). The
+  peer observes the plan's bearer on every request, catalogue reads
+  included, each answered; the box stops, exit 0, one link on its
+  stdout and nothing of its tree left. No forge: the landing is the
+  first owned repository's, and what a restart keeps of the plan, the
+  chat and its change is the engine domain's (*What the Forgejo
+  stories leave below*). ChatGPT itself is the live tier's
+  (`live-tier.md`).
 - **The cluster,** its own tests (../protocol/cluster.md, 6), on
   temper's fakes as processes, never on Forgejo:
   `bin/temper-box/tests/fixtures/cluster/`, the process tier's cluster
@@ -506,10 +490,15 @@
 - **Two drivers' offline proofs** (the user's request `ignored-tiers`,
   2026-11-08). Each test sets up what its script sets up, and the
   script runs the test:
-  - *B0's,* `bin/temper-box/tests/proof_live.rs`: the rung's setup through
-    its last read before the account's import, on the fake model with no
-    account, and its whole walk on its twin, the driver the live rung
-    runs (`live-tier.md`). Real Forgejo, as the stories above.
+  - *B0's,* `bin/temper-box/tests/proof_live.rs`, one test,
+    `rung_b0s_walk_passes_offline_on_its_twin`: its whole walk on its
+    twin, the driver the live rung runs (`live-tier.md`). At its last
+    read before the account's import the offline face checks the setup:
+    the deployment holds no account, the fake model has had no request,
+    and the project and its roles are funded at least at the rung's
+    figures; at its box's exit nothing of the box's tree is left. These
+    checks are the offline face's alone, adding no command to the live
+    rung. Real Forgejo, as the stories above.
   - *The managed GitHub sitting's Ready,*
     `bin/temper-box/tests/live_github_managed.rs`'s `managed_ready_client`:
     the sitting's fake half as `scripts/proof-live-github-managed.sh fake`

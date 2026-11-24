@@ -17,14 +17,13 @@ fn pending() -> Find {
 
 #[test]
 fn jig_s_pending_request_story_holds_for_jig_test() {
-    let tier = Tier::reserved("pending-reload");
+    let tier = Tier::new("pending-reload");
     assert_eq!(
-        stories::a_reload_keeps_a_pending_request(
+        stories::a_reload_with_a_pending_request_meets_the_closing_warning(
             &tier.setup(),
             &tier.states(),
             &mut tier.request_script(),
-            pending(),
-            made()
+            pending()
         ),
         Outcome::Done
     );
