@@ -169,6 +169,57 @@ fn a_dead_hosts_runtime_observation_is_rebuilt() {
 }
 
 #[test]
+fn the_restart_oracle_compares_only_durable_wait_projections() {
+    use jig_core_world::{reads, stories::instructions::task_document};
+    use skein_lib::{Duration, Token};
+
+    let mut world = World::new(Setup { seed: 1915, ..Setup::default() });
+    let (task, attempt) = (world.task(), world.attempt());
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Limited {
+        channel: Token::new(7),
+        run: Token::new(task),
+        attempt: Token::new(attempt),
+        account: 1,
+        reset: Some(Duration::from_secs(30)),
+    })));
+    world.end(tasks::End::Failed(tasks::Class::Run), 0);
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    let before = task_document(&mut world, task, 1);
+    let wait = before.wait.expect("the next run's wait is first");
+    assert_eq!(wait.kind, core::WaitKind::Account);
+    let core::Bound::At { at, then } = wait.bound else { panic!("account wait has a bound") };
+    assert_eq!(before.nearest, Some(core::Nearest { at, then, kind: wait.kind }));
+    world.finish().expect("the restart can rebuild the account wait");
+    let after = task_document(&mut world, task, 2);
+    assert_eq!(after.wait.expect("cold host wait").kind, core::WaitKind::Host);
+    assert_eq!(after.nearest.expect("cold host bound").kind, core::WaitKind::Host);
+
+    let mut world = World::new(Setup { seed: 1916, ..Setup::default() });
+    let (task, attempt) = (world.task(), world.attempt());
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Observe {
+        channel: Token::new(7),
+        run: Token::new(task),
+        attempt: Token::new(attempt),
+        report: jig_domain_fleet::Report::Activity(jig_domain_fleet::Activity::Waiting),
+    })));
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    let before = task_document(&mut world, task, 1);
+    assert_eq!(before.wait.expect("observed park's first wait").kind, core::WaitKind::News);
+    world.finish().expect("a live observation does not survive restart");
+    let after = task_document(&mut world, task, 2);
+    assert!(after.wait.is_none());
+
+    let mut world = World::new(Setup { seed: 1917, ..Setup::default() });
+    world.park_for_message(0);
+    let mut row = jig_core_world::fixtures::live_row(&world, PARKED_TASK).clone();
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
+    row.phase_since = skein_lib::Wall::from_nanos(row.phase_since.as_nanos() - 1);
+    world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
+    let finding = world.finish().expect_err("the idle task's durable news wait changed");
+    assert!(finding.contains("restart oracle document Task 1 field wait ("), "{finding}");
+}
+
+#[test]
 fn the_restart_sweep_erases_only_the_expired_sign_in() {
     use jig_domain_people as people;
     let mut world = World::new(Setup { seed: 1905, ..Setup::default() });

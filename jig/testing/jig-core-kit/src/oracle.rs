@@ -127,15 +127,16 @@ impl World {
             self.store.readback_of(&inventory).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
         let forgotten = self.forgotten_due(&records);
         let (parties, tasks) = self.oracle_read_set(&records);
-        let before = self.oracle_documents(&parties, &tasks);
+        let mut before = self.oracle_documents(&parties, &tasks);
         self.restart_configured(configuration(&self.restart_config.0))?;
         self.settle_oracle()?;
         if !self.domain.ready() {
             return Err("restart oracle: decisions did not open".into());
         }
-        let after = self.oracle_documents(&parties, &tasks);
-        for (key, expected) in &before {
-            let found = after.get(key).expect("same oracle read set");
+        let mut after = self.oracle_documents(&parties, &tasks);
+        for (key, expected) in &mut before {
+            let found = after.get_mut(key).expect("same oracle read set");
+            durable_answers(expected, found);
             compare_answer(key, expected, found, &forgotten)?;
         }
         let restored = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
@@ -326,11 +327,7 @@ impl World {
             for task in std::iter::once(None).chain(tasks.iter().copied().map(Some)) {
                 let read = task.map_or(core::reads::Read::Frame, |task| core::reads::Read::Task { task });
                 reads::ask(self, 0, read);
-                let mut answer = reads::latest(self).clone();
-                if let core::reads::Answer::Document(document) = &mut answer {
-                    **document = durable(*document.clone());
-                }
-                found.insert((*party, task), answer);
+                found.insert((*party, task), reads::latest(self).clone());
             }
         }
         self.reads = reads;
@@ -450,9 +447,34 @@ fn rebuilt(key: &[u8]) -> Option<&'static str> {
     }
 }
 
+fn durable_answers(before: &mut core::reads::Answer, after: &mut core::reads::Answer) {
+    use core::reads::Answer;
+    if let (Answer::Document(left), Answer::Document(right)) = (&mut *before, &mut *after)
+        && let (Document::Task(left), Document::Task(right)) = (left.as_mut(), right.as_mut())
+    {
+        let (left_wait, left_bound) = durable_waits(left);
+        let (right_wait, right_bound) = durable_waits(right);
+        // A discarded winner can expose a different wait on the other side. The
+        // retained wait lines still compare; only the affected projection is masked.
+        if left_wait || right_wait {
+            left.wait = None;
+            right.wait = None;
+        }
+        if left_bound || right_bound {
+            left.nearest = None;
+            right.nearest = None;
+        }
+    }
+    for answer in [before, after] {
+        if let Answer::Document(document) = answer {
+            durable(document);
+        }
+    }
+}
+
 /// Fields rebuilt by the restart script; fields in doubt stay durable.
-fn durable(mut document: Document) -> Document {
-    match &mut document {
+fn durable(document: &mut Document) {
+    match document {
         // Engine 6 step 1 restores the accounts, not the last sign-in's runtime end.
         Document::Accounts(row) => {
             row.last_end = None;
@@ -463,7 +485,6 @@ fn durable(mut document: Document) -> Document {
         Document::Terminal { login } => *login = None,
         // Engine 6 step 3 adopts runs afresh; the dead host's receipt is not retained.
         Document::Task(row) => {
-            durable_waits(row);
             row.chip.details.observation = None;
             // client/domain/contract/documents.md 1: run_wait and an omitted choice derive from
             // current source and host availability, absent after a cold restart.
@@ -501,31 +522,38 @@ fn durable(mut document: Document) -> Document {
         | Document::Deployment(_)
         | Document::Settings(_) => {}
     }
-    document
 }
 
-/// Keep the durable wait episodes. A due run choice and a live observation
-/// are volatile, just as their source document fields are.
-fn durable_waits(row: &mut core::documents::Task) {
+/// Keep durable wait episodes and report whether first or nearest projected a
+/// volatile one (jig/docs/design/domain/engine/waits.md, 4).
+fn durable_waits(row: &mut core::documents::Task) -> (bool, bool) {
     use core::WaitKind;
-    use core::documents::{ChipWork, PhaseLine};
-    let next_run = matches!(row.chip.phase, PhaseLine::Active(tasks::Active::Due)) && row.run_wait.is_some();
-    let observed_park = row.chip.details.live_delegates == 0
-        && row.chip.details.observation.as_ref().is_some_and(|value| value.work == ChipWork::Waiting);
-    if !next_run && !observed_park {
-        return;
-    }
+    use core::documents::{ChipWork, PhaseLine, WaitsOn};
+    let volatile: fn(WaitKind) -> bool = match row.chip.phase {
+        PhaseLine::Active(tasks::Active::Due) if row.run_wait.is_some() => {
+            |kind| matches!(kind, WaitKind::Account | WaitKind::Host)
+        }
+        PhaseLine::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. })
+            if row.chip.details.live_delegates == 0
+                && row.chip.details.observation.as_ref().is_some_and(|value| value.work == ChipWork::Waiting) =>
+        {
+            |kind| kind == WaitKind::News
+        }
+        _ => return (false, false),
+    };
     let mut durable = skein_lib::List::with_capacity(row.waits.capacity());
     for wait in &row.waits {
-        if (next_run && matches!(wait.kind, WaitKind::Account | WaitKind::Host))
-            || (observed_park && wait.kind == WaitKind::News)
-        {
-            continue;
+        if !volatile(wait.kind) {
+            durable.push(wait.clone()).expect("durable waits are a subset of the document lines");
         }
-        durable.push(wait.clone()).expect("durable waits are a subset of the document lines");
     }
     row.waits = durable;
+    if row.waits_on == WaitsOn::News && volatile(WaitKind::News) {
+        row.waits_on = WaitsOn::Nothing;
+    }
+    // Each branch contributes one volatile episode, even if its line is cut.
     row.wait_count = row.wait_count.saturating_sub(1);
+    (row.wait.as_ref().is_some_and(|wait| volatile(wait.kind)), row.nearest.is_some_and(|bound| volatile(bound.kind)))
 }
 
 fn procedure_wait(kind: core::WaitKind) -> bool {
@@ -581,6 +609,8 @@ fn compare_answer(
             };
             fields!(left, right;
                 waits_on,
+                wait,
+                nearest,
                 waits,
                 wait_count,
                 settings,
