@@ -1,5 +1,5 @@
 use super::{
-    CONFIG_BYTES, configure, read_configuration,
+    CONFIG_BYTES, StartupReads, configure, read_configuration,
     testing::{agent_document, agent_endpoint_document, scratch},
 };
 use std::fs;
@@ -15,7 +15,9 @@ fn a_configuration_file_past_its_bound_is_refused() {
     let path = directory.join("config.json");
     let file = fs::File::create(&path).expect("configuration file");
     file.set_len(u64::from(CONFIG_BYTES) + 1).expect("one byte past bound");
-    assert!(read_configuration(&path).expect_err("oversized configuration").contains("TooLarge"));
+    assert!(
+        read_configuration(&path, &StartupReads::Native).expect_err("oversized configuration").contains("TooLarge")
+    );
     fs::remove_dir_all(directory).expect("scratch cleanup");
 }
 
@@ -106,7 +108,7 @@ fn a_bundle_above_thirty_two_mebibytes_is_refused() {
 fn a_worker_reads_program_resources_from_the_agent_configuration() {
     use std::os::unix::ffi::OsStrExt;
     let directory = scratch("program-agent");
-    let parsed = super::agent(&agent_document(&directory, true)).expect("configured agent");
+    let parsed = super::agent(&agent_document(&directory, true), &mut StartupReads::Native).expect("configured agent");
     let sources = parsed.sources.expect("configured Claude Code");
     assert_eq!(sources.executable.as_ref(), directory.join("private-claude").as_os_str().as_bytes());
     assert_eq!(sources.directory.as_ref(), directory.join("private-programs").as_os_str().as_bytes());
@@ -126,7 +128,7 @@ fn a_worker_reads_program_resources_from_the_agent_configuration() {
 #[test]
 fn an_agent_without_a_program_supplies_no_program_resources() {
     let directory = scratch("no-program-agent");
-    let parsed = super::agent(&agent_document(&directory, false)).expect("configured agent");
+    let parsed = super::agent(&agent_document(&directory, false), &mut StartupReads::Native).expect("configured agent");
     assert!(parsed.sources.is_none());
     fs::remove_dir_all(directory).expect("scratch cleanup");
 }
@@ -136,7 +138,8 @@ fn advertised_program_endpoints_follow_actual_endpoint_selections() {
     for (program_endpoint, expected) in [(false, &[][..]), (true, &[0][..])] {
         let directory = scratch("endpoint-evidence");
         let parsed =
-            super::agent(&agent_endpoint_document(&directory, true, program_endpoint)).expect("parsed endpoint");
+            super::agent(&agent_endpoint_document(&directory, true, program_endpoint), &mut StartupReads::Native)
+                .expect("parsed endpoint");
         assert_eq!(parsed.agent.bounds.program_endpoints.as_ref(), expected);
         fs::remove_dir_all(directory).expect("scratch cleanup");
     }
@@ -156,7 +159,8 @@ fn debug_of_an_agent_start_shows_the_environments_count_never_its_entries() {
     );
     let sources_debug = format!("{sources:?}");
     let directory = tempfile::tempdir().expect("agent configuration scratch");
-    let mut start = super::agent(&agent_document(directory.path(), false)).expect("configured agent");
+    let mut start =
+        super::agent(&agent_document(directory.path(), false), &mut StartupReads::Native).expect("configured agent");
     start.sources = Some(sources);
     let start_debug = format!("{start:?}");
     let canary_debug = format!("{CANARY:?}");
