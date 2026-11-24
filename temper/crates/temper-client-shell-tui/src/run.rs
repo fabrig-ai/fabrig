@@ -2,6 +2,7 @@
 use crate::{
     host, journey, limits,
     opener::{self, Opener},
+    start::Refused,
 };
 use skein_io::{
     self as io,
@@ -91,6 +92,27 @@ pub struct Front {
     pub log: Box<[u8]>,
 }
 
+struct Handed {
+    engine: io::Addr,
+    address: Origin,
+    link: Secret,
+}
+
+// The front draws its preview before choosing the files that start the client.
+enum OriginStart {
+    Waiting,
+    Preparing(Handed),
+    Loading(Handed),
+    Ready,
+}
+
+/// A changed origin prepared with the same checks as at startup.
+pub struct PreparedOrigin {
+    pub directory: Box<[u8]>,
+    pub theme: Option<jig_client::Record>,
+    pub note: Option<Note>,
+}
+
 #[expect(
     clippy::struct_excessive_bools,
     reason = "box placement, opening, closing and refusal are independent run facts"
@@ -125,7 +147,7 @@ pub struct Run {
     front: bool,
     box_child: Option<front::Child>,
     spawn_root: Option<LocalFile>,
-    front_ready: bool,
+    origin_start: OriginStart,
     local_wait: bool,
     held: Queue<jig_client::Request>,
     link_file: Option<Box<[u8]>>,
@@ -140,6 +162,7 @@ pub struct Run {
     signed_in: Option<Origin>,
     closing: bool,
     refused: bool,
+    handoff_refusal: Option<Refused>,
     terminated: bool,
     recording: Option<Recording>,
 }
@@ -235,7 +258,7 @@ impl Run {
             front,
             box_child,
             spawn_root,
-            front_ready: !front,
+            origin_start: if front { OriginStart::Waiting } else { OriginStart::Ready },
             local_wait: false,
             held: Queue::uncapped(),
             link_file: settings.link_file,
@@ -250,6 +273,7 @@ impl Run {
             signed_in: None,
             closing: false,
             refused: false,
+            handoff_refusal: None,
             terminated: false,
             recording,
         })
@@ -288,6 +312,56 @@ impl Run {
     #[must_use]
     pub const fn refused(&self) -> bool {
         self.refused
+    }
+
+    /// A different origin needs preparation before its files or engine are used.
+    #[must_use]
+    pub fn handed_origin(&self) -> Option<&Origin> {
+        match &self.origin_start {
+            OriginStart::Preparing(handed) if !self.closing => Some(&handed.address),
+            OriginStart::Waiting | OriginStart::Preparing(_) | OriginStart::Loading(_) | OriginStart::Ready => None,
+        }
+    }
+
+    /// Answer the front's startup preparation, before the next run iteration.
+    pub fn prepared_origin(&mut self, result: Result<PreparedOrigin, Refused>) {
+        let OriginStart::Preparing(handed) = std::mem::replace(&mut self.origin_start, OriginStart::Waiting) else {
+            unreachable!("preparation answers a handed origin");
+        };
+        match result {
+            Ok(prepared) => {
+                if let Some(notes) = &mut self.notes {
+                    assert!(notes.private.is_none(), "the note directory is chosen before writes");
+                    notes.directory.clone_from(&prepared.directory);
+                }
+                self.shell.use_directory(prepared.directory);
+                self.theme = prepared.theme;
+                self.note = prepared.note;
+                self.load_origin(handed);
+            }
+            Err(why) => {
+                self.handoff_refusal = Some(why);
+                self.refused = true;
+                self.close();
+            }
+        }
+    }
+
+    pub(crate) fn handoff_refusal(&mut self) -> Option<Refused> {
+        self.handoff_refusal.take()
+    }
+
+    fn load_origin(&mut self, handed: Handed) {
+        self.shell.point(handed.engine);
+        self.origin_start = OriginStart::Loading(handed);
+    }
+
+    fn front_ready(&self) -> bool {
+        matches!(self.origin_start, OriginStart::Ready)
+    }
+
+    fn shell_running(&self) -> bool {
+        self.closing || matches!(self.origin_start, OriginStart::Loading(_) | OriginStart::Ready)
     }
 
     fn complete(&mut self, mut complete: Complete) {
@@ -459,16 +533,19 @@ impl Run {
             self.host.report(report)
         };
         for request in duties.asked {
-            if self.front_ready {
+            if self.front_ready() {
                 self.shell.down(request);
             } else {
                 self.held.push(request);
             }
         }
-        if let Some(credential) = duties.keep {
+        if self.front_ready()
+            && let Some(credential) = duties.keep
+        {
             self.shell.keep(credential);
         }
-        if let Some(note) = duties.note
+        if self.front_ready()
+            && let Some(note) = duties.note
             && let Some(notes) = &mut self.notes
         {
             notes.noted = Some(note.print(&self.address));
@@ -515,7 +592,7 @@ impl Run {
             self.close();
         }
         if duties.local {
-            if self.front && !self.front_ready {
+            if !self.front_ready() {
                 self.local_wait = true;
             } else if let Some(path) = &self.link_file {
                 self.local.pending = Some(path.clone());
@@ -541,7 +618,7 @@ impl Run {
         }
     }
 
-    fn started(&mut self, credential: Option<Secret>, mut kept: Vec<jig_client::Record>) {
+    fn carry_theme(&mut self, kept: &mut Vec<jig_client::Record>) {
         if let Some(theme) = self
             .theme
             .take()
@@ -554,7 +631,10 @@ impl Run {
             self.theme_writing = true;
             kept.push(theme);
         }
-        let (scheme, address) = self.start.take().expect("the shell loads once");
+    }
+
+    fn started(&mut self, credential: Option<Secret>, kept: Vec<jig_client::Record>) {
+        let (scheme, address) = self.start.take().expect("the host starts once");
         let background = match self.terminal.background() {
             Background::Answered(rgb) => Some(rgb),
             Background::Waiting | Background::Unanswered => None,
@@ -573,7 +653,7 @@ impl Run {
             local: self.front || self.link_file.is_some(),
             kept,
             credential,
-            note: self.note,
+            note: if self.front { None } else { self.note },
             front: self.front,
             set_up: self.box_child.as_ref().is_some_and(front::Child::set_up),
             box_log: self.box_child.as_ref().map_or_else(Box::default, front::Child::box_log),
@@ -604,6 +684,26 @@ impl Run {
         self.report(host::Report::Start(start));
     }
 
+    fn finish_handoff(&mut self, credential: Option<Secret>, mut kept: Vec<jig_client::Record>) {
+        let OriginStart::Loading(handed) = std::mem::replace(&mut self.origin_start, OriginStart::Ready) else {
+            unreachable!("loaded the handed origin's files");
+        };
+        self.carry_theme(&mut kept);
+        let files = host::OriginFiles { address: handed.address, kept, credential, note: self.note };
+        self.address.clone_from(&files.address);
+        if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
+            recorder.front_files(&files);
+        }
+        self.host.front_files(files);
+        while let Some(request) = self.held.pop() {
+            self.shell.down(request);
+        }
+        if self.local_wait {
+            self.local_wait = false;
+            self.report(host::Report::Local { link: Some(handed.link) });
+        }
+    }
+
     fn loopback_reports(&mut self) -> bool {
         let mut reported = false;
         while let Some((owner, report)) = self.loopback.reports.pop() {
@@ -613,21 +713,39 @@ impl Run {
         reported
     }
 
+    fn start_reports(&mut self) -> bool {
+        if let Some(loaded) = self.shell.loaded() {
+            self.loaded = Some(loaded);
+        }
+        if self.closing {
+            return false;
+        }
+        if self.start.is_some() && self.terminal.background() != Background::Waiting {
+            if self.front {
+                self.started(None, Vec::new());
+                return true;
+            }
+            if let Some((credential, mut kept)) = self.loaded.take() {
+                self.carry_theme(&mut kept);
+                self.started(credential, kept);
+                return true;
+            }
+        }
+        if matches!(self.origin_start, OriginStart::Loading(_))
+            && let Some((credential, kept)) = self.loaded.take()
+        {
+            self.finish_handoff(credential, kept);
+            return true;
+        }
+        false
+    }
+
     fn reports(&mut self) {
         self.host.clocks(self.env.now, self.env.wall);
         if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
             recorder.turn(self.env.now, self.env.wall);
         }
-        let mut reported = false;
-        if let Some(loaded) = self.shell.loaded() {
-            self.loaded = Some(loaded);
-        }
-        if self.terminal.background() != Background::Waiting
-            && let Some((credential, kept)) = self.loaded.take()
-        {
-            self.started(credential, kept);
-            reported = true;
-        }
+        let mut reported = self.start_reports();
         if self.size.is_some() {
             reported |= self.loopback_reports();
             if let Some(link) = self.local.result.take() {
@@ -647,15 +765,12 @@ impl Run {
                     front::Report::Stage(stage) => self.report(host::Report::Stage(stage)),
                     front::Report::Line(line) => self.report(host::Report::Front(line)),
                     front::Report::Link { engine, address, link } if !self.closing => {
-                        self.shell.point(engine);
-                        self.address = address;
-                        self.front_ready = true;
-                        while let Some(request) = self.held.pop() {
-                            self.shell.down(request);
-                        }
-                        if self.local_wait {
-                            self.local_wait = false;
-                            self.report(host::Report::Local { link: Some(link) });
+                        let same = address == self.address;
+                        let handed = Handed { engine, address, link };
+                        if same {
+                            self.load_origin(handed);
+                        } else {
+                            self.origin_start = OriginStart::Preparing(handed);
                         }
                     }
                     front::Report::Link { .. } => {}
@@ -701,7 +816,7 @@ impl Run {
             self.terminal.draw(self.host.frame());
         }
         if !self.closing
-            && self.size.is_none()
+            && ((!self.front && self.size.is_none()) || matches!(self.origin_start, OriginStart::Loading(_)))
             && self.loaded.is_none()
             && !self.shell.work_pending(self.env.now)
             && self.shell.next_deadline().is_none()
@@ -806,7 +921,9 @@ impl Host for Run {
         while let Some(event) = self.told.pop() {
             self.event(event);
         }
-        self.shell.iterate(now, wall);
+        if self.shell_running() {
+            self.shell.iterate(now, wall);
+        }
         self.terminal.iterate(now);
         if self.terminal.ended() {
             self.close();
@@ -871,7 +988,8 @@ impl Host for Run {
             || (!self.opens.is_empty() && !self.opening)
             || self.io.is_ready()
             || self.io.is_due(now)
-            || self.shell.work_pending(now)
+            || (self.shell_running() && self.shell.work_pending(now))
+            || self.handed_origin().is_some()
             || self.terminal.work_pending(now)
             || self.next_policy_deadline().is_some_and(|at| now >= at)
     }
@@ -1546,7 +1664,7 @@ mod tests {
         run.event(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
         run.reports();
         assert!(run.closing);
-        assert!(!run.front_ready, "no point or connection while closing");
+        assert!(!run.front_ready(), "no point or connection while closing");
         assert!(run.held.is_empty());
     }
 }

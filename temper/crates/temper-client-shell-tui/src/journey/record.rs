@@ -68,13 +68,14 @@ pub fn event(host: &Host, key: &Key) -> Option<Box<[u8]>> {
 
 pub struct Recorder {
     file: Vec<u8>,
+    front_header: Option<(std::ops::Range<usize>, std::ops::Range<usize>)>,
     turn: Option<(Time, Wall)>,
     kept: bool,
 }
 impl Recorder {
     #[must_use]
     pub fn new(facts: &Facts) -> Self {
-        let mut this = Self { file: Vec::new(), turn: None, kept: false };
+        let mut this = Self { file: Vec::new(), front_header: None, turn: None, kept: false };
         for line in [
             Line::Journey { version: 4 },
             Line::Seed(facts.seed),
@@ -92,7 +93,9 @@ impl Recorder {
         if !facts.version.is_empty() {
             this.keep(&Line::Version(facts.version.clone()));
         }
+        let address_at = this.file.len();
         this.keep(&Line::Address(facts.address.print()));
+        let address = address_at..this.file.len();
         if facts.local {
             this.keep(&Line::Local);
         }
@@ -108,16 +111,24 @@ impl Recorder {
         if !facts.box_log.is_empty() {
             this.keep(&Line::BoxLog(facts.box_log.clone()));
         }
-        for record in &facts.kept {
-            this.keep(&Line::Stored { key: record.key.clone(), bytes: record.bytes.clone() });
-        }
-        if let Some(credential) = &facts.credential {
-            this.keep(&Line::Credential(credential.expose().into()));
-        }
-        if let Some(note) = facts.note {
-            this.keep(&Line::Noted(note));
+        let files_at = this.file.len();
+        write_origin_files(&mut this.file, &facts.kept, facts.credential.as_ref(), facts.note);
+        if facts.front {
+            this.front_header = Some((address, files_at..this.file.len()));
         }
         this
+    }
+
+    // The preview does not consume these facts. Replay takes them at the first found link,
+    // just as the live front does. They still occupy the same places in the header.
+    pub(crate) fn front_files(&mut self, files: &crate::host::OriginFiles) {
+        let (address_at, files_at) = self.front_header.take().expect("one front handoff");
+        let mut bytes = Vec::new();
+        write_origin_files(&mut bytes, &files.kept, files.credential.as_ref(), files.note);
+        drop(self.file.splice(files_at, bytes));
+        let mut bytes = Vec::new();
+        Line::Address(files.address.print()).write(&mut bytes);
+        drop(self.file.splice(address_at, bytes));
     }
 
     pub fn turn(&mut self, now: Time, wall: Wall) {
@@ -181,6 +192,18 @@ impl Recorder {
             self.kept = true;
         }
         line.write(&mut self.file);
+    }
+}
+
+fn write_origin_files(out: &mut Vec<u8>, kept: &[jig_client::Record], credential: Option<&Secret>, note: Option<Note>) {
+    for record in kept {
+        Line::Stored { key: record.key.clone(), bytes: record.bytes.clone() }.write(out);
+    }
+    if let Some(credential) = credential {
+        Line::Credential(credential.expose().into()).write(out);
+    }
+    if let Some(note) = note {
+        Line::Noted(note).write(out);
     }
 }
 
