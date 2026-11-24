@@ -21,8 +21,8 @@ const TRANSCRIPT_BYTES: usize = 1_048_576;
 
 /// A person's act at the terminal, each one a story's step.
 pub enum Act {
-    /// Open on its DIRECTORY by the link the service printed last.
-    Open,
+    /// Open on its DIRECTORY by the link in the named scratch file.
+    Open { link_file: &'static str },
     /// Type the last page's numbered control with this label, then the words.
     TypeOn { label: &'static [u8], words: &'static [u8] },
     /// Type the kept redirect into the labelled secret field. Its value never
@@ -34,8 +34,8 @@ pub enum Act {
     Close,
 }
 #[must_use]
-pub fn open() -> crate::calls::Step {
-    crate::calls::Step::Terminal(Act::Open)
+pub fn open(link_file: &'static str) -> crate::calls::Step {
+    crate::calls::Step::Terminal(Act::Open { link_file })
 }
 #[must_use]
 pub fn type_on(label: &'static [u8], words: &'static [u8]) -> crate::calls::Step {
@@ -79,7 +79,7 @@ pub(crate) fn roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
 }
 pub(crate) fn host(spawn: &Spawn, inherited: &skein_world::Inherited) -> crate::world::Proc {
     let directory = Path::new(std::ffi::OsStr::from_bytes(&spawn.args[0]));
-    let target = temper_box_shell::open::target(&spawn.args[1]).expect("printed terminal link");
+    let target = temper_box_shell::open::target(&spawn.args[1]).expect("terminal link");
     let pipe = |child| inherited.pipes.iter().find(|(number, _)| *number == child).expect("terminal pipe").1;
     crate::world::Proc::new(crate::world::Kind::Terminal(Box::new(compose(
         directory,
@@ -209,11 +209,11 @@ impl Typist {
     fn read_pipe(&mut self, fd: Fd, out: &mut Queue<Submit>) {
         self.submit(Op::PipeRead { fd, buf: vec![0; PAGE_BYTES].into_boxed_slice() }, out);
     }
-    fn launch(&mut self, scratch: &Path, root: Fd, out: &mut Queue<Submit>) {
-        let link = std::fs::read(scratch.join("link")).expect("last printed link").trim_ascii().to_vec();
+    fn launch(&mut self, scratch: &Path, link_file: &str, root: Fd, out: &mut Queue<Submit>) {
+        let link = std::fs::read(scratch.join(link_file)).expect("read terminal link file");
         self.read.exit = None;
         self.active = true;
-        let args = vec![directory(scratch).as_os_str().as_bytes().into(), link.into()];
+        let args = vec![directory(scratch).as_os_str().as_bytes().into(), link.trim_ascii().into()];
         self.submit(
             Op::Spawn {
                 spawn: Box::new(Spawn {
@@ -334,7 +334,7 @@ impl Typist {
     }
     pub(crate) fn ready(&self, act: &Act) -> bool {
         match act {
-            Act::Open => !self.opening || self.live() || !self.active,
+            Act::Open { .. } => !self.opening || self.live() || !self.active,
             Act::TypeOn { label, .. } | Act::TypeKept { label } => {
                 if self.acted {
                     !self.writing && self.fresh().next().is_some()
@@ -359,12 +359,12 @@ impl Typist {
         out: &mut Queue<Submit>,
     ) -> bool {
         match act {
-            Act::Open => {
+            Act::Open { link_file } => {
                 if !self.opening {
                     assert!(!self.active, "one open terminal");
                     self.opening = true;
                     self.cursor = self.read.pages.len();
-                    self.launch(scratch, root, out);
+                    self.launch(scratch, link_file, root, out);
                 } else if self.live() {
                     self.opening = false;
                     return true;
