@@ -5,8 +5,11 @@ use skein_lib::Queue;
 use skein_sim::{Config, Handle, Pid, Sim};
 use temper_engine_service::store::Store;
 
+mod restored_reads;
+
 pub use crate::upgrade::check::pre_settings::pre_settings_refusals_leave_the_whole_directory_unchanged;
 pub use crate::upgrade::rehearsal::live::a_live_change_and_uncertain_write_reach_the_opening_without_network;
+pub use restored_reads::restored_deployment_reads;
 
 pub const USER: u32 = 1000;
 
