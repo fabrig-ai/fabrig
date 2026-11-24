@@ -652,7 +652,6 @@ impl World {
             | Event::RememberStub { .. }
             | Event::Subscribe { .. }
             | Event::SubscribeTopic { .. }
-            | Event::SubscribeTopicApart { .. }
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
             | Event::QuestionOwedNotice { .. }
@@ -756,7 +755,6 @@ impl World {
             | Event::RememberStub { .. }
             | Event::Subscribe { .. }
             | Event::SubscribeTopic { .. }
-            | Event::SubscribeTopicApart { .. }
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
             | Event::QuestionParked { .. }

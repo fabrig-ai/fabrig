@@ -73,6 +73,9 @@ pub struct Domain {
     pub(crate) alarms: Deadlines<u64>,
     pub(crate) grace_alarms: Deadlines<u64>,
     pub(crate) timers: Deadlines<u64>,
+    pub(crate) timer_capacity: u32,
+    // A due timer keeps room until its notice removes or rearms it.
+    pub(crate) timer_subscriptions: u32,
     pub(crate) wakes: Deadlines<u64>,
     pub(crate) proposal_alarms: Deadlines<u64>,
     pub(crate) escalation_alarms: Deadlines<u64>,
@@ -255,6 +258,7 @@ impl Domain {
     ) -> Domain {
         assert!(crate::valid(limits, kept), "task limits are valid");
         validate_charters(limits, kept, &charters, &efforts);
+        let timer_capacity = crate::limits::timer_capacity(limits).expect("timer room");
         Domain {
             startup: Startup::Restoring,
             subscription_capacity: crate::subscriptions::kept_capacity(limits).expect("validated subscriptions"),
@@ -272,7 +276,9 @@ impl Domain {
             stubs: Map::with_capacity(crate::limits::stub_capacity(limits).expect("valid stub bound")),
             alarms: Deadlines::with_capacity(limits.tasks),
             grace_alarms: Deadlines::with_capacity(limits.tasks),
-            timers: Deadlines::with_capacity(crate::limits::timer_capacity(limits).expect("timer room")),
+            timers: Deadlines::with_capacity(timer_capacity),
+            timer_capacity,
+            timer_subscriptions: 0,
             wakes: Deadlines::with_capacity(limits.tasks),
             proposal_alarms: Deadlines::with_capacity(limits.tasks),
             escalation_alarms: Deadlines::with_capacity(limits.tasks),
@@ -735,17 +741,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 task,
                 subscription,
                 crate::subscriptions::Admission::Topic,
-                out,
-            );
-        }
-        Event::SubscribeTopicApart { reply_to, task, subscription } => {
-            crate::subscriptions::subscribe(
-                domain,
-                env,
-                reply_to,
-                task,
-                subscription,
-                crate::subscriptions::Admission::TopicApart,
                 out,
             );
         }

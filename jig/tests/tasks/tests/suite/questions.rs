@@ -1169,17 +1169,21 @@ fn replace_interest(world: &mut World, obsolete: u64, subscription: Subscription
 #[test]
 fn an_active_goals_subscription_limit_names_task_and_timer_refusals() {
     let mut world = subscribing_goal(&Limits { subscriptions: 4, inbox_messages: 12, ..LIMITS });
-    for subscription in
-        [task_interest(1, GOAL_CHILD), task_interest(2, GOAL_PEER), timer_interest(3), timer_interest(4)]
-    {
+    for subscription in [
+        task_interest(1, GOAL_CHILD),
+        task_interest(2, GOAL_PEER),
+        timer_interest(3),
+        timer_interest(4),
+        timer_interest(5),
+    ] {
         assert_eq!(subscribe_goal(&mut world, subscription), Reply::Done);
     }
-    let cause = CapacityCause::Subscriptions { limit: 4 };
-    subscription_full(&mut world, task_interest(5, GOAL_PERSON), cause);
-    subscription_full(&mut world, timer_interest(6), cause);
-    replace_interest(&mut world, 1, task_interest(5, GOAL_PERSON));
-    replace_interest(&mut world, 3, timer_interest(6));
-    assert_eq!(world.record(GOAL).subscriptions.len(), 4);
+    let cause = CapacityCause::Subscriptions { limit: 5 };
+    subscription_full(&mut world, task_interest(6, GOAL_PERSON), cause);
+    subscription_full(&mut world, timer_interest(7), cause);
+    replace_interest(&mut world, 1, task_interest(6, GOAL_PERSON));
+    replace_interest(&mut world, 3, timer_interest(7));
+    assert_eq!(world.record(GOAL).subscriptions.len(), 5);
 }
 
 #[test]

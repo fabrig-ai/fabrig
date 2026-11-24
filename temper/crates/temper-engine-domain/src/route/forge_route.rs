@@ -442,10 +442,11 @@ fn subscription_problem(
     if !adopted {
         return Some((b"repository is not readable in this project; select an adopted owner/name", None));
     }
+    let room = tasks::subscription_capacity(&limits.tasks).expect("validated subscriptions");
     if let Some(task) = domain.core.tasks.task(subscriber.task)
-        && task.subscriptions.len() >= skein_lib::usize_of(limits.tasks.subscriptions)
+        && task.subscriptions.len() >= skein_lib::usize_of(room)
     {
-        return Some((b"task subscription room exhausted: tasks.subscriptions", Some(limits.tasks.subscriptions)));
+        return Some((b"task subscription room exhausted: tasks.subscriptions", Some(room)));
     }
     if topic_name(&subscriber.topic, &limits.forge).is_none() {
         return Some((b"malformed branch: use nonempty slash-separated branch segments", None));

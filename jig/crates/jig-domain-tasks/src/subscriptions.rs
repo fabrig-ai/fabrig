@@ -75,10 +75,11 @@ fn arm(domain: &mut Domain, env: &Env<Limits>, subscription: Subscription) {
 pub(crate) enum Admission {
     Own,
     Topic,
-    TopicApart,
 }
 
-pub(crate) fn kept_capacity(limits: &Limits) -> Option<u32> {
+/// The shared admission room for a live task's standing interests.
+#[must_use]
+pub fn kept_capacity(limits: &Limits) -> Option<u32> {
     limits.subscriptions.checked_add(1)
 }
 
@@ -105,16 +106,16 @@ pub(crate) fn subscribe(
     if subscription.number == 0 || find(task, subscription.number).is_some() {
         return refused(to, Some(number), Refusal::Subscription, out);
     }
+    let count_limit = kept_capacity(&env.limits).expect("validated subscriptions");
     let capacity = crate::Capacity {
         project: Some(task.project),
         by: crate::Party::Task(number),
         action: crate::CapacityAction::Subscription { number: subscription.number },
-        cause: crate::CapacityCause::Subscriptions { limit: env.limits.subscriptions },
+        cause: crate::CapacityCause::Subscriptions { limit: count_limit },
     };
-    let (connector_topic, count_limit) = match admission {
-        Admission::Own => (false, env.limits.subscriptions),
-        Admission::Topic => (true, env.limits.subscriptions),
-        Admission::TopicApart => (true, kept_capacity(&env.limits).expect("validated subscriptions and one more")),
+    let connector_topic = match admission {
+        Admission::Own => false,
+        Admission::Topic => true,
     };
     if task.subscriptions.len() >= skein_lib::length::usize_of(count_limit) {
         return crate::capacity::refuse(domain, env, to, Some(number), Refusal::Busy, capacity, out);
@@ -135,6 +136,13 @@ pub(crate) fn subscribe(
         }
         SubscriptionKind::Topic { .. } => {}
     }
+    let timer = match subscription.kind {
+        SubscriptionKind::Timer { .. } => true,
+        SubscriptionKind::Task { .. } | SubscriptionKind::Topic { .. } => false,
+    };
+    if timer && domain.timer_subscriptions == domain.timer_capacity {
+        return refused(to, Some(number), Refusal::Busy, out);
+    }
     let reserve = skein_lib::length::usize_of(env.limits.result_bytes.max(env.limits.message_bytes));
     if !crate::inbox::room(domain, &env.limits, number, 1, reserve) {
         return crate::capacity::refuse(
@@ -148,13 +156,16 @@ pub(crate) fn subscribe(
         );
     }
     let row = task_mut(domain, number).expect("subscriber live");
-    let mut next = List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
+    let mut next = List::with_capacity(count_limit);
     for old in &row.record.subscriptions {
         next.push(*old).expect("bounded subscriptions");
     }
     next.push(subscription).expect("subscription room preflighted");
     row.record.subscriptions = next.into_boxed();
     publish(domain, env, number, out);
+    if timer {
+        domain.timer_subscriptions = domain.timer_subscriptions.checked_add(1).expect("timer room admitted");
+    }
     arm(domain, env, subscription);
     match subscription.kind {
         SubscriptionKind::Task { target, held: true, .. } => {
@@ -188,11 +199,11 @@ pub(crate) fn unsubscribe(
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
     let task = record(domain, number).expect("subscriber live");
-    if find(task, subscription).is_none() {
+    let Some(removed) = find(task, subscription) else {
         return refused(to, Some(number), Refusal::Subscription, out);
-    }
+    };
     let row = task_mut(domain, number).expect("subscriber live");
-    let mut next = List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
+    let mut next = List::with_capacity(u32::try_from(row.record.subscriptions.len()).expect("bounded subscriptions"));
     for old in &row.record.subscriptions {
         if old.number != subscription {
             next.push(*old).expect("subscription subset bounded");
@@ -206,9 +217,19 @@ pub(crate) fn unsubscribe(
         }
     }
     row.record.inbox = inbox.into_boxed();
-    domain.timers.cancel(subscription);
+    release_timer(domain, removed);
     publish(domain, env, number, out);
     out.push(Request::Done { reply_to: to });
+}
+
+pub(crate) fn release_timer(domain: &mut Domain, subscription: Subscription) {
+    match subscription.kind {
+        SubscriptionKind::Timer { .. } => {
+            domain.timers.cancel(subscription.number);
+            domain.timer_subscriptions = domain.timer_subscriptions.checked_sub(1).expect("live timer held room");
+        }
+        SubscriptionKind::Task { .. } | SubscriptionKind::Topic { .. } => {}
+    }
 }
 
 fn matches_kind(kind: &MessageKind, subscription: &SubscriptionKind) -> bool {
@@ -270,7 +291,7 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
             let at = Wall::from_nanos(env.wall.as_nanos().saturating_add(period.as_nanos()));
             let row = task_mut(domain, number).expect("subscriber live");
             let mut next =
-                List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
+                List::with_capacity(u32::try_from(row.record.subscriptions.len()).expect("bounded subscriptions"));
             for old in &row.record.subscriptions {
                 if old.number == subscription_number {
                     next.push(Subscription {
@@ -296,13 +317,14 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
         SubscriptionKind::Timer { period: None, .. } => {
             let row = task_mut(domain, number).expect("subscriber live");
             let mut next =
-                List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
+                List::with_capacity(u32::try_from(row.record.subscriptions.len()).expect("bounded subscriptions"));
             for old in &row.record.subscriptions {
                 if old.number != subscription_number {
                     next.push(*old).expect("bounded subscriptions");
                 }
             }
             row.record.subscriptions = next.into_boxed();
+            release_timer(domain, subscription);
             publish(domain, env, number, out);
         }
         SubscriptionKind::Task { .. } | SubscriptionKind::Topic { .. } => {}

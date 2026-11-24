@@ -36,21 +36,38 @@ fn a_task_records_label_flags_and_last_activity_read_back() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
-#[test]
-fn a_task_record_keeps_one_subscription_past_the_ordinary_bound() {
+// TaskInterests.subscriptions in tasks-v13.schema.
+const SUBSCRIPTIONS_CEILING: u32 = 64;
+
+fn record_with_subscriptions(count: u32) -> domain::Stored {
     let mut record = current_record();
-    let mut subscriptions = skein_lib::List::with_capacity(fixtures::TASKS_LIMITS.subscriptions + 1);
-    for number in 0..=fixtures::TASKS_LIMITS.subscriptions {
+    let mut subscriptions = skein_lib::List::with_capacity(count);
+    for number in 1..=u64::from(count) {
         subscriptions
             .push(domain::Subscription {
-                number: u64::from(number) + 1,
-                kind: domain::SubscriptionKind::Topic { connector: 1, topic: u64::from(number) },
+                number,
+                kind: domain::SubscriptionKind::Topic { connector: 1, topic: number },
             })
-            .expect("ordinary bound and one more");
+            .expect("fixture interest");
     }
     record.subscriptions = subscriptions.into_boxed();
-    let row = live_record(record);
+    live_record(record)
+}
+
+#[test]
+fn task_subscriptions_at_the_schema_ceiling_read_back() {
+    let row = record_with_subscriptions(SUBSCRIPTIONS_CEILING);
     assert_eq!(saved_tasks(&row), Ok(row));
+}
+
+#[test]
+fn task_subscriptions_past_the_schema_ceiling_are_refused() {
+    let row = record_with_subscriptions(SUBSCRIPTIONS_CEILING + 1);
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    assert_eq!(
+        tasks::encode(&row, &tasks_limits(), &names),
+        Err(bound_problem(wire::paths::TASK_INTERESTS_SUBSCRIPTIONS))
+    );
 }
 
 fn a_live_task_record_reads_back_whole() {

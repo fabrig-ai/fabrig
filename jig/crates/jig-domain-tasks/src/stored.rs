@@ -58,6 +58,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
             fit::room(crate::RestoreBound::Tasks, domain.tasks.len(), domain.tasks.capacity())?;
             fit::task(limits, &task)?;
             fit::settings(domain, &task)?;
+            domain.timer_subscriptions = fit::timers(domain, &task)?;
             let observed_hold = match task.phase {
                 Phase::Held { why, .. } => Some(why),
                 Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => None,

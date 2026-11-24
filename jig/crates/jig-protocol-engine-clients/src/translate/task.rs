@@ -318,6 +318,10 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     for item in &value.proposals {
         proposals.push(proposal(item)).expect("supplied proposals");
     }
+    // A task can retain more subscriptions after restart than this client can show.
+    let subscriptions =
+        owner::subscriptions(&value.subscriptions, limits.subscriptions_entries.min(w::CEILINGS.subscriptions_entries));
+    let cut = value.cut || subscriptions.entries.len() < value.subscriptions.len();
     Ok(w::Task {
         concluded: match value.concluded {
             Some(value) => Some(w::Concluded { by: value.by, at: value.at.as_nanos() }),
@@ -369,11 +373,11 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
             None => None,
         },
         wake: owner::wake(value.wake),
-        subscriptions: owner::subscriptions(&value.subscriptions),
+        subscriptions,
         result_contract: owner::contract(&value.contract, limits)?,
         dependencies,
         references,
-        cut: value.cut,
+        cut,
         resources,
         budget: owner::budget(&value.budget),
         authority: owner::authority(models, &value.authority, limits)?,

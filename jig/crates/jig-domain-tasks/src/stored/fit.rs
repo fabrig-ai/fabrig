@@ -18,6 +18,20 @@ pub(crate) fn room(which: RestoreBound, len: u32, limit: u32) -> Result<(), Rest
     bound(which, u64::from(len).checked_add(1).ok_or(RestoreCause::Accounting)?, u64::from(limit))
 }
 
+pub(super) fn timers(domain: &Domain, task: &TaskRecord) -> Result<u32, RestoreCause> {
+    let mut held = u64::from(domain.timer_subscriptions);
+    for subscription in &task.subscriptions {
+        match subscription.kind {
+            crate::SubscriptionKind::Timer { .. } => {
+                held = held.checked_add(1).ok_or(RestoreCause::Accounting)?;
+            }
+            crate::SubscriptionKind::Task { .. } | crate::SubscriptionKind::Topic { .. } => {}
+        }
+    }
+    bound(RestoreBound::Timers, held, u64::from(domain.timer_capacity))?;
+    u32::try_from(held).or(Err(RestoreCause::Accounting))
+}
+
 pub(crate) fn numbers(value: Numbers) -> Result<(), RestoreCause> {
     let spent = crate::funders::total(value).ok_or(RestoreCause::Accounting)?;
     spent.checked_add(value.reserved).ok_or(RestoreCause::Accounting)?;
@@ -288,7 +302,6 @@ fn holdings(value: &[crate::Holding], limits: &Limits) -> Result<(), RestoreCaus
     Ok(())
 }
 
-#[expect(clippy::too_many_lines, reason = "one task restore checks every durable field bound")]
 pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCause> {
     if value.flags.ended_by == crate::EndedBy::Standing
         && (!crate::flags::valid(value.flags, value.executor, value.requester) || value.tracked.is_some())
@@ -323,11 +336,6 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     count(RestoreBound::Delegates, value.delegates.len(), limits.delegates)?;
     count(RestoreBound::Batch, value.result_followups.len(), limits.batch)?;
     count(RestoreBound::References, value.references.len(), limits.references)?;
-    count(
-        RestoreBound::Subscriptions,
-        value.subscriptions.len(),
-        crate::subscriptions::kept_capacity(limits).ok_or(RestoreCause::Accounting)?,
-    )?;
     count(RestoreBound::Dependencies, value.dependencies.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.waiting_on.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.added.len(), limits.dependencies)?;
