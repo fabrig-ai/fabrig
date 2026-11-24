@@ -4,38 +4,19 @@ use skein_forge::api::{Op, Write};
 use skein_forge_client::{Condition, Effect, Entry};
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_landing as landing;
-use temper_engine_forge_world::{REPO, World};
+use temper_engine_forge_world::{
+    REPO, World,
+    restarts::{BRANCH, GOAL, goal_name as name, synthetic_missing_branch},
+};
 
-const GOAL: u64 = 77;
-const BRANCH: &[u8] = b"temper/77/g77";
 const OWNER: u64 = 63;
 const FRESH: u64 = 3;
 const SLOW: &[u8] = b"slow-read";
 
-fn name() -> top::Name {
-    top::Name {
-        forge: REPO.forge,
-        repository: REPO.repository,
-        what: top::What::Branch(Box::new([
-            b"temper".as_slice().into(),
-            b"77".as_slice().into(),
-            b"g77".as_slice().into(),
-        ])),
-    }
-}
-
 pub(super) fn before_restart() -> World {
     let mut world = World::with_entries(377, 2);
     world.adopt();
-    world.hold_task(GOAL);
-    world.store_before_restart(top::Stored::Hold(top::Hold {
-        name: name(),
-        task: GOAL,
-        writer: None,
-        beside: None,
-        design_writers: Box::new([]),
-        drift: None,
-    }));
+    synthetic_missing_branch(&mut world);
     world.store_before_restart(top::Stored::Names {
         task: 88,
         resources: Box::new([top::Name {
