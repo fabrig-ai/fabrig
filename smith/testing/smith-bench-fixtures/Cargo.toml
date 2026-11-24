@@ -12,7 +12,9 @@ test = false
 doctest = false
 
 [dependencies]
+libc.workspace = true
 sha2.workspace = true
+skein-fake-machine.workspace = true
 skein-scratch.workspace = true
 smith-bench = { path = "../../benchmarks" }
 smith-events.workspace = true

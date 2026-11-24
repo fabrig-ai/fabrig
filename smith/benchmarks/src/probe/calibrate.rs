@@ -2,9 +2,11 @@
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
 //! Contract: smith/docs/design/benchmarks/README.md, section 5.1, and smith/docs/design/benchmarks/catalogue.md, section 5.
 
+use std::path::Path;
+
 use super::{Order, Planned, calibration_attempts, count, judgment};
+use crate::files::{Files, Native};
 use crate::{AttemptResult, Fault, Judgment, input};
-use std::{fs, path::Path};
 
 pub(super) fn finish_calibration(
     repository: &Path,
@@ -90,7 +92,11 @@ pub(super) fn finish_calibration(
 }
 
 pub(super) fn selected_task(file: &Path, name: &str) -> Result<crate::Task, Fault> {
-    let task = crate::read_task(file)?;
+    selected_task_with(&Native, file, name)
+}
+
+fn selected_task_with(files: &dyn Files, file: &Path, name: &str) -> Result<crate::Task, Fault> {
+    let task: crate::Task = crate::formats::read_document_with(files, file)?;
     name.splitn(3, '/').nth(2).map_or(Ok(task.clone()), |variant| task.with_variant(variant))
 }
 
@@ -103,7 +109,20 @@ pub fn record_calibration(
     results: &[AttemptResult],
     seed: u64,
 ) -> Result<(), Fault> {
-    let mut document: toml::Value = crate::formats::read_document(file)?;
+    record_calibration_with(&Native, repository, file, name, block, results, seed)
+}
+
+/// Write the calibration summary before updating the task on the supplied filesystem.
+pub fn record_calibration_with(
+    files: &dyn Files,
+    repository: &Path,
+    file: &Path,
+    name: &str,
+    block: &crate::Calibration,
+    results: &[AttemptResult],
+    seed: u64,
+) -> Result<(), Fault> {
+    let mut document: toml::Value = crate::formats::read_document_with(files, file)?;
     let target = if let Some(name) = name.splitn(3, '/').nth(2) {
         document
             .get_mut("variant")
@@ -118,12 +137,12 @@ pub fn record_calibration(
         .ok_or_else(|| input("task table required"))?
         .insert("calibration".into(), toml::Value::try_from(block)?);
     let text = toml::to_string(&document)?;
-    let task = selected_task(file, name)?;
+    let task = selected_task_with(files, file, name)?;
     let summary = crate::summarise(results, "calibrate", &task.tier, crate::Design::Single, seed, None, None)?;
     let path = repository.join("benchmarks").join(&block.summary);
-    fs::create_dir_all(path.parent().ok_or_else(|| input("summary directory required"))?)?;
-    crate::write_summary(&path, &summary)?;
-    Ok(fs::write(file, text)?)
+    files.create_dir_all(path.parent().ok_or_else(|| input("summary directory required"))?, 0o777)?;
+    crate::write_summary_with(files, &path, &summary)?;
+    Ok(files.write(file, text.as_bytes())?)
 }
 
 #[cfg(test)]

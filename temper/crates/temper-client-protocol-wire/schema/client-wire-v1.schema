@@ -1,4 +1,4 @@
-family temper-client-wire 46
+family temper-client-wire 47
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -391,7 +391,8 @@ enum Way { queue, turn }
 record HeldFaults { member: u16 gate: u16 }
 record HeldTimeout { member: u16 gate: u16 run: u64 }
 record HeldRecord { member: u16 }
-enum LandingHold { faults: HeldFaults, prepare, record: HeldRecord, timeout: HeldTimeout, turn }
+record HeldRead { reason: bytes 256 }
+enum LandingHold { faults: HeldFaults, prepare, record: HeldRecord, timeout: HeldTimeout, turn, read: HeldRead }
 enum Combined { merge, squash }
 record Train { forge: u16 repository: u32 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 }
 enum LandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling, probing, probing_by_test }

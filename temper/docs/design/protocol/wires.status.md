@@ -1,6 +1,6 @@
 # wires: status
 
-2026-11-18. Where temper's code lags or departs from [wires.md](wires.md).
+2026-11-24. Where temper's code lags or departs from [wires.md](wires.md).
 
-- **Not yet:** 11: the one-process world's mismatch story. The world composes the real local worker and has no seam to make it answer an assignment with a version refusal, so the focused tests of jig's `protocol/channel/wires.md`, 7 cover the path alone.
-- **Not yet:** 11: a run adopted across an engine restart with its worker kept, sent a message, a call's answer and a renewed identity after it: the one-process world restarts its engine and worker together (`../testing/tiers.md`, 1.5).
+- **Not yet:** 3.1, 4, 6 and 10: the worker wires frozen and stated by layout and text, temper's `Application` its text and roots, the opening's log lines by layouts; today they speak ranges from their floors through kept texts and bridges.
+- **Not yet:** 10.1, 10.2 and 11: the openings kept with the worker's texts, and the verdict deriving plans from them; today a kept opening holds ranges and layouts, judged by agreement.

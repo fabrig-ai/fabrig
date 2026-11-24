@@ -17,12 +17,12 @@ pub(super) mod relationships;
 #[cfg(test)]
 pub(super) fn agent_document_with(
     settings: &Settings,
-    is_executable: impl Fn(&std::path::Path) -> bool,
+    facts: impl FnMut(&std::path::Path) -> Option<programs::FileFacts>,
 ) -> Result<serde_json::Value, super::Refusal> {
     let Selection { models: active, mut settings, .. } = select(settings)?;
     let models = models::resolve(&mut settings, &active)?;
     let profile = document::profile(&settings)?;
-    agent_document(&settings, &models, &profile, is_executable)
+    agent_document(&settings, &models, &profile, facts)
 }
 
 /// Main first, followed by eligible child models, with their needed accounts.
@@ -91,7 +91,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
     let profile = smith_agent_shell::config::profile_from_value(profile_document.clone())
         .map_err(|why| relationships::native(&settings, &models, why))?;
     relationships::budget(&settings, &profile)?;
-    let generated = agent_document(&settings, &models, &profile_document, programs::executable)?;
+    let generated = agent_document(&settings, &models, &profile_document, programs::file_facts)?;
     let bytes = if document {
         serde_json::to_vec(&generated).expect("generated agent document").into_boxed_slice()
     } else {
@@ -128,10 +128,10 @@ fn agent_document(
     settings: &Settings,
     models: &[models::Model],
     profile_document: &serde_json::Value,
-    is_executable: impl Fn(&std::path::Path) -> bool,
+    facts: impl FnMut(&std::path::Path) -> Option<programs::FileFacts>,
 ) -> Result<serde_json::Value, super::Refusal> {
     let endpoints = document::endpoints(settings, models)?;
-    let programs = programs::document(settings, &endpoints, is_executable)?;
+    let programs = programs::document(settings, &endpoints, facts)?;
     let mut generated = serde_json::json!({"profile":profile_document,"endpoints":endpoints,
         "environment":document::environment(settings)?});
     if let Some(programs) = programs {

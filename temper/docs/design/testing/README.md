@@ -116,8 +116,10 @@ Moved to [`scenarios.md`](scenarios.md), section 1.
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
-bin/temper-box/tests/domain          step and domain checks over values: profiles composed in memory and admitted, the kit's harness checks, scripted openings and client-tool reads (box/README.md, 2)
+bin/temper-box/tests/domain          step and domain checks over values: profiles composed in memory and admitted, the kit's harness checks, the relay's framing, the landing kit's decisions, scripted openings and client-tool reads (box/README.md, 2)
+bin/temper-box/tests/system          the live profiles' settings through the client's world joined to the engine (box/README.md, 2.7)
 bin/temper-box/tests/suite           what only real files, sockets, locks, children and shipped wiring show (box/README.md, 4)
+crates/temper-box-shell/tests/simulated  temper-box fake's hosts on skein's simulated kernel with their real peers (box/README.md, 2.4)
 crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
 bin/temper-box/tests/proof_live.rs   B0's offline driver proof, its twin's walk (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs it

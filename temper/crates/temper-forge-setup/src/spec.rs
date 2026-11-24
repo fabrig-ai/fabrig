@@ -6,6 +6,8 @@ use crate::{
     setup::Owned,
 };
 use alloc::boxed::Box;
+/// The releases the shell's admission and upgrade diagnostics name.
+pub use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION as FORGEJO_VERSION};
 use skein_lib::List;
 /// Which pinned binary is checked.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

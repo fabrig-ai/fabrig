@@ -116,7 +116,13 @@ The default, for a project with no prepare command:
   are the prefix below and the member's head, a merge, or the prefix
   below alone with the member's head in its `Head` trailer, a line of
   its message's last paragraph, a squash (skein's `Read::Commits`); the
-  round keeps which. The prefix
+  round keeps which. Those commits are read from the prefix below up to
+  the tip, oldest first, page by page until the tip or the range's
+  end, however many pages a member's history takes: the tip is the
+  range's newest commit, so a reader that stopped at a page count would
+  never take the prefix of a member with a long history. A page the
+  forge refuses waits `read`, bounded by the stall
+  (`landing-waits.md`, 3). The prefix
   below is that of the nearest member below with one in the round, or
   the commit the round stacks from. A member the job's result names in
   a conflict leaves (`landing.md`, 4.3), saying which.
