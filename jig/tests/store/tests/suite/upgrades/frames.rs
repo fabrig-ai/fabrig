@@ -36,8 +36,8 @@ pub(crate) fn log_frame_bytes(turn: &jig_domain_core::TurnRecord) -> u64 {
 }
 fn fixture(sets: OwnerSets, transcript: &[u8]) -> World {
     let mut world = World::unopened_observed(41, patches::limits(), None);
-    let legacy = sets.sets.iter().any(|set| set.families.iter().any(|family| family.frames.is_some()));
-    world.owner_sets(if legacy { patches::FRAME_LEGACY } else { sets });
+    let version_heads = sets.sets.iter().any(|set| set.families.iter().any(|family| family.frames.is_some()));
+    world.owner_sets(if version_heads { patches::FRAME_VERSION_HEADS } else { sets });
     assert_eq!(world.open_switched(), Some(0));
     assert_eq!(world.commit(root::first()), Some(1));
     let mut writes = root::turn_commit(2, frames::TASK, frames::TURN, transcript).into_vec();
@@ -47,7 +47,7 @@ fn fixture(sets: OwnerSets, transcript: &[u8]) -> World {
         }
     }
     assert_eq!(world.commit(writes.into_boxed_slice()), Some(2));
-    if legacy {
+    if version_heads {
         world.crash(41);
         world.owner_sets(sets);
         world.open_switched().expect("register the frame layouts without rewriting the log");
@@ -83,7 +83,7 @@ fn every_read_converts_again_without_writes() {
 
 #[test]
 fn empty_sets_keep_the_opaque_turn_path() {
-    for sets in [OwnerSets::NONE, patches::FRAME_LEGACY] {
+    for sets in [OwnerSets::NONE, patches::FRAME_VERSION_HEADS] {
         let mut world = fixture(sets, b"opaque turn");
         let before = world.contents();
         for read in kinds() {
@@ -308,7 +308,7 @@ fn a_same_version_layout_registers_and_writes_its_id_to_files_and_logs() {
     let next = replaced(Owner::Smith, &[KeptFamily { current: layouts::FRAME_TURN_NEXT, ..TURN }]);
     for file in [false, true] {
         let tasks = if file { &[frames::TASK][..] } else { &[] };
-        let mut world = crate::map_held::world_with_sets(41, &patches::limits(), tasks, patches::FRAME_LEGACY);
+        let mut world = crate::map_held::world_with_sets(41, &patches::limits(), tasks, patches::FRAME_VERSION_HEADS);
         let old = frame_reads::turn(1, SAID, b"replay", 0);
         assert_eq!(world.commit(root::turn_commit(2, frames::TASK, 1, &old)), Some(2));
         let before = world.contents();
@@ -342,14 +342,14 @@ fn a_same_version_layout_registers_and_writes_its_id_to_files_and_logs() {
         if file {
             let contents = world.contents();
             let on_disk = contents[FILE].as_ref().expect("file frames");
-            let at = before[FILE].as_ref().expect("legacy frame").len();
+            let at = before[FILE].as_ref().expect("version-headed frame").len();
             let mut encoded =
                 store::codec::core::turn(&turns[1], &store::codec::limits(&patches::limits().core).expect("codec"))
                     .expect("body");
             assert_eq!(encoded[..2], 6_u16.to_be_bytes());
             let held = encoded.len() - turn.len();
             encoded[held..held + 2].copy_from_slice(&3_u16.to_be_bytes());
-            assert_eq!(on_disk[..at], *before[FILE].as_ref().expect("legacy frame"));
+            assert_eq!(on_disk[..at], *before[FILE].as_ref().expect("version-headed frame"));
             assert_eq!(on_disk[at..], *frames::wrap(&encoded));
         }
     }
@@ -469,7 +469,7 @@ fn converted_frames_continue_at_their_own_offsets_in_both_directions() {
         }
         end += log_frame_bytes(&turn);
     }
-    let mut world = fixture(patches::FRAME_LEGACY, &transcript);
+    let mut world = fixture(patches::FRAME_VERSION_HEADS, &transcript);
     for turn in 2..=COUNT {
         assert_eq!(
             world.commit(root::turn_commit(u64::from(turn) + 1, frames::TASK, turn, &transcript)),

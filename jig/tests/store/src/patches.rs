@@ -415,13 +415,14 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
     ],
 };
 /// Same levels, but frames' heads are still written as versions.
-pub const FRAME_LEGACY: OwnerSets = OwnerSets {
+pub const FRAME_VERSION_HEADS: OwnerSets = OwnerSets {
     sets: &[
         OwnerSet { families: &[KeptFamily { frames: None, ..FRAME_SETS.sets[0].families[0] }], ..FRAME_SETS.sets[0] },
         OwnerSet { families: &[KeptFamily { frames: None, ..FRAME_SETS.sets[1].families[0] }], ..FRAME_SETS.sets[1] },
     ],
 };
-pub const FRAME_LEGACY_BASE: OwnerSets = OwnerSets { sets: &[FRAME_LEGACY.sets[0], FRAME_LEGACY.sets[1], APPLICATION] };
+pub const FRAME_VERSION_HEADS_BASE: OwnerSets =
+    OwnerSets { sets: &[FRAME_VERSION_HEADS.sets[0], FRAME_VERSION_HEADS.sets[1], APPLICATION] };
 /// The frame fixture declares its job only on the upgrading open.
 pub const FRAME_BASE: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], APPLICATION] };
 pub const FRAME_JOBS: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], SETS.sets[0]] };
@@ -466,7 +467,7 @@ pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Bo
 #[must_use]
 pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
     let mut world = World::unopened_observed(seed, frame_limits(), None);
-    world.owner_sets(FRAME_LEGACY_BASE);
+    world.owner_sets(FRAME_VERSION_HEADS_BASE);
     world.open_switched().expect("frame fixture open");
     let bytes = fixture_turn(1, FRAME_SAID, FRAME_REPLAY, 0);
     let mut number = 0;

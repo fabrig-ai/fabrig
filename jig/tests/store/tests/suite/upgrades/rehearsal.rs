@@ -335,7 +335,7 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     assert!(matches!(events.as_slice(), [Event::Back { owner: OWNER, to: 1 }]), "{events:?}");
     assert_eq!(world.active(), b"1\n");
     world.crash(SEED);
-    world.owner_sets(patches::FRAME_LEGACY_BASE);
+    world.owner_sets(patches::FRAME_VERSION_HEADS_BASE);
     world.open().expect("previous generation opens");
     for (name, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"generations/1/store/logs/")) {
         if name == path {
@@ -458,7 +458,7 @@ fn rehearsal_names_a_malformed_held_turn_at_its_stored_offset() {
     use jig_test_layouts::frames;
     for file in [false, true] {
         let tasks = if file { &[frames::TASK][..] } else { &[] };
-        let mut world = crate::map_held::world_with_sets(SEED, &patches::limits(), tasks, patches::FRAME_LEGACY);
+        let mut world = crate::map_held::world_with_sets(SEED, &patches::limits(), tasks, patches::FRAME_VERSION_HEADS);
         let good = frame_reads::turn(1, b"said", b"replay", 0);
         let mut bad = good.to_vec();
         bad.pop();

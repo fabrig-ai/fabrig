@@ -127,7 +127,7 @@ fn mixed_frames() -> (World, u64) {
     let old = patches::fixture_turn(1, SAID, REPLAY, 0);
     let current = patches::fixture_turn(2, SAID, &[], 0);
     let charge = direct_frame_bytes(&current);
-    let mut world = committed(patches::FRAME_LEGACY, &[&old, &current]);
+    let mut world = committed(patches::FRAME_VERSION_HEADS, &[&old, &current]);
     world.crash(SEED);
     world.owner_sets(patches::FRAME_SETS);
     world.open_switched().expect("seed the frames registry");
