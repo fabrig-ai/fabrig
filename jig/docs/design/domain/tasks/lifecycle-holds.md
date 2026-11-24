@@ -330,6 +330,16 @@ it has words too.
   and its way out, the act that ends it: "Waited 24 h for news since
   2026-11-24T06:07Z: subscriptions 3 and 5. Held since
   2026-11-25T06:07Z. Release it to wait again, or amend or cancel it."
+- **Its since is kept:** the task's record keeps the instant its
+  present hold began, stamped with the hold's first line and left as it
+  is while the held task's prior phase, or its cause's facts, move;
+  each such move still writes its hold line and moves the phase's clock.
+  A record stored before it has none, and reads the latest hold line's
+  time. The words are made at read; only that instant is stored.
+- **From what the record keeps:** the words name only facts the tasks
+  child keeps. Where the table names a fact it does not keep, they say
+  what it does: a dependency no longer retained is named by number as
+  failed or cancelled, and a queue's holder is named where it is known.
 - **Bounded:** at most 1,024 bytes of UTF-8. A source's words or a
   placed reason too long for the rest is cut at a character's boundary
   and marked cut. The task's and the chip's document bounds keep that
@@ -343,7 +353,7 @@ it has words too.
 
 | Held for | Its cause and object | Its way out |
 |---|---|---|
-| a configured bound (`Exceeded`) | the bound, its allowance and the value reached | lighten what was asked, or raise the allowance, then release |
+| a configured bound (`Exceeded`) | the bound, and the allowance it reached | lighten what was asked, or raise the allowance, then release |
 | out of tries (`Failures`) | the class, and the last failure's words | release, to try again; amend first where its instructions failed it |
 | stalled (`Stalled`) | its executor made no progress within its stall bound | release, to run again |
 | a dependency (`Dependency`) | the dependency, and how it ended | amend it to drop the dependency, then release |
@@ -352,9 +362,9 @@ it has words too.
 | drift (`Drift`) | the resource, and its connector's words | release, which does what the connector says |
 | an effect (`Effects`, `EffectFailed`) | the effect's entry, and its connector's account | release, for its executor to decide afresh |
 | an uncertain effect (`Uncertain`) | the entry, made or not on its system | look at the system, then release, making it again or not |
-| its budget (`Budget`) | what it spent, and what its next run needs | widen its budget, then release |
+| its budget (`Budget`) | what it spent, and that its next run or effect can't be funded, with the need where it is given | widen its budget, then release |
 | its deadline (`Deadline`) | its deadline, and the words of the waits it was in, where a bound made it | move its deadline, then release |
-| a resource's queue (`HoldsWaited`) | the resource, the task holding it, and since when it queued | release, to queue again; or amend to drop it |
+| a resource's queue (`HoldsWaited`) | the holdings it asked for, the task holding one where known, and since when it queued | release, to queue again; or amend to drop it |
 | a resource gone (`ResourceUnavailable`, `ResourceAccess`) | the resource, and its connector's account | release once it is back, or amend to drop it |
 | its pool (`PoolLost`) | the pool | release, to wait for a slot |
 | its procedure (`Procedure`) | its connector's account | release, its counts reset |
