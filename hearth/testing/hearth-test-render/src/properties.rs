@@ -18,8 +18,6 @@ pub const CASES_PER_BATCH: u64 = CASES.end / 3;
 pub const SCHEDULES: core::ops::Range<u64> = 1..8;
 /// Session 30's assigned seed block.
 pub const SEED: u64 = 0x0030_0000;
-/// The process shape asks for two repositories.
-pub const PROCESS_CASES: core::ops::Range<u64> = 0..2;
 pub const REPRESENTATIONS: &[Edit] = &[Edit::Note, Edit::Reorder, Edit::Respace];
 #[must_use]
 pub fn generated(case: u64) -> Generated {

@@ -78,16 +78,25 @@ impl Below {
                         },
                     },
                 )),
-                Tool::Mmdebstrap => ToolProcess::Mmdebstrap(Mmdebstrap::start(
-                    machine,
-                    pid,
-                    MmFaults {
-                        stall_after: match self.fault {
-                            Some(Fault::Stalled { after }) => Some(after),
-                            _ => None,
+                Tool::Mmdebstrap => {
+                    let process = Mmdebstrap::start(
+                        machine,
+                        pid,
+                        MmFaults {
+                            stall_after: match self.fault {
+                                Some(Fault::Stalled { after }) => Some(after),
+                                _ => None,
+                            },
                         },
-                    },
-                )),
+                    );
+                    let process = if let Some(Fault::Resolution(failure)) = self.fault {
+                        self.fault_fell = true;
+                        process.with_recorded_failure(failure.output())
+                    } else {
+                        process
+                    };
+                    ToolProcess::Mmdebstrap(process)
+                }
             }
         };
         self.files.shared.drain_ledger();
