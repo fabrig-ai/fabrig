@@ -156,6 +156,8 @@ pub(crate) fn task_line() -> c::TaskLine {
         ended_at: None,
         budget: task.budget,
         waits_on: task.waits_on,
+        wait: None,
+        nearest: None,
         phases: c::PhaseCounts {
             waiting: 0,
             idle: 0,

@@ -18,6 +18,8 @@ pub fn task(limits: &Limits) -> Task {
         made: 0,
         tasks_left: 5,
         waits_on: WaitsOn::Nothing,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: chip(&rows),
         goal: Some(u64::MAX),
         priority: Some(u32::MAX),

@@ -154,7 +154,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.setting_model_effort_some, &mut wire.setting_model_efforts_item,
         &mut wire.worker_setting_name, &mut wire.worker_state_name,
         &mut wire.catalogue_entry_shown_some, &mut wire.catalogue_entry_description_some,
-        &mut wire.charter_document_name_item,
+        &mut wire.charter_document_name_item, &mut wire.wait_resource_name_path_item,
     ]);
     narrow(
         client.long_text,
@@ -210,10 +210,10 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.settings_document_held, &mut wire.settings_document_pending, &mut wire.revision_row_items,
         &mut wire.revisions_page_rows, &mut wire.refusal_full_tasks,
     ]);
-    narrow(
-        client.segments,
-        &mut [&mut wire.part_key_path_value, &mut wire.pattern_segments, &mut wire.charter_document_name],
-    );
+    #[rustfmt::skip]
+    narrow(client.segments, &mut [
+        &mut wire.part_key_path_value, &mut wire.pattern_segments, &mut wire.charter_document_name, &mut wire.wait_resource_name_path,
+    ]);
     narrow(client.authority, &mut [&mut wire.delegation_kinds, &mut wire.bounds_amend_implications]);
     narrow(ask_bytes, &mut [&mut wire.propose_settings_items, &mut wire.change_settings_items]);
     w::check_limits(&wire).ok()?;

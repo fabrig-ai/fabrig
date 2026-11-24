@@ -283,6 +283,7 @@ pub fn decoders(bytes: &[u8]) {
     records_4(bytes);
     records_5(bytes);
     records_6(bytes);
+    wait_records(bytes);
 }
 
 fn account_records(bytes: &[u8]) {
@@ -322,4 +323,26 @@ fn account_records(bytes: &[u8]) {
     check!(Accounts, bytes);
 
     check!(Deployment, bytes);
+}
+
+fn wait_records(bytes: &[u8]) {
+    check!(WaitKind, bytes);
+    check!(WaitEntry, bytes);
+    check!(WaitQuestion, bytes);
+    check!(WaitTask, bytes);
+    check!(WaitResourceName, bytes);
+    check!(WaitResource, bytes);
+    check!(WaitNews, bytes);
+    check!(Thing, bytes);
+    check!(WaitProcedure, bytes);
+    check!(WaitRun, bytes);
+    check!(WaitObject, bytes);
+    check!(AtBound, bytes);
+    check!(UnboundedBehind, bytes);
+    check!(Unbounded, bytes);
+    check!(WaitAtBound, bytes);
+    check!(WaitNoBound, bytes);
+    check!(WaitBound, bytes);
+    check!(Wait, bytes);
+    check!(Nearest, bytes);
 }

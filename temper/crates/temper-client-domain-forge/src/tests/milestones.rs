@@ -119,6 +119,8 @@ fn row() -> c::TaskLine {
         ended_at: None,
         budget: task.budget,
         waits_on: task.waits_on,
+        wait: None,
+        nearest: None,
         phases: c::PhaseCounts::ZERO,
         delegates_done: 0,
         delegates_total: 0,

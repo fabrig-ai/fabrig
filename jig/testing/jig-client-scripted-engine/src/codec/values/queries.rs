@@ -24,6 +24,8 @@ pub(in crate::codec) fn wire_task_line(value: &c::TaskLine, limits: &w::Limits) 
         ended_at: value.ended_at.as_ref().map(|item| (item).as_nanos()),
         budget: wire_budget(&value.budget),
         waits_on: wire_waits_on(&value.waits_on),
+        wait: value.wait.as_ref().map(wire_wait),
+        nearest: value.nearest.as_ref().map(wire_nearest),
         phases: wire_phase_counts(&value.phases),
         delegates_done: value.delegates_done,
         delegates_total: value.delegates_total,
@@ -83,4 +85,84 @@ pub(in crate::codec) fn wire_ended_group(
         }),
         c::EndedGroup::None => w::EndedGroup::None,
     })
+}
+
+pub(in crate::codec) fn wire_wait(value: &c::Wait) -> w::Wait {
+    w::Wait {
+        task: value.task,
+        kind: wire_wait_kind(value.kind),
+        object: wire_wait_object(&value.object),
+        since: value.since.as_nanos(),
+        bound: match value.bound {
+            c::waits::Bound::At { at, then } => {
+                w::WaitBound::At(w::WaitAtBound { at: at.as_nanos(), then: wire_at_bound(then) })
+            }
+            c::waits::Bound::None(reason) => w::WaitBound::None(w::WaitNoBound {
+                reason: match reason {
+                    c::Unbounded::NoDeadline => w::Unbounded::NoDeadline,
+                    c::Unbounded::Standing => w::Unbounded::Standing,
+                    c::Unbounded::Behind(task) => w::Unbounded::Behind(w::UnboundedBehind { task }),
+                    c::Unbounded::OperatorHold => w::Unbounded::OperatorHold,
+                },
+            }),
+        },
+        hears: value.hears.as_ref().map(super::wire_escalation_holder),
+    }
+}
+
+fn wire_wait_object(value: &c::WaitObject) -> w::WaitObject {
+    match value {
+        c::WaitObject::Entry { kind, number, at } => w::WaitObject::Entry(w::WaitEntry {
+            kind: wire_waited_for(kind),
+            number: *number,
+            at: super::wire_escalation_holder(at),
+        }),
+        c::WaitObject::Question { number, answerer } => {
+            w::WaitObject::Question(w::WaitQuestion { number: *number, answerer: *answerer })
+        }
+        c::WaitObject::Task(value) => w::WaitObject::Task(w::WaitTask { value: *value }),
+        c::WaitObject::Resource { name, holder } => w::WaitObject::Resource(w::WaitResource {
+            name: w::WaitResourceName { connector: name.connector, path: name.path.clone() },
+            holder: *holder,
+        }),
+        c::WaitObject::Run(value) => w::WaitObject::Run(w::WaitRun { value: super::wire_task_run_wait(value) }),
+        c::WaitObject::News { subscriptions, timer } => w::WaitObject::News(w::WaitNews {
+            subscriptions: subscriptions.clone(),
+            timer: timer.map(skein_lib::Wall::as_nanos),
+        }),
+        c::WaitObject::Procedure { step, things } => w::WaitObject::Procedure(w::WaitProcedure {
+            step: *step,
+            things: list(things.iter().map(|row| w::Thing { what: row.what, number: row.number, owner: row.owner })),
+        }),
+    }
+}
+
+fn wire_nearest(value: &c::Nearest) -> w::Nearest {
+    w::Nearest { at: value.at.as_nanos(), then: wire_at_bound(value.then), kind: wire_wait_kind(value.kind) }
+}
+
+fn wire_wait_kind(value: c::WaitKind) -> w::WaitKind {
+    match value {
+        c::WaitKind::Party => w::WaitKind::Party,
+        c::WaitKind::Question => w::WaitKind::Question,
+        c::WaitKind::Dependency => w::WaitKind::Dependency,
+        c::WaitKind::Resource => w::WaitKind::Resource,
+        c::WaitKind::Account => w::WaitKind::Account,
+        c::WaitKind::Host => w::WaitKind::Host,
+        c::WaitKind::Delegate => w::WaitKind::Delegate,
+        c::WaitKind::News => w::WaitKind::News,
+        c::WaitKind::Step => w::WaitKind::Step,
+        c::WaitKind::Room => w::WaitKind::Room,
+        c::WaitKind::Turn => w::WaitKind::Turn,
+        c::WaitKind::SignOff => w::WaitKind::SignOff,
+    }
+}
+
+fn wire_at_bound(value: c::AtBound) -> w::AtBound {
+    match value {
+        c::AtBound::Hold => w::AtBound::Hold,
+        c::AtBound::PassUp => w::AtBound::PassUp,
+        c::AtBound::Overdue => w::AtBound::Overdue,
+        c::AtBound::GiveUp => w::AtBound::GiveUp,
+    }
 }

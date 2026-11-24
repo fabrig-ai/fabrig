@@ -376,6 +376,8 @@ fn task() -> Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: WaitsOn::Nothing,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: Chip {
             task: 9,
             title: DocumentText::complete(text(&[b't'; 32])),

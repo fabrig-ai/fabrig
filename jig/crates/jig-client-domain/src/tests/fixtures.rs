@@ -176,6 +176,8 @@ fn document(number: u64) -> contract::Task {
         last_activity: Wall::from_nanos(0),
         made: Wall::from_nanos(0),
         waits_on: contract::WaitsOn::Nothing,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: contract::Chip {
             task: number,
             title: contract::DocumentText::complete(text()),

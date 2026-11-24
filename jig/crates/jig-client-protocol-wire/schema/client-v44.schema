@@ -1,4 +1,4 @@
-family jig-client-wire 43
+family jig-client-wire 44
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -665,7 +665,58 @@ record PhaseCounts { waiting: u32 idle: u32 starting: u32 running: u32 backing_o
 enum PartFailure { busy, too_large, unreadable }
 record PartFailed { why: PartFailure }
 enum RowPart { value: Owned, not_served: NotServed, unknown, failed: PartFailed }
-record TaskLine { chip: Chip project: u32 requester: Requester tracked: option u32 label: u32 flags: TaskFlags changed: u64 last_activity: u64 ended_at: option u64 budget: Budget waits_on: WaitsOn phases: PhaseCounts delegates_done: u32 delegates_total: u32 held_below: u32 conversation: option ConversationRead parts: list 4 RowPart }
+record TaskSourceStateUntil { until: option u64 }
+enum TaskSourcePlace { directory, file }
+enum TaskSourceUnread { unreadable, refused, failed, stalled, too_large }
+record TaskSourceStateUnloaded { at: TaskSourcePlace why: TaskSourceUnread }
+enum TaskSourceState { asking, granted, later: TaskSourceStateUntil, limited: TaskSourceStateUntil, refused, needs_sign_in, misconfigured, unloaded: TaskSourceStateUnloaded, cancelled, closing, moving }
+record TaskWaitSource { state: TaskSourceState }
+record TaskWaitInvalid { why: AccountWhy }
+record TaskWaitUntooled { worker: u32 }
+enum TaskWaitWhy { source: TaskWaitSource, refreshing, host, empty, invalid: TaskWaitInvalid, untooled: TaskWaitUntooled }
+record TaskWaitAccount { account: option u32 source: option u32 why: TaskWaitWhy }
+enum HostKind { worker, engine }
+record AgentShortfallModel { charter: u32 model: u32 }
+record AgentShortfallWindow { charter: u32 model: u32 }
+record AgentShortfallOutput { charter: u32 model: u32 }
+record AgentShortfallTurns { charter: u32 }
+record AgentShortfallTime { charter: u32 }
+record AgentShortfallWaiting { charter: u32 }
+record AgentShortfallChecks { charter: u32 }
+enum AgentShortfall { model: AgentShortfallModel, window: AgentShortfallWindow, output: AgentShortfallOutput, turns: AgentShortfallTurns, spend, time: AgentShortfallTime, waiting: AgentShortfallWaiting, checks: AgentShortfallChecks, message, inbox, unacknowledged }
+record HelloRefusalAgent { why: AgentShortfall }
+record HelloRefusalWorkers { limit: u32 }
+record HelloRefusalPosition { worker: u32 }
+record HelloRefusalStopBound { grace: duration }
+enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition, job_kinds }
+record ShortfallFigures { required: u64 offered: u64 }
+record TaskWaitHello { kind: HostKind at: u64 why: HelloRefusal figures: option ShortfallFigures }
+record TaskWaitBounds { kind: HostKind why: option AgentShortfall figures: option ShortfallFigures }
+enum TaskWaitRefused { hello: TaskWaitHello, bounds: TaskWaitBounds }
+record TaskRunWaitRefused { value: TaskWaitRefused }
+record TaskWaitWorker { worker: u32 until: u64 }
+enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunWaitRefused, worker: TaskWaitWorker }
+# Wait records carry the engine's first wait, nearest bound and own waits (jig/docs/design/domain/engine/waits.md, 4).
+enum WaitKind { party, question, dependency, resource, account, host, delegate, news, step, room, turn, sign_off }
+record WaitEntry { kind: WaitedFor number: u64 at: EscalationHolder }
+record WaitQuestion { number: u64 answerer: u64 }
+record WaitTask { value: u64 }
+record WaitResourceName { connector: u16 path: list 32 bytes 65536 }
+record WaitResource { name: WaitResourceName holder: option u64 }
+record WaitNews { subscriptions: list 4 u64 timer: option u64 }
+record Thing { what: u32 number: u64 owner: option u64 }
+record WaitProcedure { step: u32 things: list 4 Thing }
+record WaitRun { value: TaskRunWait }
+enum WaitObject { entry: WaitEntry, question: WaitQuestion, task: WaitTask, resource: WaitResource, run: WaitRun, news: WaitNews, procedure: WaitProcedure }
+enum AtBound { hold, pass_up, overdue, give_up }
+record UnboundedBehind { task: u64 }
+enum Unbounded { no_deadline, standing, behind: UnboundedBehind, operator_hold }
+record WaitAtBound { at: u64 then: AtBound }
+record WaitNoBound { reason: Unbounded }
+enum WaitBound { at: WaitAtBound, none: WaitNoBound }
+record Wait { task: u64 kind: WaitKind object: WaitObject since: u64 bound: WaitBound hears: option EscalationHolder }
+record Nearest { at: u64 then: AtBound kind: WaitKind }
+record TaskLine { chip: Chip project: u32 requester: Requester tracked: option u32 label: u32 flags: TaskFlags changed: u64 last_activity: u64 ended_at: option u64 budget: Budget waits_on: WaitsOn wait: option Wait nearest: option Nearest phases: PhaseCounts delegates_done: u32 delegates_total: u32 held_below: u32 conversation: option ConversationRead parts: list 4 RowPart }
 record NoteAuthorParty { party: u64 }
 record NoteAuthorTask { task: u64 attempt: u64 }
 enum NoteAuthor { party: NoteAuthorParty, task: NoteAuthorTask }
@@ -708,42 +759,11 @@ record SubscriptionKindTopic { connector: u16 topic: u64 }
 enum SubscriptionKind { task: SubscriptionKindTask, timer: SubscriptionKindTimer, topic: SubscriptionKindTopic }
 record Subscription { number: u64 kind: SubscriptionKind }
 record Subscriptions { entries: list 32 Subscription }
-record TaskSourceStateUntil { until: option u64 }
-enum TaskSourcePlace { directory, file }
-enum TaskSourceUnread { unreadable, refused, failed, stalled, too_large }
-record TaskSourceStateUnloaded { at: TaskSourcePlace why: TaskSourceUnread }
-enum TaskSourceState { asking, granted, later: TaskSourceStateUntil, limited: TaskSourceStateUntil, refused, needs_sign_in, misconfigured, unloaded: TaskSourceStateUnloaded, cancelled, closing, moving }
-record TaskWaitSource { state: TaskSourceState }
-record TaskWaitInvalid { why: AccountWhy }
-record TaskWaitUntooled { worker: u32 }
-enum TaskWaitWhy { source: TaskWaitSource, refreshing, host, empty, invalid: TaskWaitInvalid, untooled: TaskWaitUntooled }
-record TaskWaitAccount { account: option u32 source: option u32 why: TaskWaitWhy }
-enum HostKind { worker, engine }
-record AgentShortfallModel { charter: u32 model: u32 }
-record AgentShortfallWindow { charter: u32 model: u32 }
-record AgentShortfallOutput { charter: u32 model: u32 }
-record AgentShortfallTurns { charter: u32 }
-record AgentShortfallTime { charter: u32 }
-record AgentShortfallWaiting { charter: u32 }
-record AgentShortfallChecks { charter: u32 }
-enum AgentShortfall { model: AgentShortfallModel, window: AgentShortfallWindow, output: AgentShortfallOutput, turns: AgentShortfallTurns, spend, time: AgentShortfallTime, waiting: AgentShortfallWaiting, checks: AgentShortfallChecks, message, inbox, unacknowledged }
-record HelloRefusalAgent { why: AgentShortfall }
-record HelloRefusalWorkers { limit: u32 }
-record HelloRefusalPosition { worker: u32 }
-record HelloRefusalStopBound { grace: duration }
-enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition, job_kinds }
-record ShortfallFigures { required: u64 offered: u64 }
-record TaskWaitHello { kind: HostKind at: u64 why: HelloRefusal figures: option ShortfallFigures }
-record TaskWaitBounds { kind: HostKind why: option AgentShortfall figures: option ShortfallFigures }
-enum TaskWaitRefused { hello: TaskWaitHello, bounds: TaskWaitBounds }
-record TaskRunWaitRefused { value: TaskWaitRefused }
-record TaskWaitWorker { worker: u32 until: u64 }
-enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunWaitRefused, worker: TaskWaitWorker }
 record TaskSettings { task: u32 run: option u32 newest: u32 }
 record Talk { party: u64 opened: u64 last: u64 }
 record Session { first: u64 last: u64 }
 record UnreadWords { message: u64 by: Requester at: u64 seen: bool head: text 256 bytes: u32 }
-record Task { concluded: option Concluded talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument tasks_left: u32 hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency unread: list 128 UnreadWords }
+record Task { concluded: option Concluded talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn waits: list 32 Wait wait_count: u32 chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument tasks_left: u32 hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency unread: list 128 UnreadWords }
 record ReadPosition { task: u64 through: u64 }
 record Tasks { rows: bytes 16777216 more: bool ended_mark: u64 }
 record EndedRows { rows: bytes 16777216 after: option Cursor cut: bool }

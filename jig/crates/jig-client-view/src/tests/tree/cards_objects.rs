@@ -211,6 +211,8 @@ pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: WaitsOn::Nothing,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: chip(),
         goal: Some(8),
         priority: Some(1),

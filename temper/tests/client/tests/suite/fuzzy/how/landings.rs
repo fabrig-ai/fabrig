@@ -175,6 +175,8 @@ impl Drawing {
                 ended_at: rng.chance(500).then_some(task.changed),
                 budget: task.budget.clone(),
                 waits_on: c::WaitsOn::Nothing,
+                wait: None,
+                nearest: None,
                 phases: c::PhaseCounts::ZERO,
                 delegates_done: 0,
                 delegates_total: 0,

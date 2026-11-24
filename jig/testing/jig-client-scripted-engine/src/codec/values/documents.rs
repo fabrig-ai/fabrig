@@ -7,7 +7,7 @@ use super::{
     wire_part, wire_party, wire_phase, wire_proposal_key, wire_recurring_overlap, wire_refusal, wire_requester,
     wire_resource_line, wire_result_details, wire_revision, wire_specification_document, wire_subscriptions,
     wire_task_contract_document, wire_task_flags, wire_task_line, wire_task_link, wire_task_result, wire_task_run_wait,
-    wire_turn_name, wire_waits_on, wire_wake_policy,
+    wire_turn_name, wire_wait, wire_waits_on, wire_wake_policy,
 };
 pub(in crate::codec) fn wire_field_rule(value: &c::FieldRule) -> w::FieldRule {
     w::FieldRule { name: bytes::copy_of(&value.name), max: value.max }
@@ -173,6 +173,8 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
         last_activity: value.last_activity.as_nanos(),
         made: value.made.as_nanos(),
         waits_on: wire_waits_on(&value.waits_on),
+        waits: list(value.waits.iter().map(wire_wait)),
+        wait_count: value.wait_count,
         chip: facts::chip(&value.chip, limits)?,
         goal: value.goal,
         priority: value.priority,

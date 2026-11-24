@@ -617,3 +617,109 @@ fn an_own_question_wait_reaches_the_client_through_both_translations() {
     let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
     assert_eq!(decoded.waits_on, c::WaitsOn::Question { number: 7 });
 }
+
+#[test]
+fn structured_waits_reach_the_client_in_order_with_the_full_count() {
+    use skein_lib::Reader;
+    let (expected_wire, expected_client) = jig_client_test_records::structured_waits();
+    let mut source = fixtures::task_with_hold();
+    source.waits = core_waits();
+    source.wait_count = 13;
+    let limits = fixtures::wire_limits();
+    let record = translate::task::document(&source, &[], &limits).unwrap();
+    assert_eq!(record.waits, expected_wire);
+    assert_eq!(record.wait_count, 13);
+    let bytes = record.encode(&limits).unwrap();
+    let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+    let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
+    assert_eq!(decoded.waits, expected_client);
+    assert_eq!(decoded.wait_count, 13);
+}
+
+fn core_waits() -> List<jig_domain_core_vocabulary::Wait> {
+    use jig_domain_core_vocabulary::documents::TaskRunWait;
+    use jig_domain_core_vocabulary::{AtBound, Bound, Thing, Unbounded as U, Wait, WaitKind as K, WaitObject as O};
+    use jig_domain_people::{EntryKind as E, Proposer};
+    use jig_domain_tasks::{EscalationHolder as H, Name};
+    use skein_lib::Wall;
+
+    let task = 7;
+    let at = H::Role { project: 7, role: 5 };
+    let rows = [
+        (
+            K::Party,
+            O::Entry { kind: E::Question { message: 401 }, at },
+            Bound::At { at: Wall::from_nanos(201), then: AtBound::PassUp },
+            None,
+        ),
+        (
+            K::Party,
+            O::Entry { kind: E::Proposal { proposer: Proposer::Task(11), number: 403 }, at },
+            Bound::None(U::NoDeadline),
+            Some(H::Task(51)),
+        ),
+        (
+            K::Party,
+            O::Entry { kind: E::Escalation { revision: 409 }, at },
+            Bound::At { at: Wall::from_nanos(101), then: AtBound::Hold },
+            Some(H::Person(53)),
+        ),
+        (
+            K::Party,
+            O::Entry { kind: E::PersonTask, at },
+            Bound::None(U::Standing),
+            Some(H::Role { project: 7, role: 59 }),
+        ),
+        (
+            K::Question,
+            O::Question { number: 23, answerer: 29 },
+            Bound::At { at: Wall::from_nanos(301), then: AtBound::Overdue },
+            None,
+        ),
+        (K::Dependency, O::Task(17), Bound::None(U::Behind(17)), None),
+        (
+            K::Resource,
+            O::Resource {
+                name: Name {
+                    connector: 13,
+                    path: Box::new([Box::<[u8]>::from(&b"pool/tiny"[..]), Box::new([0xff, b':'])]),
+                },
+                holder: Some(97),
+            },
+            Bound::None(U::OperatorHold),
+            None,
+        ),
+        (
+            K::Host,
+            O::Run(TaskRunWait::Worker { worker: 43, until: Wall::from_nanos(173) }),
+            Bound::At { at: Wall::from_nanos(701), then: AtBound::GiveUp },
+            None,
+        ),
+        (
+            K::News,
+            O::News { subscriptions: List::from_boxed(Box::new([37, 31, 41, 47])), timer: Some(Wall::from_nanos(83)) },
+            Bound::None(U::Standing),
+            None,
+        ),
+        (
+            K::Step,
+            O::Procedure {
+                step: 19,
+                things: List::from_boxed(Box::new([
+                    Thing { what: 1, number: 113, owner: Some(29) },
+                    Thing { what: 2, number: 127, owner: None },
+                    Thing { what: 3, number: 131, owner: Some(31) },
+                    Thing { what: 4, number: 137, owner: None },
+                ])),
+            },
+            Bound::None(U::NoDeadline),
+            None,
+        ),
+    ];
+    let mut waits = List::with_capacity(10);
+    for (kind, object, bound, hears) in rows {
+        let since = Wall::from_nanos(11 + u64::from(waits.len()));
+        waits.push(Wait { task, kind, object, since, bound, hears }).unwrap();
+    }
+    waits
+}
