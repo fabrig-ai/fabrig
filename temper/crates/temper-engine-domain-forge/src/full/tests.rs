@@ -161,6 +161,7 @@ fn pruning_inside_ask_reports_room_before_admitting_the_next_waiter() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "The FIFO and eligibility checks share one queue setup")]
 fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
     use crate::room::Waiter;
     use temper_engine_domain_forge_change as change;
@@ -174,6 +175,7 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
             .insert(
                 50,
                 crate::LandingRow {
+                    read_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,
