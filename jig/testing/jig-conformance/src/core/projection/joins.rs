@@ -8,6 +8,7 @@ pub(super) struct Joins {
     authority: BTreeMap<core::Key, (skein_lib::Wall, u64, r::Acceptance)>,
     decisions: BTreeMap<core::Key, core::ProposalDecisionRecord>,
     amendments: BTreeMap<core::Key, u64>,
+    named_people: BTreeMap<core::Key, (u64, u32, u64)>,
 }
 
 impl Joins {
@@ -15,6 +16,12 @@ impl Joins {
         self.authority.remove(key);
         self.decisions.remove(key);
         self.amendments.remove(key);
+        self.named_people.remove(key);
+        if let Some(core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))) = row
+            && let tasks::Executor::Person(tasks::PersonAddress::Person(person)) = task.executor
+        {
+            self.named_people.insert(key.clone(), (task.number, task.project, person));
+        }
         if let Some(core::Record::Tasks(tasks::Stored::History(row))) = row
             && let Some(accepted) = acceptance::task(row)
         {
@@ -36,7 +43,13 @@ impl Joins {
         self.decisions.values().copied().collect()
     }
 
-    pub(super) fn resolve(&self, snapshot: &mut r::Snapshot) {
+    pub(super) fn resolve<'a>(&self, snapshot: &mut r::Snapshot, get: impl Fn(&core::Key) -> Option<&'a core::Record>) {
+        for &(number, project, person) in self.named_people.values() {
+            if let Some(task) = snapshot.tasks.get_mut(&number) {
+                task.executor =
+                    super::super::named_executor(person, get(&core::Key::People(people::Key::Roles(project))));
+            }
+        }
         let mut authority: Vec<_> = self.authority.values().copied().collect();
         for accepted in self.decisions.values() {
             let key = core::Key::Tasks(tasks::Key::DecidedProposal(accepted.proposal));

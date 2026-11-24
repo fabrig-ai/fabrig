@@ -109,6 +109,8 @@ pub enum Cut {
 #[derive(Debug)]
 pub struct AssignedTranscript {
     pub task: u64,
+    pub attempt: u64,
+    pub messages: Box<[tasks::Word]>,
     pub turns: Box<[Box<[u8]>]>,
 }
 
@@ -192,6 +194,8 @@ pub struct World {
     pub initial_ask: people::Ask,
     pub(crate) creating: jig_test_profile::fixtures::Creating,
     pub people_answers: Vec<people::Reply>,
+    /// Correlated replies for independently interleaved workload requests.
+    pub people_replies: Vec<(Token, people::Reply)>,
     /// Project notification and the durable store mark at its release.
     pub project_made: Vec<(u64, u32)>,
     pub act_answers: Vec<(Token, people::Outcome)>,
@@ -429,7 +433,24 @@ impl World {
 
     fn try_drain_restarting(&mut self, restarting: bool) -> Result<(), String> {
         self.domain.script_project_releases();
-        self.drive(300, true, true, restarting)
+        self.drive(300, true, true, restarting, &mut |_| Ok(()))
+    }
+
+    /// Run a workload between drain iterations, after committed rows can be inspected.
+    /// The callback queues inputs with `enqueue`; it must not drain recursively.
+    pub fn try_drain_with(&mut self, step: &mut dyn FnMut(&mut Self) -> Result<(), String>) -> Result<(), String> {
+        self.domain.script_project_releases();
+        self.drive(300, true, true, false, step)
+    }
+
+    /// Queue one workload input without advancing its loop.
+    pub fn enqueue(&mut self, event: root::Event) {
+        self.events.push_back(event);
+    }
+
+    #[must_use]
+    pub fn iterations(&self) -> u64 {
+        self.iteration
     }
 
     /// Explicit advancement keeps one clock pair through its drain.
@@ -460,7 +481,14 @@ impl World {
     }
 
     #[expect(clippy::too_many_lines, reason = "one loop routes root, store and peer work in order")]
-    fn drive(&mut self, steps: usize, tick: bool, consume: bool, restarting: bool) -> Result<(), String> {
+    fn drive(
+        &mut self,
+        steps: usize,
+        tick: bool,
+        consume: bool,
+        restarting: bool,
+        step: &mut dyn FnMut(&mut Self) -> Result<(), String>,
+    ) -> Result<(), String> {
         if let Some(Cut::Disk { from: from @ jig_test_store_files::KillFrom::Commit(_), operation }) = self.cut {
             self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
         }
@@ -740,6 +768,7 @@ impl World {
             crate::referee::public::check(self);
             self.domain.reclaim();
             self.observer.observe(self.wall, self.heap.observed())?;
+            step(self)?;
             if steps == 1 {
                 return Ok(());
             }

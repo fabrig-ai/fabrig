@@ -30,7 +30,9 @@ impl World {
         if let Some(peers) = &mut self.peers {
             peers.delivered(&delivery);
             if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = delivery {
-                peers.reply(to, &reply);
+                let token = to.into_token();
+                self.people_replies.push((token, reply.clone()));
+                peers.reply(ReplyTo::new(token), &reply);
                 self.people_answers.push(reply);
                 return Ok(());
             }
@@ -130,8 +132,12 @@ impl World {
             root::Delivery::Assigned { assignment, .. } => {
                 self.last_read = None;
                 self.assignments.push((assignment.task, assignment.attempt));
-                self.assignment_transcripts
-                    .push(super::AssignedTranscript { task: assignment.task, turns: assignment.transcript.clone() });
+                self.assignment_transcripts.push(super::AssignedTranscript {
+                    task: assignment.task,
+                    attempt: assignment.attempt,
+                    turns: assignment.transcript.clone(),
+                    messages: assignment.messages.clone(),
+                });
                 self.assigned = Some(assignment);
             }
             root::Delivery::AssignedJob { channel, job, .. } => {
@@ -190,8 +196,9 @@ impl World {
             }
             root::Delivery::Core(core::Held::PeopleReply {
                 reply: reply @ people::Reply::SignedIn { sign_in, .. },
-                ..
+                to,
             }) => {
+                self.people_replies.push((to.into_token(), reply.clone()));
                 let initial = self.sign_in.is_none();
                 self.sign_in = Some(sign_in);
                 self.people_answers.push(reply);
@@ -230,7 +237,10 @@ impl World {
                     self.answers.push((token, key, part));
                 }
             }
-            root::Delivery::Core(core::Held::PeopleReply { reply, .. }) => self.people_answers.push(reply),
+            root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
+                self.people_replies.push((to.into_token(), reply.clone()));
+                self.people_answers.push(reply);
+            }
             root::Delivery::ApplicationDocument { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::Core(

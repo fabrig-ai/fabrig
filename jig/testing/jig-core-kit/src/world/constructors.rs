@@ -272,6 +272,7 @@ impl World {
             initial_ask,
             creating,
             people_answers: Vec::new(),
+            people_replies: Vec::new(),
             project_made: Vec::new(),
             act_answers: Vec::new(),
             project_releases: Vec::new(),
