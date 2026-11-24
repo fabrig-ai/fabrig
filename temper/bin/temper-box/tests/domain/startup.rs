@@ -355,6 +355,35 @@ fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
 }
 
 #[test]
+fn rung_b0s_donor_store_opens_with_its_agent_figures() {
+    use temper_service::startup;
+    use temper_service_core::derived::Sources;
+
+    let paths = ["config", "data", "cache"].map(|name| Path::new("/fixture/rung-b0-donor").join(name));
+    let profile = support::forge_land::rung::deployment_profile(&paths);
+    let directories = temper_service_shell::jig_directories(&profile.directories);
+    let given = temper_service::stock::Given::Stock;
+    let agents = temper_box_shell::testing::serve::agents_setting_over(Ok(Some(profile.agents)), &mut Vec::new())
+        .expect("donor's agent figures");
+    let part = startup::box_worker(&profile.document, &directories, &given, &agents, 4, &[])
+        .expect("donor's worker is configured before reading settings")
+        .expect("local worker");
+    let bytes = temper_worker_shell::agent::figures::configuration(
+        part.figures.as_ref().expect("worker's composed figures"),
+        None,
+        &paths[1],
+        &part.environment,
+    )
+    .expect("donor's agent configuration");
+    let agent = support::prepare_agent(bytes).agent.declaration();
+    startup::box_worker_with_agent(&profile.document, &directories, &given, &agents, 4, &[], &agent)
+        .unwrap_or_else(|why| panic!("donor's agent admission: {}", problems_text(&why)))
+        .expect("local worker");
+    temper_engine_service::startup::deployment_store(None, Sources::agent(&agent))
+        .unwrap_or_else(|why| panic!("donor's store admission: {}", problems_text(&why)));
+}
+
+#[test]
 fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
     let mut document = owned_document();
     let agent = owned_agent(&document);
