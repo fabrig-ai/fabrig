@@ -296,23 +296,24 @@ impl World {
             .find(|p| p.kind == restarts::ENGINE_CRASH_MID_TURN)
             .and_then(|p| self.workload_names().task(&p.goal));
         if f.due(restarts::ENGINE_CRASH_MID_TURN)
-            && self.assignment.as_ref().is_some_and(|a| Some(a.task) == restart_task)
-            && !self.process.prepared()
-            && self.process.held_query.is_some_and(|query| {
-                self.process.agent().prompts().len() == query && self.process.agent().turns().len() + 1 == query
+            && self.lanes[0].assignment.as_ref().is_some_and(|a| Some(a.task) == restart_task)
+            && !self.lanes[0].process.prepared()
+            && self.lanes[0].process.held_query.is_some_and(|query| {
+                self.lanes[0].process.agent().prompts().len() == query
+                    && self.lanes[0].process.agent().turns().len() + 1 == query
             })
-            && self.worker.retained_turns() == 0
+            && self.lanes[0].worker.retained_turns() == 0
             && self.store.idle()
             && self.root_events.is_empty()
-            && self.worker_events.is_empty()
+            && self.lanes[0].worker_events.is_empty()
         {
             let goal = f.fire(restarts::ENGINE_CRASH_MID_TURN);
             eprintln!(
                 "crash at {:?}, iteration {}, assignment {:?}, queries {}",
                 self.env.now,
                 self.iteration,
-                self.assignment.as_ref().map(|a| (a.task, a.attempt)),
-                self.process.agent().prompts().len()
+                self.lanes[0].assignment.as_ref().map(|a| (a.task, a.attempt)),
+                self.lanes[0].process.agent().prompts().len()
             );
             self.cut_link();
             // These replies address the old forge client's tokens, not the
@@ -337,10 +338,10 @@ impl World {
             f.stopped(self.env.now);
             f.rejoining = Some(self.absence_admissions());
             self.absence.link_joined = true;
-            self.worker_events.push_back(super::super::worker::Event::Ready);
+            self.lanes[0].worker_events.push_back(super::super::worker::Event::Ready);
         }
         if f.rejoining.is_some_and(|before| self.absence_admissions() > before) {
-            self.process.held_query = None;
+            self.lanes[0].process.held_query = None;
             f.rejoining = None;
         }
         self.ends.faults_stop(f.last);

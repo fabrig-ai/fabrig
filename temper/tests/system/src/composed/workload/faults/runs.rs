@@ -25,7 +25,7 @@ impl World {
         if let Some((task, query)) = restart_point
             && assignment.task == task
         {
-            self.process.held_query = Some(query);
+            self.lanes[0].process.held_query = Some(query);
         }
         let Some(f) = &mut self.workload_faults else { return };
         let key = (assignment.task, assignment.attempt);
@@ -36,9 +36,9 @@ impl World {
         let account = assignment.run.accounts.first().expect("run account").account;
         f.runs.started(self.env.now, &format!("{}:{}", key.0, key.1), &account.to_string());
         if let Some((account, _)) = f.provider {
-            self.process.strike(accounts::credential(account), Strike::Window { tokens: 1, length: WINDOW });
+            self.lanes[0].process.strike(accounts::credential(account), Strike::Window { tokens: 1, length: WINDOW });
         }
-        self.process.configure_settings = Some(|settings| {
+        self.lanes[0].process.configure_settings = Some(|settings| {
             settings.provider.accounts = 2;
             settings.provider.latency_min = Duration::ZERO;
             settings.provider.latency_max = Duration::ZERO;
@@ -49,15 +49,15 @@ impl World {
     pub(super) fn workload_provider_tick(&mut self, f: &mut Faults) {
         let target = f.plans.iter().find(|p| p.kind == RATE_WINDOW).and_then(|p| self.workload_names().task(&p.goal));
         if f.due(RATE_WINDOW)
-            && self.assignment.as_ref().is_some_and(|a| Some(a.task) == target)
-            && !self.process.prepared()
+            && self.lanes[0].assignment.as_ref().is_some_and(|a| Some(a.task) == target)
+            && !self.lanes[0].process.prepared()
         {
             let goal = f.plans.iter().find(|p| p.kind == RATE_WINDOW).expect("provider plan").goal.clone();
             let goal = self.workload().goal(&goal).expect("drawn goal");
             let account = super::super::setup::account(goal.party);
             f.fire(RATE_WINDOW);
             f.provider = Some((account, self.env.now.saturating_add(SPELL)));
-            self.process.strike(accounts::credential(account), Strike::Window { tokens: 1, length: WINDOW });
+            self.lanes[0].process.strike(accounts::credential(account), Strike::Window { tokens: 1, length: WINDOW });
             for process in self.parked.values_mut() {
                 process.strike(accounts::credential(account), Strike::Window { tokens: 1, length: WINDOW });
             }
@@ -66,7 +66,7 @@ impl World {
             && self.env.now >= until
         {
             let strike = Strike::Window { tokens: 1, length: WINDOW };
-            self.process.clear(accounts::credential(account), &strike);
+            self.lanes[0].process.clear(accounts::credential(account), &strike);
             for process in self.parked.values_mut() {
                 process.clear(accounts::credential(account), &strike);
             }
@@ -76,35 +76,40 @@ impl World {
     }
 
     pub(super) fn observe_workload_runs(&mut self, f: &mut Faults) {
-        if self.process.prepared() {
+        if self.lanes[0].process.prepared() {
             return;
         }
-        let Some(assignment) = &self.assignment else { return };
+        let Some(assignment) = &self.lanes[0].assignment else { return };
         let key = (assignment.task, assignment.attempt);
         let Some(seen) = f.observed_runs.get_mut(&key) else { return };
         let account = assignment.run.accounts.first().expect("account").account;
         let run = format!("{}:{}", key.0, key.1);
-        for fact in &self.process.agent().facts()[seen.facts..] {
+        for fact in &self.lanes[0].process.agent().facts()[seen.facts..] {
             if let smith_domain::Fact::Session { fact } = fact
                 && let smith_domain_session::FactKind::CompletionStarted { opener, attempt, .. } = fact.kind
                 && attempt > 0
             {
                 f.runs.retried(
-                    self.process.outer_time(fact.at),
+                    self.lanes[0].process.outer_time(fact.at),
                     &account.to_string(),
                     &format!("{run}-{}-{}", opener.raw(), fact.response.expect("retry").number),
                     smith_faults::Retried::Session,
                 );
             }
         }
-        seen.facts = self.process.agent().facts().len();
-        if self.process.answered.is_some() && !seen.ended {
-            f.runs.ended(self.env.now, &run, &account.to_string(), smith_faults::ended(self.process.agent().answer()));
+        seen.facts = self.lanes[0].process.agent().facts().len();
+        if self.lanes[0].process.answered.is_some() && !seen.ended {
+            f.runs.ended(
+                self.env.now,
+                &run,
+                &account.to_string(),
+                smith_faults::ended(self.lanes[0].process.agent().answer()),
+            );
             seen.ended = true;
         }
         // These are the fake's Reply errors, retained before their client translation,
         // not failures guessed from the engine's task or a planned strike.
-        for (at, call, credential, error) in self.process.provider_faults() {
+        for (at, call, credential, error) in self.lanes[0].process.provider_faults() {
             if let Error::Window { reset, .. } = error {
                 let injection = f.ledger.inject(
                     RATE_WINDOW,

@@ -309,6 +309,12 @@ impl Domain {
         &self.core.tasks
     }
 
+    /// The run channel admitted at this worker's configured position.
+    #[must_use]
+    pub fn worker_channel(&self, position: u32) -> Option<Token> {
+        self.core.fleet.worker_channel(position)
+    }
+
     /// Tasks whose prepared assignment has not yet been handed to a worker.
     #[must_use]
     pub fn pending_assignments(&self) -> List<u64> {
@@ -1215,10 +1221,7 @@ fn release_one(domain: &mut Domain, out: &mut Queue<Request>) -> skein_lib::Rele
 
 pub(crate) fn send_commit(domain: &mut Domain, out: &mut Queue<Request>) {
     // Unsent decisions stay in the journal until a store answer frees credit.
-    if domain.journal.stopped()
-        || domain.sent_commit.checked_sub(domain.durable_commit).expect("store answers only sent commits")
-            >= u64::from(domain.limits.journal.commits)
-    {
+    if domain.journal.stopped() || domain.commits_in_flight() >= u64::from(domain.limits.journal.commits) {
         return;
     }
     match crate::commit(&mut domain.journal, &domain.limits.journal) {

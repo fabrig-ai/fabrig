@@ -18,6 +18,7 @@ pub(crate) struct Forge {
     edited: bool,
     prepared: bool,
     hooks: Option<std::net::SocketAddr>,
+    hook_pushed: bool,
 }
 impl Forge {
     pub(crate) fn new(transport: temper_fake_git_hosted::Typed, story: Story) -> Self {
@@ -32,6 +33,7 @@ impl Forge {
             edited: false,
             prepared: false,
             hooks: None,
+            hook_pushed: false,
         }
     }
     pub(crate) fn keeping_ledger(mut self) -> Self {
@@ -53,6 +55,26 @@ impl Forge {
             });
             self.hooks = Some(bound);
         }
+    }
+    /// Move the hooked branch once, with no agent or pull-open event in this story.
+    pub(crate) fn push_hook(&mut self, now: skein_lib::Time) -> Result<(), String> {
+        if self.hooks.is_none() || self.hook_pushed {
+            return Ok(());
+        }
+        let mut forge = self.transport.forge.borrow_mut();
+        let env = skein_lib::Env { now, wall: skein_lib::Wall::EPOCH, limits: forge.config.clone() };
+        skein_fake_forge_domain::advance(
+            &mut forge.domain,
+            &env,
+            b"acme/app",
+            b"main",
+            b"conflict.txt",
+            b"other\n",
+            fixtures::MOVING_USER,
+        )
+        .map_err(|why| format!("outside push: {why:?}"))?;
+        self.hook_pushed = true;
+        Ok(())
     }
     pub(crate) fn adopted(&mut self) {
         if matches!(self.story, Story::Merge) && !self.prepared {
@@ -148,6 +170,20 @@ impl Forge {
             } else {
                 false
             }
+        })
+    }
+    pub(crate) fn signed_push(procs: &[Proc]) -> bool {
+        use skein_fake_peers::forge::{Delivery, Observation};
+        procs.iter().any(|proc| {
+            let Proc::Forge(peer) = proc else { return false };
+            peer.observations().iter().any(|record| {
+                let Observation::Delivery { post: Some(post), outcome: Delivery::Written } = record else {
+                    return false;
+                };
+                post.head.starts_with(b"POST /hooks/1 HTTP/1.1\r\n")
+                    && skein_lib::bytes::find(&post.head, b"\r\nX-Forgejo-Event: push\r\n").is_some()
+                    && skein_lib::bytes::find(&post.head, b"\r\nX-Forgejo-Signature: ").is_some()
+            })
         })
     }
     pub(super) fn saved_head(&self, task: u64) -> Option<u64> {

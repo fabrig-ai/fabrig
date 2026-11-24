@@ -225,10 +225,11 @@ fn help_tasks_describes_parent() {
     assert!(skein_lib::bytes::find(&bytes, b"Only this task's delegates").is_some());
 }
 
-fn tree_answer(folded: bool) -> crate::jig::Printed {
+fn tree_answer(folded: bool, json: bool) -> crate::jig::Printed {
     use jig_client::{Latest, Watchable};
     use skein_lib::List;
-    let (mut root, call) = fixtures::read_call(&["task", "show", "41", "--tree"]);
+    let argv = ["task", "show", "41", "--tree", "--json"];
+    let (mut root, call) = fixtures::read_call(if json { &argv } else { &argv[..4] });
     let mut task = fixtures::goal(41, c::WaitsOn::Nothing);
     task.chip.title = fixtures::document_text(b"Root");
     let Latest::Jig(c::Delivery::Tree(mut tree)) = fixtures::owner_tree_at(task.chip.clone()) else {
@@ -254,7 +255,8 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
     }
     tree.folded = List::with_capacity(3);
     // Independent parents contribute to the total; a repeated parent gets one read-on call.
-    for (parent, waiting, running) in [(41, 1, 1), (42, 0, 1), (42, 0, 0)] {
+    let folds = [(41, 1, 1), (42, 0, 1), (42, 0, 0)];
+    for &(parent, waiting, running) in if json { &[] } else { folds.as_slice() } {
         tree.folded
             .push(c::TreeFold {
                 parent,
@@ -277,7 +279,7 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
 
 #[test]
 fn a_tree_says_what_is_folded_and_how_to_read_on() {
-    let answer = tree_answer(true);
+    let answer = tree_answer(true, false);
     let start = skein_lib::bytes::find(&answer.stdout, b"tree:\n").expect("tree").checked_add(6).expect("tree start");
     let tree = answer.stdout.get(start..).expect("tree text");
     let end = skein_lib::bytes::find(tree, b"digest:").expect("digest");
@@ -286,7 +288,15 @@ fn a_tree_says_what_is_folded_and_how_to_read_on() {
 
 #[test]
 fn a_tree_with_nothing_folded_has_no_cut_line() {
-    assert!(skein_lib::bytes::find(&tree_answer(false).stdout, b"cut:").is_none());
+    assert!(skein_lib::bytes::find(&tree_answer(false, false).stdout, b"cut:").is_none());
+}
+
+#[test]
+fn task_tree_json_names_a_complete_unfolded_page() {
+    let printed = tree_answer(false, true);
+    assert_eq!(printed.status, 0);
+    assert!(skein_lib::bytes::find(&printed.stdout, br#""folded":[]"#).is_some());
+    assert!(skein_lib::bytes::find(&printed.stdout, br#""more":false"#).is_some());
 }
 
 #[test]
@@ -366,6 +376,78 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
             }
         }
     }
+}
+
+#[test]
+fn question_json_keeps_its_inbox_identity_and_its_plan_in_task_activity() {
+    use serde_json::Value;
+    let plan = b"Add CSV output while preserving the table. Shall I go ahead?";
+    let argv = &["inbox", "--kind", "questions", "--json"];
+    for count in [1, 0] {
+        let (mut root, call) = fixtures::read_call(argv);
+        let c::ReadResult::Value(c::ReadValue::Inbox(mut page)) =
+            fixtures::inbox_rows(c::InboxReadGroup::Needs, count, false)
+        else {
+            panic!("questions page")
+        };
+        let task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
+        if let Some(row) = page.rows.get_mut(0) {
+            row.task = c::TaskLink::Live(task.chip.clone());
+        }
+        root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(page)));
+        if count == 1 {
+            root.serve(
+                call,
+                c::ReadResult::Value(c::ReadValue::Question(Box::new(c::Question {
+                    task: task.chip,
+                    message: 2,
+                    from: Some(c::Requester::Task(42)),
+                    words: fixtures::document_text(plan),
+                    since: skein_lib::Wall::EPOCH,
+                    acts: skein_lib::List::with_capacity(0),
+                    ending: None,
+                }))),
+            );
+        }
+        let printed = root.answer(call).expect("questions printed");
+        assert_eq!(printed.status, 0);
+        let value: Value = serde_json::from_slice(&printed.stdout).expect("inbox JSON");
+        let rows = value["needs"]["rows"].as_array().expect("questions array, even when empty");
+        assert_eq!(rows.len(), usize::try_from(count).expect("at most one row"));
+        if let [row] = rows.as_slice() {
+            assert_eq!(row["task"]["live"]["task"], fixtures::TASK);
+            assert_eq!(row["object"]["question"]["message"].as_u64(), Some(2));
+        }
+        assert!(root.reads.is_empty(), "no repeated inbox read");
+    }
+
+    let (mut root, call) = fixtures::read_call(&["task", "show", "41", "--activity", "32", "--json"]);
+    root.serve(call, fixtures::task_result(fixtures::goal(fixtures::TASK, fixtures::waiting_on_me())));
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(crate::tests::documents::line(
+        1,
+        skein_lib::Wall::EPOCH,
+        c::Activity::Words {
+            message: 2,
+            by: c::Requester::Task(42),
+            kind: c::MessageKind::QuestionOwed,
+            words: c::Text::new(plan.as_slice().into(), 128).expect("plan fits"),
+        },
+    ))
+    .expect("one activity row");
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+            cut: false,
+            rows,
+            before: None,
+            after: None,
+        }))),
+    );
+    let printed = root.answer(call).expect("activity printed");
+    assert_eq!(printed.status, 0);
+    assert!(fixtures::has(&printed, plan), "the activity JSON includes the whole plan");
+    assert!(root.reads.is_empty(), "no repeated activity read");
 }
 
 #[test]

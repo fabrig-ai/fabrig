@@ -669,7 +669,7 @@ fn release_llm(
             .iter()
             .rev()
             .find_map(|event| {
-                if let Observation::Query { connection: queried, query } = event
+                if let Observation::Query { connection: queried, query, .. } = event
                     && queried == connection
                 {
                     Some(skein_lib::bytes::find(&query.system, cue).is_some() || super::llm::request_has(query, cue))

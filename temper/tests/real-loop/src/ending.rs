@@ -103,9 +103,7 @@ impl Obligations {
         }
         match &child.kind {
             Kind::Agent(_) => self.child(index, "agent"),
-            Kind::Git(_) | Kind::GitRoute(_) => self.child(index, "git"),
-            Kind::Claude(_) => self.child(index, "claude"),
-            Kind::Relay(_) => self.child(index, "relay"),
+            Kind::Git(_) => self.child(index, "git"),
             Kind::Llm(_)
             | Kind::Forge(_)
             | Kind::Issuer(_)

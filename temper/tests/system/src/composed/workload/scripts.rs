@@ -19,7 +19,7 @@ fn turn(name: &[u8], value: &Value) -> skein_fake_llm_domain::api::Turn {
 }
 
 pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script {
-    if world.assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
+    if world.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
         || world.parked.contains_key(&assignment.task)
     {
         return Script { cue: Box::default(), turns: Box::default() };

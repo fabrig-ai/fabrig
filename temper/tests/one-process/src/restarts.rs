@@ -154,6 +154,7 @@ impl Injector {
                     world::HarnessProcess::Client(_)
                     | world::HarnessProcess::Ctl(_)
                     | world::HarnessProcess::Calls(_)
+                    | world::HarnessProcess::Line(_)
                     | world::HarnessProcess::Push(_),
                 ) => continue,
             };

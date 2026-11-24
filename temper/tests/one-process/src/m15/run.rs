@@ -59,6 +59,8 @@ fn provider(renew: bool) -> skein_fake_peers::llm::Peer {
         Script { cue: b"@edit".as_slice().into(), turns: edits.into_boxed_slice() },
     ]))
 }
+const INSTALL_CALL: usize = 3;
+
 fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
     let mut sign_in = Command::new(&[b"sign-in", b"-"]);
     sign_in.input = link;
@@ -66,7 +68,7 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
     caller.commands.push_back(paste(app, b"secrecy-app", true));
     caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1", b"--json"]));
     caller.commands.push_back(Command::new(&[b"forge", b"install", b"1", b"--key", b"secrecy-install"]));
-    caller.commands.push_back(Command::browse(3));
+    caller.commands.push_back(Command::browse(INSTALL_CALL));
     caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"settled", b"--json"]));
     caller.commands.push_back(Command::new(&[
         b"repository",
@@ -161,7 +163,8 @@ impl Judge {
             .iter()
             .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
             .ok_or_else(|| String::from("GitHub peer"))?;
-        let minted = peer.github_layer().ok_or_else(|| String::from("GitHub"))?.installations().minted();
+        let installations = peer.github_layer().ok_or_else(|| String::from("GitHub"))?.installations();
+        let minted = installations.minted();
         let git = peer.git_calls().ok_or_else(|| String::from("git observation"))?;
         if !self.initial && self.read {
             match (&(minted), &(2)) {
@@ -210,14 +213,8 @@ impl Judge {
         }
         if self.initial && self.pushed && self.landed && (!self.renew || self.refreshed) && !self.browsing && self.store.borrow().rows.values().any(|row| matches!(row, temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(task))) if task.number == 2)) {
             match (&(observer::tokens() as u64), &(minted)) { (left, right) if left != right => { let finding = String::from("the observer holds every issued token"); return Err(format!("{finding}\n left: {left:?}\nright: {right:?}")); }, _ => {} }
-            if !(git.iter().any(|call| call.writes)) { return Err(String::from("a real git delivery used a token")); }
-            if !(git.iter().any(|call| !call.writes && call.minted.is_some_and(|minted| minted.mint <= 2))) { return Err(String::from("initial credential exercised checkout")); }
-            for request in git {
-                let identity = request.minted.ok_or_else(|| String::from("authenticated git request"))?;
-                match (&(identity.installation), &(1)) { (left, right) if left != right => { let finding = String::from("assertion `left == right` failed"); return Err(format!("{finding}\n left: {left:?}\nright: {right:?}")); }, _ => {} }
-                if (request.status != 200) && (request.writes && request.status == 404) { return Err(format!("assertion failed: {}", stringify!(request.status == 200 || (!request.writes && request.status == 404)))); }
-                if (self.renew && request.writes) && (identity.mint <= 2) { return Err(String::from("delivery uses the refreshed credential")); }
-            }
+            let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { return Err(String::from("native caller")) };
+            check_install_and_git(caller, installations, git, self.renew)?;
             checkpoint(service, &self.store.borrow())?;
             for proc in other.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
@@ -245,6 +242,47 @@ impl Judge {
         Ok(())
     }
 }
+fn check_install_and_git(
+    caller: &Caller,
+    installations: &skein_fake_forge_github::installations::Installations,
+    git: &skein_lib::Queue<skein_fake_forge_github::GitCall>,
+    renew: bool,
+) -> Result<(), String> {
+    let [visit] = caller.browsed.as_slice() else { return Err(String::from("one Install visit")) };
+    if visit.call != INSTALL_CALL || visit.hops != [302, 200] {
+        return Err(format!("the Install call redirects to a setup page: call {}, hops {:?}", visit.call, visit.hops));
+    }
+    if skein_lib::bytes::find(&visit.body, b"temper has the installation; you may close this tab.").is_none() {
+        return Err(String::from("the setup page confirms installation"));
+    }
+    let mut accounts = installations.iter();
+    let installed = accounts.next().ok_or_else(|| String::from("an installed App"))?;
+    if accounts.next().is_some() || installed.id != 1 || installed.account != 10 || installed.login.as_ref() != b"acme"
+    {
+        return Err(String::from("only acme's installation is accepted"));
+    }
+    let minted = installations.minted();
+    if minted == 0 || git.iter().filter(|call| call.writes).count() != 1 {
+        return Err(String::from("the landing mints tokens and performs exactly one git write"));
+    }
+    if !git.iter().any(|call| !call.writes && call.status == 200 && call.minted.is_some_and(|m| m.mint <= 2)) {
+        return Err(String::from("the initial credential succeeds on a checkout read"));
+    }
+    for request in git {
+        let identity = request.minted.ok_or_else(|| String::from("authenticated git request"))?;
+        if identity.installation != installed.id || !(1..=minted).contains(&identity.mint) {
+            return Err(format!("git must use a mint issued for acme: {request:?}"));
+        }
+        if !(request.status == 200 || (!request.writes && request.status == 404)) {
+            return Err(format!("only a git read may answer 404: {request:?}"));
+        }
+        if renew && request.writes && identity.mint <= 2 {
+            return Err(String::from("delivery uses the refreshed credential"));
+        }
+    }
+    Ok(())
+}
+
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         if self.finding.is_none() {

@@ -112,6 +112,7 @@ pub struct Forge {
     limits: Limits,
     counts: temper_fake_git::counts::Published,
     repositories: u32,
+    worker: u64,
     /// The world's clock, as of its last say.
     now: Time,
     /// The calls made, the last naming the latest.
@@ -134,6 +135,7 @@ impl Forge {
             domain: Domain::new(&Config { limits, ..config() }, seed),
             counts: temper_fake_git::counts::Published::default(),
             repositories: 1,
+            worker: WORKER,
             now: Time::ZERO,
             calls: 0,
         }
@@ -262,11 +264,29 @@ impl Forge {
             protection: None,
             hooked: false,
         };
+        self.seed_repository(setup)
+    }
+
+    /// Use the selected forge user for subsequent worker git calls and grants.
+    pub fn worker_user(&mut self, user: u64) {
+        self.worker = user;
+    }
+
+    /// Add a repository with an explicit identity, seed tree, CI and protection.
+    pub fn seed_repository(&mut self, setup: Setup) -> u64 {
+        self.repositories = self.repositories.max(setup.id);
+        let remote = setup.name.clone();
         let config = self.configuration();
         let first = skein_fake_forge_domain::repository(&mut self.domain, &config, setup);
-        skein_fake_forge_domain::grant(&mut self.domain, remote, WORKER, Permission::Write);
-        skein_fake_forge_domain::grant(&mut self.domain, remote, OTHER, Permission::Write);
+        self.grant(&remote, self.worker, Permission::Write);
+        self.grant(&remote, OTHER, Permission::Write);
         first
+    }
+
+    /// Read the whole current tree at a branch, without producing a git operation.
+    #[must_use]
+    pub fn branch_tree(&self, remote: &[u8], branch: &[u8]) -> Option<Tree> {
+        Some(self.tree(self.branch(remote, branch)?))
     }
 
     /// Publish a new root commit holding `counts.json`, without moving a branch.
@@ -401,7 +421,7 @@ impl temper_fake_git::counts::Remote for Forge {
 
 impl Remote for Forge {
     fn clone_default(&mut self, remote: &[u8]) -> Result<git::CloneInfo, Fault> {
-        let Answer::Cloned { default, branches } = self.call(remote, WORKER, Git::Clone)? else {
+        let Answer::Cloned { default, branches } = self.call(remote, self.worker, Git::Clone)? else {
             panic!("clone metadata")
         };
         let tip = branches.iter().find(|head| head.branch == default).map(|head| head.commit);
@@ -409,7 +429,7 @@ impl Remote for Forge {
     }
 
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault> {
-        let Answer::Cloned { default: _, branches } = self.call(remote, WORKER, Git::Clone)? else {
+        let Answer::Cloned { default: _, branches } = self.call(remote, self.worker, Git::Clone)? else {
             panic!("a clone is answered with the branches");
         };
         Ok(branches.iter().map(|head| head.commit).collect())
@@ -421,7 +441,7 @@ impl Remote for Forge {
             Want::Commit(commit) => skein_fake_forge_domain::api::Want::Commit(commit),
             Want::Default => skein_fake_forge_domain::api::Want::Default,
         };
-        let Answer::Commit(commit) = self.call(remote, WORKER, Git::Fetch { want })? else {
+        let Answer::Commit(commit) = self.call(remote, self.worker, Git::Fetch { want })? else {
             panic!("a fetch is answered with the commit fetched");
         };
         Ok(commit)
@@ -429,14 +449,15 @@ impl Remote for Forge {
 
     fn create(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Created, Fault> {
         let op = Git::Create { branch: branch.into(), commit };
-        let Answer::Branch(created) = self.call(remote, WORKER, op)? else {
+        let Answer::Branch(created) = self.call(remote, self.worker, op)? else {
             panic!("a branch's creation is answered with how it went");
         };
         Ok(created_of(created))
     }
 
     fn push_new(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Option<u64>, Fault> {
-        let Answer::PushNew { existing } = self.call(remote, WORKER, Git::PushNew { branch: branch.into(), commit })?
+        let Answer::PushNew { existing } =
+            self.call(remote, self.worker, Git::PushNew { branch: branch.into(), commit })?
         else {
             panic!("push-new answer");
         };
@@ -445,7 +466,7 @@ impl Remote for Forge {
 
     fn push(&mut self, remote: &[u8], branch: &[u8], commit: u64, expected: Option<u64>) -> Result<Pushed, Fault> {
         let op = Git::Push { branch: branch.into(), commit, expected };
-        let Answer::Pushed(pushed) = self.call(remote, WORKER, op)? else {
+        let Answer::Pushed(pushed) = self.call(remote, self.worker, op)? else {
             panic!("a push is answered with how it went");
         };
         Ok(match pushed {

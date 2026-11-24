@@ -34,7 +34,7 @@ impl World {
         if f.due(DISK_FULL) {
             eprintln!("disk capacity at {:?}", self.env.now);
             f.fire(DISK_FULL);
-            f.disk.capacity = Some(translate::used(&self.disk) + f.disk.headroom);
+            f.disk.capacity = Some(translate::used(&self.lanes[0].disk) + f.disk.headroom);
             // The capacity is lifted even if a Make frees enough space first.
             f.disk.until = Some(self.env.now.saturating_add(Duration::from_secs(60)));
         }
@@ -48,12 +48,12 @@ impl World {
         }
         if let Some((name, task, attempt)) = &f.park
             && !f.parked
-            && self.assignment.as_ref().is_some_and(|a| a.task == *task && a.attempt == *attempt)
-            && self.process.answered.is_some()
+            && self.lanes[0].assignment.as_ref().is_some_and(|a| a.task == *task && a.attempt == *attempt)
+            && self.lanes[0].process.answered.is_some()
         {
             assert!(matches!(self.agent().answer(), run::Answer::Parked { .. }), "delivered producer parks");
             let name = name.clone();
-            let assignment = self.assignment.as_ref().expect("park's assignment");
+            let assignment = self.lanes[0].assignment.as_ref().expect("park's assignment");
             let branch = assignment.workspace.repositories[0].push.as_ref().expect("producer's branch");
             let head = self.forge.branch(super::super::REMOTE, branch).expect("delivered branch");
             let tree = self.forge.tree(head);
@@ -79,28 +79,20 @@ impl World {
 
     pub(in crate::composed) fn workload_io(
         &mut self,
+        at: usize,
         owner: Token,
         op: worker::checkout::git::Op,
     ) -> worker::checkout::git::Done {
         use worker::checkout::git::{Done, Fault};
+        let lane = &mut self.lanes[at];
+        let conflicts = lane.worker_env.limits.checkout.conflicts;
         let Some(capacity) = self.workload_faults.as_ref().and_then(|f| f.disk.capacity) else {
-            return translate::perform_within(
-                &mut self.forge,
-                &mut self.disk,
-                op,
-                self.worker_env.limits.checkout.conflicts,
-            );
+            return translate::perform_within(&mut self.forge, &mut lane.disk, op, conflicts);
         };
-        let used = translate::used(&self.disk);
+        let used = translate::used(&lane.disk);
         let request = format!("hold {} {:?}", owner.raw(), op.kind());
         let writes = translate::writes(&op);
-        let done = translate::perform_within_capacity(
-            &mut self.forge,
-            &mut self.disk,
-            op,
-            self.worker_env.limits.checkout.conflicts,
-            Some(capacity),
-        );
+        let done = translate::perform_within_capacity(&mut self.forge, &mut lane.disk, op, conflicts, Some(capacity));
         if let Some(f) = &mut self.workload_faults {
             let refused = matches!(&done, Done::FailedWithOutput { fault: Fault::Broken, diagnostic }
                 if diagnostic.output() == b"No space left on device");

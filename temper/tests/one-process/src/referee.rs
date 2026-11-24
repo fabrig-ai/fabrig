@@ -409,7 +409,7 @@ impl Referee {
         self.controls.cut(0, skein_world::Cut::PowerLoss);
         Ok(false)
     }
-    fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
+    fn phase_complete(&mut self, service: &crate::world::ServiceHost, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
                 #[cfg(test)]
@@ -418,6 +418,10 @@ impl Referee {
                 crate::world::Phase::SignIn => other
                     .iter()
                     .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
+                crate::world::Phase::CtlAdopt => forge_caller(other).is_some_and(Host::is_empty),
+                crate::world::Phase::ForgeReceipt => {
+                    forge::Forge::hooks_complete(other) && service.observer.hook_answered()
+                }
                 crate::world::Phase::LandedRestart => self.landing_recovered(other)?,
                 crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other)?,
                 crate::world::Phase::Restart => {
@@ -453,7 +457,41 @@ impl Referee {
     }
 }
 impl Referee {
-    #[expect(clippy::too_many_lines, reason = "the phase coordinates its peers, restart observer and stop boundary")]
+    fn hand_link(&mut self, service: &mut crate::world::ServiceHost, other: &mut [Proc]) {
+        // The signed-in caller connects the forge before the person's repository story.
+        if !self.handed
+            && let Some(link) = service.service.links().pop()
+        {
+            crate::oracle::linked(&link);
+            for proc in other.iter_mut() {
+                match proc {
+                    Proc::Other(HarnessProcess::Client(person)) if person.signed_in == 0 => person.sign_in(&link),
+                    Proc::Other(HarnessProcess::Calls(caller))
+                        if matches!(self.phase, crate::world::Phase::CtlAdopt | crate::world::Phase::ForgeReceipt) =>
+                    {
+                        caller.setup_forge(&link, matches!(self.phase, crate::world::Phase::CtlAdopt));
+                    }
+                    _ => {}
+                }
+            }
+            self.handed = true;
+        }
+    }
+
+    fn drive_hook(&self, now: Time, service: &mut crate::world::ServiceHost, other: &[Proc]) -> Result<(), String> {
+        if matches!(self.phase, crate::world::Phase::ForgeReceipt)
+            && let Some(caller) = forge_caller(other)
+            && caller.is_empty()
+        {
+            if let Some(answer) = caller.answers.iter().find(|answer| answer.exit != skein_io::kernel::Exit::Code(0)) {
+                return Err(format!("ctl forge setup: {answer:?}"));
+            }
+            service.observer.record_hooks();
+            self.forge.borrow_mut().push_hook(now)?;
+        }
+        Ok(())
+    }
+
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (service, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut service[0] else { return Err(String::from("service first")) };
@@ -490,20 +528,7 @@ impl Referee {
             }
             self.attached = Some(());
         }
-        // The signed-in caller connects the forge before the person's repository story.
-        if !self.handed
-            && let Some(link) = service.service.links().pop()
-        {
-            crate::oracle::linked(&link);
-            for proc in other.iter_mut() {
-                if let Proc::Other(HarnessProcess::Client(person)) = proc
-                    && person.signed_in == 0
-                {
-                    person.sign_in(&link);
-                }
-            }
-            self.handed = true;
-        }
+        self.hand_link(service, other);
         let done = other.iter().all(|proc| match proc {
             Proc::Other(HarnessProcess::Client(person)) => person.is_empty(),
             Proc::Service(_)
@@ -519,6 +544,7 @@ impl Referee {
             | Proc::Other(
                 HarnessProcess::Ctl(_)
                 | HarnessProcess::Calls(_)
+                | HarnessProcess::Line(_)
                 | HarnessProcess::ProgramSource(_)
                 | HarnessProcess::Push(_),
             ) => true,
@@ -535,12 +561,13 @@ impl Referee {
             }
             return Ok(());
         }
+        self.drive_hook(now, service, other)?;
         if let Some(injector) = &self.restart_faults
             && service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready)
         {
             injector.borrow_mut().opening(now);
         }
-        let mut complete = self.phase_complete(other)?;
+        let mut complete = self.phase_complete(service, other)?;
         if complete
             && matches!(self.phase, crate::world::Phase::Drain)
             && let Some(injector) = &self.restart_faults
@@ -756,7 +783,10 @@ impl skein_world::Referee<Proc> for Referee {
         let no_client = match self.phase {
             #[cfg(test)]
             crate::world::Phase::Committed => true,
-            crate::world::Phase::Restart | crate::world::Phase::Refused => true,
+            crate::world::Phase::Restart
+            | crate::world::Phase::Refused
+            | crate::world::Phase::ForgeReceipt
+            | crate::world::Phase::CtlAdopt => true,
             _ => false,
         };
         self.finding.is_none()
@@ -894,6 +924,13 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
     })
 }
 
+pub(crate) fn forge_caller(procs: &[Proc]) -> Option<&crate::ctl::Caller> {
+    procs.iter().find_map(|proc| match proc {
+        Proc::Other(HarnessProcess::Calls(caller)) => Some(caller.as_ref()),
+        _ => None,
+    })
+}
+
 pub(crate) fn shutdown_peer(proc: &mut Proc) {
     match proc {
         Proc::Peer(peer) => peer.shutdown(),
@@ -911,6 +948,7 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
             HarnessProcess::Client(_)
             | HarnessProcess::Ctl(_)
             | HarnessProcess::Calls(_)
+            | HarnessProcess::Line(_)
             | HarnessProcess::ProgramSource(_),
         ) => {}
     }

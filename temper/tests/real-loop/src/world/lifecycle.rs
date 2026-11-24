@@ -1,7 +1,7 @@
 //! Judge decisions over host snapshots (temper/docs/design/testing/real-loop.md).
 use crate::calls::Caller;
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub(super) struct Lifecycle {
     pub(super) stopping: bool,
     pub(super) engine_stopping: bool,
@@ -46,7 +46,7 @@ impl Lifecycle {
         shutdown
     }
 
-    pub(super) fn passed(&self, failed: bool) -> bool {
+    pub(super) fn passed(self, failed: bool) -> bool {
         self.finished && !failed
     }
 }

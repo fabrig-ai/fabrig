@@ -294,9 +294,10 @@ impl World {
         }
         self.workload_choose_park(assignment);
         let script = scripts::assigned(self, assignment);
-        let mut process = if self.assignment.as_ref().is_some_and(|previous| previous.task == assignment.task) {
-            if self.process.answered.is_some() {
-                self.process.resume(script);
+        let mut process = if self.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == assignment.task)
+        {
+            if self.lanes[0].process.answered.is_some() {
+                self.lanes[0].process.resume(script);
             }
             self.workload.as_mut().expect("workload").assignments.push(assignment.clone());
             self.workload_fault_assignment(assignment);
@@ -315,8 +316,8 @@ impl World {
         });
         process.clocked = true;
         process.bounded_clock = true;
-        let previous = core::mem::replace(&mut self.process, process);
-        if let Some(previous_assignment) = &self.assignment {
+        let previous = core::mem::replace(&mut self.lanes[0].process, process);
+        if let Some(previous_assignment) = &self.lanes[0].assignment {
             assert!(previous.answered.is_some() || previous.prepared(), "one live process");
             self.parked.insert(previous_assignment.task, previous);
         }
@@ -338,7 +339,7 @@ impl World {
             &temper_worker_service::worker_settings::Limits::shared(temper_service_core::limits::stock()),
         )
         .expect("worker payload limits");
-        self.worker_events.push_back(link::job(job, workspace, &limits));
+        self.lanes[0].worker_events.push_back(link::job(job, workspace, &limits));
     }
 
     /// End only after all goals landed and the tier caught main's final head.
@@ -353,11 +354,11 @@ impl World {
                 self.ends.close(self.env.now, &self.store).expect("all goal bounds met");
                 return;
             }
-            if self.engine_quiet() && self.worker_events.is_empty() {
+            if self.engine_quiet() && self.lanes[0].worker_events.is_empty() {
                 let next = [
                     self.root.next_deadline(&self.env),
-                    self.worker.next_deadline(),
-                    self.process.wake_at(),
+                    self.lanes[0].worker.next_deadline(),
+                    self.lanes[0].process.wake_at(),
                     Some(self.env.now.saturating_add(
                         if self.workload_faults.as_ref().is_some_and(faults::Faults::needs_small_steps) {
                             Duration::from_millis(1)
@@ -500,7 +501,7 @@ impl World {
 
     fn assert_workload_train(&self, task: u64, changes: &[u64]) {
         let story = self.workload.as_ref().expect("workload");
-        let process = self.parked.get(&task).unwrap_or(&self.process);
+        let process = self.parked.get(&task).unwrap_or(&self.lanes[0].process);
         let outputs: Vec<_> = process
             .agent()
             .prompts()
@@ -577,8 +578,8 @@ impl World {
                 engine::Record::Core(_) => None,
             })
             .chain(
-                (!self.process.prepared())
-                    .then(|| self.process.agent())
+                (!self.lanes[0].process.prepared())
+                    .then(|| self.lanes[0].process.agent())
                     .into_iter()
                     .filter_map(|agent| agent.prompts().last())
                     .flat_map(|prompt| &prompt.messages)

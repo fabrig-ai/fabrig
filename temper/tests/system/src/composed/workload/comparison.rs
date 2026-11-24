@@ -85,8 +85,8 @@ impl World {
         run.attempt = Some(assignment.attempt);
         if let Some((point, _)) = run.restart {
             match point {
-                Point::Model(query) => self.process.held_query = Some(query),
-                Point::HostCall(call) => self.process.held_host_call = Some(call),
+                Point::Model(query) => self.lanes[0].process.held_query = Some(query),
+                Point::HostCall(call) => self.lanes[0].process.held_host_call = Some(call),
             }
         }
     }
@@ -94,22 +94,23 @@ impl World {
     pub(super) fn workload_comparison_tick(&mut self) {
         let Some(mut run) = self.workload.as_mut().expect("workload").comparison.take() else { return };
         let target = self.workload_names().task(&run.goal);
-        if self.assignment.as_ref().is_some_and(|a| Some(a.task) == target && Some(a.attempt) == run.attempt)
-            && !self.process.prepared()
+        if self.lanes[0].assignment.as_ref().is_some_and(|a| Some(a.task) == target && Some(a.attempt) == run.attempt)
+            && !self.lanes[0].process.prepared()
         {
-            run.points = self.process.mid_turn_points();
+            run.points = self.lanes[0].process.mid_turn_points();
             if let Some((point, restart)) = run.restart {
                 let held = match point {
                     Point::Model(query) => {
-                        self.process.agent().prompts().len() == query && self.process.agent().turns().len() + 1 == query
+                        self.lanes[0].process.agent().prompts().len() == query
+                            && self.lanes[0].process.agent().turns().len() + 1 == query
                     }
-                    Point::HostCall(_) => self.process.host_call_held(),
+                    Point::HostCall(_) => self.lanes[0].process.host_call_held(),
                 };
                 if held
-                    && self.worker.retained_turns() == 0
+                    && self.lanes[0].worker.retained_turns() == 0
                     && self.store.idle()
                     && self.root_events.is_empty()
-                    && self.worker_events.is_empty()
+                    && self.lanes[0].worker_events.is_empty()
                 {
                     eprintln!("restart {} at {point:?}: {restart:?}", run.goal);
                     let injection = self.inject_mid_turn(restart, &mut run.ledger);

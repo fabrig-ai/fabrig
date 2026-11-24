@@ -7,7 +7,7 @@ use crate::{
 use skein_io::kernel::{Complete, Spawn, Submit};
 use skein_lib::{Queue, Time, Wall};
 use skein_shell::Host;
-use skein_world::{Inherited, StartupRoot};
+use skein_world::Inherited;
 use std::{os::unix::ffi::OsStrExt, path::Path};
 pub(crate) type Factory = fn(&Spawn, &Inherited) -> Proc;
 
@@ -70,11 +70,6 @@ fn hosted(spawn: &Spawn, inherited: &Inherited, freeze_on_cancel: bool) -> Proc 
     let configuration =
         Path::new(std::ffi::OsStr::from_bytes(spawn.args.last().expect("agent configuration argument")));
     let configuration = temper_worker_shell::agent::configuration(configuration).expect("shipped agent configuration");
-    let programs = configuration.program.is_some().then(|| smith_agent_shell::ProgramResources {
-        relay: Path::new(std::ffi::OsStr::from_bytes(crate::claude::RELAY)).into(),
-        entropy: skein_lib::Secret::new(Box::new([7; 32])),
-        directory: inherited.roots.iter().find(|(name, _)| name.as_ref() == b"programs").map(|(_, fd)| *fd),
-    });
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(stderr);
     Proc::new(Kind::Agent(Box::new(Hosted {
@@ -94,27 +89,11 @@ fn hosted(spawn: &Spawn, inherited: &Inherited, freeze_on_cancel: bool) -> Proc 
                     // Start carries the checkout paths after spawn. Open those paths in
                     // Start order, just as the shipped process does on this filesystem.
                     roots: None,
-                    programs,
+                    programs: None,
                 },
                 Box::new(errors),
             )
             .expect("hosted shipped agent"),
         ),
     })))
-}
-pub(crate) fn roots(spawn: &Spawn) -> Vec<StartupRoot> {
-    let configuration =
-        Path::new(std::ffi::OsStr::from_bytes(spawn.args.last().expect("agent configuration argument")));
-    let configuration = temper_worker_shell::agent::configuration(configuration).expect("agent programs root");
-    configuration
-        .program
-        .iter()
-        .filter(|program| {
-            smith_agent_shell::program::private_directory(&program.directory).expect("private programs root")
-        })
-        .map(|program| StartupRoot {
-            name: b"programs".as_slice().into(),
-            path: program.directory.as_os_str().as_bytes().into(),
-        })
-        .collect()
 }

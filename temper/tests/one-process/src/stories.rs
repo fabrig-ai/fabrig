@@ -170,6 +170,29 @@ pub(crate) fn provider(story: Story) -> skein_fake_peers::llm::Peer {
     ]))
 }
 pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
+    forge_with_readme(story, None)
+}
+
+pub(crate) fn forge_with_readme(story: Story, readme: Option<(&[u8], &[u8])>) -> temper_fake_git_hosted::Typed {
+    use skein_fake_forge_domain::api::{Cue, File, Protection};
+    let mut tree = vec![File { path: b"conflict.txt".as_slice().into(), content: b"base\n".as_slice().into() }];
+    let contexts: Box<[_]> = Box::new([b"check".as_slice().into()]);
+    let (cue, protection) = readme.map_or((None, None), |(readme, edit)| {
+        tree.push(File { path: b"README.md".as_slice().into(), content: readme.into() });
+        (
+            Some(Cue::File { path: b"README.md".as_slice().into(), green: edit.into() }),
+            Some(Protection {
+                branch: b"main".as_slice().into(),
+                contexts: contexts.clone(),
+                approvals: 0,
+                dismiss_stale: false,
+                queue: false,
+                linear: false,
+                code_owners: false,
+                bypassing_users: Box::new([]),
+            }),
+        )
+    });
     let config = skein_fake_forge_domain::Config {
         limits: skein_fake_forge_domain::Limits {
             statuses: fixtures::FORGE_STATUSES,
@@ -186,22 +209,19 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
             id: fixtures::REPOSITORY,
             name: b"acme/app".as_slice().into(),
             default: b"main".as_slice().into(),
-            tree: Box::new([skein_fake_forge_domain::api::File {
-                path: b"conflict.txt".as_slice().into(),
-                content: b"base\n".as_slice().into(),
-            }]),
+            tree: tree.into_boxed_slice(),
             labels: Box::new([]),
             checks: skein_fake_forge_domain::api::Checks {
                 cues: Box::new([]),
-                contexts: Box::new([b"check".as_slice().into()]),
+                contexts,
                 latency_min: Duration::ZERO,
                 latency_max: Duration::ZERO,
                 silent: fixtures::CI_SILENT,
                 passes: fixtures::CI_PASSES,
                 reruns: fixtures::CI_RERUNS,
-                cue: None,
+                cue,
             },
-            protection: None,
+            protection,
             hooked: matches!(story, Story::Adopt),
         },
     );
@@ -368,7 +388,11 @@ pub(crate) fn setup_settings(phase: crate::world::Phase) {
                 && !STORY.with(|story| matches!(story.get(), Story::NoWelcome))
                 && (matches!(
                     phase,
-                    crate::world::Phase::Story | crate::world::Phase::LandedRestart | crate::world::Phase::Fault { .. }
+                    crate::world::Phase::Story
+                        | crate::world::Phase::LandedRestart
+                        | crate::world::Phase::ForgeReceipt
+                        | crate::world::Phase::CtlAdopt
+                        | crate::world::Phase::Fault { .. }
                 ) || matches!(phase, crate::world::Phase::Drain)
                     && STORY.with(|story| matches!(story.get(), Story::CodingAtStop))),
         );
