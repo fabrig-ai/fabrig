@@ -89,7 +89,7 @@ fn maps_refusals_name_the_line_and_schema_without_writing() {
         assert!(error.message.contains("schema refusal"), "{label}: {error}");
         assert!(error.message.contains(reason), "{label}: {error}");
         fs::write(&maps_path, maps).expect("maps input");
-        let result = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+        let result = Command::new(skein_scratch::paths::binary("skein-codegen"))
             .args([schema_path.as_os_str(), maps_path.as_os_str(), out.as_os_str()])
             .output()
             .expect("run maps command");
@@ -181,7 +181,7 @@ fn maps_command_uses_split_schema_order_and_the_first_stem() {
     fs::write(&first, source).expect("first schema");
     fs::write(&second, tail).expect("second schema");
     fs::write(&maps, mapping).expect("maps");
-    let result = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+    let result = Command::new(skein_scratch::paths::binary("skein-codegen"))
         .args([first.as_os_str(), second.as_os_str(), maps.as_os_str(), out.as_os_str()])
         .output()
         .expect("run maps command");
