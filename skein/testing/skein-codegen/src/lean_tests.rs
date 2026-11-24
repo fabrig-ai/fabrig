@@ -38,6 +38,16 @@ fn check(path: &std::path::Path, text: &str, write: bool) {
 }
 
 #[test]
+fn tombstones_and_droppable_marks_do_not_change_generated_rust() {
+    let plain = parse("family f 1\nrecord R { hint: text 8 b: u8 }\nrecord Next { value: R }").expect("plain schema");
+    let annotated = parse(
+        "family f 1\nrecord R { droppable hint: text 8 dropped old: text 32 = \"\" b: u8 }\nrecord Next { value: R }",
+    )
+    .expect("annotated schema");
+    assert_eq!(generate(&annotated), generate(&plain));
+}
+
+#[test]
 fn lean_secret_fields_need_no_box_import() {
     let schema = parse("family hidden 1 record Row { value: option list 2 secret 8 }").expect("secret schema");
     let output = generate(&schema).records;
