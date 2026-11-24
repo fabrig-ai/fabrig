@@ -118,7 +118,6 @@ jig-client-protocol-wire.workspace = true
 skein-fake-oauth.workspace = true
 skein-http.workspace = true
 temper-worker-protocol-git.workspace = true
-temper-worker-domain-checkout.workspace = true
 jig-domain-fleet.workspace = true
 jig-domain-tasks.workspace = true
 skein-fake-llm-domain.workspace = true
