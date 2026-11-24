@@ -599,9 +599,12 @@ runs as contained processes and whose output it parses.
     and removes from each kept workspace's repositories the lock files
     a killed git leaves (`index.lock`, `HEAD.lock`, and any name ending
     `.lock` under `refs/`), in its `.git` and its worker's git
-    directory, since no git of the previous process lives. The cache
-    holds it, idle, under its workstream's key, so the hello names that
-    workstream and the engine sends the run's next attempt back at once
+    directory, since no git of the previous process lives. The start also
+    removes from every shared store, whether or not a mark names a workspace,
+    any name ending `.lock` under its `refs/`, since a fetch writes the run's
+    references there and a killed one leaves its lock before any mark is
+    written. The cache holds it, idle, under its workstream's key, so the
+    hello names that workstream and the engine sends the run's next attempt back at once
     (jig's `domain/engine/executors.md`, 6.5).
   - **Saved at its take-up,** as the drain would have saved it. The
     next start of its workstream on this worker whose repositories are
