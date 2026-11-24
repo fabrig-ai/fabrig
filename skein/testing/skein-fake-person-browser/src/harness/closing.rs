@@ -31,6 +31,9 @@ impl Capture {
     pub fn done(&self, now: Time) -> bool {
         now >= self.until || !(self.snapshot || self.image)
     }
+    pub fn until(&self) -> Time {
+        self.until
+    }
 }
 
 pub(super) struct CloseWindow {
@@ -48,6 +51,9 @@ impl CloseWindow {
     }
     pub fn done(&self, now: Time) -> bool {
         now >= self.until
+    }
+    pub fn next(&self, now: Time) -> Option<Time> {
+        [self.force_at, self.until].into_iter().find(|at| *at > now)
     }
 }
 
