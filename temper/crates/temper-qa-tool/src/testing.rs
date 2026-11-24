@@ -1,6 +1,20 @@
 //! Shared value fixtures for the QA test binaries (tools/crates/design.md, 3.2).
 use crate::{CaseInput, Ledger, Pages};
+mod agents;
+mod clock;
+mod git;
 pub mod passes;
+mod socket;
+mod tree;
+mod world;
+
+pub use agents::{Agent, Agents, Child, DriveStreams, HolderCommand};
+pub use clock::Clock;
+pub use git::{Git, Node, Range, baseline, baseline_with};
+pub use socket::Connection;
+pub use tree::{FileHandle, FileOp, Listener, Lock, Tree};
+use world::path_io;
+pub use world::{Loop, World, land};
 
 pub fn pages() -> Pages {
     [

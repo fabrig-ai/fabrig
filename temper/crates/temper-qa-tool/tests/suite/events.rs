@@ -74,7 +74,7 @@ fn socket_binding_replaces_stale_paths_and_ignores_the_umask() {
         temper_qa_tool::runner::Run::start(
             world.home.clone(),
             baseline(),
-            super::world::Agents::default(),
+            world.agents(),
             super::world::Clock::default(),
             vec![]
         )

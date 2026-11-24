@@ -4,7 +4,6 @@ mod builds;
 mod events;
 mod gaps;
 mod hold;
-mod home;
 mod installation;
 mod place;
 mod run;

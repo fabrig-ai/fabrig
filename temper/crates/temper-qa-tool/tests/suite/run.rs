@@ -1,5 +1,5 @@
 //! The watcher and tick loop over the fake world, never real git or agents.
-use super::world::{Agent, Agents, Clock, Git, World, baseline, id, land};
+use super::world::{Agent, Clock, Git, World, baseline, id, land};
 use std::fs;
 use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{
@@ -562,7 +562,7 @@ fn one_run_holds_the_home_and_restart_ends_every_running_session_lost_and_prunes
     }
     assert_eq!(run.git.prunes, 1);
     let why =
-        Run::start(world.home.clone(), baseline(), Agents::default(), Clock::default(), vec![]).err().expect("locked");
+        Run::start(world.home.clone(), baseline(), world.agents(), Clock::default(), vec![]).err().expect("locked");
     assert_eq!(why.to_string(), format!("another temper-qa run holds {}", world.home.directory.display()));
     drop(run);
     let restarted = world.start(baseline(), &[]);
