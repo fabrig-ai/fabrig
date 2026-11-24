@@ -23,7 +23,7 @@ Eighteen goals, started on 2026-11-23 on the user's approval, each on its own ra
 | D13, smith's shipped CLI, with a file-operation seam around its finalizer | 5.3 | smith | none | started, task 13866 |
 | D14, temper's shells: forge setup, box, common, TUI, service, fetch and engine shells | 5.3 | temper | D8 | started, task 13872 |
 | D15, temper's journey tools and its end-to-end binaries' tables | 5.3 | temper | none | started, task 13867 |
-| D16, skein's shell and world harness, and skein's remaining small groups | 5.3, 5.4 | skein | none | started, task 13868 |
+| D16, skein's shell and world harness, and skein's remaining small groups | 5.3, 5.4 | skein | none | landed, task 13868: `drive`'s loop over a supplied kernel and clock, startup's decisions and root preparation over supplied facts (`skein/docs/design/runtime/shell.md`, 8 and 11), the hosted kill report without a kernel (`skein/docs/design/testing/service-tiers.md`, 1), the live suite's login admission offline (`skein/docs/design/llm/README.md`, 5), the KV writer's golden bytes, the bundle's routes and the throwaway's controls below the real loop (`skein/docs/design/data/kv.md`, 9; `skein/docs/design/ui/web/testing.md`; `skein/docs/design/testing/fakes/throwaway.md`, 1), the fail-stop tail at its step, and the world harness's and io's duplicates retired; the real witnesses that the draft keeps stay (`slow-tests-down.md`, 4) |
 | D17, the real-loop world's remaining stories and every single-row move left | 5.4 | temper | none | started, task 13869 |
 | D18, the cluster, restore, checkpoint and start-over stories' policy, once failure-worlds' restart faults have landed | 6 | temper | D2, failure-worlds' F8 | started, task 13873 |
 

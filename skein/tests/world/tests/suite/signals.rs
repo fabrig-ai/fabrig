@@ -10,6 +10,7 @@ use skein_world_tests::hosted::{Act, RootMachine, Script};
 struct Judge {
     controls: Controls,
     target: usize,
+    signals: &'static [ServiceSignal],
     sent: bool,
     passed: bool,
     ready: bool,
@@ -18,16 +19,16 @@ struct Judge {
 impl Referee<Script> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Script]) {
         if !self.sent && (procs.len() > self.target) {
-            let host = self.target;
-            self.controls.signal(host, ServiceSignal::Terminate);
-            self.controls.signal(host, ServiceSignal::Interrupt);
+            for &signal in self.signals {
+                self.controls.signal(self.target, signal);
+            }
             self.sent = true;
         }
     }
     fn watch(&mut self, _now: Time, procs: &[Script]) -> Result<(), String> {
         self.ready = procs.len() > self.target;
         if let Some(script) = procs.get(self.target) {
-            self.passed = script.signals == [ServiceSignal::Terminate, ServiceSignal::Interrupt];
+            self.passed = script.signals == self.signals;
         }
         Ok(())
     }
@@ -43,17 +44,26 @@ fn child(_spawn: &Spawn, inherited: &Inherited) -> Script {
     Script::child(inherited, &[Act::ReadSignal, Act::ReadSignal, Act::Write(1, b"heard")])
 }
 
-fn run(hosted: bool) -> skein_world::Outcome<Script, RootMachine> {
+fn interrupted(_spawn: &Spawn, inherited: &Inherited) -> Script {
+    Script::child(inherited, &[Act::ReadSignal, Act::Write(1, b"terminated")])
+}
+
+fn run(
+    hosted: bool,
+    signals: &'static [ServiceSignal],
+    make: fn(&Spawn, &Inherited) -> Script,
+) -> skein_world::Outcome<Script, RootMachine> {
     let mut world = World::new_controlled(7, Config::calm(), Memory::Unchecked, |controls| Judge {
         controls,
         target: usize::from(hosted),
+        signals,
         sent: false,
         passed: false,
         ready: !hosted,
     })
     .with_machine(RootMachine);
     if hosted {
-        world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make: child, instances: 1, operations: 8 });
+        world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make, instances: 1, operations: 8 });
         world.spawn_root(Handle::new(1), |root| {
             Script::parent(root, &[Act::Spawn, Act::Read(1), Act::Read(1), Act::Wait])
         });
@@ -70,14 +80,19 @@ fn run(hosted: bool) -> skein_world::Outcome<Script, RootMachine> {
 
 #[test]
 fn a_script_hears_the_referees_signals_in_order_with_its_other_completions() {
+    const SIGNALS: &[ServiceSignal] = &[ServiceSignal::Terminate, ServiceSignal::Interrupt];
     for hosted in [false, true] {
-        let first = run(hosted);
-        let second = run(hosted);
-        assert_eq!(first.procs[usize::from(hosted)].signals, [ServiceSignal::Terminate, ServiceSignal::Interrupt]);
+        let first = run(hosted, SIGNALS, child);
+        let second = run(hosted, SIGNALS, child);
+        assert_eq!(first.procs[usize::from(hosted)].signals, SIGNALS);
         assert_eq!(first.trace, second.trace, "referee signal delivery replays");
         if hosted {
             assert_eq!(first.procs[0].received, b"heard");
             assert_eq!(first.procs[0].child_exit, Some(skein_io::kernel::Exit::Code(0)));
         }
     }
+
+    let outcome = run(true, &[ServiceSignal::Interrupt], interrupted);
+    assert_eq!(outcome.procs[0].received, b"terminated");
+    assert_eq!(outcome.procs[1].signals, [ServiceSignal::Interrupt]);
 }

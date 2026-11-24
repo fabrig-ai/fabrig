@@ -1,4 +1,4 @@
-//! Startup reads against real filesystem entries and bounded PEM bundles.
+//! Startup reads and stores against real filesystem entries.
 
 use std::fs;
 use std::os::unix::fs::{MetadataExt, PermissionsExt, symlink};
@@ -8,17 +8,12 @@ use std::process::Command;
 use skein_io::file::Unsafe;
 use skein_io::kernel::{Error, Kind};
 use skein_scratch::Scratch;
-use skein_shell::{
-    DirectoryAccess, RootBounds, RootsRefusal, Trust, Unread, directory_access, read_file, read_private_file,
-    read_trust_roots,
-};
+use skein_shell::{DirectoryAccess, Unread, directory_access, read_file, read_private_file};
 
 #[cfg(target_os = "linux")]
 const DESCRIPTORS: &str = "/proc/self/fd";
 #[cfg(target_os = "macos")]
 const DESCRIPTORS: &str = "/dev/fd";
-
-const BOUNDS: RootBounds = RootBounds { bundle_bytes: 4_096, certificates: 8, certificate_bytes: 32 };
 
 #[test]
 fn directory_access_answers_writable_for_a_directory() {
@@ -82,11 +77,6 @@ fn directory_access_answers_denied_without_search_permission() {
     assert_eq!(directory_access(scratch.path()), DirectoryAccess::Denied(libc::EACCES));
 }
 
-#[test]
-fn directory_access_answers_denied_for_a_nul_in_the_path() {
-    assert_eq!(directory_access(Path::new("nul\0inside")), DirectoryAccess::Denied(libc::EINVAL));
-}
-
 fn entry_metadata(path: &Path) -> (u32, u64, i64, i64, i64, i64) {
     let entry = fs::metadata(path).expect("entry exists");
     (entry.mode(), entry.len(), entry.mtime(), entry.mtime_nsec(), entry.ctime(), entry.ctime_nsec())
@@ -119,15 +109,6 @@ fn private_token(scratch: &Scratch) -> std::path::PathBuf {
     fs::write(&path, b"secret").expect("plant the token file");
     fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).expect("make it private");
     path
-}
-
-#[test]
-fn a_private_file_is_read_within_its_bound() {
-    let scratch = Scratch::new("private");
-    let path = private_token(&scratch);
-    let user = skein_shell::effective_user();
-    assert_eq!(read_private_file(&path, 6, user).expect("at bound").expose(), b"secret");
-    assert_eq!(read_private_file(&path, 5, user), Err(Unread::TooLarge { max: 5 }));
 }
 
 #[test]
@@ -193,15 +174,6 @@ fn a_directory_and_a_fifo_are_refused_as_their_kind() {
 }
 
 #[test]
-fn a_file_owned_by_another_expected_user_is_refused_as_owner() {
-    let scratch = Scratch::new("private");
-    let path = private_token(&scratch);
-    let found = skein_shell::effective_user();
-    let expected = found.checked_add(1).expect("the effective user is not the sentinel");
-    assert_eq!(read_private_file(&path, 64, expected), Err(Unread::Unsafe(Unsafe::Owner { found, expected })));
-}
-
-#[test]
 fn a_denied_own_file_is_named_by_its_path_only_stat() {
     if mode_checks_bypassed() {
         eprintln!("effective privileges bypass file modes; skipping the denied-open case");
@@ -253,32 +225,6 @@ fn startup_reads_whole_regular_files_at_their_bound_and_closes_every_entry() {
     assert_eq!(fs::read_dir(DESCRIPTORS).expect("descriptor observer").count(), descriptors, "all reads close");
     fs::write(&path, b"").expect("empty file");
     assert_eq!(read_file(&path, 0).expect("empty fits zero bytes").as_ref(), b"");
-}
-
-#[test]
-fn startup_reads_one_der_certificate() {
-    let scratch = Scratch::new("startup");
-    let path = scratch.path().join("root.der");
-    fs::write(&path, b"DER bytes").expect("plant DER");
-    let roots = read_trust_roots(&Trust::Der(path.clone()), &BOUNDS).expect("DER file");
-    assert_eq!(roots.certificates.as_ref(), [Box::from(b"DER bytes".as_slice())]);
-    assert_eq!((roots.other_blocks, roots.malformed), (0, 0));
-    assert_eq!(roots.path, path);
-}
-
-#[test]
-fn startup_forwards_the_bundle_byte_bound_to_the_reader() {
-    let scratch = Scratch::new("startup");
-    let path = scratch.path().join("bundle");
-    let bytes = b"-----BEGIN CERTIFICATE-----\nTWFu\n-----END CERTIFICATE-----\n";
-    fs::write(&path, bytes).expect("plant bundle");
-    let length = u32::try_from(bytes.len()).expect("fixture fits");
-    let trust = Trust::Machine { ssl_cert_file: Some(path.clone()) };
-    assert!(read_trust_roots(&trust, &RootBounds { bundle_bytes: length, ..BOUNDS }).is_ok(), "exact bundle bytes");
-    assert_eq!(
-        read_trust_roots(&trust, &RootBounds { bundle_bytes: length - 1, ..BOUNDS }).expect_err("bundle past bound"),
-        RootsRefusal::Unread { path, why: Unread::TooLarge { max: length - 1 } }
-    );
 }
 
 #[test]
