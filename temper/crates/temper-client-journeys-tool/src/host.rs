@@ -91,7 +91,7 @@ impl Host {
         match &mut self.kind {
             Kind::Real(environment) => real::ask(environment, ask),
             #[cfg(test)]
-            Kind::Canned(canned) => canned.ask(&ask),
+            Kind::Canned(canned) => canned.try_ask(&ask).unwrap_or_else(|why| panic!("{why}")),
         }
     }
 
@@ -134,19 +134,32 @@ struct Canned {
 
 #[cfg(test)]
 impl Canned {
-    fn ask(&mut self, ask: &Ask) -> Answer {
+    fn new(steps: Vec<Step>) -> Self {
+        Self { steps: steps.into_iter(), index: 0, gathered: Gathered::default() }
+    }
+
+    fn try_ask(&mut self, ask: &Ask) -> Result<Answer, String> {
         let index = self.index;
         let answer = match self.steps.next() {
             Some(step) if &step.ask == ask => step.answer,
-            Some(Step { ask: expected, .. }) => panic!("host step {index}: expected {expected:?}, got {ask:?}"),
-            None => panic!("host step {index}: no request expected, got {ask:?}"),
+            Some(Step { ask: expected, .. }) => {
+                return Err(format!("host step {index}: expected {expected:?}, got {ask:?}"));
+            }
+            None => return Err(format!("host step {index}: no request expected, got {ask:?}")),
         };
         self.index += 1;
         if let (Ask::Run(program), Answer::Ran(ran)) = (ask, &answer) {
             self.gather(program.stdout, &ran.stdout);
             self.gather(program.stderr, &ran.stderr);
         }
-        answer
+        Ok(answer)
+    }
+
+    fn try_finish(mut self) -> Result<Gathered, String> {
+        if let Some(step) = self.steps.next() {
+            return Err(format!("host step {} not taken: {:?}", self.index, step.ask));
+        }
+        Ok(self.gathered)
     }
 
     fn gather(&mut self, stream: Stream, bytes: &[u8]) {
@@ -161,15 +174,12 @@ impl Canned {
 #[cfg(test)]
 impl Host {
     pub(crate) fn canned(steps: Vec<Step>) -> Self {
-        Self { kind: Kind::Canned(Canned { steps: steps.into_iter(), index: 0, gathered: Gathered::default() }) }
+        Self { kind: Kind::Canned(Canned::new(steps)) }
     }
 
     pub(crate) fn finish(self) -> Gathered {
-        let Kind::Canned(mut canned) = self.kind else { panic!("only a canned host gathers output") };
-        if let Some(step) = canned.steps.next() {
-            panic!("host step {} not taken: {:?}", canned.index, step.ask);
-        }
-        canned.gathered
+        let Kind::Canned(canned) = self.kind else { panic!("only a canned host gathers output") };
+        canned.try_finish().unwrap_or_else(|why| panic!("{why}"))
     }
 }
 

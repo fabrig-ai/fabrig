@@ -1,4 +1,4 @@
-use super::{Answer, Ask, Gathered, Host, Program, Ran, Step, Stream};
+use super::{Answer, Ask, Canned, Gathered, Host, Program, Ran, Step, Stream};
 
 const HOLDER: u32 = 42;
 
@@ -30,27 +30,30 @@ fn canned_steps_answer_in_order_without_gathering_kept_bytes() {
 }
 
 #[test]
-#[should_panic(expected = "host step 1: expected Exists(\".git/MERGE_HEAD\"), got Alive(42)")]
-fn different_request_names_the_step_and_both_requests() {
-    let mut host = Host::canned(vec![head_step(), merge_head_step()]);
-    let _ = host.ask(head());
-    let _ = host.ask(Ask::Alive(HOLDER));
+fn different_request_names_the_step_and_both_requests() -> Result<(), String> {
+    let mut canned = Canned::new(vec![head_step(), merge_head_step()]);
+    canned.try_ask(&head())?;
+    assert_eq!(
+        canned.try_ask(&Ask::Alive(HOLDER)),
+        Err("host step 1: expected Exists(\".git/MERGE_HEAD\"), got Alive(42)".into()),
+    );
+    Ok(())
 }
 
 #[test]
-#[should_panic(expected = "host step 1: no request expected, got Alive(42)")]
-fn extra_request_names_the_step_and_unexpected_request() {
-    let mut host = Host::canned(vec![head_step()]);
-    let _ = host.ask(head());
-    let _ = host.ask(Ask::Alive(HOLDER));
+fn extra_request_names_the_step_and_unexpected_request() -> Result<(), String> {
+    let mut canned = Canned::new(vec![head_step()]);
+    canned.try_ask(&head())?;
+    assert_eq!(canned.try_ask(&Ask::Alive(HOLDER)), Err("host step 1: no request expected, got Alive(42)".into()));
+    Ok(())
 }
 
 #[test]
-#[should_panic(expected = "host step 1 not taken: Exists(\".git/MERGE_HEAD\")")]
-fn finishing_early_names_the_first_step_not_taken() {
-    let mut host = Host::canned(vec![head_step(), merge_head_step()]);
-    let _ = host.ask(head());
-    let _ = host.finish();
+fn finishing_early_names_the_first_step_not_taken() -> Result<(), String> {
+    let mut canned = Canned::new(vec![head_step(), merge_head_step()]);
+    canned.try_ask(&head())?;
+    assert_eq!(canned.try_finish(), Err("host step 1 not taken: Exists(\".git/MERGE_HEAD\")".into()));
+    Ok(())
 }
 
 fn printing(stdout: Stream, stderr: Stream) -> Ask {
