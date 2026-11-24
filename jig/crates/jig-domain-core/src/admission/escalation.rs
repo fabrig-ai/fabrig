@@ -71,16 +71,15 @@ fn recipient(
 
 /// A job's requesting procedure hears its hold through its next step
 /// (jig/docs/design/domain/engine/executors.md, 5).
-fn job_requester(core: &Core, task: u64, parent: u64) -> bool {
+fn job_requester(core: &Core, task: u64, requester: &tasks::TaskRecord) -> bool {
     let Some(job) = core.tasks.task(task) else { return false };
     match job.executor {
-        tasks::Executor::Job { .. } if job.requester == tasks::Party::Task(parent) => {}
+        tasks::Executor::Job { .. } if job.requester == tasks::Party::Task(requester.number) => {}
         tasks::Executor::Job { .. }
         | tasks::Executor::Agent { .. }
         | tasks::Executor::Procedure { .. }
         | tasks::Executor::Person(_) => return false,
     }
-    let Some(requester) = core.tasks.task(parent) else { return false };
     match requester.executor {
         tasks::Executor::Procedure { .. } => {}
         tasks::Executor::Agent { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return false,
@@ -92,8 +91,7 @@ fn job_requester(core: &Core, task: u64, parent: u64) -> bool {
 }
 
 /// A standing agent's requester ends it, but it still decides its delegates' holds.
-fn standing_requester(core: &Core, task: u64) -> bool {
-    let Some(row) = core.tasks.task(task) else { return false };
+fn standing_requester(row: &tasks::TaskRecord) -> bool {
     if row.flags.ended_by != tasks::EndedBy::Standing || !row.waiting_on.is_empty() {
         return false;
     }
@@ -166,23 +164,13 @@ fn route(
             tasks::Party::Task(parent) => parent,
             tasks::Party::Person(_) | tasks::Party::Deployment { .. } => break,
         };
-        let Some(holder) = core.tasks.delegation(parent) else {
+        let Some((holder, deciding, tasks_left)) = core.tasks.delegation_row(parent) else {
             return fallback(core, context.project);
         };
         if passed
-            && (holder.deciding || standing_requester(core, parent) || job_requester(core, context.task, parent))
+            && (deciding || standing_requester(holder) || job_requester(core, context.task, holder))
             && holder.project == context.project
-            && authority::covers(
-                &core.authority,
-                &needed,
-                &authority::Holder::Task {
-                    project: context.project,
-                    authority: translate::tasks_authority(&holder.authority),
-                    numbers: translate::authority_numbers(holder.numbers),
-                    tasks_left: holder.tasks_left,
-                },
-                distance,
-            )
+            && translate::task_holder_covers(&core.authority, &needed, holder, tasks_left, distance)
         {
             return Some(tasks::EscalationHolder::Task(parent));
         }

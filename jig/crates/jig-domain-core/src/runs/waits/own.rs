@@ -1,72 +1,135 @@
 //! The facts and clocks of a task's own waits (jig/docs/design/domain/engine/waits.md, 3 and 5).
 
 use crate::{AtBound, Bound, Core, Limits, Unbounded, Wait, WaitKind, WaitObject, admission::escalation::wait_holder};
-use alloc::collections::BTreeMap;
+use alloc::{boxed::Box, collections::BTreeMap};
 use jig_domain_people::{DEPLOYMENT, Entry, EntryKind, Proposer, Role, Whom};
 use jig_domain_tasks::{self as tasks, Escalation, EscalationHolder as Holder, Party, Phase, TaskRecord};
 use skein_lib::{Duration, List, Wall};
 
 use crate::documents::{TaskRunWait, TaskSourceState, TaskWaitWhy};
 
-// The last key preserves the inbox's order when a proposal projects to
-// several roles at the same time. All insertions come from bounded owner rows.
-pub(super) type Records = BTreeMap<(u8, Wall, u64, usize), Wait>;
+pub(super) struct Records {
+    // The common single-record case needs no tree or sort key.
+    only: Option<Wait>,
+    // The last key preserves the inbox order of proposals projected to several roles.
+    ordered: BTreeMap<(u8, Wall, u64, usize), Wait>,
+}
+
+impl Records {
+    const fn new() -> Self {
+        Self { only: None, ordered: BTreeMap::new() }
+    }
+
+    fn insert(&mut self, wait: Wait) {
+        if self.ordered.is_empty() {
+            match self.only.take() {
+                Some(first) => self.insert_ordered(first),
+                None => {
+                    self.only = Some(wait);
+                    return;
+                }
+            }
+        }
+        self.insert_ordered(wait);
+    }
+
+    pub(super) fn len(&self) -> usize {
+        if self.only.is_some() { 1 } else { self.ordered.len() }
+    }
+
+    pub(super) fn first(&self) -> Option<&Wait> {
+        match &self.only {
+            Some(wait) => Some(wait),
+            None => match self.ordered.first_key_value() {
+                Some((_, wait)) => Some(wait),
+                None => None,
+            },
+        }
+    }
+
+    pub(super) fn values(&self) -> impl Iterator<Item = &Wait> + '_ {
+        self.only.iter().chain(self.ordered.values())
+    }
+
+    pub(super) fn into_values(self) -> impl Iterator<Item = Wait> {
+        self.only.into_iter().chain(self.ordered.into_values())
+    }
+
+    pub(super) fn into_boxed(self) -> Box<[Wait]> {
+        if let Some(only) = self.only {
+            return Box::new([only]);
+        }
+        let mut waits = List::allocated(u32::try_from(self.ordered.len()).expect("bounded waits"));
+        for wait in self.ordered.into_values() {
+            waits.push(wait).expect("one slot per wait");
+        }
+        waits.into_boxed()
+    }
+
+    fn address(&mut self, hears: Option<Holder>) {
+        if let Some(wait) = &mut self.only {
+            wait.hears = hears;
+        }
+        for wait in self.ordered.values_mut() {
+            wait.hears = hears;
+        }
+    }
+
+    fn insert_ordered(&mut self, wait: Wait) {
+        let key = (group(wait.kind), wait.since, object_number(&wait), self.ordered.len());
+        assert!(self.ordered.insert(key, wait).is_none(), "distinct wait position");
+    }
+}
 
 pub(super) struct Own {
     records: Records,
-    hears: Option<Holder>,
+    hears: Hears,
+}
+
+// A row with no records never needs its escalation route.
+enum Hears {
+    Unread,
+    Read(Option<Holder>),
 }
 
 impl Own {
-    pub(super) const fn new(hears: Option<Holder>) -> Self {
-        Self { records: BTreeMap::new(), hears }
+    pub(super) const fn new() -> Self {
+        Self { records: Records::new(), hears: Hears::Unread }
+    }
+
+    pub(super) fn hears(&mut self, core: &Core, limits: &Limits, row: &TaskRecord) -> Option<Holder> {
+        if let Hears::Read(hears) = self.hears {
+            return hears;
+        }
+        let hears = wait_holder(core, limits, row, None);
+        self.hears = Hears::Read(hears);
+        hears
+    }
+
+    pub(super) fn party(&mut self, core: &Core, limits: &Limits, row: &TaskRecord, fact: &Entry) {
+        let hears = self.hears(core, limits, row);
+        self.records.insert(party(core, limits, row, fact, hears));
+    }
+
+    pub(super) fn into_records(self) -> Records {
+        self.records
     }
 
     fn push(&mut self, task: u64, kind: WaitKind, object: WaitObject, since: Wall, bound: Bound) {
-        self.insert(Wait { task, kind, object, since, bound, hears: self.hears });
-    }
-
-    pub(super) fn insert(&mut self, wait: Wait) {
-        let group = match wait.kind {
-            WaitKind::Party => 0,
-            WaitKind::Question => 1,
-            WaitKind::Dependency => 2,
-            WaitKind::Resource => 3,
-            WaitKind::Account | WaitKind::Host => 4,
-            WaitKind::Delegate => 5,
-            WaitKind::News | WaitKind::Step | WaitKind::Room | WaitKind::Turn | WaitKind::SignOff => 6,
-        };
-        let object = match wait.object {
-            WaitObject::Entry { kind, .. } => match kind {
-                EntryKind::Question { message } | EntryKind::Reply { message } | EntryKind::ChatReply { message } => {
-                    message
-                }
-                EntryKind::Proposal { number, .. } => number,
-                EntryKind::Escalation { revision } => revision,
-                EntryKind::PersonTask => wait.task,
-            },
-            WaitObject::Question { number, .. } | WaitObject::Task(number) => number,
-            WaitObject::Resource { .. } | WaitObject::Run(_) | WaitObject::News { .. } => 0,
-            WaitObject::Procedure { ref things, .. } => match things.get(0) {
-                Some(thing) => thing.number,
-                None => 0,
-            },
-        };
-        let key = (group, wait.since, object, self.records.len());
-        assert!(self.records.insert(key, wait).is_none(), "distinct wait position");
+        self.records.insert(Wait { task, kind, object, since, bound, hears: None });
     }
 
     pub(super) fn finish(
-        mut self,
+        &mut self,
         core: &Core,
         limits: &Limits,
         row: &TaskRecord,
         working: bool,
         parked: Option<Wall>,
         due_wait: Option<TaskRunWait>,
-    ) -> Records {
+    ) {
         match row.phase {
-            Phase::Closing(_) | Phase::Ended(_) => return self.records,
+            Phase::Closing(_) | Phase::Ended(_) => return,
             Phase::Active(_) | Phase::Waiting | Phase::Held { .. } => {}
         }
         self.task_entries(core, limits, row);
@@ -100,18 +163,23 @@ impl Own {
                 }
             }
         }
-        self.records
+        if self.records.len() != 0 {
+            let hears = self.hears(core, limits, row);
+            self.records.address(hears);
+        }
     }
 
     fn task_entries(&mut self, core: &Core, limits: &Limits, row: &TaskRecord) {
         if let Escalation::Waiting { holder: at @ Holder::Task(_), revision, since, .. } = row.escalation {
-            self.insert(entry(core, limits, row, EntryKind::Escalation { revision }, at, since, self.hears));
+            let hears = self.hears(core, limits, row);
+            self.records.insert(entry(core, limits, row, EntryKind::Escalation { revision }, at, since, hears));
         }
         if let Some(proposal) = &row.proposal
             && let tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Task(task), since } = proposal.state
         {
             let kind = EntryKind::Proposal { proposer: Proposer::Task(row.number), number: proposal.number };
-            self.insert(entry(core, limits, row, kind, Holder::Task(task), since, self.hears));
+            let hears = self.hears(core, limits, row);
+            self.records.insert(entry(core, limits, row, kind, Holder::Task(task), since, hears));
         }
     }
 
@@ -228,6 +296,37 @@ impl Own {
             clock(since, limits.waits.news, row.authority.budget.deadline, AtBound::Hold)
         };
         self.push(row.number, WaitKind::News, WaitObject::News { subscriptions, timer }, since, bound);
+    }
+}
+
+fn group(kind: WaitKind) -> u8 {
+    match kind {
+        WaitKind::Party => 0,
+        WaitKind::Question => 1,
+        WaitKind::Dependency => 2,
+        WaitKind::Resource => 3,
+        WaitKind::Account | WaitKind::Host => 4,
+        WaitKind::Delegate => 5,
+        WaitKind::News | WaitKind::Step | WaitKind::Room | WaitKind::Turn | WaitKind::SignOff => 6,
+    }
+}
+
+fn object_number(wait: &Wait) -> u64 {
+    match wait.object {
+        WaitObject::Entry { kind, .. } => match kind {
+            EntryKind::Question { message } | EntryKind::Reply { message } | EntryKind::ChatReply { message } => {
+                message
+            }
+            EntryKind::Proposal { number, .. } => number,
+            EntryKind::Escalation { revision } => revision,
+            EntryKind::PersonTask => wait.task,
+        },
+        WaitObject::Question { number, .. } | WaitObject::Task(number) => number,
+        WaitObject::Resource { .. } | WaitObject::Run(_) | WaitObject::News { .. } => 0,
+        WaitObject::Procedure { ref things, .. } => match things.get(0) {
+            Some(thing) => thing.number,
+            None => 0,
+        },
     }
 }
 

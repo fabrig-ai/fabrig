@@ -58,21 +58,16 @@ impl Core {
     #[must_use]
     pub fn inspection_wait_records(&self, row: &tasks::TaskRecord) -> Box<[Wait]> {
         let limits = &self.wait_limits;
-        let hears = crate::admission::escalation::wait_holder(self, limits, row, None);
-        let mut own = own::Own::new(hears);
+        let mut own = own::Own::new();
         let inbox = self.waiting_entries(limits, row);
         for entry in inbox.iter().chain(own::policy_entry(row, &inbox).iter()) {
             if party_entry(entry.kind) {
-                own.insert(own::party(self, limits, row, entry, hears));
+                own.party(self, limits, row, entry);
             }
         }
         let (working, parked) = activity(self, row);
-        let records = own.finish(self, limits, row, working, parked, due_wait(self, row));
-        let mut waits = List::with_capacity(u32::try_from(records.len()).expect("bounded waits"));
-        for wait in records.into_values() {
-            waits.push(wait).expect("one slot per wait");
-        }
-        waits.into_boxed()
+        own.finish(self, limits, row, working, parked, due_wait(self, row));
+        own.into_records().into_boxed()
     }
 
     /// The compatibility summary of the waits in a live subtree.
@@ -110,8 +105,7 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
     pending.push(row.number).expect("validated tree bound");
     let mut oldest: Option<(people::Entry, &tasks::TaskRecord)> = None;
     let mut entries = 0_u32;
-    let hears = crate::admission::escalation::wait_holder(core, limits, row, None);
-    let mut own = own::Own::new(hears);
+    let mut own = own::Own::new();
     for _ in 0..limits.tasks.tree_tasks {
         let Some(index) = pending.len().checked_sub(1) else { break };
         let number = *pending.get(index).expect("pending live task");
@@ -137,7 +131,7 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
                 oldest = Some((*entry, candidate));
             }
             if number == row.number {
-                own.insert(own::party(core, limits, row, entry, hears));
+                own.party(core, limits, row, entry);
             }
         }
         for delegate in candidate.delegates.iter().rev() {
@@ -146,11 +140,11 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
     }
     let due_wait = due_wait(core, row);
     let (working, parked) = activity(core, row);
-    let own = own.finish(core, limits, row, working, parked, due_wait);
+    own.finish(core, limits, row, working, parked, due_wait);
     let party = match oldest {
         Some((entry, candidate)) => {
             let holder = if candidate.number == row.number {
-                hears
+                own.hears(core, limits, row)
             } else {
                 crate::admission::escalation::wait_holder(core, limits, candidate, None)
             };
@@ -158,12 +152,13 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
         }
         None => None,
     };
+    let own = own.into_records();
     let on = summary(core, limits, row, party.as_ref(), entries, working, &own);
     let first = match party {
         Some(_) => party,
         None if working => None,
-        None => match own.first_key_value() {
-            Some((_, wait)) => Some(wait.clone()),
+        None => match own.first() {
+            Some(wait) => Some(wait.clone()),
             None => None,
         },
     };
