@@ -376,8 +376,9 @@ it checks of this document:
   defaults. No first-run story takes a lock
   on the default ports: each box holds its own (`box.md`, 1), so the stories
   run beside each other as any others do.
-- **A set up cut short, started over,** a test of its own: under the
-  box, with Forgejo's binaries placed in the cache as below, the
+- **A set up cut short, started over,**
+  `an_owned_setup_killed_at_its_run_is_kept_and_a_removal_cut_finishes_on_restart`:
+  under the box, with Forgejo's binaries placed in the cache as below, the
   owner's set up of an owned Forgejo is killed with the box once its
   Forgejo runs. The next box finds the forge kept and its first
   repository not made; its removal, `temper ctl forge remove N`, is

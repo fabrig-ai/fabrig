@@ -239,8 +239,9 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   shipped commands' dispatch and one start on a restored generation: a
   checkpoint over a stopped deployment, `--hold` with a command that
   lists it, a start that commits past it, a stop, `restore` of the
-  checkpoint and a start that finds its state, then `--remove`, in one
-  story; the act while the engine serves. The safety checkpoint's
+  checkpoint and a start that finds its state, then `--remove`, in
+  `a_stopped_checkpoint_is_held_restored_and_removed`; the act while
+  the engine serves. The safety checkpoint's
   restore is the store's world's and the engine shell's real-loop
   tests' (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`,
   4).

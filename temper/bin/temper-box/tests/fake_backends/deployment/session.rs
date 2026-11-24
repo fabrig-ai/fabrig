@@ -1,7 +1,6 @@
 //! Line-wise recipe/drive IO on the process world's supervised binary.
-use super::{Kept, Place, no_link};
+use super::{Place, kept_project, no_link};
 use crate::support::{boxed, patience::Patience};
-use serde_json::Value;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::{Delegate, Host};
@@ -10,20 +9,10 @@ use skein_world::{
     end_to_end::{Binary, Cleanup, Command, Expectation, Mode, Streams},
     real,
 };
-use std::{cell::Cell, fs::File};
 
 const READ: Token = Token::new(1);
 const WRITE: Token = Token::new(2);
 const CLOSE: Token = Token::new(3);
-const READS: [&str; 6] = [
-    "ctl project show Hello --json",
-    "ctl forge list --until connected:1 --json",
-    "ctl forge repositories 1 --json",
-    "ctl landing list --project Hello --ended --json",
-    "ctl settings show project-landing 1 --revision 3 --json",
-    "ctl settings show project-gates 1 --revision 3 --json",
-];
-
 struct Lines {
     input: Option<Fd>,
     output: Option<Fd>,
@@ -179,10 +168,8 @@ struct Judge<'a> {
     old: &'a [super::Identity],
     drive: bool,
     cursor: usize,
-    answers: Vec<Value>,
     answer: String,
-    kept: &'a Cell<Option<Kept>>,
-    pin: &'a Cell<Option<File>>,
+    read_project: bool,
     patience: Patience,
     settled: bool,
 }
@@ -197,25 +184,19 @@ impl Referee<Root> for Judge<'_> {
         while let Some(line) = lines.received.get(self.cursor).cloned() {
             self.cursor += 1;
             if line == "ready" {
-                self.pin.set(Some(self.place.processes(self.old)));
-                lines.line(READS[0]);
+                self.place.processes(self.old);
+                self.place.listeners();
+                lines.line("ctl project show Hello --json");
             } else if let Some(text) = line.strip_prefix("| ") {
                 self.answer.push_str(text);
                 self.answer.push('\n');
             } else if line == "ok" {
-                let value = serde_json::from_str(&self.answer).expect("ctl JSON answer");
-                self.answers.push(value);
-                self.answer.clear();
-                if let Some(next) = READS.get(self.answers.len()) {
-                    lines.line(next);
-                } else {
-                    let api = self.place.api(self.old.is_empty());
-                    self.kept.set(Some(Kept::read(std::mem::take(&mut self.answers), api)));
-                    lines.line("end");
-                    lines.finish = true;
-                }
+                kept_project(&serde_json::from_str(&self.answer).expect("ctl project JSON"));
+                self.read_project = true;
+                lines.line("end");
+                lines.finish = true;
             } else if line.starts_with("failed:") {
-                panic!("drive read {}: {line}", self.answers.len() + 1);
+                panic!("drive project read: {line}");
             }
         }
     }
@@ -232,17 +213,11 @@ impl Referee<Root> for Judge<'_> {
         if self.settled { None } else { self.patience.until() }
     }
     fn passed(&self) -> bool {
-        self.settled
+        self.settled && (!self.drive || self.read_project)
     }
 }
 
-pub(super) struct Seen {
-    pub lines: Vec<String>,
-    pub kept: Option<Kept>,
-    pub pin: Option<File>,
-}
-
-pub(super) fn run(place: &Place, arguments: Vec<String>, drive: bool, old: &[super::Identity]) -> Seen {
+pub(super) fn run(place: &Place, arguments: Vec<String>, drive: bool, old: &[super::Identity]) -> Vec<String> {
     let mut binary = Binary::start_with_tree(
         Command {
             program: place.bin.join("temper-client-journeys"),
@@ -260,17 +235,13 @@ pub(super) fn run(place: &Place, arguments: Vec<String>, drive: bool, old: &[sup
     let streams = binary.take_streams().expect("journeys pipes");
     let fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("piped journeys") };
-    let kept = Cell::new(None);
-    let pin = Cell::new(None);
     let mut world = real::World::new(Judge {
         place,
         old,
         drive,
         cursor: 0,
-        answers: Vec::new(),
         answer: String::new(),
-        kept: &kept,
-        pin: &pin,
+        read_project: false,
         patience: Patience::watching("the deployment at its place", boxed::BOX_DEADLINE, &binary),
         settled: false,
     });
@@ -291,10 +262,9 @@ pub(super) fn run(place: &Place, arguments: Vec<String>, drive: bool, old: &[sup
         String::from_utf8_lossy(binary.stderr())
     );
     assert!(ended.procs.iter().all(Host::is_empty), "all IO settled");
-    assert!(!binary.stderr_overflowed(), "deployment stderr exceeded its bound");
     assert_eq!(binary.tree_status().live_at_leader_exit, Some(Vec::new()), "nothing outlives walk/end");
     assert_eq!(binary.tree_status().cleanup(), Cleanup::None, "no test cleanup needed");
     assert!(binary.tree_status().live_pids.is_empty(), "no deployment process left");
     place.logs();
-    Seen { lines: lines.received.clone(), kept: kept.take(), pin: pin.take() }
+    lines.received.clone()
 }

@@ -43,10 +43,9 @@ maintainer-role acceptance. These are scripted worlds on fake Forgejo.
   story stands, for what the lower worlds hold
   (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`, 1
   and 2). [in flight: change 15051]
-- **Not yet:** the whole document: the deployment at its place still
-  starts twice after its restore and reads its forge's runs and
-  settings; the checkpoint and restore stories still restore the safety
-  checkpoint; the setup-cut story still kills four set ups
+- **Not yet:** the whole document: the deployment at its place, the
+  folded checkpoint and restore, and the owned setup cut await their
+  shorter process stories
   (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`, 3
   to 5). [in flight: change 15052]
 

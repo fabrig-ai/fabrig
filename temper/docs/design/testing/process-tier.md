@@ -244,7 +244,8 @@
   and the processes, so it is this profile's.
 
 - **A deployment at its place restarted with a newer build**
-  (`qa/deployment.md`; `../draft/landed-qa.md`, 10 and 11), one story,
+  (`a_stopped_deployment_restored_at_its_place_uses_new_files`;
+  `qa/deployment.md`; `../draft/landed-qa.md`, 10 and 11), one story,
   as a QA place of the deployment's kind runs it: a place directory of
   the story's own, its `bin/` holding copies of `temper-box`,
   `fake-claude`, `temper`, `temper-client-journeys`, `temper-engine`,
@@ -261,10 +262,8 @@
   and removed, then unpacked again, as a place restores a copy
   (`qa/places.md`, 4); each file of `bin/` replaced by a new copy; then
   one start of the restored deployment from that copy, a ctl drive
-  session (`--ctl --deployment`) or the check's walk from it
-  (`--from turn-landing`), whichever opens it alone, so that the story
-  needs no Chromium. One ctl read finds the project and its repository
-  as they were; every process of the deployment, read once ctl has
+  session (`--ctl --deployment`) with no Chromium. One ctl read finds
+  project 1 and its home, the recipe's `work/hello`, as they were; every process of the deployment, read once ctl has
   signed in, runs a file of the new `bin/`, by device and inode, none an
   old or deleted file, and none a Forgejo or a runner; no stdout or log
   of the story holds the sign-in link. What the restored store holds,
