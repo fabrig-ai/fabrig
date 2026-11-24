@@ -172,6 +172,7 @@ pub struct Frozen {
     kept_starts: Box<[tasks::KeptStart]>,
     kinds: Vec<tasks::Kind>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
+    person_stall_route: [Option<tasks::PersonAddress>; 2],
     restoring: bool,
     facts: Vec<Fact>,
     consume_facts: bool,
@@ -227,6 +228,8 @@ pub struct World {
     pub facts: Vec<Fact>,
     pub accounting_referee: crate::accounting_referee::Accounting,
     pub consume_facts: bool,
+    /// First and final parties supplied by the fake parent for person stalls.
+    pub person_stall_route: [Option<tasks::PersonAddress>; 2],
     pub referee: Referee<Tasks>,
     pub trace: Trace,
     seed: u64,
@@ -269,6 +272,7 @@ impl World {
             facts: Vec::new(),
             accounting_referee: crate::accounting_referee::Accounting::default(),
             consume_facts: true,
+            person_stall_route: [None; 2],
             referee: Referee::new(Tasks::default()),
             trace,
             seed,
@@ -313,6 +317,7 @@ impl World {
             restoring: self.restoring,
             facts: self.facts,
             consume_facts: self.consume_facts,
+            person_stall_route: self.person_stall_route,
             limits: self.env.limits,
             seed: self.seed,
             priced: self.priced,
@@ -448,14 +453,38 @@ impl World {
         );
     }
 
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.domain.next_deadline()
+    }
+
+    fn person_stall_next(&self, wait: tasks::PersonWait) -> Option<tasks::PersonAddress> {
+        let [first, last] = self.person_stall_route;
+        if wait.offer.is_some() { last } else { first.or(last) }
+    }
+
+    fn person_stall_due(&mut self, task: u64) {
+        let wait = self.record(task).person_wait.expect("due person task");
+        let offer = self.person_stall_next(wait);
+        let message = if wait.notice.is_none() {
+            self.message = self.message.checked_add(1).expect("stall message number room");
+            Some(self.message)
+        } else {
+            None
+        };
+        tasks::step(&mut self.domain, &self.env, Event::PersonStallNotice { task, message, offer }, &mut self.out);
+    }
+
     fn route_hint(&mut self, request: &Request) {
         match request {
-            Request::PersonStallDue { task } => {
-                self.message = self.message.checked_add(1).expect("stall message number room");
+            Request::PersonStallDue { task } => self.person_stall_due(*task),
+            Request::PersonStallRestored { task } => {
+                let wait = self.record(*task).person_wait.expect("restored person task");
+                let may_pass = self.person_stall_next(wait).is_some();
                 tasks::step(
                     &mut self.domain,
                     &self.env,
-                    Event::PersonStallNotice { task: *task, message: self.message },
+                    Event::RearmPersonStall { task: *task, may_pass },
                     &mut self.out,
                 );
             }
@@ -661,6 +690,7 @@ impl World {
             | Event::QuestionEndedNotice { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::RearmPersonStall { .. }
             | Event::Notice { .. } => None,
         };
         match event {
@@ -762,6 +792,7 @@ impl World {
             | Event::QuestionParked { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::RearmPersonStall { .. }
             | Event::Turn { .. } => {}
         }
     }
@@ -928,6 +959,7 @@ impl World {
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
+                | Request::PersonStallRestored { .. }
                 | Request::Notify { .. }
                 | Request::Timer { .. }
                 | Request::EndTopic { .. }
@@ -1025,6 +1057,7 @@ impl World {
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
+                | Request::PersonStallRestored { .. }
                 | Request::Notify { .. }
                 | Request::Timer { .. }
                 | Request::ProposalRerouteNeeded { .. }

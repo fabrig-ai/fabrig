@@ -164,19 +164,22 @@ pub(crate) fn person(
     number: u64,
     revision: Option<u64>,
 ) -> Result<(), people::Refusal> {
+    use crate::admission::person_task::{address_matches, addresses};
+    use tasks::PersonAddress::{Person, Role};
+
     let row = core.tasks.task(number).ok_or(people::Refusal::Unknown)?;
+    let (first, offer) = addresses(row).ok_or(people::Refusal::Unknown)?;
+    let direct = first == Person(party) || offer == Some(Person(party));
     let held = core.people.role(party, row.project);
-    let addressed = match row.executor {
-        tasks::Executor::Person(tasks::PersonAddress::Person(person)) => person == party && act == Act::Answer,
-        tasks::Executor::Person(tasks::PersonAddress::Role(role)) => {
-            act == Act::HandBack
-                || match held {
-                    Some(held) => held.number() == role,
-                    None => false,
-                }
+    let mut role_addressed = false;
+    let mut through_role = false;
+    for address in [Some(first), offer] {
+        if let Some(address @ Role(_)) = address {
+            role_addressed = true;
+            through_role |= address_matches(address, party, held);
         }
-        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => false,
-    };
+    }
+    let addressed = through_role || (direct && act == Act::Answer) || (role_addressed && act == Act::HandBack);
     if !addressed {
         return Err(people::Refusal::Unknown);
     }
@@ -221,14 +224,8 @@ pub(crate) fn person(
             }
         }
         Act::Answer => {
-            match row.executor {
-                tasks::Executor::Person(tasks::PersonAddress::Role(_)) if row.taken_by != Some(party) => {
-                    return Err(people::Refusal::NotWaiting);
-                }
-                tasks::Executor::Person(_)
-                | tasks::Executor::Agent { .. }
-                | tasks::Executor::Procedure { .. }
-                | tasks::Executor::Job { .. } => {}
+            if !direct && row.taken_by.is_none() {
+                return Err(people::Refusal::NotWaiting);
             }
             if row.delegates.is_empty() {
                 Ok(())

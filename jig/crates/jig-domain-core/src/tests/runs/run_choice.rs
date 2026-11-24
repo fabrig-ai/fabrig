@@ -1884,6 +1884,7 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
         stall: Duration::from_secs(1),
         deadline: Wall::from_nanos(1_000_000_000),
         notice: None,
+        offer: None,
     });
     for executor in
         [tasks::Executor::Procedure { connector: 1, code: 1 }, tasks::Executor::Person(tasks::PersonAddress::Person(1))]

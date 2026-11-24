@@ -61,8 +61,8 @@ impl Core {
         let mut own = own::Own::new();
         let inbox = self.waiting_entries(limits, row);
         for entry in inbox.iter().chain(own::policy_entry(row, &inbox).iter()) {
-            if party_entry(entry.kind) {
-                own.party(self, limits, row, entry);
+            if let Some(fact) = own::party_fact(row, *entry) {
+                own.party(self, limits, row, &fact);
             }
         }
         let (working, parked) = activity(self, row);
@@ -119,19 +119,17 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
         phases.add(&candidate.phase);
         let inbox = core.waiting_entries(limits, candidate);
         for entry in inbox.iter().chain(own::policy_entry(candidate, &inbox).iter()) {
-            if !party_entry(entry.kind) {
-                continue;
-            }
+            let Some(entry) = own::party_fact(candidate, *entry) else { continue };
             entries = entries.saturating_add(1);
             let earlier = match oldest {
                 Some((previous, _)) => (entry.at, entry.task) < (previous.at, previous.task),
                 None => true,
             };
             if earlier {
-                oldest = Some((*entry, candidate));
+                oldest = Some((entry, candidate));
             }
             if number == row.number {
-                own.party(core, limits, row, entry);
+                own.party(core, limits, row, &entry);
             }
         }
         for delegate in candidate.delegates.iter().rev() {
@@ -185,16 +183,6 @@ fn due_wait(core: &Core, row: &tasks::TaskRecord) -> Option<crate::documents::Ta
         | tasks::Phase::Held { .. }
         | tasks::Phase::Closing(_)
         | tasks::Phase::Ended(_) => None,
-    }
-}
-
-fn party_entry(kind: people::EntryKind) -> bool {
-    match kind {
-        people::EntryKind::Question { .. }
-        | people::EntryKind::Proposal { .. }
-        | people::EntryKind::Escalation { .. }
-        | people::EntryKind::PersonTask => true,
-        people::EntryKind::ChatReply { .. } | people::EntryKind::Reply { .. } => false,
     }
 }
 

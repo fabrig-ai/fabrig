@@ -346,25 +346,31 @@ impl Core {
             | tasks::Phase::Closing(_)
             | tasks::Phase::Ended(_) => false,
         };
-        match row.executor {
-            tasks::Executor::Person(_) if !answerable => {}
-            tasks::Executor::Person(tasks::PersonAddress::Person(person)) => {
-                if row.taken_by.is_none() {
-                    let since = row.person_wait.expect("active person wait").since;
-                    add(&mut entries, row, people::Whom::Person(person), people::EntryKind::PersonTask, since);
+        if answerable && let tasks::Executor::Person(first) = row.executor {
+            let wait = row.person_wait.expect("answerable person wait");
+            let kind = people::EntryKind::PersonTask;
+            if let Some(person) = row.taken_by {
+                let role = self.people.role(person, row.project);
+                let since = match wait.offer {
+                    Some(offer) if !crate::admission::person_task::address_matches(first, person, role) => offer.since,
+                    Some(_) | None => wait.since,
+                };
+                add(&mut entries, row, people::Whom::Person(person), kind, since);
+            } else {
+                add(&mut entries, row, person_whom(row.project, first), kind, wait.since);
+                if let Some(offer) = wait.offer {
+                    add(&mut entries, row, person_whom(row.project, offer.holder), kind, offer.since);
                 }
             }
-            tasks::Executor::Person(tasks::PersonAddress::Role(role)) => {
-                let since = row.person_wait.expect("active person wait").since;
-                let whom = match row.taken_by {
-                    Some(person) => people::Whom::Person(person),
-                    None => people::Whom::Role { project: row.project, role },
-                };
-                add(&mut entries, row, whom, people::EntryKind::PersonTask, since);
-            }
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {}
         }
         entries.into_boxed()
+    }
+}
+
+pub(crate) fn person_whom(project: u32, address: tasks::PersonAddress) -> people::Whom {
+    match address {
+        tasks::PersonAddress::Person(person) => people::Whom::Person(person),
+        tasks::PersonAddress::Role(role) => people::Whom::Role { project, role },
     }
 }
 

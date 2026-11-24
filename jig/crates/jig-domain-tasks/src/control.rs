@@ -615,10 +615,7 @@ fn check_amend_fields(
             Some(llm) => old.llm.as_ref() != Some(llm) || crate::llm::replaces_account(old.kept_account, llm),
             None => false,
         };
-    let address_changed = match amendment.addressed {
-        Some(change) => old.executor != crate::Executor::Person(change.address) || old.taken_by.is_some(),
-        None => false,
-    };
+    let address_changed = amendment.addressed.is_some();
     let person_changed = match old.executor {
         crate::Executor::Person(_) => spec_changed || dependencies_changed || address_changed,
         crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
@@ -767,8 +764,7 @@ pub(crate) fn apply_amend(
         };
     }
     if let Some(change) = amendment.addressed {
-        task.record.executor = crate::Executor::Person(change.address);
-        task.record.taken_by = None;
+        crate::person::readdress(task, env, change.address);
     }
     if let Some(instructions) = amendment.instructions {
         crate::session::end(&mut task.record, env.wall, crate::SessionEnd::Rules, out);

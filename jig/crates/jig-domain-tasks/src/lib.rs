@@ -157,12 +157,12 @@ pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
     InvalidResult, JobSpec, KeptStart, Key, Kind, Message, MessageKind, Name, New, NewsClass, NoticeState, Parameter,
-    Party, PersonAddress, PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureDecision,
-    ProcedureEnd, ProcedureInput, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState, RecurringTemplate,
-    Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions,
-    RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind,
-    SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
-    WriterSlot,
+    Party, PersonAddress, PersonAnswer, PersonOffer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem,
+    ProcedureDecision, ProcedureEnd, ProcedureInput, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState,
+    RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind,
+    ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub,
+    Subscription, SubscriptionKind, SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict,
+    WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
 pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};

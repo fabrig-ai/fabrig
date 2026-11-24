@@ -3432,8 +3432,26 @@ pub fn person_stall_notice_to_domain(record: crate::tasks_v13::PersonStallNotice
 }
 
 #[must_use]
+pub fn person_offer_to_record(value: &jig_domain_tasks::PersonOffer) -> crate::tasks_v13::PersonOffer {
+    let jig_domain_tasks::PersonOffer { holder: field_000000, since: field_000001 } = value;
+    crate::tasks_v13::PersonOffer {
+        holder: person_address_to_record(field_000000),
+        since: skein_codec::convert::wall_to_record(field_000001)
+    }
+}
+
+#[must_use]
+pub fn person_offer_to_domain(record: crate::tasks_v13::PersonOffer) -> jig_domain_tasks::PersonOffer {
+    let crate::tasks_v13::PersonOffer { holder: field_000000, since: field_000001 } = record;
+    jig_domain_tasks::PersonOffer {
+        holder: person_address_to_domain(field_000000),
+        since: skein_codec::convert::wall_to_domain(field_000001)
+    }
+}
+
+#[must_use]
 pub fn person_wait_to_record(value: &jig_domain_tasks::PersonWait) -> crate::tasks_v13::PersonWait {
-    let jig_domain_tasks::PersonWait { since: field_000000, stall: field_000001, deadline: field_000002, notice: field_000003 } = value;
+    let jig_domain_tasks::PersonWait { since: field_000000, stall: field_000001, deadline: field_000002, notice: field_000003, offer: field_000004 } = value;
     crate::tasks_v13::PersonWait {
         since: skein_codec::convert::wall_to_record(field_000000),
         stall: *field_000001,
@@ -3444,13 +3462,20 @@ pub fn person_wait_to_record(value: &jig_domain_tasks::PersonWait) -> crate::tas
                 Some(converted)
             }
             None => None,
+        },
+        offer: match field_000004 {
+            Some(item) => {
+                let converted = person_offer_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
 #[must_use]
 pub fn person_wait_to_domain(record: crate::tasks_v13::PersonWait) -> jig_domain_tasks::PersonWait {
-    let crate::tasks_v13::PersonWait { since: field_000000, stall: field_000001, deadline: field_000002, notice: field_000003 } = record;
+    let crate::tasks_v13::PersonWait { since: field_000000, stall: field_000001, deadline: field_000002, notice: field_000003, offer: field_000004 } = record;
     jig_domain_tasks::PersonWait {
         since: skein_codec::convert::wall_to_domain(field_000000),
         stall: field_000001,
@@ -3458,6 +3483,13 @@ pub fn person_wait_to_domain(record: crate::tasks_v13::PersonWait) -> jig_domain
         notice: match field_000003 {
             Some(item) => {
                 let converted = person_stall_notice_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        offer: match field_000004 {
+            Some(item) => {
+                let converted = person_offer_to_domain(item);
                 Some(converted)
             }
             None => None,

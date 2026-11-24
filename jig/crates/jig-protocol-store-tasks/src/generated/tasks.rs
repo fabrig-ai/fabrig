@@ -1309,10 +1309,14 @@ pub mod paths {
     pub const PERSON_STALL_NOTICE_AT: Path = Path::new("PersonStallNotice.at");
     pub const PERSON_STALL_NOTICE_ACTIVITY: Path = Path::new("PersonStallNotice.activity");
     pub const PERSON_STALL_NOTICE_TAIL: Path = Path::new("PersonStallNotice (tail)");
+    pub const PERSON_OFFER_HOLDER: Path = Path::new("PersonOffer.holder");
+    pub const PERSON_OFFER_SINCE: Path = Path::new("PersonOffer.since");
+    pub const PERSON_OFFER_TAIL: Path = Path::new("PersonOffer (tail)");
     pub const PERSON_WAIT_SINCE: Path = Path::new("PersonWait.since");
     pub const PERSON_WAIT_STALL: Path = Path::new("PersonWait.stall");
     pub const PERSON_WAIT_DEADLINE: Path = Path::new("PersonWait.deadline");
     pub const PERSON_WAIT_NOTICE: Path = Path::new("PersonWait.notice");
+    pub const PERSON_WAIT_OFFER: Path = Path::new("PersonWait.offer");
     pub const PERSON_WAIT_TAIL: Path = Path::new("PersonWait (tail)");
     pub const RECURRING_STATE_TEMPLATE: Path = Path::new("RecurringState.template");
     pub const RECURRING_STATE_LAST_BATCH: Path = Path::new("RecurringState.last_batch");
@@ -15043,6 +15047,60 @@ impl Record for PersonStallNotice {
     }
 }
 
+// Type: PersonOffer.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PersonOffer {
+    pub holder: PersonAddress,
+    pub since: u64,
+}
+
+// Record: PersonOffer.
+impl PersonOffer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("PersonAddress"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
+impl Record for PersonOffer {
+    type Limits = Limits;
+    const TAIL: Path = paths::PERSON_OFFER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PersonOffer")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PersonOffer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.holder, limits, out, paths::PERSON_OFFER_HOLDER)?;
+        field::write(field::U64, &self.since, limits, out, paths::PERSON_OFFER_SINCE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            holder: field::read(field::Nested, limits, reader, paths::PERSON_OFFER_HOLDER)?,
+            since: field::read(field::U64, limits, reader, paths::PERSON_OFFER_SINCE)?,
+        })
+    }
+}
+
 // Type: PersonWait.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PersonWait {
@@ -15050,6 +15108,7 @@ pub struct PersonWait {
     pub stall: skein_lib::Duration,
     pub deadline: u64,
     pub notice: Option<PersonStallNotice>,
+    pub offer: Option<PersonOffer>,
 }
 
 // Record: PersonWait.
@@ -15060,11 +15119,13 @@ impl PersonWait {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("PersonStallNotice"),
         skein_codec::bounds::Node::Option { item: 3 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4] },
+        skein_codec::bounds::Node::Named("PersonOffer"),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 49;
+    pub const ENCODED_AT_ZERO: u64 = 67;
 }
 
 impl Record for PersonWait {
@@ -15093,6 +15154,7 @@ impl Record for PersonWait {
         field::write(field::Span, &self.stall, limits, out, paths::PERSON_WAIT_STALL)?;
         field::write(field::U64, &self.deadline, limits, out, paths::PERSON_WAIT_DEADLINE)?;
         field::write(field::Optional { item: field::Nested }, &self.notice, limits, out, paths::PERSON_WAIT_NOTICE)?;
+        field::write(field::Optional { item: field::Nested }, &self.offer, limits, out, paths::PERSON_WAIT_OFFER)?;
         Ok(())
     }
 
@@ -15102,6 +15164,7 @@ impl Record for PersonWait {
             stall: field::read(field::Span, limits, reader, paths::PERSON_WAIT_STALL)?,
             deadline: field::read(field::U64, limits, reader, paths::PERSON_WAIT_DEADLINE)?,
             notice: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PERSON_WAIT_NOTICE)?,
+            offer: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PERSON_WAIT_OFFER)?,
         })
     }
 }
@@ -16572,7 +16635,7 @@ impl TaskDefinition {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 337;
+    pub const ENCODED_AT_ZERO: u64 = 355;
 }
 
 impl Record for TaskDefinition {
@@ -17215,7 +17278,7 @@ impl BeforeTalk {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1313;
+    pub const ENCODED_AT_ZERO: u64 = 1331;
 }
 
 impl Record for BeforeTalk {
@@ -17347,7 +17410,7 @@ impl TaskRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1355;
+    pub const ENCODED_AT_ZERO: u64 = 1373;
 }
 
 impl Record for TaskRecord {
@@ -17569,7 +17632,7 @@ impl HotDefinition {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 239;
+    pub const ENCODED_AT_ZERO: u64 = 257;
 }
 
 impl Record for HotDefinition {
@@ -17682,7 +17745,7 @@ impl LiveHot {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1252;
+    pub const ENCODED_AT_ZERO: u64 = 1270;
 }
 
 impl Record for LiveHot {
@@ -18989,7 +19052,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1356;
+    pub const ENCODED_AT_ZERO: u64 = 1374;
 }
 
 impl Record for Value {
@@ -19141,7 +19204,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1362;
+    pub const ENCODED_AT_ZERO: u64 = 1380;
 }
 
 impl Record for Row {
@@ -22754,6 +22817,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "PersonAddress", nodes: PersonAddress::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonAnswer", nodes: PersonAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonExecutor", nodes: PersonExecutor::SHAPE },
+    skein_codec::bounds::Declaration { name: "PersonOffer", nodes: PersonOffer::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonProposal", nodes: PersonProposal::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonProposalState", nodes: PersonProposalState::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonStallNotice", nodes: PersonStallNotice::SHAPE },

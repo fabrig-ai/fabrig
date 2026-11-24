@@ -250,7 +250,8 @@ record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 by_kind: 
 enum Escalation { unheld: UnheldEscalation, routing: RoutingEscalation, waiting: WaitingEscalation, rejected: RejectedEscalation }
 record PersonAnswer { by: u64 at: u64 }
 record PersonStallNotice { message: u64 at: u64 activity: u64 }
-record PersonWait { since: u64 stall: duration deadline: u64 notice: option PersonStallNotice }
+record PersonOffer { holder: PersonAddress since: u64 }
+record PersonWait { since: u64 stall: duration deadline: u64 notice: option PersonStallNotice offer: option PersonOffer = none }
 record RecurringState { template: RecurringTemplate last_batch: list 1024 Number last_period: u64 pending_period: option u64 }
 record QuestionCredit { number: u64 answerer: Party asked: Party line: u64 }
 record TaskInterest { target: u64 held: bool result: bool }

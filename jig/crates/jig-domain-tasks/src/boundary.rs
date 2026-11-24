@@ -1111,6 +1111,25 @@ pub struct PersonWait {
     pub stall: Duration,
     pub deadline: Wall,
     pub notice: Option<PersonStallNotice>,
+    pub offer: Option<PersonOffer>,
+}
+
+/// The current offer, alongside (not instead of) the task's first address.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct PersonOffer {
+    pub holder: PersonAddress,
+    pub since: Wall,
+}
+
+impl PersonWait {
+    /// The stall is counted from arrival at the current holder.
+    #[must_use]
+    pub(crate) fn stall_deadline(self) -> Wall {
+        match self.offer {
+            Some(offer) => Wall::from_nanos(offer.since.as_nanos().saturating_add(self.stall.as_nanos())),
+            None => self.deadline,
+        }
+    }
 }
 
 /// One numbered news item issued when a person task passed its wait.
@@ -2237,10 +2256,16 @@ pub enum Event {
         /// including preserved closing while held.
         task: u64,
     },
-    /// Root numbers the news requested by the due person-task timer.
+    /// Root selects the next party and numbers the news at the first stall only.
     PersonStallNotice {
         task: u64,
-        message: u64,
+        message: Option<u64>,
+        offer: Option<PersonAddress>,
+    },
+    /// Root projects the clock again for a restored wait whose notice already ran.
+    RearmPersonStall {
+        task: u64,
+        may_pass: bool,
     },
     /// Root numbers each unanswered-question notice once.
     QuestionEndedNotice {
@@ -2329,6 +2354,8 @@ pub enum Request {
     ProposalRerouteNeeded { proposer: u64, proposal: u64 },
     /// Root supplies one message number for the elapsed person-task wait.
     PersonStallDue { task: u64 },
+    /// A restored wait with a notice may still have a party to pass up to.
+    PersonStallRestored { task: u64 },
     /// One continuation for each asker whose questions ended unanswered.
     QuestionEndedDue { task: u64, questions: Box<[u64]> },
     /// Root supplies the next obligation reminder number.
