@@ -8,7 +8,7 @@
   - 6: the loop, the commands, builds, installs and places still make their own production faces and call the kernel outside them, and there is no command entry [in flight: change 14098]
   - 6: there is no QA runner world in memory and no `domain` target [in flight: change 14106]
   - 6: the holder and its clients call the kernel outside the faces [in flight: change 14110]
-  - 6: the watcher's, the loop's, the requests' and the gaps' tests run in the real loop over a scratch home [in flight: change 14117]
+  - 6: the watcher's, the loop's, the requests' and the gaps' tests run in the real loop over a scratch home [in flight: change 14680]
   - 6: the passes' and installs' tests run in the real loop [in flight: change 14118]
   - 6: the place's tests run in the real loop over shell scripts and the system's `tar` [in flight: change 14126]
   - 6: `build keep`'s and the checksums' tests run in the real loop over executable scripts [in flight: change 14128]
