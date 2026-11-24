@@ -603,6 +603,84 @@ mod tests {
     }
 
     #[test]
+    fn task_answers_discard_rebuilt_procedure_waits_but_keep_dependencies() {
+        use jig_domain_core::documents::{Document, PhaseLine, WaitsOn};
+        use jig_domain_core::{AtBound, Bound, Nearest, Unbounded, Wait, WaitKind, WaitObject};
+        use skein_lib::{List, Wall};
+
+        let (mut driver, assignment) = Driver::chat();
+        let sign_in = driver.session();
+        let task = assignment.task;
+        let read = Read::Task { task };
+        let Answer::Document(document) = driver.oracle_read(sign_in, &read) else { panic!("task answer") };
+        let Document::Task(mut cold) = *document else { panic!("task document") };
+        cold.chip.phase = PhaseLine::Active(tasks::Active::Idle);
+        assert!(cold.wait.is_none() && cold.nearest.is_none() && cold.waits.is_empty());
+        let answer = |row| Answer::Document(Box::new(Document::Task(row)));
+
+        let at = Wall::from_nanos(100);
+        let room = Wait {
+            task,
+            kind: WaitKind::Room,
+            object: WaitObject::Procedure {
+                step: temper_client_protocol_wire::waits::CHANGE_PRODUCING,
+                things: List::with_capacity(0),
+            },
+            since: Wall::from_nanos(20),
+            bound: Bound::At { at, then: AtBound::Hold },
+            hears: None,
+        };
+        let mut waiting = cold.clone();
+        waiting.wait = Some(room.clone());
+        waiting.nearest = Some(Nearest { at, then: AtBound::Hold, kind: WaitKind::Room });
+        waiting.waits.push(room.clone()).expect("room wait line");
+        waiting.wait_count = 1;
+        let mut snapshot = Snapshot::new(&BTreeMap::new(), Wall::EPOCH);
+        snapshot.queries.push((sign_in, read));
+        snapshot.answers.push(answer(waiting.clone()));
+        assert_eq!(snapshot.compare_answer(0, answer(cold.clone())), Ok(()));
+
+        let news = Wait {
+            kind: WaitKind::News,
+            object: WaitObject::News { subscriptions: List::with_capacity(0), timer: None },
+            since: Wall::from_nanos(30),
+            ..room
+        };
+        cold.wait = Some(news.clone());
+        cold.nearest = Some(Nearest { at, then: AtBound::Hold, kind: WaitKind::News });
+        cold.waits_on = WaitsOn::News;
+        cold.waits.push(news.clone()).expect("news fallback line");
+        cold.wait_count = 1;
+        assert_eq!(snapshot.compare_answer(0, answer(cold.clone())), Ok(()));
+
+        let dependency = Wait {
+            kind: WaitKind::Dependency,
+            object: WaitObject::Task(task + 1),
+            since: Wall::from_nanos(10),
+            bound: Bound::None(Unbounded::NoDeadline),
+            ..news
+        };
+        for row in [&mut waiting, &mut cold] {
+            row.waits_on = WaitsOn::Dependencies { pending: List::from_boxed(Box::new([task + 1])), count: 1 };
+            row.wait = Some(dependency.clone());
+            let report = row.waits.get_mut(0).expect("room or fallback line");
+            let report = std::mem::replace(report, dependency.clone());
+            row.waits.push(report).expect("report after dependency");
+            row.wait_count = 2;
+        }
+        snapshot.answers[0] = answer(waiting);
+        assert_eq!(snapshot.compare_answer(0, answer(cold.clone())), Ok(()));
+        cold.waits.get_mut(0).expect("retained dependency line").since = Wall::from_nanos(11);
+        let finding = snapshot.compare_answer(0, answer(cold)).expect_err("dependency wait line changed");
+        assert!(
+            finding.contains(&format!(
+                "restart oracle document Task {{ task: {task} }}, sign-in {sign_in}, field since\n"
+            )),
+            "{finding}"
+        );
+    }
+
+    #[test]
     fn landings_documents_compare_retained_times_not_the_read_clock() {
         let before = forge::LandingsView {
             now: skein_lib::Wall::from_nanos(7),
