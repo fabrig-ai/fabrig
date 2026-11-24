@@ -16,6 +16,7 @@ use skein_lib::Token;
 #[path = "generated/worker_wire.rs"]
 pub mod v22;
 mod application;
+pub mod convert;
 mod kinds;
 pub mod layouts;
 mod spoken;

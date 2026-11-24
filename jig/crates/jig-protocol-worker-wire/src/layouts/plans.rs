@@ -135,7 +135,8 @@ impl Plans {
                 }
             }
         }
-        let mut peer = Peer { same: true, frames: None, plans: List::uncapped(), work: Workspace::new() };
+        let mut peer =
+            Peer { same: true, frames: None, send_bounds: None, plans: List::uncapped(), work: Workspace::new() };
         for wire in self.wires.iter_mut() {
             let Some(stated) = stated(&wire.name, theirs) else {
                 return Err(words::wire(&wire.name, &[b": the worker states none"]));

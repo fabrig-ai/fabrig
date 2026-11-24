@@ -13,7 +13,7 @@ use skein_lib::{Buffer, List, Reader, Rng};
     reason = "sample fixtures edit text and read ASCII schema identifiers"
 )]
 #[path = "layout_samples.rs"]
-mod samples;
+pub(super) mod samples;
 use super::fixtures::LIMITS;
 use samples::{DOWN, ROOM, Shim, UP, draw, frame, parse, put, replace, stated};
 

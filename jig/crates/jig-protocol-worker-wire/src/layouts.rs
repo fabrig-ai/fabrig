@@ -122,6 +122,7 @@ impl Unconverted {
 pub struct Peer {
     same: bool,
     frames: Option<table::Frames>,
+    send_bounds: Option<(v22::Limits, Version)>,
     plans: List<Pass>,
     work: Workspace,
 }
@@ -159,15 +160,66 @@ impl Peer {
     /// The number of an engine kind at the worker's layout, if it has one.
     #[must_use]
     pub fn sends(&self, kind: Kind) -> Option<u16> {
-        let number = kind.number();
-        let tag = table::tag(table::DOWN, number)?;
-        let plan = match Self::find(&self.plans, Value::Frame, Mode::Keep) {
-            Some(pass) => pass.plan.as_ref(),
-            None => None,
+        self.frame_kind(Mode::Keep, kind.number()).ok()
+    }
+
+    // A channel normally uses one set of limits. Reuse the worker's table
+    // instead of recomputing every declaration's bound for each outgoing frame.
+    pub(crate) fn send_room(&mut self, kind: Kind, limits: &v22::Limits) -> Result<u32, Unconverted> {
+        let source = kind.number();
+        let Some(frames) = &self.frames else {
+            let Some(room) = crate::sizes::body(limits, kind) else {
+                return Err(self.frame_problem(Mode::Keep, source, Misconverted::Room));
+            };
+            return Ok(room);
         };
-        match plan {
-            Some(plan) => Some(table::number(table::DOWN, plan.variant_tag(tag).ok()?)),
-            None => Some(number),
+        let number = match self.frame_kind(Mode::Keep, source) {
+            Ok(number) => number,
+            Err(error) => return Err(self.frame_problem(Mode::Keep, source, error)),
+        };
+        let current = match &self.send_bounds {
+            Some((previous, _)) => previous == limits,
+            None => false,
+        };
+        if !current {
+            self.send_bounds = Some((*limits, frames.table(limits)));
+        }
+        let (_, table) = self.send_bounds.as_ref().expect("bounds fitted to these limits");
+        for rule in &table.kinds {
+            if rule.kind == number && rule.direction == Direction::FromResponder {
+                return Ok(rule.largest);
+            }
+        }
+        Err(self.frame_problem(Mode::Keep, source, Misconverted::Tag))
+    }
+
+    // Resolve the destination before allocating a buffer bounded by its kind.
+    pub(crate) fn reads(&self, kind: u16) -> Result<Kind, Unconverted> {
+        let number = match self.frame_kind(Mode::Read, kind) {
+            Ok(number) => number,
+            Err(error) => return Err(self.frame_problem(Mode::Read, kind, error)),
+        };
+        let Some(body) = worker_kind(number) else {
+            return Err(self.frame_problem(Mode::Read, kind, Misconverted::Tag));
+        };
+        Ok(body)
+    }
+
+    fn frame_kind(&self, mode: Mode, kind: u16) -> Result<u16, Misconverted> {
+        let (base, _) = table::direction(mode);
+        let tag = table::tag(base, kind).ok_or(Misconverted::Tag)?;
+        let (plan, _) = Self::frame_pass(&self.plans, mode);
+        let tag = match plan {
+            Some(plan) => plan.variant_tag(tag)?,
+            None => tag,
+        };
+        Ok(table::number(base, tag))
+    }
+
+    pub(crate) fn converts_part(&self, mode: Mode, nested: Nested) -> bool {
+        match Self::find(&self.plans, Value::Part(nested), mode) {
+            Some(pass) => pass.plan.is_some(),
+            None => false,
         }
     }
 
@@ -179,10 +231,8 @@ impl Peer {
     /// Converts a worker frame to the engine's kind and body.
     pub fn receive(&mut self, kind: u16, body: &[u8], out: &mut Buffer) -> Result<Kind, Unconverted> {
         let number = self.frame(Mode::Read, kind, body, out)?;
-        for rule in KINDS {
-            if rule.kind == number && rule.direction == Direction::FromInitiator {
-                return Ok(rule.body);
-            }
+        if let Some(kind) = worker_kind(number) {
+            return Ok(kind);
         }
         out.clear();
         Err(unconverted(crate::wire::FAMILY, "FromWorker", "", Cause::Malformed))
@@ -232,18 +282,12 @@ impl Peer {
     }
 
     fn frame(&mut self, mode: Mode, kind: u16, body: &[u8], out: &mut Buffer) -> Result<u16, Unconverted> {
-        let (base, declaration) = table::direction(mode);
-        let wire = crate::wire::FAMILY;
+        let (base, _) = table::direction(mode);
         let Some(tag) = table::tag(base, kind) else {
             out.clear();
-            return Err(unconverted(wire, declaration, "", Cause::Malformed));
+            return Err(self.frame_problem(mode, kind, Misconverted::Tag));
         };
-        let mut source = "";
-        let mut plan = None;
-        if let Some(pass) = Self::find(&self.plans, Value::Frame, mode) {
-            source = &pass.source;
-            plan = pass.plan.as_ref();
-        }
+        let (plan, _) = Self::frame_pass(&self.plans, mode);
         let result = match plan {
             Some(plan) => plan.convert_variant(tag, body, out, &mut self.work),
             None => copy(body, out).and(Ok(tag)),
@@ -252,15 +296,39 @@ impl Peer {
             Ok(tag) => Ok(table::number(base, tag)),
             Err(error) => {
                 out.clear();
-                let part = match &self.frames {
-                    Some(frames) => frames.source(mode, tag),
-                    None => "",
-                };
-                let declaration = if source.is_empty() { declaration } else { source };
-                Err(problem(wire, declaration, part, plan, error))
+                Err(self.frame_problem(mode, kind, error))
             }
         }
     }
+
+    fn frame_pass(plans: &List<Pass>, mode: Mode) -> (Option<&Plan>, &str) {
+        match Self::find(plans, Value::Frame, mode) {
+            Some(pass) => (pass.plan.as_ref(), &pass.source),
+            None => (None, table::direction(mode).1),
+        }
+    }
+
+    pub(crate) fn frame_problem(&self, mode: Mode, kind: u16, error: Misconverted) -> Unconverted {
+        let (base, _) = table::direction(mode);
+        let (plan, declaration) = Self::frame_pass(&self.plans, mode);
+        let part = match &self.frames {
+            Some(frames) => match table::tag(base, kind) {
+                Some(tag) => frames.source(mode, tag),
+                None => "",
+            },
+            None => "",
+        };
+        problem(crate::wire::FAMILY, declaration, part, plan, error)
+    }
+}
+
+fn worker_kind(number: u16) -> Option<Kind> {
+    for rule in KINDS {
+        if rule.kind == number && rule.direction == Direction::FromInitiator {
+            return Some(rule.body);
+        }
+    }
+    None
 }
 
 fn copy(bytes: &[u8], out: &mut Buffer) -> Result<(), Misconverted> {
