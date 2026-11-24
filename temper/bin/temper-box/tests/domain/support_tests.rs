@@ -40,6 +40,29 @@ fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
 }
 
 #[test]
+fn freeing_the_forgejo_source_name_renames_the_public_source_by_id() {
+    let forgejo = Path::new("/fixture/forgejo");
+    let command = support::forgejo_sign_in::rename_public_source_command(forgejo, Path::new("/fixture"), "27");
+    assert_eq!(command.get_program(), forgejo.as_os_str());
+    assert_eq!(
+        command.get_args().collect::<Vec<_>>(),
+        [
+            "--work-path",
+            "/fixture/forge-1/forgejo",
+            "--config",
+            "/fixture/forge-1/forgejo/app.ini",
+            "admin",
+            "auth",
+            "update-oauth",
+            "--id",
+            "27",
+            "--name",
+            "temper-public",
+        ]
+    );
+}
+
+#[test]
 fn fixture_provider_edits_keep_routes_and_leave_demo_fixed() {
     use serde_json::json;
     let mut providers = temper_service::stock::providers().into_vec();
