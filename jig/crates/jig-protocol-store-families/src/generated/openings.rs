@@ -10,6 +10,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub opened_wire_name: u32,
@@ -38,13 +39,25 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.opened_wire_name).expect("room for every named limit");
-        values.push(self.opened_wire_layouts).expect("room for every named limit");
-        values.push(self.worker_opening_worker).expect("room for every named limit");
-        values.push(self.worker_opening_wires).expect("room for every named limit");
-        values.push(self.worker_opening_terms).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.opened_wire_name,
+            self.opened_wire_layouts,
+            self.worker_opening_worker,
+            self.worker_opening_wires,
+            self.worker_opening_terms,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            opened_wire_name: self.opened_wire_name.min(most),
+            opened_wire_layouts: self.opened_wire_layouts.min(most),
+            worker_opening_worker: self.worker_opening_worker.min(most),
+            worker_opening_wires: self.worker_opening_wires.min(most),
+            worker_opening_terms: self.worker_opening_terms.min(most),
+        }
     }
 }
 
@@ -65,94 +78,23 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const OPENED_WIRE_NAME: Path = Path::new(0, 0);
-    pub const OPENED_WIRE_LOWEST: Path = Path::new(0, 1);
-    pub const OPENED_WIRE_LAYOUTS: Path = Path::new(0, 2);
-    pub const OPENED_WIRE_TAIL: Path = Path::new(0, 3);
-    pub const OPENED_TERM_KIND: Path = Path::new(1, 0);
-    pub const OPENED_TERM_LARGEST: Path = Path::new(1, 1);
-    pub const OPENED_TERM_TAIL: Path = Path::new(1, 2);
-    pub const WORKER_OPENING_WORKER: Path = Path::new(2, 0);
-    pub const WORKER_OPENING_WIRES: Path = Path::new(2, 1);
-    pub const WORKER_OPENING_OUTPUT: Path = Path::new(2, 2);
-    pub const WORKER_OPENING_TERMS: Path = Path::new(2, 3);
-    pub const WORKER_OPENING_AT: Path = Path::new(2, 4);
-    pub const WORKER_OPENING_VERSION: Path = Path::new(2, 5);
-    pub const WORKER_OPENING_TAIL: Path = Path::new(2, 6);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "OpenedWire.name",
-        "OpenedWire.lowest",
-        "OpenedWire.layouts",
-        "OpenedWire (tail)",
-    ],
-    &[
-        "OpenedTerm.kind",
-        "OpenedTerm.largest",
-        "OpenedTerm (tail)",
-    ],
-    &[
-        "WorkerOpening.worker",
-        "WorkerOpening.wires",
-        "WorkerOpening.output",
-        "WorkerOpening.terms",
-        "WorkerOpening.at",
-        "WorkerOpening (version)",
-        "WorkerOpening (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::List { limit: 1, item: 2, size: size_of::<[u8; 32]>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[5, 6] },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::List { limit: 3, item: 4, size: size_of::<OpenedWire>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 4, item: 7, size: size_of::<OpenedTerm>() },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[8, 9, 10, 11, 12] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    4,
-    7,
-    13,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    32,
-    16,
-    256,
-    16,
-    64,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const OPENED_WIRE_NAME: Path = Path::new("OpenedWire.name");
+    pub const OPENED_WIRE_LOWEST: Path = Path::new("OpenedWire.lowest");
+    pub const OPENED_WIRE_LAYOUTS: Path = Path::new("OpenedWire.layouts");
+    pub const OPENED_WIRE_TAIL: Path = Path::new("OpenedWire (tail)");
+    pub const OPENED_TERM_KIND: Path = Path::new("OpenedTerm.kind");
+    pub const OPENED_TERM_LARGEST: Path = Path::new("OpenedTerm.largest");
+    pub const OPENED_TERM_TAIL: Path = Path::new("OpenedTerm (tail)");
+    pub const WORKER_OPENING_WORKER: Path = Path::new("WorkerOpening.worker");
+    pub const WORKER_OPENING_WIRES: Path = Path::new("WorkerOpening.wires");
+    pub const WORKER_OPENING_OUTPUT: Path = Path::new("WorkerOpening.output");
+    pub const WORKER_OPENING_TERMS: Path = Path::new("WorkerOpening.terms");
+    pub const WORKER_OPENING_AT: Path = Path::new("WorkerOpening.at");
+    pub const WORKER_OPENING_VERSION: Path = Path::new("WorkerOpening (version)");
+    pub const WORKER_OPENING_TAIL: Path = Path::new("WorkerOpening (tail)");
 }
 
 // Type: OpenedWire.
@@ -165,6 +107,14 @@ pub struct OpenedWire {
 
 // Record: OpenedWire.
 impl OpenedWire {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, opened_wire_name) },
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, opened_wire_layouts), item: 2, size: size_of::<[u8; 32]>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 10;
 }
@@ -174,11 +124,20 @@ impl Record for OpenedWire {
     const TAIL: Path = paths::OPENED_WIRE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "OpenedWire")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "OpenedWire")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -206,6 +165,12 @@ pub struct OpenedTerm {
 
 // Record: OpenedTerm.
 impl OpenedTerm {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 6;
 }
@@ -215,11 +180,20 @@ impl Record for OpenedTerm {
     const TAIL: Path = paths::OPENED_TERM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "OpenedTerm")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "OpenedTerm")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -248,6 +222,17 @@ pub struct WorkerOpening {
 
 // Record: WorkerOpening.
 impl WorkerOpening {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, worker_opening_worker) },
+        skein_codec::bounds::Node::Named("OpenedWire"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, worker_opening_wires), item: 1, size: size_of::<OpenedWire>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("OpenedTerm"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, worker_opening_terms), item: 4, size: size_of::<OpenedTerm>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 5, 6] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 26;
 }
@@ -257,11 +242,11 @@ impl Record for WorkerOpening {
     const TAIL: Path = paths::WORKER_OPENING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WorkerOpening")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WorkerOpening")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -295,3 +280,27 @@ impl Record for WorkerOpening {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "OpenedTerm", nodes: OpenedTerm::SHAPE },
+    skein_codec::bounds::Declaration { name: "OpenedWire", nodes: OpenedWire::SHAPE },
+    skein_codec::bounds::Declaration { name: "WorkerOpening", nodes: WorkerOpening::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.opened_wire_name,
+    CEILINGS.opened_wire_layouts,
+    CEILINGS.worker_opening_worker,
+    CEILINGS.worker_opening_wires,
+    CEILINGS.worker_opening_terms,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

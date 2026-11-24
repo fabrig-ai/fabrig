@@ -86,8 +86,8 @@ fn hello_through_bytes(hello: &Hello) -> Hello {
 
 #[test]
 fn assignment_charter_path_names_the_schema_field() {
-    let name: Option<&str> = crate::v21::name(crate::v21::paths::ASSIGNMENT_CHARTER);
-    assert_eq!(name, Some("Assignment.charter"));
+    let name = crate::v21::paths::ASSIGNMENT_CHARTER.name();
+    assert_eq!(name, "Assignment.charter");
 }
 
 #[test]

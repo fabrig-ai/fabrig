@@ -97,10 +97,7 @@ pub fn down(
     let items = match crate::translate::items(&assignment, forges, &values.tokens, &encoding.limits) {
         Ok(items) => items,
         Err(problem) => {
-            return Err(kit::Unencoded {
-                reason: Some(problem.reason),
-                ..unencoded(wire::v1::name(problem.path).expect("worker wire path"))
-            });
+            return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
         }
     };
     let mut parts = List::with_capacity(1);
@@ -109,10 +106,7 @@ pub fn down(
             let bytes = match items.encode(&encoding.limits) {
                 Ok(bytes) => bytes,
                 Err(problem) => {
-                    return Err(kit::Unencoded {
-                        reason: Some(problem.reason),
-                        ..unencoded(wire::v1::name(problem.path).expect("worker wire path"))
-                    });
+                    return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
                 }
             };
             let token = Token::new(0);
@@ -247,10 +241,7 @@ fn encode_charter(charter: &smith_domain_run::Charter, encoding: &Encoding) -> R
     };
     let field = match error {
         Error::CharterBody(problem) => {
-            return Err(kit::Unencoded {
-                reason: Some(problem.reason),
-                ..unencoded(smith_charter::v5::name(problem.path).expect("charter problem path"))
-            });
+            return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
         }
         Error::Endpoints => "charter.endpoints",
         Error::Capacity => "charter.capacity",

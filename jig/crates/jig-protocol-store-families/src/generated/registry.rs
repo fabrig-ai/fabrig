@@ -10,6 +10,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub layout_root: u32,
@@ -35,12 +36,23 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.layout_root).expect("room for every named limit");
-        values.push(self.layout_variant_some).expect("room for every named limit");
-        values.push(self.layout_held).expect("room for every named limit");
-        values.push(self.text_text).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.layout_root,
+            self.layout_variant_some,
+            self.layout_held,
+            self.text_text,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            layout_root: self.layout_root.min(most),
+            layout_variant_some: self.layout_variant_some.min(most),
+            layout_held: self.layout_held.min(most),
+            text_text: self.text_text.min(most),
+        }
     }
 }
 
@@ -60,89 +72,22 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const LAYOUT_ROOT: Path = Path::new(0, 0);
-    pub const LAYOUT_VARIANT: Path = Path::new(0, 1);
-    pub const LAYOUT_LAYOUT: Path = Path::new(0, 2);
-    pub const LAYOUT_TEXT: Path = Path::new(0, 3);
-    pub const LAYOUT_HELD: Path = Path::new(0, 4);
-    pub const LAYOUT_VERSION: Path = Path::new(0, 5);
-    pub const LAYOUT_TAIL: Path = Path::new(0, 6);
-    pub const TEXT_TEXT: Path = Path::new(1, 0);
-    pub const TEXT_VERSION: Path = Path::new(1, 1);
-    pub const TEXT_TAIL: Path = Path::new(1, 2);
-    pub const JOB_ENDED: Path = Path::new(2, 0);
-    pub const JOB_VERSION: Path = Path::new(2, 1);
-    pub const JOB_TAIL: Path = Path::new(2, 2);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Layout.root",
-        "Layout.variant",
-        "Layout.layout",
-        "Layout.text",
-        "Layout.held",
-        "Layout (version)",
-        "Layout (tail)",
-    ],
-    &[
-        "Text.text",
-        "Text (version)",
-        "Text (tail)",
-    ],
-    &[
-        "Job.ended",
-        "Job (version)",
-        "Job (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Option { item: 1 },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::List { limit: 2, item: 5, size: size_of::<[u8; 32]>() },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 4, 6] },
-    skein_codec::bounds::Node::Bytes { limit: 3 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[8] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[10] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    7,
-    9,
-    11,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    256,
-    256,
-    16,
-    262_144,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const LAYOUT_ROOT: Path = Path::new("Layout.root");
+    pub const LAYOUT_VARIANT: Path = Path::new("Layout.variant");
+    pub const LAYOUT_LAYOUT: Path = Path::new("Layout.layout");
+    pub const LAYOUT_TEXT: Path = Path::new("Layout.text");
+    pub const LAYOUT_HELD: Path = Path::new("Layout.held");
+    pub const LAYOUT_VERSION: Path = Path::new("Layout (version)");
+    pub const LAYOUT_TAIL: Path = Path::new("Layout (tail)");
+    pub const TEXT_TEXT: Path = Path::new("Text.text");
+    pub const TEXT_VERSION: Path = Path::new("Text (version)");
+    pub const TEXT_TAIL: Path = Path::new("Text (tail)");
+    pub const JOB_ENDED: Path = Path::new("Job.ended");
+    pub const JOB_VERSION: Path = Path::new("Job (version)");
+    pub const JOB_TAIL: Path = Path::new("Job (tail)");
 }
 
 // Type: Layout.
@@ -157,6 +102,17 @@ pub struct Layout {
 
 // Record: Layout.
 impl Layout {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, layout_root) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, layout_variant_some) },
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, layout_held), item: 5, size: size_of::<[u8; 32]>() },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 4, 6] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 79;
 }
@@ -166,11 +122,11 @@ impl Record for Layout {
     const TAIL: Path = paths::LAYOUT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Layout")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Layout")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -212,6 +168,11 @@ pub struct Text {
 
 // Record: Text.
 impl Text {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, text_text) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 6;
 }
@@ -221,11 +182,11 @@ impl Record for Text {
     const TAIL: Path = paths::TEXT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 9)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Text")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 9)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Text")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -259,6 +220,11 @@ pub struct Job {
 
 // Record: Job.
 impl Job {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 10;
 }
@@ -268,11 +234,11 @@ impl Record for Job {
     const TAIL: Path = paths::JOB_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 11)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Job")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 11)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Job")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -298,3 +264,26 @@ impl Record for Job {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Job", nodes: Job::SHAPE },
+    skein_codec::bounds::Declaration { name: "Layout", nodes: Layout::SHAPE },
+    skein_codec::bounds::Declaration { name: "Text", nodes: Text::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.layout_root,
+    CEILINGS.layout_variant_some,
+    CEILINGS.layout_held,
+    CEILINGS.text_text,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

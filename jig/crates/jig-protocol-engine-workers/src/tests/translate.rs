@@ -322,8 +322,7 @@ fn an_encoding_refusal_keeps_its_codec_path_and_reason() {
         .frame(&codec())
         .expect_err("not UTF-8"),
         Unencoded {
-            field: jig_protocol_worker_wire::v21::name(jig_protocol_worker_wire::v21::paths::MESSAGE_WORDS)
-                .expect("generated path"),
+            field: jig_protocol_worker_wire::v21::paths::MESSAGE_WORDS.name(),
             reason: Some(skein_codec::Reason::Utf8),
             figure: None,
             bound: None,

@@ -11,6 +11,18 @@ mod tests {
     use skein_codec_tests::every_v3::{self as lean, CEILINGS, Limits, Problem, Record, paths};
     use skein_lib::Reader;
 
+    #[test]
+    fn at_most_clamps_each_limit_without_raising_any() {
+        use skein_codec_tests::v1::{CEILINGS, Limits};
+
+        // sample-v1 has ceilings 4, 4, 8, 2 in limit order.
+        const ZERO: Limits = Limits { field_name: 0, field_value: 0, report_title: 0, report_fields: 0 };
+        const THREE: Limits = Limits { field_name: 3, field_value: 3, report_title: 3, report_fields: 2 };
+        for (most, expected) in [(0, ZERO), (3, THREE), (u32::MAX, CEILINGS)] {
+            assert_eq!(CEILINGS.at_most(most), expected);
+        }
+    }
+
     #[expect(clippy::too_many_lines, reason = "each lean Limits field is clamped from its ceiling")]
     fn small_limits() -> Limits {
         macro_rules! clamp {
@@ -231,7 +243,7 @@ mod tests {
                             measured: value.measure(limits).expect("decoded value measures"),
                         },
                         Err(problem) => Decoded::Problem {
-                            path: lean::name(problem.path).expect("generated path").into(), reason: problem.reason,
+                            path: problem.path.name().into(), reason: problem.reason,
                         },
                     }),+
                     _ => panic!("unknown every root: {root}"),

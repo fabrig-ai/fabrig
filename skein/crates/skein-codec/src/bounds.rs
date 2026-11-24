@@ -1,19 +1,29 @@
 //! Bounds as data, evaluated without recursion (data/codec/README.md, 4).
-//! Every edge points to an earlier node. A bounded stack follows only reached
-//! nodes, memoizing each by its index; family bounds reuse the same memo.
+//! Local edges point to earlier nodes. A bounded stack follows named edges,
+//! computing each reached declaration once and sharing its bound across callers.
 
-use skein_lib::{List, Stack};
+use core::{cmp::Ordering, mem::size_of};
+use skein_lib::{List, Map, Stack};
 
-/// One node in a postordered shape table. Sizes count heap slots, not pointees.
+/// A named declaration and its postordered nodes, with the root last.
+#[derive(Clone, Copy, Debug)]
+pub struct Declaration {
+    pub name: &'static str,
+    pub nodes: &'static [Node],
+}
+
+/// One node of a declaration. Local edges count within its nodes, `limit`
+/// offsets are in bytes, and sizes count heap slots, not pointees.
 #[derive(Clone, Copy, Debug)]
 pub enum Node {
     Scalar(u64),
-    Bytes { limit: u32 },
-    List { limit: u32, item: u32, size: usize },
+    Bytes { limit: usize },
+    List { limit: usize, item: u32, size: usize },
     Option { item: u32 },
     Boxed { item: u32, size: usize },
     Record { prefix: u64, fields: &'static [u32] },
     Enum { variants: &'static [u32] },
+    Named(&'static str),
 }
 
 /// The two independent maxima for a shape.
@@ -23,137 +33,169 @@ pub struct Bounds {
     pub decoded: u64,
 }
 
+impl Bounds {
+    const ZERO: Self = Self { encoded: 0, decoded: 0 };
+
+    fn most(self, other: Self) -> Self {
+        Self { encoded: self.encoded.max(other.encoded), decoded: self.decoded.max(other.decoded) }
+    }
+}
+
+fn limit_value(limits: &[u32], offset: usize) -> Option<u64> {
+    let width = size_of::<u32>();
+    if !offset.is_multiple_of(width) {
+        return None;
+    }
+    Some(u64::from(*limits.get(offset.checked_div(width)?)?))
+}
+
 impl Node {
-    fn child(self, next: u32) -> Option<u32> {
-        match self {
-            Self::Scalar(_) | Self::Bytes { .. } => None,
-            Self::List { item, .. } | Self::Option { item } | Self::Boxed { item, .. } => {
-                if next == 0 {
-                    Some(item)
-                } else {
-                    None
+    fn bound(self, local: &List<Bounds>, limits: &[u32]) -> Option<Bounds> {
+        let value = match self {
+            Self::Scalar(encoded) => Bounds { encoded, decoded: 0 },
+            Self::Bytes { limit } => {
+                let count = limit_value(limits, limit)?;
+                Bounds { encoded: 4_u64.checked_add(count)?, decoded: count }
+            }
+            Self::List { limit, item, size } => {
+                let count = limit_value(limits, limit)?;
+                let item = local.get(item)?;
+                Bounds {
+                    encoded: 4_u64.checked_add(count.checked_mul(item.encoded)?)?,
+                    decoded: count.checked_mul(item.decoded.checked_add(u64::try_from(size).ok()?)?)?,
                 }
             }
-            Self::Record { fields, .. } => fields.get(usize::try_from(next).ok()?).copied(),
-            Self::Enum { variants } => variants.get(usize::try_from(next).ok()?).copied(),
-        }
-    }
-
-    fn finish(self, sum: Bounds, limits: &[u32]) -> Option<Bounds> {
-        let mut result = sum;
-        match self {
-            Self::Scalar(size) => result.encoded = size,
-            Self::Bytes { limit } => {
-                result.decoded = u64::from(*limits.get(usize::try_from(limit).ok()?)?);
-                result.encoded = 4_u64.checked_add(result.decoded)?;
+            Self::Option { item } => {
+                let item = local.get(item)?;
+                Bounds { encoded: 1_u64.checked_add(item.encoded)?, decoded: item.decoded }
             }
-            Self::List { limit, size, .. } => {
-                let count = u64::from(*limits.get(usize::try_from(limit).ok()?)?);
-                result.encoded = 4_u64.checked_add(count.checked_mul(sum.encoded)?)?;
-                result.decoded = count.checked_mul(sum.decoded.checked_add(u64::try_from(size).ok()?)?)?;
+            Self::Boxed { item, size } => {
+                let item = local.get(item)?;
+                Bounds { encoded: item.encoded, decoded: item.decoded.checked_add(u64::try_from(size).ok()?)? }
             }
-            Self::Option { .. } | Self::Enum { .. } => result.encoded = 1_u64.checked_add(sum.encoded)?,
-            Self::Boxed { size, .. } => result.decoded = sum.decoded.checked_add(u64::try_from(size).ok()?)?,
-            Self::Record { prefix, .. } => result.encoded = prefix.checked_add(sum.encoded)?,
-        }
-        Some(result)
+            Self::Record { prefix, fields } => {
+                let mut sum = Bounds { encoded: prefix, decoded: 0 };
+                for field in fields {
+                    let field = local.get(*field)?;
+                    sum.encoded = sum.encoded.checked_add(field.encoded)?;
+                    sum.decoded = sum.decoded.checked_add(field.decoded)?;
+                }
+                sum
+            }
+            Self::Enum { variants } => {
+                let mut most = Bounds::ZERO;
+                for variant in variants {
+                    most = most.most(*local.get(*variant)?);
+                }
+                most.encoded = 1_u64.checked_add(most.encoded)?;
+                most
+            }
+            Self::Named(_) => return None, // The walk resolves named edges before bounding a local node.
+        };
+        Some(value)
     }
 }
 
-#[derive(Debug)]
-struct Frame {
-    at: u32,
-    next: u32,
-    sum: Bounds,
-}
-
-impl Frame {
-    const fn new(at: u32) -> Self {
-        Self { at, next: 0, sum: Bounds { encoded: 0, decoded: 0 } }
-    }
-
-    fn add(&mut self, parent: Node, value: Bounds) -> Option<()> {
-        match parent {
-            Node::Enum { .. } => {
-                self.sum.encoded = self.sum.encoded.max(value.encoded);
-                self.sum.decoded = self.sum.decoded.max(value.decoded);
-            }
-            Node::Scalar(_)
-            | Node::Bytes { .. }
-            | Node::List { .. }
-            | Node::Option { .. }
-            | Node::Boxed { .. }
-            | Node::Record { .. } => {
-                self.sum.encoded = self.sum.encoded.checked_add(value.encoded)?;
-                self.sum.decoded = self.sum.decoded.checked_add(value.decoded)?;
-            }
-        }
-        Some(())
-    }
-}
-
-/// What a walk has finished: for each node up to the declaration, one more than
-/// the index of its bounds in `finished`, zero until it finishes. Four bytes a
-/// node, allocated zeroed at once, and sixteen a reached one, so a walk holds
-/// little more than the nodes it reaches.
-#[derive(Debug)]
-struct Memo {
-    slots: List<u32>,
-    finished: List<Bounds>,
-}
-
-impl Memo {
-    /// Edges descend, so a walk from `at` reaches no later node: a slot for each
-    /// node up to it, never more than the table has.
-    #[expect(clippy::disallowed_macros, reason = "the slots are allocated once, zeroed, at their final length")]
-    fn new(nodes: &[Node], at: u32) -> Option<Memo> {
-        let count = u32::try_from(nodes.len()).ok()?.min(at.checked_add(1)?);
-        let slots = List::from_boxed(alloc::vec![0; usize::try_from(count).ok()?].into_boxed_slice());
-        Some(Memo { slots, finished: List::with_capacity(count) })
-    }
-
-    fn get(&self, at: u32) -> Option<Bounds> {
-        self.finished.get(self.slots.get(at)?.checked_sub(1)?).copied()
-    }
-
-    fn insert(&mut self, at: u32, value: Bounds) -> Option<()> {
-        self.finished.push(value).ok()?;
-        *self.slots.get_mut(at)? = self.finished.len();
-        Some(())
-    }
-}
-
-fn evaluate(nodes: &[Node], limits: &[u32], at: u32, memo: &mut Memo, stack: &mut Stack<Frame>) -> Option<Bounds> {
-    if let Some(value) = memo.get(at) {
-        return Some(value);
-    }
-    stack.push(Frame::new(at)).ok()?;
-    // Keep unfinished parents in place. Only an edge to an uncached child
-    // pushes a frame; strictly descending edges bound the depth by the table.
-    while let Some(frame) = stack.top_mut() {
-        let node = *nodes.get(usize::try_from(frame.at).ok()?)?;
-        if let Some(child) = node.child(frame.next) {
-            if child >= frame.at {
-                return None;
-            }
-            frame.next = frame.next.checked_add(1)?;
-            if let Some(value) = memo.get(child) {
-                frame.add(node, value)?;
-            } else {
-                stack.push(Frame::new(child)).ok()?;
-            }
-        } else {
-            let value = node.finish(frame.sum, limits)?;
-            memo.insert(frame.at, value)?;
-            stack.pop()?;
-            // Finish the parent's edge with the result just computed, instead
-            // of visiting that edge again to retrieve it from the memo.
-            let Some(parent) = stack.top_mut() else { return Some(value) };
-            let node = *nodes.get(usize::try_from(parent.at).ok()?)?;
-            parent.add(node, value)?;
+fn find<'a>(mut declarations: &'a [Declaration], name: &str) -> Option<&'a Declaration> {
+    // Each comparison at least halves the remaining slice.
+    while !declarations.is_empty() {
+        let middle = declarations.len().checked_div(2)?;
+        let (before, rest) = declarations.split_at_checked(middle)?;
+        let (declaration, after) = rest.split_first()?;
+        match declaration.name.cmp(name) {
+            Ordering::Equal => return Some(declaration),
+            Ordering::Greater => declarations = before,
+            Ordering::Less => declarations = after,
         }
     }
     None
+}
+
+#[derive(Debug)]
+struct Frame<'a> {
+    declaration: &'a Declaration,
+    local: List<Bounds>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Visit {
+    Pending,
+    Done(Bounds),
+}
+
+struct Walk<'a> {
+    declarations: &'a [Declaration],
+    limits: &'a [u32],
+    memo: Map<&'static str, Visit>,
+    stack: Stack<Frame<'a>>,
+    #[cfg(test)]
+    starts: u32,
+}
+
+impl<'a> Walk<'a> {
+    fn new(declarations: &'a [Declaration], limits: &'a [u32]) -> Option<Self> {
+        let count = u32::try_from(declarations.len()).ok()?;
+        Some(Self {
+            declarations,
+            limits,
+            memo: Map::with_capacity(count),
+            stack: Stack::with_capacity(count),
+            #[cfg(test)]
+            starts: 0,
+        })
+    }
+
+    fn start(&mut self, name: &str) -> Option<()> {
+        let declaration = find(self.declarations, name)?;
+        let count = u32::try_from(declaration.nodes.len()).ok()?;
+        let _previous = self.memo.insert(declaration.name, Visit::Pending).ok()?;
+        self.stack.push(Frame { declaration, local: List::allocated(count) }).ok()?;
+        #[cfg(test)]
+        {
+            self.starts = self.starts.checked_add(1)?;
+        }
+        Some(())
+    }
+
+    fn evaluate(&mut self, name: &str) -> Option<Bounds> {
+        match self.memo.get(name) {
+            Some(Visit::Done(bound)) => return Some(*bound),
+            Some(Visit::Pending) => return None,
+            None => self.start(name)?,
+        }
+        while let Some(frame) = self.stack.top_mut() {
+            let at = usize::try_from(frame.local.len()).ok()?;
+            if let Some(node) = frame.declaration.nodes.get(at) {
+                let bound = match *node {
+                    Node::Named(child) => match self.memo.get(child) {
+                        Some(Visit::Done(bound)) => *bound,
+                        Some(Visit::Pending) => return None,
+                        None => {
+                            self.start(child)?;
+                            continue;
+                        }
+                    },
+                    Node::Scalar(_)
+                    | Node::Bytes { .. }
+                    | Node::List { .. }
+                    | Node::Option { .. }
+                    | Node::Boxed { .. }
+                    | Node::Record { .. }
+                    | Node::Enum { .. } => node.bound(&frame.local, self.limits)?,
+                };
+                frame.local.push(bound).ok()?;
+            } else {
+                let bound = *frame.local.last()?;
+                *self.memo.get_mut(frame.declaration.name)? = Visit::Done(bound);
+                self.stack.pop()?;
+                // The parent is waiting on this named edge. Finish it without
+                // looking up the freshly computed bound in the memo again.
+                let Some(parent) = self.stack.top_mut() else { return Some(bound) };
+                parent.local.push(bound).ok()?;
+            }
+        }
+        None
+    }
 }
 
 fn valid(limits: &[u32], ceilings: &[u32]) -> Option<()> {
@@ -168,26 +210,42 @@ fn valid(limits: &[u32], ceilings: &[u32]) -> Option<()> {
     Some(())
 }
 
-/// A declaration's maxima; refuses limits past a ceiling and arithmetic overflow.
+/// The named declaration's maxima. Shapes must be sorted by name. Returns
+/// `None` for invalid limits, missing or cyclic shapes, or arithmetic overflow.
 #[must_use]
-pub fn declaration(nodes: &[Node], limits: &[u32], ceilings: &[u32], at: u32) -> Option<Bounds> {
+pub fn declaration(declarations: &[Declaration], limits: &[u32], ceilings: &[u32], name: &str) -> Option<Bounds> {
     valid(limits, ceilings)?;
-    let mut memo = Memo::new(nodes, at)?;
-    let mut stack = Stack::with_capacity(u32::try_from(nodes.len()).ok()?);
-    evaluate(nodes, limits, at, &mut memo, &mut stack)
+    Walk::new(declarations, limits)?.evaluate(name)
 }
 
-/// The maxima among a family's declarations, checking its limits once.
+/// The maxima among the declarations (sorted by name), checking limits once.
 #[must_use]
-pub fn family(nodes: &[Node], limits: &[u32], ceilings: &[u32], declarations: &[u32]) -> Option<Bounds> {
+pub fn family(declarations: &[Declaration], limits: &[u32], ceilings: &[u32]) -> Option<Bounds> {
     valid(limits, ceilings)?;
-    let mut memo = Memo::new(nodes, declarations.iter().copied().max().unwrap_or(0))?;
-    let mut stack = Stack::with_capacity(u32::try_from(nodes.len()).ok()?);
-    let mut result = Bounds { encoded: 0, decoded: 0 };
-    for at in declarations {
-        let value = evaluate(nodes, limits, *at, &mut memo, &mut stack)?;
-        result.encoded = result.encoded.max(value.encoded);
-        result.decoded = result.decoded.max(value.decoded);
+    let mut walk = Walk::new(declarations, limits)?;
+    let mut result = Bounds::ZERO;
+    for declaration in declarations {
+        result = result.most(walk.evaluate(declaration.name)?);
     }
     Some(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Bounds, Declaration, Node, Walk};
+
+    #[test]
+    fn a_repeated_named_child_is_only_computed_once() {
+        const SHAPES: &[Declaration] = &[
+            Declaration { name: "Child", nodes: &[Node::Scalar(2)] },
+            Declaration {
+                name: "Parent",
+                nodes: &[Node::Named("Child"), Node::Named("Child"), Node::Record { prefix: 0, fields: &[0, 1] }],
+            },
+        ];
+        const REACHED: u32 = 2; // Parent and Child, despite both edges to Child.
+        let mut walk = Walk::new(SHAPES, &[]).expect("two declarations");
+        let bound = walk.evaluate("Parent");
+        assert_eq!((bound, walk.starts), (Some(Bounds { encoded: 4, decoded: 0 }), REACHED));
+    }
 }
