@@ -44,12 +44,17 @@ smith/crates/smith-local-protocol-codec/src/generated/local_store.rs smith/crate
 smith/crates/smith-protocol-translate/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema smith/crates/smith-protocol-translate/schema/charter.maps
 smith/crates/smith-protocol-translate/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema smith/crates/smith-protocol-translate/schema/transcript.maps
 smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema
+temper/crates/temper-client-domain-forge/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-client-domain-forge/schema/client_wire.maps
+temper/crates/temper-client-domain-pages/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-client-domain-pages/schema/client_wire.maps
 temper/crates/temper-client-protocol-wire/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
 temper/crates/temper-client-protocol-wire/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema
+temper/crates/temper-client-tools/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-client-tools/schema/client_wire.maps
 temper/crates/temper-engine-service-vocabulary/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-engine-service-vocabulary/schema/client_wire.maps
 temper/crates/temper-engine-service-vocabulary/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema temper/crates/temper-engine-service-vocabulary/schema/worker_wire.maps
+temper/crates/temper-protocol-reaches/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-protocol-reaches/schema/client_wire.maps
 temper/crates/temper-protocol-records/src/generated/secrets.rs temper/crates/temper-protocol-records/schema/secrets-v1.schema
 temper/crates/temper-protocol-store-codec/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema
 temper/crates/temper-protocol-store/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema temper/crates/temper-protocol-store/schema/store.maps
 temper/crates/temper-protocol-worker-wire/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema
+temper/crates/temper-settings-form/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-settings-form/schema/client_wire.maps
 temper/crates/temper-worker-service/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema temper/crates/temper-worker-service/schema/worker_wire.maps

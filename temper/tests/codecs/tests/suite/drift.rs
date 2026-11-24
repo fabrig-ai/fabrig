@@ -75,6 +75,25 @@ fn client_wire_schema_matches_generated_code() {
         codec::DECLARATIONS,
         codec::CEILINGS.values().as_slice(),
     );
+    let schema = &values(CLIENT_SCHEMA).schema;
+    let crates = skein_scratch::paths::tree().join("crates");
+    let write = temper_test_env::rewrite();
+    for (owner, maps) in [
+        (
+            "temper-client-domain-forge",
+            include_str!("../../../../crates/temper-client-domain-forge/schema/client_wire.maps"),
+        ),
+        (
+            "temper-client-domain-pages",
+            include_str!("../../../../crates/temper-client-domain-pages/schema/client_wire.maps"),
+        ),
+        ("temper-client-tools", include_str!("../../../../crates/temper-client-tools/schema/client_wire.maps")),
+        ("temper-protocol-reaches", include_str!("../../../../crates/temper-protocol-reaches/schema/client_wire.maps")),
+        ("temper-settings-form", include_str!("../../../../crates/temper-settings-form/schema/client_wire.maps")),
+    ] {
+        let translation = skein_codegen::translate(schema, maps).unwrap_or_else(|error| panic!("{owner}: {error}"));
+        check_text(&crates.join(owner).join("src/generated/client_wire.rs"), &translation, write);
+    }
 }
 
 #[test]

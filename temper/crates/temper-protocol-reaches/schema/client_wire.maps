@@ -1,0 +1,12 @@
+records temper_client_protocol_wire::v1
+
+enum ReachKind = crate::Kind
+enum ReachClass = crate::Class
+record ReachSet stands for number
+record ReachKindOf stands for kind
+enum ClassSubject = crate::Subject { kind tuple, set tuple }
+enum ReachReason = crate::Reason { set tuple }
+record Reach = crate::Reach
+record ClassItem = crate::Item
+record PathSet = crate::PathSet { patterns slice }
+record ProjectClasses = crate::Classes { items slice, sets slice }

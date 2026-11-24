@@ -6056,6 +6056,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-records",
+ "skein-codec",
  "skein-lib",
  "skein-ui",
  "temper-client-protocol-wire",
@@ -8057,6 +8058,7 @@ dependencies = [
 name = "temper-protocol-reaches"
 version = "0.0.0"
 dependencies = [
+ "skein-codec",
  "skein-lib",
  "temper-client-protocol-wire",
 ]
