@@ -105,7 +105,7 @@ mod records {
                 vec![0; usize::try_from(limits.sizes.charter).expect("fixture charter bound")].into();
             world.down(valid);
             world.run();
-            assert_eq!(world.observed(connection).len(), 2, "assignment at the bound crosses the wire");
+            assert_eq!(world.observed_with_accept(connection).len(), 2, "assignment at the bound crosses the wire");
             let Event::Down { mut down, parts, values, .. } = fixtures::assignment_down(channel) else {
                 panic!("assignment event");
             };
@@ -132,10 +132,10 @@ mod records {
             assert_eq!(*cause, host::StartCause::Other);
             let words = b"assignment cannot encode: Assignment.charter 17, bound 16, wire ceiling 67,108,864";
             assert_eq!(why.as_ref(), &words[..words.len().min(usize::try_from(detail).expect("fixture detail bound"))]);
-            assert_eq!(world.observed(connection).len(), 2, "invalid assignment never reaches worker");
+            assert_eq!(world.observed_with_accept(connection).len(), 2, "invalid assignment never reaches worker");
             world.down(fixtures::assignment_down(channel));
             world.run();
-            assert_eq!(world.observed(connection).len(), 3, "channel remains available");
+            assert_eq!(world.observed_with_accept(connection).len(), 3, "channel remains available");
             assert_eq!(world.root().len(), 2, "no duplicate refusal");
         }
     }

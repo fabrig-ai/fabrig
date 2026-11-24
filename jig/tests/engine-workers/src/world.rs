@@ -161,9 +161,16 @@ impl World {
     pub fn gone(&self, connection: Token) -> bool {
         self.nets.get(&connection).expect("known stream").gone
     }
+    /// The frames the peer received after the opening, in order.
     #[must_use]
     pub fn observed(&self, connection: Token) -> &[skein_fake_channel::Observed] {
         self.nets.get(&connection).expect("known stream").peer.observed()
+    }
+    /// The engine's Accept, if sent, followed by the frames observed after the opening.
+    #[must_use]
+    pub fn observed_with_accept(&self, connection: Token) -> Vec<&skein_fake_channel::Observed> {
+        let net = self.nets.get(&connection).expect("known stream");
+        net.accept.iter().chain(net.peer.observed()).collect()
     }
     #[must_use]
     pub fn dropped_down(&self) -> u64 {

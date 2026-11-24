@@ -1,6 +1,6 @@
 //! In-memory native stream, with seeded cuts in both directions.
 use skein_channel::{Control, Lower, LowerEvent, decode_control, parse_header};
-use skein_fake_channel::ScriptedPeer;
+use skein_fake_channel::{Observed, ScriptedPeer};
 use skein_lib::{Intake, Rng, Token, stream};
 use std::collections::VecDeque;
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -22,6 +22,7 @@ pub(crate) struct Net {
     pub ended: bool,
     pub gone: bool,
     pub taken: bool,
+    pub accept: Option<Observed>,
     pub refused: Option<(u16, Box<[u8]>)>,
     events: VecDeque<LowerEvent>,
 }
@@ -39,6 +40,7 @@ impl Net {
             ended: false,
             gone: false,
             taken: false,
+            accept: None,
             refused: None,
             events: VecDeque::new(),
         }
@@ -70,8 +72,12 @@ impl Net {
                     if header.kind < 256 {
                         let control = decode_control(header.kind, &bytes[8..], &super::fixtures::channel_limits())
                             .expect("control");
-                        if let Control::Refuse { reason, text } = control {
-                            self.refused = Some((reason, text));
+                        match control {
+                            Control::Accept { .. } => {
+                                self.accept = Some(Observed { kind: header.kind, body: bytes[8..].into() });
+                            }
+                            Control::Refuse { reason, text } => self.refused = Some((reason, text)),
+                            _ => {}
                         }
                     }
                     let mut at = 0;

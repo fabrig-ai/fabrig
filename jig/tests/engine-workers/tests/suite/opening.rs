@@ -317,7 +317,7 @@ mod opening {
     #[test]
     fn another_version_is_refused_by_skein_as_version() {
         let mut schema = fixtures::schema();
-        let other = 15; // The previous channel is refused before reading its credential.
+        let other = 15; // An old channel is refused before reading its credential.
         schema.versions.truncate(1);
         schema.versions.get_mut(0).expect("one version").version = other;
         let mut world = world();
@@ -331,7 +331,8 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        let expected = format!("speaks 16..{}, offered 15..15", jig_protocol_worker_wire::VERSION);
+        let current = jig_protocol_worker_wire::VERSION;
+        let expected = format!("speaks {current}..{current}, offered {other}..{other}");
         assert_eq!(world.refusal(connection), Some((1, expected.as_bytes().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
