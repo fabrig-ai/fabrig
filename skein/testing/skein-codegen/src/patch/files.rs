@@ -1,10 +1,9 @@
 //! An owner crate's files, read (data/codec/command.md, 1).
 
 use alloc::collections::{BTreeMap, BTreeSet};
-use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::Error;
+use super::{Error, Landed, Tree};
 
 /// A schema text with its header's family and version.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -19,7 +18,6 @@ pub(crate) struct Text {
 /// What a run and the check read of a crate (data/codec/command.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Crate {
-    pub root: PathBuf,
     /// Each family's current text: its greatest version in `schema/`.
     pub current: BTreeMap<String, Text>,
     /// The families named by `schema/wires`.
@@ -69,9 +67,8 @@ pub(crate) fn golden_path(number: u32) -> PathBuf {
 
 impl Crate {
     /// Reads the base without consulting git or writing a temporary tree.
-    pub(crate) fn base(root: &Path, landed: &super::Landed) -> Result<Self, Error> {
+    pub(crate) fn base(landed: &Landed) -> Result<Self, Error> {
         let mut base = Self {
-            root: root.to_path_buf(),
             current: BTreeMap::new(),
             wires: BTreeSet::new(),
             registered: BTreeSet::new(),
@@ -124,11 +121,11 @@ impl Crate {
     }
 
     /// Reads the crate's current texts, kept texts, waiting renames and patches.
-    pub(crate) fn read(root: &Path) -> Result<Self, Error> {
+    pub(crate) fn read(tree: &Tree) -> Result<Self, Error> {
         let mut current: BTreeMap<String, Text> = BTreeMap::new();
-        for path in listed(root, Path::new(SCHEMA))? {
+        for path in tree.listed(Path::new(SCHEMA))? {
             if path.extension().is_some_and(|extension| extension == "schema") {
-                let text = schema_text(root, &path)?;
+                let text = schema_text(tree, &path)?;
                 let greater = current.get(&text.family).is_none_or(|held| held.version < text.version);
                 if greater {
                     current.insert(text.family.clone(), text);
@@ -137,15 +134,15 @@ impl Crate {
         }
         let wires_path = Path::new("schema/wires");
         let mut wire_floors = BTreeMap::new();
-        if root.join(wires_path).try_exists().map_err(|error| Error::io(wires_path, &error))? {
-            let source = unconflicted(root, wires_path)?;
+        if tree.exists(wires_path)? {
+            let source = unconflicted(tree, wires_path)?;
             wire_floors = floors(&source, |family| current.contains_key(family))?;
         }
         let wires = wire_floors.keys().cloned().collect();
         let registered_path = Path::new("schema/registered");
         let mut registered = BTreeSet::new();
-        if root.join(registered_path).try_exists().map_err(|error| Error::io(registered_path, &error))? {
-            let source = unconflicted(root, registered_path)?;
+        if tree.exists(registered_path)? {
+            let source = unconflicted(tree, registered_path)?;
             for family in source
                 .lines()
                 .map(|line| line.split('#').next().unwrap_or_default().trim())
@@ -159,12 +156,12 @@ impl Crate {
         }
         let mut kept: BTreeMap<String, BTreeMap<u16, Text>> = BTreeMap::new();
         let mut renames = BTreeMap::new();
-        for path in listed(root, Path::new(KEPT))? {
+        for path in tree.listed(Path::new(KEPT))? {
             let name = path.file_name().and_then(|name| name.to_str()).unwrap_or_default();
             if let Some(family) = name.strip_suffix(".renames") {
-                renames.insert(family.to_owned(), unconflicted(root, &path)?);
+                renames.insert(family.to_owned(), unconflicted(tree, &path)?);
             } else if path.extension().is_some_and(|extension| extension == "schema") {
-                let text = schema_text(root, &path)?;
+                let text = schema_text(tree, &path)?;
                 if kept_path(&text.family, text.version) != path {
                     return Err(Error::Schema {
                         path,
@@ -176,57 +173,18 @@ impl Crate {
         }
         let mut patches = BTreeMap::new();
         let mut skeletons = BTreeSet::new();
-        for path in listed(root, Path::new(PATCHES))? {
+        for path in tree.listed(Path::new(PATCHES))? {
             let name = path.file_name().and_then(|name| name.to_str()).unwrap_or_default();
             if let Some(number) = name.strip_suffix(".patch").and_then(number) {
-                patches.insert(number, unconflicted(root, &path)?);
+                patches.insert(number, unconflicted(tree, &path)?);
             } else if let Some(number) =
                 name.strip_prefix('p').and_then(|rest| rest.strip_suffix(".rs")).and_then(number)
             {
                 skeletons.insert(number);
             }
         }
-        Ok(Self {
-            root: root.to_path_buf(),
-            current,
-            wires,
-            registered,
-            wire_floors,
-            kept,
-            renames,
-            patches,
-            skeletons,
-        })
+        Ok(Self { current, wires, registered, wire_floors, kept, renames, patches, skeletons })
     }
-}
-
-/// Every file under the crate's `patches/` and `schema/kept/`, and `schema/wires`,
-/// by path relative to the crate: [`super::Landed::read`].
-pub(crate) fn landed(root: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>, Error> {
-    let mut files = BTreeMap::new();
-    let mut directories = vec![PathBuf::from(PATCHES), PathBuf::from(KEPT)];
-    while let Some(directory) = directories.pop() {
-        let full = root.join(&directory);
-        if !full.is_dir() {
-            continue;
-        }
-        let entries = fs::read_dir(&full).map_err(|error| Error::io(&full, &error))?;
-        for entry in entries {
-            let entry = entry.map_err(|error| Error::io(&full, &error))?;
-            let path = directory.join(entry.file_name());
-            if entry.path().is_dir() {
-                directories.push(path);
-            } else {
-                let bytes = fs::read(entry.path()).map_err(|error| Error::io(&entry.path(), &error))?;
-                files.insert(path, bytes);
-            }
-        }
-    }
-    let wires = PathBuf::from("schema/wires");
-    if root.join(&wires).try_exists().map_err(|error| Error::io(&wires, &error))? {
-        files.insert(wires.clone(), fs::read(root.join(&wires)).map_err(|error| Error::io(&wires, &error))?);
-    }
-    Ok(files)
 }
 
 fn floors(source: &str, known: impl Fn(&str) -> bool) -> Result<BTreeMap<String, Option<u16>>, Error> {
@@ -262,36 +220,17 @@ fn number(digits: &str) -> Option<u32> {
     if digits.len() == 4 && digits.bytes().all(|byte| byte.is_ascii_digit()) { digits.parse().ok() } else { None }
 }
 
-/// The files directly in a directory of the crate, relative to it, in order;
-/// none when it is absent.
-fn listed(root: &Path, directory: &Path) -> Result<Vec<PathBuf>, Error> {
-    let full = root.join(directory);
-    if !full.is_dir() {
-        return Ok(Vec::new());
-    }
-    let mut paths = Vec::new();
-    for entry in fs::read_dir(&full).map_err(|error| Error::io(&full, &error))? {
-        let entry = entry.map_err(|error| Error::io(&full, &error))?;
-        if entry.path().is_file() {
-            paths.push(directory.join(entry.file_name()));
-        }
-    }
-    paths.sort();
-    Ok(paths)
-}
-
 /// A text file of the crate, refused when it holds conflict markers (12.6).
-pub(crate) fn unconflicted(root: &Path, path: &Path) -> Result<String, Error> {
-    let full = root.join(path);
-    let text = fs::read_to_string(&full).map_err(|error| Error::io(&full, &error))?;
+pub(crate) fn unconflicted(tree: &Tree, path: &Path) -> Result<String, Error> {
+    let text = tree.read_text(path).map_err(|error| Error::io(&tree.named(path), &error))?;
     if text.lines().any(|line| line.starts_with("<<<<<<< ") || line.starts_with(">>>>>>> ")) {
         return Err(Error::Conflict { path: path.to_path_buf() });
     }
     Ok(text)
 }
 
-fn schema_text(root: &Path, path: &Path) -> Result<Text, Error> {
-    let source = unconflicted(root, path)?;
+fn schema_text(tree: &Tree, path: &Path) -> Result<Text, Error> {
+    let source = unconflicted(tree, path)?;
     let schema =
         crate::parse(&source).map_err(|error| Error::Schema { path: path.to_path_buf(), error: error.to_string() })?;
     Ok(Text { path: path.to_path_buf(), family: schema.family, version: schema.version, source })

@@ -3,31 +3,30 @@
 use alloc::collections::{BTreeMap, BTreeSet};
 use skein_codec::patch::{Capacity, KeepError, PatchError, PatchWrong, Patcher};
 use skein_codec::schema;
-use std::path::Path;
 
 use super::files::{Crate, Text, renames_path};
-use super::run::{historical, read_optional};
+use super::run::historical;
 use super::text::{Block, PatchText};
-use super::{Error, Finding, FloorWrong, Landed, derive};
+use super::{Error, Finding, FloorWrong, Landed, Tree, derive};
 use crate::diff::Version;
 
 /// Finds every change or refusal without writing a file (data/codec/command.md 7); a
 /// crate it cannot read is its error, as the run's.
-pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
-    let tree = Crate::read(owner)?;
-    let base = Crate::base(owner, landed)?;
-    let patches = derive::patches(&tree)?;
-    let branch = derive::branch(&tree, &base)?;
-    let frozen = derive::frozen(&derive::patches(&base)?, &base, &tree.wires);
+pub fn check(tree: &Tree, landed: &Landed) -> Result<Vec<Finding>, Error> {
+    let krate = Crate::read(tree)?;
+    let base = Crate::base(landed)?;
+    let patches = derive::patches(&krate)?;
+    let branch = derive::branch(&krate, &base)?;
+    let frozen = derive::frozen(&derive::patches(&base)?, &base, &krate.wires);
     let mut findings = Vec::new();
-    for (family, current) in &tree.current {
-        if tree.registered.contains(family) {
+    for (family, current) in &krate.current {
+        if krate.registered.contains(family) {
             let version = base.kept.get(family).and_then(|texts| texts.last_key_value()).map(|(version, _)| *version);
-            let kept = tree
+            let kept = krate
                 .kept
                 .get(family)
                 .is_some_and(|texts| texts.values().any(|text| landed.get(&text.path) != Some(text.source.as_bytes())));
-            let renames = tree
+            let renames = krate
                 .renames
                 .get(family)
                 .is_some_and(|source| landed.get(&renames_path(family)) != Some(source.as_bytes()));
@@ -39,20 +38,22 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
             }
             continue;
         }
-        let Some(texts) = tree.kept.get(family) else {
+        let Some(texts) = krate.kept.get(family) else {
             findings.push(Finding::Unkept { family: family.clone() });
             continue;
         };
-        current_findings(&tree, family, current, texts, &patches, &frozen, &mut findings)?;
+        current_findings(&krate, family, current, texts, &patches, &frozen, &mut findings)?;
     }
-    for (family, texts) in &tree.kept {
+    for (family, texts) in &krate.kept {
         if let Some((first, _)) = texts.first_key_value()
             && let Some((last, _)) = texts.last_key_value()
         {
             for version in *first..=*last {
                 if !texts.contains_key(&version) {
                     findings.push(Finding::KeptGap { family: family.clone(), missing: version });
-                } else if !tree.registered.contains(family) && version != *first && !moves_to(&patches, family, version)
+                } else if !krate.registered.contains(family)
+                    && version != *first
+                    && !moves_to(&patches, family, version)
                 {
                     findings.push(Finding::Unpatched { family: family.clone(), version });
                 }
@@ -60,16 +61,16 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
         }
     }
     for (path, bytes) in &landed.files {
-        if historical(path) && read_optional(&owner.join(path))?.as_deref() != Some(bytes.as_slice()) {
-            let refreshed = tree
+        if historical(path) && tree.read(path)?.as_deref() != Some(bytes.as_slice()) {
+            let refreshed = krate
                 .kept
                 .values()
                 .filter_map(|texts| texts.last_key_value().map(|(_, text)| text))
                 .find(|text| text.path == *path)
                 .is_some_and(|text| {
-                    !tree.registered.contains(&text.family)
+                    !krate.registered.contains(&text.family)
                         && !frozen.contains(&(text.family.clone(), text.version))
-                        && tree.current.get(&text.family).is_some_and(|current| current.source == text.source)
+                        && krate.current.get(&text.family).is_some_and(|current| current.source == text.source)
                 });
             if !refreshed {
                 findings.push(Finding::Changed { path: path.clone() });
@@ -88,15 +89,15 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
             findings.push(Finding::Misnumbered { patch: *number, level: patch.level });
         }
         for block in &patch.blocks {
-            if Some(*number) == branch && tree.registered.contains(&block.family) {
+            if Some(*number) == branch && krate.registered.contains(&block.family) {
                 continue;
             }
-            if let Err(error) = planned(&tree, *number, block) {
+            if let Err(error) = planned(&krate, *number, block) {
                 findings.push(Finding::Unplanned { patch: *number, family: block.family.clone(), error });
             }
         }
     }
-    floors(&tree, &base, &patches, branch, &mut findings);
+    floors(&krate, &base, &patches, branch, &mut findings);
     Ok(findings)
 }
 
