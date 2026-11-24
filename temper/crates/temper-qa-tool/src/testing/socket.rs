@@ -2,15 +2,29 @@
 use std::{
     cell::RefCell,
     collections::VecDeque,
+    fmt,
     io::{self, Read, Write},
     rc::Rc,
 };
 
-#[derive(Debug, Default)]
+type Receive = Box<dyn FnMut(&[u8])>;
+
+#[derive(Default)]
 struct End {
     bytes: VecDeque<u8>,
     writer_closed: bool,
     reader_closed: bool,
+    receive: Option<Receive>,
+}
+
+impl fmt::Debug for End {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("End")
+            .field("bytes", &self.bytes)
+            .field("writer_closed", &self.writer_closed)
+            .field("reader_closed", &self.reader_closed)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug)]
@@ -28,6 +42,14 @@ impl Connection {
             Self { incoming: incoming.clone(), outgoing: outgoing.clone() },
             Self { incoming: outgoing, outgoing: incoming },
         )
+    }
+
+    /// Let this peer consume incoming writes as they happen, without another thread or a clock poll.
+    /// The script takes the place of reading these bytes from the stream.
+    pub fn script_receive(&self, receive: impl FnMut(&[u8]) + 'static) {
+        let mut incoming = self.incoming.borrow_mut();
+        assert!(incoming.bytes.is_empty() && incoming.receive.is_none(), "script a fresh receive end");
+        incoming.receive = Some(Box::new(receive));
     }
 
     /// Send EOF after the queued bytes while keeping this end open for reading.
@@ -59,7 +81,11 @@ impl Write for Connection {
         if outgoing.writer_closed || outgoing.reader_closed {
             return Err(io::ErrorKind::BrokenPipe.into());
         }
-        outgoing.bytes.extend(bytes);
+        if let Some(receive) = &mut outgoing.receive {
+            receive(bytes);
+        } else {
+            outgoing.bytes.extend(bytes);
+        }
         Ok(bytes.len())
     }
 

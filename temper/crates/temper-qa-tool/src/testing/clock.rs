@@ -9,7 +9,17 @@ use std::time::Duration;
 pub struct Clock {
     pub time: u64,
     subsecond: Duration,
+    after_sleep: Option<Box<dyn FnOnce()>>,
 }
+
+impl Clock {
+    /// Let a scripted peer act when the caller next yields by sleeping.
+    pub fn after_sleep(&mut self, action: impl FnOnce() + 'static) {
+        assert!(self.after_sleep.is_none(), "one action per sleep");
+        self.after_sleep = Some(Box::new(action));
+    }
+}
+
 impl ClockFace for Clock {
     fn now(&self) -> Moment {
         Moment { wall: self.time, monotonic: self.time }
@@ -21,6 +31,9 @@ impl ClockFace for Clock {
         let time = self.monotonic() + duration;
         self.time = time.as_secs();
         self.subsecond = Duration::from_nanos(u64::from(time.subsec_nanos()));
+        if let Some(action) = self.after_sleep.take() {
+            action();
+        }
     }
     fn wait(&mut self, events: &Events, timeout: Option<u64>) {
         if !events.take() {

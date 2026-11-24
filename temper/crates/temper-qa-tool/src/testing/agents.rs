@@ -54,6 +54,13 @@ pub struct HolderCommand<'a> {
     pub environment: &'a [EnvironmentEntry],
 }
 
+impl HolderCommand<'_> {
+    /// The invocation described by the typed holder launch, excluding the executable.
+    pub fn arguments(&self) -> &'static [&'static str] {
+        if self.ctl { &["pass", "hold", "--ctl"] } else { &["pass", "hold"] }
+    }
+}
+
 pub struct DriveStreams {
     pub child: Child,
     pub input: Connection,

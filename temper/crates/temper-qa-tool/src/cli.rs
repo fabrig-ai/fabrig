@@ -539,9 +539,10 @@ fn drive_command_run(
     command: &Command,
     arguments: &[Box<[u8]>],
     environment: &Environment,
+    files: &mut impl FilesFace,
+    processes: &mut impl Processes,
+    clock: &mut impl ClockFace,
 ) -> Result<crate::hold::Reply, Refusal> {
-    use crate::faces::{RealClock, RealFiles, RealProcesses};
-
     let value = SESSION
         .value(environment)
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session"))?;
@@ -550,33 +551,22 @@ fn drive_command_run(
         .and_then(|value| value.parse::<u64>().ok())
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
-    let mut files = RealFiles;
-    let mut processes = RealProcesses::new(environment.to_vec());
-    let mut clock = RealClock::default();
-    let home = Home::open(Path::new(OsStr::from_bytes(directory)), &mut files)?;
-    let drive = crate::hold::Drive::for_session(&home, session, &mut files, &mut clock)?
+    let home = Home::open(Path::new(OsStr::from_bytes(directory)), files)?;
+    let drive = crate::hold::Drive::for_session(&home, session, files, clock)?
         .with_ctl(arguments.iter().any(|argument| argument.as_ref() == b"--ctl"));
     if command == &OPEN {
-        return drive.open(environment, &mut files, &mut processes, &mut clock);
+        return drive.open(environment, files, processes, clock);
     }
     if command == &CLOSE {
-        return drive.close(&mut files, &mut clock);
+        return drive.close(files, clock);
     }
     if command == &LINE {
         let line = std::str::from_utf8(arguments.first().expect("line argument"))
             .map_err(|_| refused("a drive line must be UTF-8"))?;
-        return drive.line(line, &mut files, &mut clock);
+        return drive.line(line, files, clock);
     }
-    crate::hold::Holder::start(
-        drive,
-        environment,
-        crate::hold::WATCH,
-        std::process::id(),
-        &mut files,
-        &mut processes,
-        &mut clock,
-    )?
-    .serve()?;
+    crate::hold::Holder::start(drive, environment, crate::hold::WATCH, std::process::id(), files, processes, clock)?
+        .serve()?;
     Ok(crate::hold::Reply { status: 0, text: String::new() })
 }
 fn execute(
@@ -595,7 +585,15 @@ fn execute(
     stdout: &mut impl Write,
 ) -> Result<(u8, String), Refusal> {
     if [&OPEN, &LINE, &CLOSE, &HOLD].contains(&command) {
-        return drive_command_run(command, arguments, environment).map(|reply| (reply.status, reply.text));
+        return drive_command_run(
+            command,
+            arguments,
+            environment,
+            &mut faces.files,
+            &mut faces.processes,
+            &mut faces.clock,
+        )
+        .map(|reply| (reply.status, reply.text));
     }
     if command != &SETUP && command != &RECIPE {
         return run(faces, command, arguments, environment, stdin).map(|text| (0, text));

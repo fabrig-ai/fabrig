@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::{BTreeMap, BTreeSet, VecDeque},
     io::{self, ErrorKind, Read, Write},
     os::unix::ffi::OsStrExt,
@@ -393,11 +393,16 @@ impl Write for FileHandle {
 }
 
 #[derive(Debug)]
-pub struct Lock(Entry);
+pub struct Lock {
+    entry: Entry,
+    acquired: Cell<bool>,
+}
 
 impl Drop for Lock {
     fn drop(&mut self) {
-        self.0.borrow_mut().locked = false;
+        if self.acquired.get() {
+            self.entry.borrow_mut().locked = false;
+        }
     }
 }
 
@@ -635,6 +640,19 @@ impl FilesFace for Tree {
     }
 
     fn lock(&mut self, path: &Path, mode: LockMode, exact: bool) -> io::Result<Option<Lock>> {
+        let lock = self.open_lock(path, exact)?;
+        if self.try_lock(&lock)? {
+            Ok(Some(lock))
+        } else {
+            match mode {
+                // There is no other thread to release a blocking lock in this world.
+                LockMode::Wait => Err(ErrorKind::WouldBlock.into()),
+                LockMode::Try => Ok(None),
+            }
+        }
+    }
+
+    fn open_lock(&mut self, path: &Path, exact: bool) -> io::Result<Lock> {
         self.fault(path, FileOp::Lock)?;
         let options = WriteOptions {
             way: WriteMode::OpenOrCreate,
@@ -642,17 +660,17 @@ impl FilesFace for Tree {
             read: true,
         };
         let file = self.open_file(path, options)?;
-        let mut inode = file.entry.borrow_mut();
-        if inode.locked {
-            return match mode {
-                // There is no other thread to release a blocking lock in this world.
-                LockMode::Wait => Err(ErrorKind::WouldBlock.into()),
-                LockMode::Try => Ok(None),
-            };
+        Ok(Lock { entry: file.entry, acquired: Cell::new(false) })
+    }
+
+    fn try_lock(&mut self, lock: &Lock) -> io::Result<bool> {
+        let mut inode = lock.entry.borrow_mut();
+        if inode.locked && !lock.acquired.get() {
+            return Ok(false);
         }
         inode.locked = true;
-        drop(inode);
-        Ok(Some(Lock(file.entry)))
+        lock.acquired.set(true);
+        Ok(true)
     }
 
     fn bind(&mut self, path: &Path) -> io::Result<Listener> {
