@@ -1,4 +1,7 @@
 //! One real startup, native person, hosted agent and git, and loopback byte peers.
+mod line_sign_in;
+pub use line_sign_in::{LineSignIn, line_sign_in};
+
 use crate::{
     fixtures,
     referee::{self, Capture, Store, Wire},
@@ -140,6 +143,7 @@ fn process_name(process: &Proc) -> &'static str {
         Proc::Shell(_) => "shell",
         Proc::Visitor(_) => "visitor",
         Proc::Other(HarnessProcess::Client(_)) => "terminal client + person",
+        Proc::Other(HarnessProcess::Line(_)) => "line terminal",
         Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => "ctl",
         Proc::Other(HarnessProcess::ProgramSource(_)) => "fake program provider",
         Proc::Other(HarnessProcess::Push(_)) => "fake push service",
@@ -441,6 +445,7 @@ pub(crate) enum HarnessProcess {
     Ctl(Box<crate::ctl::Recorded>),
     Calls(Box<crate::ctl::Caller>),
     Client(Box<SignalHost<Person>>),
+    Line(Box<temper_client_shell_terminal::terminal::Terminal>),
     ProgramSource(Box<smith_fake_claude::Fake>),
     Push(Box<skein_fake_peers::push::Peer>),
 }
@@ -450,6 +455,7 @@ impl HarnessProcess {
             Self::Ctl(h) => h.as_ref(),
             Self::Calls(h) => h.as_ref(),
             Self::Client(h) => h.as_ref(),
+            Self::Line(h) => h.as_ref(),
             Self::ProgramSource(h) => h.as_ref(),
             Self::Push(h) => h.as_ref(),
         }
@@ -459,6 +465,7 @@ impl HarnessProcess {
             Self::Ctl(h) => h.as_mut(),
             Self::Calls(h) => h.as_mut(),
             Self::Client(h) => h.as_mut(),
+            Self::Line(h) => h.as_mut(),
             Self::ProgramSource(h) => h.as_mut(),
             Self::Push(h) => h.as_mut(),
         }
@@ -474,7 +481,7 @@ impl Host for HarnessProcess {
             let role = match self {
                 Self::Ctl(_) => Role::Ctl,
                 Self::Calls(_) | Self::Push(_) => Role::Caller,
-                Self::Client(_) => Role::Client,
+                Self::Client(_) | Self::Line(_) => Role::Client,
                 Self::ProgramSource(_) => Role::Agent,
             };
             for complete in self.host_mut().completions().iter() {
@@ -1462,6 +1469,7 @@ pub(crate) fn try_run_phase(
             | Proc::Other(
                 HarnessProcess::Ctl(_)
                 | HarnessProcess::Calls(_)
+                | HarnessProcess::Line(_)
                 | HarnessProcess::ProgramSource(_)
                 | HarnessProcess::Push(_),
             ) => None,

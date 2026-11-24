@@ -497,6 +497,7 @@ impl Referee {
             | Proc::Other(
                 HarnessProcess::Ctl(_)
                 | HarnessProcess::Calls(_)
+                | HarnessProcess::Line(_)
                 | HarnessProcess::ProgramSource(_)
                 | HarnessProcess::Push(_),
             ) => true,
@@ -881,6 +882,7 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
             HarnessProcess::Client(_)
             | HarnessProcess::Ctl(_)
             | HarnessProcess::Calls(_)
+            | HarnessProcess::Line(_)
             | HarnessProcess::ProgramSource(_),
         ) => {}
     }

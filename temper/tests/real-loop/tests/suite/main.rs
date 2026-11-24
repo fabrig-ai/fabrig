@@ -12,7 +12,6 @@ mod peers;
 mod sample;
 mod sign_in;
 mod teardown;
-mod terminal;
 
 mod world {
     mod teardown;

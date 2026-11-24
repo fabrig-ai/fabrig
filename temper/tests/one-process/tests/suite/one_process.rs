@@ -115,6 +115,26 @@ fn a_person_keeps_the_sign_in_held_by_a_fresh_printed_link() {
     }
 }
 #[test]
+fn a_line_terminal_signs_in_on_the_replacement_for_a_spent_link() {
+    use skein_fake_machine::Is;
+    use skein_io::kernel::Exit;
+    const USER: u32 = 1000;
+    let seen = world::line_sign_in(fixtures::calm(fixtures::SEED));
+    assert_eq!(seen.ctl, Exit::Code(0), "ctl spent the first printed link");
+    assert_eq!(seen.key_added, Exit::Code(0), "the signed-in ctl provisioned the key");
+    assert_eq!(seen.opens.len(), 2, "one open on the spent link, one on the fresh link");
+    assert_eq!(seen.opens[0].0, Exit::Code(1));
+    assert_eq!(
+        seen.opens[0].1.as_deref(),
+        Some(b"temper open: the link was refused: use the fresh link temper serve printed\n".as_slice())
+    );
+    assert_eq!(seen.opens[1], (Exit::Code(0), None), "the signed-in terminal drained after q");
+    assert_eq!((seen.directory.is, seen.directory.mode, seen.directory.owner), (Is::Directory, 0o700, USER));
+    assert_eq!((seen.token.is, seen.token.mode, seen.token.owner), (Is::File, 0o600, USER));
+    assert!(seen.token.size > 0, "closing keeps the credential");
+}
+
+#[test]
 fn an_adopted_repository_gets_its_change_pushed_through_git() {
     let outcome = world::run(fixtures::calm(fixtures::SEED), world::Story::Adopt);
     assert_eq!(outcome.verdict, Verdict::Passed);

@@ -491,7 +491,6 @@ default-filter = """
   binary_id(=temper-process-guard::parent) |
   binary_id(=temper-qa-tool::suite) |
   binary_id(=temper-qa::suite) |
-  binary_id(=temper-real-loop-world::live_text) |
   binary_id(=temper-real-loop-world::suite) |
   binary_id(=temper-service-shell::real) |
   binary_id(=temper-shell::real) |
