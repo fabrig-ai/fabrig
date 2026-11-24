@@ -369,11 +369,14 @@ section 6).
     field of the store's registered family, so no version moves); a
     row stored before reads as none standing and none waiting, and one
     stored with a standing question alone as none waiting.
-  - The closer counts no bound of its own: the change counts each
-    question against `forge.change_policy.questions` and holds past it
-    (`change/questions.md`, 1), and that hold escalates past the
-    closer to the goal as any of its holds does (above). Its waiting
-    questions are bounded, as its retained replies are, by its inbox.
+  - The closer has no question allowance of its own: the change counts
+    each question against `forge.change_policy.questions` and holds
+    past it (`change/questions.md`, 1), and that hold escalates past
+    the closer to the goal as any of its holds does (above). The
+    waiting list has one slot per possible open step, two in all, and
+    the store bounds it at that count. A procedure step consumes its
+    offered inbox prefix, so a question beyond the waiting bound gets
+    the same canned answer. The inbox still bounds retained replies.
 - **A landing that ended is never the end.** When the land step's
   change ends cancelled or failed, the closer first reads afresh
   whether the base holds the goal's branch (the land step's own test,

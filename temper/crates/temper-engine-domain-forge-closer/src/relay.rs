@@ -6,9 +6,12 @@ use skein_lib::{Decimal, List, bytes};
 pub const FALLBACK: &[u8] =
     b"This question reached no one: the goal's closer decides nothing and relays only the questions its open steps ask.";
 
+/// One waiting slot per possible open step, apart from the standing question.
+pub const OPEN_STEPS: usize = 2;
+
 /// The changes to check for liveness, even when a settlement interrupts a landing.
 #[must_use]
-pub fn steps(closer: &Closer) -> [Option<Running>; 2] {
+pub fn steps(closer: &Closer) -> [Option<Running>; OPEN_STEPS] {
     let landing = match (closer.running, closer.landing) {
         (Some(running), Some(landing)) if running.change == landing => None,
         (Some(_) | None, Some(landing)) => Some(Running { step: Step::Land, change: landing }),
@@ -122,9 +125,12 @@ pub fn take(relay: &mut Relay, steps: &[Running], goal: u64, from: u64, number: 
     }
     match form {
         Form::Question => {
-            if let Some(step) = step {
+            if let Some(step) = step
+                && relay.waiting.len() < OPEN_STEPS
+            {
                 relay.keep(Question { asker: from, number, step, words: words.into(), stands: Stands::Taken });
             } else {
+                // A procedure consumes its offered inbox prefix; it cannot leave this question unread.
                 push(relay, Message { target: from, form: Form::Answer { question: number }, words: FALLBACK.into() });
             }
         }

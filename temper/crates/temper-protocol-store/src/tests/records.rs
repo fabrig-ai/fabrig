@@ -3186,9 +3186,25 @@ fn an_older_closer_defaults_its_waiting_questions_to_empty() {
 #[test]
 fn a_closers_waiting_questions_alone_keep_the_relay_present() {
     use temper_engine_domain_forge_closer::relay::Relay;
+    const WAITING_BOUND: u32 = 2; // One slot per possible open step.
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
-    let row = closer_relay_row(Relay { waiting: waiting_questions(), ..Relay::new() });
+    let waiting = waiting_questions();
+    assert_eq!(bounds.limits().closing_relay_waiting, WAITING_BOUND);
+    assert_eq!(u32::try_from(waiting.len()).expect("fixture count"), WAITING_BOUND);
+    let row = closer_relay_row(Relay { waiting, ..Relay::new() });
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn a_closers_third_waiting_question_is_refused_by_the_decoder() {
+    use temper_engine_domain_forge_closer::relay::{Question, Relay};
+    const EXTRA_QUESTION: u64 = 13;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let waiting = waiting_questions();
+    let [first, second] = waiting.as_ref() else { panic!("two waiting questions") };
+    let extra = Question { number: EXTRA_QUESTION, ..first.clone() };
+    let row = closer_relay_row(Relay { waiting: Box::new([first.clone(), second.clone(), extra]), ..Relay::new() });
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]

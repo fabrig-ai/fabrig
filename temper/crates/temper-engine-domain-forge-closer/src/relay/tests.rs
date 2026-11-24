@@ -111,11 +111,16 @@ fn a_waiting_question_asks_on_the_next_step() {
     );
 }
 
+fn asked_landing_with_waiting(settlement_words: &[u8]) -> Relay {
+    let mut state = asked_landing();
+    tell(&mut state, SETTLEMENT, SETTLEMENT_QUESTION, Form::Question, settlement_words);
+    tell(&mut state, CHANGE, NEXT_LANDING_QUESTION, Form::Question, b"Which checks?");
+    state
+}
+
 #[test]
 fn an_ended_waiting_asker_leaves_one_notice_in_turn() {
-    let mut state = asked_landing();
-    tell(&mut state, SETTLEMENT, SETTLEMENT_QUESTION, Form::Question, b"Which status?\nCheck both.");
-    tell(&mut state, CHANGE, NEXT_LANDING_QUESTION, Form::Question, b"Which checks?");
+    let mut state = asked_landing_with_waiting(b"Which status?\nCheck both.");
     answer(&mut state);
     let next = relay(&state, GOAL, false, 2, BOUND);
     let next = relay(&next.relay, GOAL, true, 2, BOUND);
@@ -138,6 +143,22 @@ fn an_ended_waiting_asker_leaves_one_notice_in_turn() {
         }]
     );
     assert!(!next.more);
+}
+
+#[test]
+fn a_third_waiting_question_gets_the_canned_answer() {
+    const EXTRA_QUESTION: u64 = 13;
+    let mut state = asked_landing_with_waiting(b"Which status?");
+    let waiting = state.waiting.clone();
+
+    tell(&mut state, SETTLEMENT, EXTRA_QUESTION, Form::Question, b"Which findings?");
+    let next = relay(&state, GOAL, false, 1, BOUND);
+    assert_eq!(next.relay.waiting, waiting);
+    assert_eq!(next.relay.open, state.open);
+    assert_eq!(
+        next.messages.as_ref(),
+        &[Message { target: SETTLEMENT, form: Form::Answer { question: EXTRA_QUESTION }, words: FALLBACK.into() }]
+    );
 }
 
 #[test]
