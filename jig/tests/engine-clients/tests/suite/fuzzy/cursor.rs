@@ -1,6 +1,9 @@
 //! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/data/codec/golden.md, 1).
-use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held, Record};
-use skein_lib::{Reader, Rng, length::len_u64};
+use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held, LAYOUT, Record};
+use skein_lib::{
+    Reader, Rng,
+    length::{len_u64, usize_of},
+};
 
 fn check(bytes: &[u8]) {
     if let Ok(held) = Held::decode(&CEILINGS, &mut Reader::new(bytes)) {
@@ -9,23 +12,25 @@ fn check(bytes: &[u8]) {
 }
 fn fixed_values() -> Vec<Vec<u8>> {
     let text = jig_protocol_engine_clients::SCHEMA;
-    let mut fixed_values = skein_codegen::values(text).fixed.clone();
+    let schema_values = skein_codegen::values(text);
+    let version = schema_values.schema.version.to_be_bytes();
+    let head = [version.as_slice(), &LAYOUT].concat();
+    let mut fixed_values = schema_values.fixed.clone();
     fixed_values.sort_by(|left, right| left.name.cmp(&right.name));
     let mut values = Vec::new();
     for fixed_value in fixed_values {
         let name = &fixed_value.name;
-        let prefix: &[u8] = if name.starts_with("record_held_") {
-            &[]
+        let mut bytes = if name.starts_with("record_held_") {
+            Vec::new()
         } else if name.starts_with("enum_form_") {
-            &[0, 2]
+            head.clone()
         } else if name.starts_with("enum_note_scope_") {
-            &[0, 2, 0, 1, 13]
+            [head.as_slice(), &[0, 1, 13]].concat()
         } else if name.starts_with("enum_scope_") {
-            &[0, 2, 0, 1]
+            [head.as_slice(), &[0, 1]].concat()
         } else {
             continue;
         };
-        let mut bytes = prefix.to_vec();
         bytes.extend(fixed_value.bytes);
         if name.starts_with("enum_note_scope_") {
             bytes.push(0);
@@ -45,9 +50,10 @@ fn arbitrary_cursor_bytes_never_panic_and_round_trip_when_they_decode() {
         check(&bytes);
     }
     let mut rng = Rng::new(0xc075_0001);
-    let mut buffer = [0_u8; 1024];
+    let bound = jig_client_protocol_wire::CEILINGS.cursor_value;
+    let mut buffer = vec![0_u8; usize_of(bound)];
     for _ in 0..10_000 {
-        let length = usize::try_from(rng.below(1025)).expect("bounded length");
+        let length = usize::try_from(rng.below(u64::from(bound) + 1)).expect("bounded length");
         let bytes = buffer.get_mut(..length).expect("within buffer");
         for byte in bytes.iter_mut() {
             *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");

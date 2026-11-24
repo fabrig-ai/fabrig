@@ -29,7 +29,7 @@ pub(crate) fn encode_tree(value: &documents::Cursor, task: u64, window: u32, lim
     write(c::Form::Tree(tree), limit)
 }
 fn write(form: c::Form, limit: u32) -> Option<Box<[u8]>> {
-    let held = c::Held { form };
+    let held = c::Held { layout: c::LAYOUT, form };
     let measured = held.measure(&C).ok()?;
     if measured > limit {
         return None;
@@ -42,7 +42,9 @@ pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
     if bytes.len() > skein_lib::length::usize_of(super::w::CEILINGS.cursor_value) {
         return None;
     }
-    if Reader::new(bytes).u16()? != CURSOR_VERSION {
+    // Judge the fixed prefix before decoding the layout-specific form.
+    let mut prefix = Reader::new(bytes);
+    if prefix.u16()? != CURSOR_VERSION || prefix.bytes(32)? != c::LAYOUT {
         return None;
     }
     let held = c::Held::decode(&C, &mut Reader::new(bytes)).ok()?;
