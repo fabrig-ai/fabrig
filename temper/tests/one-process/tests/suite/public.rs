@@ -36,6 +36,11 @@ fn every_owner_version_and_kind_answers_as_declared() {
 }
 
 #[test]
+fn a_project_made_private_answers_its_card_and_change_unknown() {
+    public::walk(SEED, "a_project_made_private_answers_its_card_and_change_unknown");
+}
+
+#[test]
 fn public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered() {
     public::walk(SEED, "public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered");
 }

@@ -70,7 +70,9 @@ impl Harness for Deployment {
         temper_playground::documents::settings::seed_configuration(engine, &document);
     }
     fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
-        stories::given(document)
+        let mut given = stories::given(document);
+        super::deployment::give_private_sources(&mut given);
+        given
     }
 }
 pub(super) fn agent_profile() -> smith_agent_service::profile::Profile {
@@ -154,7 +156,8 @@ pub(super) fn phase(
 ) -> skein_fake_machine::Machine {
     super::ACTIVE.with(|active| active.set(true));
     BEARER.with(|held| *held.borrow_mut() = None);
-    let advanced = name == "every_owner_version_and_kind_answers_as_declared";
+    let advanced = matches!(name, super::owners::DECLARED | super::owners::REVOKED);
+    super::deployment::WITH_REVIEW.with(|flag| flag.set(name == super::owners::DECLARED));
     let story = if advanced { Story::Merge } else { Story::Chat { words: b"Hello" } };
     stories::set(story);
     stories::setup_settings(if advanced { world::Phase::Story } else { world::Phase::Restart });
