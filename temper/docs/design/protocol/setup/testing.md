@@ -49,6 +49,19 @@ relies on.
   its late child stopped, or closed at once after a second termination,
   never readied, continued, recorded or restarted, and its late failure
   ending it as a stop's.
+- **A set up cut short, on the simulated host,** in temper-box-machine's
+  host tests over the simulator and the fake disk, the owned steps the
+  production ones with scripted executables: one table cuts an owned
+  set up at its fetch, its preparation, its Forgejo's run, and after its
+  `started` record before the engine hears it, the box's service
+  dropped with its children as a kill leaves them and started again on
+  the same disk. Each row reads the group and its records as the cut
+  leaves them, the next start leaving the group dormant or restoring it
+  as `box.md`, 1 says, and a removal answering removed and unlinking
+  `forge-N`, `box/groups/N` and `box/started/N`. A removal cut after its
+  answer ends whole at the next start. The engine's half, a forge whose
+  `started` it never heard kept unfinished across its restart with no
+  first repository, is the engine's.
 - **The box's lifetime:** in skein-shell, a `SIGHUP` read as `Hangup` when
   the service asks, and left alone when ignored at the start. In
   temper-box, a spawn's arguments with and without the box's id; a hangup
@@ -365,21 +378,16 @@ it checks of this document:
   run beside each other as any others do.
 - **A set up cut short, started over,** a test of its own: under the
   box, with Forgejo's binaries placed in the cache as below, the
-  owner's set up of an owned Forgejo is killed with the box at each of
-  its steps, its fetch, its preparation, its Forgejo's run, and after
-  its `started` record with the engine held before it hears it. That
-  started cut alone uses init's configuration without sign-in, since
-  its source step would need discovery from the held engine
-  (`../../testing/process-tier.md`). Sign-in is restored before the final
-  setup and removal cut. Each
-  next box finds the forge kept and its first repository not made, and
-  its removal, `temper ctl forge remove N`, answers removed and leaves
-  no `forge-N`, `box/groups/N` or `box/started/N`. A set up after the
-  four makes forge 5, since numbers are never reused, connects it and
-  makes its first repository; the cache's binaries are the ones placed,
-  unchanged (`owned-repositories.md`, 1). Then a removal the box's death cut, the box held
-  after the removal was answered and killed: the next box ends it whole
-  at its start, no forge listed and nothing of it left.
+  owner's set up of an owned Forgejo is killed with the box once its
+  Forgejo runs. The next box finds the forge kept and its first
+  repository not made; its removal, `temper ctl forge remove N`, is
+  answered and the box, held after the answer, is killed: the next box
+  ends the removal whole at its start, no forge listed and no
+  `forge-N`, `box/groups/N` or `box/started/N` left, and the cache's
+  binaries are the ones placed, unchanged (`owned-repositories.md`, 1).
+  The cuts at each of the set up's steps are the box host's simulated
+  tests (1, *A set up cut short, on the simulated host*); a set up after
+  a removal taking the next number is the engine's domain world's.
 - **GitHub gone on after a restart,** a test of its own, on `temper box
   --fake-backends`' fake GitHub (`box-backends.md`, 1): GitHub's set up stopped after
   its App's records are kept, the box restarted, and the forge found
