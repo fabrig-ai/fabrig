@@ -6,6 +6,7 @@ use crate::{
     stories,
     world::{self, HarnessProcess, ServiceObserver, Story},
 };
+use jig_domain_tasks as tasks;
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Finish, Line, Part, Piece, Query, Script, Turn};
 use skein_fake_peers::llm::{Observation, Peer};
@@ -13,6 +14,7 @@ use skein_io::kernel::{Exit, ServiceSignal};
 use skein_lib::{Duration, Time};
 use skein_shell::Host;
 use std::{cell::RefCell, rc::Rc};
+use temper_engine_domain::{Key, Record};
 use temper_playground::{
     documents,
     machine::{self, Machine},
@@ -198,6 +200,7 @@ enum Stage {
 }
 struct Judge {
     controls: skein_world::Controls,
+    store: Rc<RefCell<Store>>,
     recover: bool,
     timing: Timing,
     stage: Stage,
@@ -234,7 +237,24 @@ impl Judge {
                 json!({"failures":{"class":"run"}}),
                 "a run failure, not an agent failure: {read}"
             );
-            assert_eq!(held["words"]["bytes"], "fake fake: timed out, status 200, response");
+            let since = {
+                let task = self.task.parse().expect("chat task number");
+                let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)));
+                let store = self.store.borrow();
+                let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = store.rows.get(&key)
+                else {
+                    panic!("held chat's durable task record");
+                };
+                row.held_since.expect("hold start in the durable record").utc_second()
+            };
+            let minute = std::str::from_utf8(&since[..16]).expect("UTC minute");
+            assert_eq!(
+                held["words"]["bytes"],
+                format!(
+                    "It ran out of tries for run failures: fake fake: timed out, status 200, response. \
+                     Held since {minute}Z. Release it to try again; amend it first if its instructions failed it."
+                )
+            );
             assert_eq!(held["tries"]["run"], 1);
             assert_eq!(held["tries"]["agent"], 0);
             assert!(!self.released, "all attempts stayed held through the terminal");
@@ -383,7 +403,8 @@ fn check_queries(peer: &Peer, recover: bool, timing: Timing, read_at: Time) {
 pub fn run(recover: bool) {
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Story);
-    world::lower_store(Some(Rc::new(RefCell::new(Store::new()))));
+    let store = Rc::new(RefCell::new(Store::new()));
+    world::lower_store(Some(store.clone()));
     let mut disk = machine::fresh();
     machine::setup(&mut disk);
     let caller = disk.reopen_root(2);
@@ -396,6 +417,7 @@ pub fn run(recover: bool) {
             skein_world::Memory::Unchecked,
             |controls| Judge {
                 controls,
+                store,
                 recover,
                 timing: settings().1,
                 stage: Stage::SignIn,
