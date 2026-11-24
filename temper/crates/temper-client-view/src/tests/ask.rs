@@ -120,6 +120,7 @@ fn loading_fixture(configured: bool) -> Ways {
         &mut root,
         Up::FamilyServed {
             family: wire::FORGE,
+            served: true,
             versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
         },
     );

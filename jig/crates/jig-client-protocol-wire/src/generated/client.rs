@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 43;
 pub const LAYOUT: [u8; 32] = [
-    0xe5, 0x84, 0xbd, 0x13, 0x50, 0x0c, 0xd6, 0xce, 0x1b, 0xac, 0xfa, 0x3d, 0xe4, 0x24, 0x86, 0xe5, 0x7e, 0xe7, 0x2c,
-    0x64, 0x84, 0x02, 0x32, 0x49, 0xf1, 0x4d, 0x5e, 0xd4, 0xb1, 0x78, 0xe0, 0xdc,
+    0x0c, 0xde, 0xfb, 0xc0, 0x87, 0x3b, 0xae, 0x15, 0x56, 0xbd, 0x0c, 0x49, 0xaa, 0x55, 0x11, 0x11, 0xcb, 0x37, 0x11,
+    0x2f, 0xe1, 0xd4, 0x9e, 0x39, 0x9b, 0x23, 0x28, 0xad, 0xab, 0x62, 0x72, 0x2b,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -283,6 +283,7 @@ pub struct Limits {
     pub batch_members: u32,
     pub batch_reply_reply_some: u32,
     pub hello_served: u32,
+    pub opened_layouts: u32,
     pub account_change_declare_program_name: u32,
     pub account_change_set_uses_uses_some: u32,
     pub account_change_login_program_name: u32,
@@ -669,6 +670,7 @@ pub const CEILINGS: Limits = Limits {
     batch_members: 64,
     batch_reply_reply_some: 16_777_228,
     hello_served: 16,
+    opened_layouts: 16,
     account_change_declare_program_name: 32,
     account_change_set_uses_uses_some: 16,
     account_change_login_program_name: 32,
@@ -1055,6 +1057,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "batch_members",
     "batch_reply_reply_some",
     "hello_served",
+    "opened_layouts",
     "account_change_declare_program_name",
     "account_change_set_uses_uses_some",
     "account_change_login_program_name",
@@ -1445,6 +1448,7 @@ impl Limits {
             self.batch_members,
             self.batch_reply_reply_some,
             self.hello_served,
+            self.opened_layouts,
             self.account_change_declare_program_name,
             self.account_change_set_uses_uses_some,
             self.account_change_login_program_name,
@@ -1836,6 +1840,7 @@ impl Limits {
             batch_members: self.batch_members.min(most),
             batch_reply_reply_some: self.batch_reply_reply_some.min(most),
             hello_served: self.hello_served.min(most),
+            opened_layouts: self.opened_layouts.min(most),
             account_change_declare_program_name: self.account_change_declare_program_name.min(most),
             account_change_set_uses_uses_some: self.account_change_set_uses_uses_some.min(most),
             account_change_login_program_name: self.account_change_login_program_name.min(most),
@@ -2224,6 +2229,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::BATCH_MEMBERS,
     paths::BATCH_REPLY_REPLY,
     paths::HELLO_SERVED,
+    paths::OPENED_LAYOUTS,
     paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME,
     paths::ACCOUNT_CHANGE_SET_USES_USES,
     paths::ACCOUNT_CHANGE_LOGIN_PROGRAM_NAME,
@@ -5054,7 +5060,11 @@ pub mod paths {
     pub const DELIVERY_WATCH: Path = Path::new("Delivery.watch");
     pub const DELIVERY_DOCUMENT: Path = Path::new("Delivery.document");
     pub const DELIVERY_TAIL: Path = Path::new("Delivery (tail)");
+    pub const LAYOUT_OWNER: Path = Path::new("Layout.owner");
+    pub const LAYOUT_LAYOUT: Path = Path::new("Layout.layout");
+    pub const LAYOUT_TAIL: Path = Path::new("Layout (tail)");
     pub const OPENED_HELLO: Path = Path::new("Opened.hello");
+    pub const OPENED_LAYOUTS: Path = Path::new("Opened.layouts");
     pub const OPENED_ME: Path = Path::new("Opened.me");
     pub const OPENED_TAIL: Path = Path::new("Opened (tail)");
     pub const WATCH_ENDED_WATCH: Path = Path::new("WatchEnded.watch");
@@ -58582,10 +58592,65 @@ impl Record for Delivery {
     }
 }
 
+// Type: Layout.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Layout {
+    pub owner: Owner,
+    pub layout: [u8; 32],
+}
+
+// Record: Layout.
+impl Layout {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Owner"),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 35;
+}
+
+impl Record for Layout {
+    type Limits = Limits;
+    const TAIL: Path = paths::LAYOUT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Layout")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Layout")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.owner, limits, out, paths::LAYOUT_OWNER)?;
+        field::write(field::Fixed::<32>, &self.layout, limits, out, paths::LAYOUT_LAYOUT)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            owner: field::read(field::Nested, limits, reader, paths::LAYOUT_OWNER)?,
+            layout: field::read(field::Fixed::<32>, limits, reader, paths::LAYOUT_LAYOUT)?,
+        })
+    }
+}
+
 // Type: Opened.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Opened {
     pub hello: Hello,
+    pub layouts: List<Layout>,
     pub me: Owned,
 }
 
@@ -58593,12 +58658,14 @@ pub struct Opened {
 impl Opened {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Named("Hello"),
+        skein_codec::bounds::Node::Named("Layout"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, opened_layouts), item: 1, size: size_of::<Layout>() },
         skein_codec::bounds::Node::Named("Owned"),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 39;
+    pub const ENCODED_AT_ZERO: u64 = 43;
 }
 
 impl Record for Opened {
@@ -58624,6 +58691,7 @@ impl Record for Opened {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.hello, limits, out, paths::OPENED_HELLO)?;
+        field::write(field::Sequence { limit: limits.opened_layouts.min(CEILINGS.opened_layouts), minimum: 33, item: field::Nested }, &self.layouts, limits, out, paths::OPENED_LAYOUTS)?;
         field::write(field::Nested, &self.me, limits, out, paths::OPENED_ME)?;
         Ok(())
     }
@@ -58631,6 +58699,7 @@ impl Record for Opened {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             hello: field::read(field::Nested, limits, reader, paths::OPENED_HELLO)?,
+            layouts: field::read(field::Sequence { limit: limits.opened_layouts.min(CEILINGS.opened_layouts), minimum: 33, item: field::Nested }, limits, reader, paths::OPENED_LAYOUTS)?,
             me: field::read(field::Nested, limits, reader, paths::OPENED_ME)?,
         })
     }
@@ -72144,6 +72213,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "LackingTaskKind", nodes: LackingTaskKind::SHAPE },
     skein_codec::bounds::Declaration { name: "LackingTasks", nodes: LackingTasks::SHAPE },
     skein_codec::bounds::Declaration { name: "LackingUnguarded", nodes: LackingUnguarded::SHAPE },
+    skein_codec::bounds::Declaration { name: "Layout", nodes: Layout::SHAPE },
     skein_codec::bounds::Declaration { name: "Lift", nodes: Lift::SHAPE },
     skein_codec::bounds::Declaration { name: "Limit", nodes: Limit::SHAPE },
     skein_codec::bounds::Declaration { name: "LimitAdmission", nodes: LimitAdmission::SHAPE },
@@ -73079,6 +73149,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.batch_members,
     CEILINGS.batch_reply_reply_some,
     CEILINGS.hello_served,
+    CEILINGS.opened_layouts,
     CEILINGS.account_change_declare_program_name,
     CEILINGS.account_change_set_uses_uses_some,
     CEILINGS.account_change_login_program_name,

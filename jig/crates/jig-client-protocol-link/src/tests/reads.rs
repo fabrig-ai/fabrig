@@ -28,7 +28,7 @@ fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
     );
     skein_codec::piece::write(&mut pieces, &encoded.finish()).unwrap();
     let page = w::ActivityPage { rows: pieces.finish(), cut: false, before: None, after: None };
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     let exchange = h.read(Readable::Jig(c::Read::Activity { task: 7, before: None }));
     h.answer(exchange, &fixtures::jig_read_value_answer(&w::ReadValue::Activity(page)));
     let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page)))) = h.read_answered() else {
@@ -239,7 +239,7 @@ fn a_malformed_read_body_is_malformed() {
 #[test]
 fn reads_and_attempts_share_transport_credit_not_logical_admission() {
     let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     h.send(fixtures::ATTEMPT, fixtures::KEY, fixtures::message());
     h.link.step(
         Time::ZERO,

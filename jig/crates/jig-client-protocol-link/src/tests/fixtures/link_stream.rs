@@ -24,13 +24,11 @@ pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
         .unwrap();
     served.push(w::Served { owner: w::Owner::Family(w::Family { number: 19 }), first: 23, last: 23 }).unwrap();
     let hello = w::Hello { stream: STREAM, served, heartbeat };
-    let value = w::DeliveryValue::Me(frame_record());
-    let mut record = Writer::new(
-        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
-    );
-    value.write(&jig_client_protocol_wire::CEILINGS, &mut record).unwrap();
-    let me = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
-    event_bytes(&w::StreamEvent::Opened(w::Opened { hello, me }))
+    event_bytes(&jig_client_test_records::opened_with_layouts(
+        hello,
+        frame_record(),
+        &[jig_client_test_records::family_layout(OWNER.family, OWNER.layout)],
+    ))
 }
 pub fn event_bytes(value: &w::StreamEvent) -> Box<[u8]> {
     let mut binary = Writer::new(
@@ -67,6 +65,14 @@ pub fn past_two_heartbeats() -> Time {
     Time::from_nanos(201)
 }
 impl Harness {
+    pub fn with_hello(limits: &Limits) -> Self {
+        let mut harness = Self::new(limits);
+        harness.link.step(Time::ZERO, Event::OpenStream, &mut harness.out);
+        harness.link.settle(&mut harness.out);
+        harness.stream_record(&hello_event(HEARTBEAT));
+        harness.clear();
+        harness
+    }
     pub fn clear(&mut self) {
         self.out = Queue::uncapped();
     }

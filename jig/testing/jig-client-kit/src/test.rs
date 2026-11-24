@@ -266,6 +266,7 @@ impl App for Test {
                         event: jig_client::Event::Up {
                             up: jig_client::Up::FamilyServed {
                                 family,
+                                served: true,
                                 versions: Some(VersionRange {
                                     first: jig_client_test_protocol_wire::VERSION,
                                     last: jig_client_test_protocol_wire::VERSION,

@@ -903,6 +903,7 @@ fn generate(seed: u64) -> World {
             event: jig_client::Event::Up {
                 up: Up::FamilyServed {
                     family: wire::FORGE,
+                    served: true,
                     versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
                 },
             },

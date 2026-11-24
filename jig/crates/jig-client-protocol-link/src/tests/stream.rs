@@ -24,7 +24,8 @@ fn the_opened_stream_delivers_me_and_watch_zero_delivers_its_later_value() {
         versions: Some(c::VersionRange {
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION
-        })
+        }),
+        served: true,
     }));
     let delivered = Request::Watch {
         watch: Token::new(0),
@@ -144,13 +145,18 @@ fn the_hello_s_jig_range_reaches_the_domain() {
         versions: Some(c::VersionRange {
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION
-        })
+        }),
+        served: true,
     }));
 }
 #[test]
 fn the_hello_s_family_range_reaches_its_owner() {
     let harness = fixtures::Harness::streaming(fixtures::family_subject());
-    assert!(harness.has(&Request::Hello { family: Some(19), versions: Some(c::VersionRange { first: 23, last: 23 }) }));
+    assert!(harness.has(&Request::Hello {
+        family: Some(19),
+        versions: Some(c::VersionRange { first: 23, last: 23 }),
+        served: true
+    }));
 }
 
 #[test]
@@ -175,20 +181,13 @@ fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
         .unwrap();
     opened.hello = hello;
     harness.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
-    assert!(harness.has(&Request::Hello { family: Some(19), versions: None }));
+    assert!(harness.has(&Request::Hello { family: Some(19), versions: None, served: false }));
     for request in &harness.out {
         if let Request::Exchange { .. } = request {
             panic!("no opening exchange outside its owner range");
         }
     }
-    harness.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut harness.out);
-    harness.link.settle(&mut harness.out);
-    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Closed));
-    for request in &harness.out {
-        if let Request::Exchange { .. } = request {
-            panic!("no opening exchange outside its owner range");
-        }
-    }
+    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::NotServed));
 }
 #[test]
 fn a_delivery_before_its_opening_s_answer_admits_it() {
@@ -836,7 +835,11 @@ fn a_watch_ended_not_served_ends_its_handle_naming_why() {
     let (_, name) = h.opening();
     h.stream_record(&fixtures::ending(name, w::WatchEnd::NotServed(fixtures::not_served())));
     assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::NotServed));
-    assert!(h.has(&Request::Hello { family: Some(19), versions: Some(c::VersionRange { first: 28, last: 28 }) }));
+    assert!(h.has(&Request::Hello {
+        family: Some(19),
+        versions: Some(c::VersionRange { first: 28, last: 28 }),
+        served: false
+    }));
 }
 
 #[test]

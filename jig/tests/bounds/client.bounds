@@ -420,6 +420,7 @@ LackingRequired: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 LackingTaskKind: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 LackingTasks: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 LackingUnguarded: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+Layout: ceilings encoded=35 decoded=0; at_most(3) encoded=35 decoded=0
 Lift: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 Limit: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
 LimitAdmission: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -525,7 +526,7 @@ Offered: ceilings encoded=101188792 decoded=101190752; at_most(3) encoded=312 de
 Open: ceilings encoded=16777251 decoded=16777216; at_most(3) encoded=38 decoded=3
 OpenAnswer: ceilings encoded=184 decoded=192; at_most(3) encoded=41 decoded=36
 OpenAnswerRefused: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-Opened: ceilings encoded=16777431 decoded=16777408; at_most(3) encoded=75 decoded=39
+Opened: ceilings encoded=16777995 decoded=16777984; at_most(3) encoded=184 decoded=147
 Operation: ceilings encoded=36715084 decoded=36720000; at_most(3) encoded=450 decoded=1065
 OptionLine: ceilings encoded=2162964 decoded=2163456; at_most(3) encoded=56 decoded=84
 OriginRevision: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
@@ -936,7 +937,7 @@ Stop: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 StoreCensus: ceilings encoded=26336 decoded=38184; at_most(3) encoded=317 decoded=498
 StoreFill: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 StreamBound: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-StreamEvent: ceilings encoded=17105901 decoded=17105984; at_most(3) encoded=187 decoded=96
+StreamEvent: ceilings encoded=17105901 decoded=17105984; at_most(3) encoded=187 decoded=147
 StreamText: ceilings encoded=17105900 decoded=17105984; at_most(3) encoded=186 decoded=96
 StreamsFull: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 Subject: ceilings encoded=261 decoded=256; at_most(3) encoded=84 decoded=36

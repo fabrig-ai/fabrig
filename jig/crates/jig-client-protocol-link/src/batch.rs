@@ -1,10 +1,53 @@
 //! Settled exchanges and each member's own reply (protocol/client/wire.md, 2.3).
-use crate::{BATCH_BYTES, Link, Message, Request, component::Gathered};
+use crate::{
+    BATCH_BYTES, Link, Message, Request,
+    component::{Gathered, unsent},
+};
+use jig_client_domain::Readout;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Map, Queue, Reader, Token, Writer};
 
+enum Admission {
+    Ready,
+    Wait,
+    Gone,
+    NotServed { readout: Option<Readout> },
+}
+
 impl Link {
+    fn admission(&self, exchange: Token, message: &Message) -> Admission {
+        if tracked(message) && !self.attempts.contains_key(&exchange) {
+            return Admission::Gone;
+        }
+        let read = match message {
+            Message::Request(_) => false,
+            Message::Read(_) => true,
+            Message::Watch(_)
+            | Message::Unwatch(_)
+            | Message::Batch(_)
+            | Message::StreamGone(_)
+            | Message::Authorize(_)
+            | Message::SignInLink(_)
+            | Message::SignInService
+            | Message::SignOut
+            | Message::LinkAsk(_)
+            | Message::ApprovalAsk(_)
+            | Message::ApprovalRead(_)
+            | Message::ApprovalDecide(_)
+            | Message::SignInApproval(_) => return Admission::Ready,
+        };
+        let attempt = self.attempts.get(&exchange).expect("tracked exchange");
+        if let Some(result) = self.refusal(&attempt.owner) {
+            return Admission::NotServed { readout: read.then_some(result) };
+        }
+        // A keyed attempt first waits for me in the client domain. If it is
+        // still queued when that stream drops, it must wait for the next hello.
+        if self.stream_name().is_none() && (read || self.judged_hello()) {
+            return Admission::Wait;
+        }
+        Admission::Ready
+    }
     /// Drop a held read unsent; public only to compose the link with jig-client
     /// (protocol/client/README.md, 10). Sent reads keep their exchange to its terminal.
     pub fn cancel_read(&mut self, read: Token) {
@@ -34,17 +77,27 @@ impl Link {
         for _ in 0..self.gathered.len() {
             let Some(first) = self.gathered.iter().next() else { break };
             match first {
-                Gathered::Exchange { exchange, message, .. } => {
-                    if tracked(message) && !self.attempts.contains_key(exchange) {
+                Gathered::Exchange { exchange, message, .. } => match self.admission(*exchange, message) {
+                    Admission::Ready if self.transport.len() < self.limits.exchanges() => {}
+                    Admission::Ready | Admission::Wait => {
+                        waiting.push(self.gathered.pop().expect("waiting exchange"));
+                        continue;
+                    }
+                    Admission::Gone => {
                         self.gathered.pop();
                         continue;
                     }
-                    if self.transport.len() >= self.limits.exchanges() {
-                        let value = self.gathered.pop().expect("waiting exchange");
-                        waiting.push(value);
+                    Admission::NotServed { readout } => {
+                        let attempt = self.attempts.remove(exchange).expect("refused exchange");
+                        if let Some(result) = readout {
+                            out.push(Request::Read { read: attempt.token, result });
+                        } else {
+                            unsent(attempt.token, out);
+                        }
+                        self.gathered.pop();
                         continue;
                     }
-                }
+                },
                 Gathered::OpenStream { .. } | Gathered::CloseStream => {}
             }
             self.settle_one(out);
@@ -89,9 +142,13 @@ impl Link {
                 if held != &credential {
                     break;
                 }
-                if tracked(body) && !self.attempts.contains_key(next) {
-                    self.gathered.pop();
-                    continue;
+                match self.admission(*next, body) {
+                    Admission::Ready => {}
+                    Admission::Gone => {
+                        self.gathered.pop();
+                        continue;
+                    }
+                    Admission::Wait | Admission::NotServed { .. } => break,
                 }
                 let Some(part) = member(body, self.limits.wire()) else { break };
                 let size = bytes.saturating_add(part.measure(self.limits.wire()).expect("bounded client record"));

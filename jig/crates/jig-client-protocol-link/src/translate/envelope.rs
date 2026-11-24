@@ -58,7 +58,3 @@ pub(crate) fn family(owner: &w::Owner) -> Option<u16> {
         w::Owner::Family(owner) => Some(owner.number),
     }
 }
-
-pub(crate) fn not_served(value: &w::NotServed, out: &mut skein_lib::Queue<crate::Request>) {
-    out.push(crate::Request::Hello { family: family(&value.owner), versions: versions(value) });
-}

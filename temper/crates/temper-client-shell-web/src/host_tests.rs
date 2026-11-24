@@ -934,9 +934,10 @@ fn a_fresh_load_of_a_playgrounds_chats_stays_live() {
             last: wire::CLIENT_VERSION,
         },
     ]));
-    let opened = jig_client_test_records::opened(
+    let opened = jig_client_test_records::opened_with_layouts(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         frame,
+        &[jig_client_test_records::family_layout(wire::FORGE, wire::CLIENT_LAYOUT)],
     );
     let bytes = stream_bytes(&opened);
     let mut pieces = bytes.chunks(usize::try_from(limits::PIECE).expect("stream chunk size"));

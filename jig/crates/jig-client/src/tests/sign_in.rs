@@ -581,6 +581,7 @@ fn independent_reads_refuse_cancel_once_and_reuse_room() {
         exchanges: INDEPENDENT_READS,
     };
     let mut c = Client::with_limits(limits, skein_lib::List::with_capacity(0));
+    c.sign_in();
     let mut exchanges = skein_lib::List::with_capacity(INDEPENDENT_READS);
     let mut expected = skein_lib::List::with_capacity(INDEPENDENT_READS);
     for number in 0..u64::from(INDEPENDENT_READS) {
@@ -596,6 +597,8 @@ fn independent_reads_refuse_cancel_once_and_reuse_room() {
     assert_eq!(fixtures::pages(c.requests()).as_slice(), expected.as_slice());
     assert_no_read_exchange(&c);
     c.step(Event::Read { handle: TASK, read: Readable::Jig(contract::Read::Project { project: PROJECT }) });
+    assert_no_read_exchange(&c);
+    c.stream(fixtures::hello(w::VERSION));
     assert_no_read_exchange(&c);
     c.step(Event::Lost { exchange: *exchanges.as_slice().first().expect("old HTTP read") });
     assert_read_credential(&c, Some(&fixtures::credential(&NEW_CREDENTIAL)));

@@ -875,9 +875,13 @@ fn hello() -> Box<[u8]> {
     ] {
         served.push(w::Served { owner, first: version, last: version });
     }
-    let event = jig_client_test_records::opened(
+    let event = jig_client_test_records::opened_with_layouts(
         w::Hello { stream: STREAM, served: test::list(served), heartbeat: test::limits().client.domain.heartbeat },
         frame(),
+        &[
+            jig_client_test_records::family_layout(root::FIRST, jig_client_test_protocol_wire::LAYOUT),
+            jig_client_test_records::family_layout(root::SECOND, jig_client_test_protocol_wire::LAYOUT),
+        ],
     );
     let mut writer = Writer::new(skein_lib::length::usize_of(
         event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),

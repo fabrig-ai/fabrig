@@ -104,7 +104,7 @@ pub enum Up {
     Unreadable,
     NotKept { key: RequestKey },
     Served { served: bool, versions: Option<contract::VersionRange> },
-    FamilyServed { family: u16, versions: Option<contract::VersionRange> },
+    FamilyServed { family: u16, versions: Option<contract::VersionRange>, served: bool },
     Answer { attempt: Token, envelope: RequestEnvelope, answer: Option<Answered>, why: Option<Retry> },
     Watched { watch: Token, event: contract::WatchEvent },
     FamilyDelivered { watch: Token, record: Family },

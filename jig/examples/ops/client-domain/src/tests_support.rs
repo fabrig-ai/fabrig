@@ -183,10 +183,12 @@ fn callbacks(event: d::Event) -> Vec<d::Event> {
             up(Up::Served { served, versions }),
             up(Up::FamilyServed {
                 family: 1,
+                served: true,
                 versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
             }),
             up(Up::FamilyServed {
                 family: 2,
+                served: true,
                 versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
             }),
         ]),

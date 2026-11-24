@@ -76,7 +76,11 @@ pub fn hello(version: u32) -> Box<[u8]> {
     else {
         unreachable!("me fixture");
     };
-    event(&w::StreamEvent::Opened(w::Opened { hello, me: delivery.document }))
+    event(&w::StreamEvent::Opened(w::Opened {
+        hello,
+        layouts: jig_client_test_records::layouts(&[]),
+        me: delivery.document,
+    }))
 }
 pub fn event(value: &w::StreamEvent) -> Box<[u8]> {
     let mut out = Writer::new(

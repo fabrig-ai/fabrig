@@ -17,7 +17,7 @@ fn refuse_link(host: &mut Host) {
 
 fn refuse_forge(host: &mut Host) {
     host.client(jig_client::Event::Up {
-        up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None },
+        up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None, served: false },
     });
 }
 

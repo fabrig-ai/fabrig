@@ -34,3 +34,47 @@ fn the_hello_alone_keeps_version_27_bytes() {
         assert_eq!(writer.finish().as_ref(), expected);
     }
 }
+
+#[test]
+fn opened_keeps_its_tag_and_layout_head_bytes() {
+    use jig_client_protocol_wire as w;
+    use skein_lib::{Duration, List, Reader};
+    // Tag, hello (two served owners and a heartbeat), and two layouts, ahead of me.
+    #[rustfmt::skip]
+    let head: &[u8] = &[
+        4,
+        165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
+        0, 0, 0, 2,
+        0, 0, 0, 0, 43, 0, 0, 0, 43,
+        1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1,
+        0, 0, 0, 0, 0, 0, 0, 5,
+        0, 0, 0, 2,
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+           1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    ];
+    let me = w::Owned { owner: w::Owner::Jig, version: 43, record: Box::from([0xca]) };
+    let bytes = [head, &me.encode(&w::CEILINGS).expect("fixture me envelope")].concat();
+    let event = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("fixed Opened");
+    let family = w::Owner::Family(w::Family { number: 1 });
+    assert_eq!(
+        event,
+        w::StreamEvent::Opened(w::Opened {
+            hello: w::Hello {
+                stream: [165; 16],
+                served: List::from_boxed(Box::new([
+                    w::Served { owner: w::Owner::Jig, first: 43, last: 43 },
+                    w::Served { owner: family.clone(), first: 1, last: 1 },
+                ])),
+                heartbeat: Duration::from_nanos(5),
+            },
+            layouts: List::from_boxed(Box::new([
+                w::Layout { owner: w::Owner::Jig, layout: [1; 32] },
+                w::Layout { owner: family, layout: [2; 32] },
+            ])),
+            me,
+        })
+    );
+    assert_eq!(event.encode(&w::CEILINGS).expect("Opened fits").as_ref(), bytes);
+}

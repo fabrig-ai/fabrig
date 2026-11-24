@@ -708,11 +708,9 @@ impl Composition {
                 jig_client::Up::WatchEnded { watch, end }
             }
             link::Request::FamilyDelivery { watch, record } => jig_client::Up::FamilyDelivered { watch, record },
-            link::Request::Hello { family: None, versions } => {
-                jig_client::Up::Served { served: versions.is_some_and(link::serves), versions }
-            }
-            link::Request::Hello { family: Some(family), versions } => {
-                jig_client::Up::FamilyServed { family, versions }
+            link::Request::Hello { family: None, versions, served } => jig_client::Up::Served { served, versions },
+            link::Request::Hello { family: Some(family), versions, served } => {
+                jig_client::Up::FamilyServed { family, versions, served }
             }
             link::Request::Save { .. } | link::Request::Erase { .. } => {
                 self.link(client, link::Event::Stored);
