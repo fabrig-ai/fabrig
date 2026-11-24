@@ -526,7 +526,10 @@ Every run then ends as its story says. Its parks:
   work its first run saved on the branch.
 
 Each is drawn from `Faults`, part `worker`, at a drawn step of its run,
-and recorded as it falls. The worker's adapter and the builder's table
+and recorded as it falls. A run a park strikes ends as its park says, in
+place of its drawn story; the workload's draw is the same whether a park
+is drawn or not, and a cohort's worker-wide event falls after its parks,
+on every run still live. The worker's adapter and the builder's table
 are checked at every quiet point as they are (`worker.md`, 4).
 
 ### 4.5 smith's worlds
