@@ -1,6 +1,6 @@
 //! Prepared constants and per-reader copies (protocol/channel/testing.md, 1).
 use jig_domain_link::{Form, Grant, Scheme};
-use jig_protocol_engine_workers::{Limits, Worker};
+use jig_protocol_engine_workers::{Limits, PreparedWires, Worker};
 use jig_protocol_worker_wire::Record;
 use skein_lib::sha256::digest;
 use skein_lib::{Duration, Secret, Writer};
@@ -160,6 +160,17 @@ fn prepared_schema() -> &'static skein_channel::Schema {
 pub fn kept_wires() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
     prepared_kept_wires().clone()
 }
+
+pub(crate) fn engine_wires() -> PreparedWires {
+    static WIRES: std::sync::OnceLock<PreparedWires> = std::sync::OnceLock::new();
+    WIRES
+        .get_or_init(|| {
+            PreparedWires::new(kept_wires(), jig_protocol_worker_wire::Application::opaque(application()))
+                .expect("engine fixture wires")
+        })
+        .fresh()
+}
+
 fn prepared_kept_wires() -> &'static skein_lib::List<jig_protocol_worker_wire::Spoken> {
     &prepared_channel().1
 }

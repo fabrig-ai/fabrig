@@ -94,6 +94,21 @@ fn equal_layouts_do_not_parse_worker_texts_or_convert_values() {
 }
 
 #[test]
+fn cached_kind_bounds_follow_the_supplied_limits() {
+    const ASK_BYTES: u32 = 5;
+    // Ask has three u64 fields and a u32 length before its bytes.
+    const ASK_BOUND: u32 = 3 * 8 + 4 + ASK_BYTES;
+    let mut plans = Plans::new(&[crate::SCHEMA], &List::uncapped()).expect("engine text");
+    let worker = parse(crate::SCHEMA);
+    let peer = plans.judge(&[stated(&worker)]).expect("same worker layout");
+    plans.fit_table(&peer, &LIMITS).expect("prime the cache");
+
+    let limits = v22::Limits { ask_bytes: ASK_BYTES, ..LIMITS };
+    let table = plans.fit_table(&peer, &limits).expect("fit updated bounds");
+    assert_eq!(table.kind(Kind::Ask.number()).expect("ask kind").largest, ASK_BOUND);
+}
+
+#[test]
 fn frames_round_trip_at_both_worker_layouts() {
     let engine = parse(crate::SCHEMA);
     let older = parse(&samples::older(crate::SCHEMA));

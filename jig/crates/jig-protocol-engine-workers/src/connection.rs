@@ -1,9 +1,9 @@
 //! One accepted stream and its opening (protocol/channel/worker-link.md, 1.3).
-use crate::{Limits, Loss, Statement};
+use crate::{Loss, Statement};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Kind, layouts::Peer};
 use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, Version, WriteWait};
-use skein_lib::{List, Queue, Time, Token};
+use skein_lib::{Duration, List, Queue, Time, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Phase {
     Opening,
@@ -47,8 +47,13 @@ pub(crate) struct Connection {
     pub ending: Ending,
 }
 impl Connection {
-    pub fn new(schema: Schema, limits: &Limits, now: Time, in_process: bool) -> Self {
-        let channel = crate::limits::channel(limits).expect("checked limits");
+    pub fn new(
+        schema: Schema,
+        channel: skein_channel::Limits,
+        handshake: Duration,
+        now: Time,
+        in_process: bool,
+    ) -> Self {
         let machine = Machine::with_mode(schema, Role::Responder, channel, StreamMode::One).expect("checked schema");
         Self {
             machine,
@@ -63,7 +68,7 @@ impl Connection {
             converted: List::uncapped(),
             statement: None,
             refusal: false,
-            deadline: Some(now.saturating_add(limits.handshake)),
+            deadline: Some(now.saturating_add(handshake)),
             above: Queue::uncapped(),
             below: Queue::uncapped(),
             terminal: false,

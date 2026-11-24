@@ -82,7 +82,7 @@ pub(crate) fn wires(
         theirs.push(Theirs { name: &wire.name, layout: wire.layout, text: &wire.text }).expect("one slot per wire");
     }
     let peer = plans.judge(theirs.as_slice())?;
-    let table = peer.table(limits)?;
+    let table = plans.fit_table(&peer, limits)?;
     let mut converted = List::uncapped();
     for ours in spoken {
         for theirs in stated {

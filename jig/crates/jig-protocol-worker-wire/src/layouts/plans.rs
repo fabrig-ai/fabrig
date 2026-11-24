@@ -1,7 +1,8 @@
 //! Per-wire opening checks and text cache (jig/docs/design/protocol/channel/layouts.md, 3).
 use super::{MAX_TEXTS, Nested, Pass, Peer, Theirs, Value, table, words};
-use crate::{Root, wire};
+use crate::{Root, v22, wire};
 use alloc::boxed::Box;
+use skein_channel::Version;
 use skein_codec::{
     layout::{Mode, Plan, Why, Workspace},
     schema::{self, DeclIx, Named, Schema, Shape},
@@ -15,6 +16,13 @@ const WIRE_TEXT: usize = 65_536;
 #[derive(Debug)]
 pub struct Plans {
     wires: List<EngineWire>,
+    current: Option<Box<CurrentBounds>>,
+}
+
+#[derive(Debug)]
+struct CurrentBounds {
+    limits: v22::Limits,
+    table: Version,
 }
 
 #[derive(Debug)]
@@ -123,7 +131,43 @@ impl Plans {
                 return Err(words::wire(root.wire, &[b": the engine's root names an unspoken wire"]));
             }
         }
-        Ok(Plans { wires })
+        Ok(Plans { wires, current: None })
+    }
+
+    /// Copies the validated engine texts and roots for a new engine with empty caches.
+    #[must_use]
+    pub fn fresh(&self) -> Self {
+        let mut wires = List::with_capacity(self.wires.len());
+        for wire in &self.wires {
+            wires
+                .push(EngineWire {
+                    name: wire.name.clone(),
+                    layout: wire.layout,
+                    schema: wire.schema.clone(),
+                    needs: wire.needs.clone(),
+                    known: Queue::with_capacity(MAX_TEXTS),
+                    #[cfg(test)]
+                    derivations: 0,
+                })
+                .expect("one engine wire per prepared wire");
+        }
+        Plans { wires, current: None }
+    }
+
+    /// Fits the worker's kinds. Workers at the engine's frame layout share
+    /// the bounds for a given set of limits, even if their carried parts differ.
+    pub fn fit_table(&mut self, peer: &Peer, limits: &v22::Limits) -> Result<Version, Box<[u8]>> {
+        if peer.frames.is_some() {
+            return peer.table(limits);
+        }
+        if let Some(current) = &self.current
+            && &current.limits == limits
+        {
+            return Ok(current.table.clone());
+        }
+        let table = peer.table(limits)?;
+        self.current = Some(Box::new(CurrentBounds { limits: *limits, table: table.clone() }));
+        Ok(table)
     }
 
     /// Checks a worker's wires in the engine's order and fits the channel's conversions

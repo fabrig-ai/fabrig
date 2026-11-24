@@ -723,7 +723,7 @@ impl Machine {
             stream::Up::Bytes(bytes) => {
                 self.demand = Demand::None;
                 if !self.phase.stopped() {
-                    self.read_bytes(bytes, above);
+                    self.read_bytes(&bytes, above);
                 }
             }
             stream::Up::End => {
@@ -768,8 +768,8 @@ impl Machine {
     }
 
     #[expect(clippy::manual_let_else, reason = "step code uses exhaustive matches instead of let-else")]
-    #[expect(clippy::boxed_local, reason = "application bodies move from this handler into Event::Body")]
-    fn read_bytes(&mut self, bytes: Box<[u8]>, above: &mut Queue<Event>) {
+    #[expect(clippy::disallowed_methods, reason = "bulk copies only the received chunk into its validated body range")]
+    fn read_bytes(&mut self, bytes: &[u8], above: &mut Queue<Event>) {
         let state = mem::replace(&mut self.read, ReadState::Idle);
         match state {
             ReadState::Header { first: None } => {
@@ -806,9 +806,7 @@ impl Machine {
                 let start = usize_of(filled);
                 let end_index = usize_of(end);
                 let target = body.get_mut(start..end_index).expect("chunk fits body");
-                for (destination, source) in target.iter_mut().zip(bytes.iter()) {
-                    *destination = *source;
-                }
+                target.copy_from_slice(bytes);
                 if end == header.body_len {
                     self.received(header.kind, body, above);
                 } else {

@@ -16,6 +16,37 @@ pub enum Unusable {
     Workers,
     Application,
 }
+/// Checked engine texts and application roots, reusable across components.
+#[derive(Debug)]
+pub struct PreparedWires {
+    wires: List<wire::Spoken>,
+    plans: wire::layouts::Plans,
+}
+impl PreparedWires {
+    pub fn new(jig: List<wire::Spoken>, application: wire::Application) -> Result<Self, Unusable> {
+        let mut wires = List::uncapped();
+        for wire in jig.into_boxed() {
+            wires.push(wire).expect("uncapped wire list");
+        }
+        for wire in application.spoken.into_boxed() {
+            wires.push(wire).expect("uncapped wire list");
+        }
+        let plans = statement::plans(&wires, &application.roots).or(Err(Unusable::Application))?;
+        Ok(Self { wires, plans })
+    }
+
+    /// Copies the preparation for a component with no remembered openings.
+    #[must_use]
+    pub fn fresh(&self) -> Self {
+        Self { wires: self.wires.clone(), plans: self.plans.fresh() }
+    }
+}
+
+enum WireSetup {
+    Texts { jig: List<wire::Spoken>, application: wire::Application },
+    Prepared(PreparedWires),
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Life {
     Running,
@@ -47,6 +78,7 @@ pub struct Component {
     pub(crate) connections: Map<Token, Connection>,
     pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
+    channel_limits: skein_channel::Limits,
     next_channel: u64,
     next_part: u64,
     life: Life,
@@ -78,9 +110,26 @@ impl Component {
         application: wire::Application,
         full_schema: skein_channel::Schema,
     ) -> Result<Self, Unusable> {
-        if !crate::limits::valid_with_schema(limits, &full_schema) {
-            return Err(Unusable::Limits);
-        }
+        Self::with_setup(limits, workers, WireSetup::Texts { jig, application }, full_schema)
+    }
+
+    /// As `with_schema`, using engine wire texts and roots that were checked once.
+    pub fn with_prepared_wires(
+        limits: &Limits,
+        workers: Box<[Worker]>,
+        wires: PreparedWires,
+        full_schema: skein_channel::Schema,
+    ) -> Result<Self, Unusable> {
+        Self::with_setup(limits, workers, WireSetup::Prepared(wires), full_schema)
+    }
+
+    fn with_setup(
+        limits: &Limits,
+        workers: Box<[Worker]>,
+        setup: WireSetup,
+        full_schema: skein_channel::Schema,
+    ) -> Result<Self, Unusable> {
+        let channel_limits = crate::limits::checked_channel(limits, &full_schema).ok_or(Unusable::Limits)?;
         let codec = wire::sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
         if workers.len() > skein_lib::length::usize_of(limits.names) {
             return Err(Unusable::Workers);
@@ -104,14 +153,10 @@ impl Component {
                 .insert(worker.number.checked_sub(1).expect("positive number"), worker.name.clone())
                 .or(Err(Unusable::Workers))?;
         }
-        let mut wires = List::uncapped();
-        for wire in &jig {
-            wires.push(wire.clone()).expect("uncapped wire list");
-        }
-        for wire in &application.spoken {
-            wires.push(wire.clone()).expect("uncapped wire list");
-        }
-        let plans = statement::plans(&wires, &application.roots).or(Err(Unusable::Application))?;
+        let PreparedWires { wires, plans } = match setup {
+            WireSetup::Texts { jig, application } => PreparedWires::new(jig, application)?,
+            WireSetup::Prepared(prepared) => prepared,
+        };
         let connections = Map::with_capacity(limits.workers.checked_add(limits.opening).expect("checked limits"));
         // The restore publishes even an empty initial table through Event::Workers.
         let workers_ready = !workers.is_empty();
@@ -125,6 +170,7 @@ impl Component {
             codec,
             connections,
             schema: full_schema,
+            channel_limits,
             next_channel: 1,
             next_part: 1,
             life: Life::Running,
@@ -637,7 +683,8 @@ impl Component {
             out.push(Request::TurnAway { connection });
             return;
         }
-        let mut state = Connection::new(self.schema.clone(), &self.limits, now, in_process);
+        let mut state =
+            Connection::new(self.schema.clone(), self.channel_limits, self.limits.handshake, now, in_process);
         out.push(Request::Take { connection });
         self.progress(now, connection, &mut state, out);
         self.keep(connection, state);
