@@ -4,4 +4,3 @@
 
 - **Not yet:** 1.3: every effect of a step within its one decision.
   1.7: a procedure told to drain.
-- **Not yet:** 1.5: a connector's report of its task's waits to the core [in flight: change 15621].

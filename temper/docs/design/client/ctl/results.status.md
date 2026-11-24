@@ -2,7 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [results.md](results.md).
 
-- **Not yet:** 1: `waiting on:`'s *since* and nearest bound, and the `waits:` block; 2: a task's waits in JSON [in flight: change 15644].
 - **Not yet:** 1: ctl's amount: text prints spend raw but in `task show`, and argv's AMOUNT takes spend units; 2: a `--call`'s AMOUNT and `help --json`'s type `amount` [in flight: change 7671].
 - **Not yet:** 1: a deletion's outcome prints `removed: project 3, fabrig`, not `deleted: project 3, fabrig`, and its kept form `kept: remove-project, removed: project 3` [in flight: change 634].
 
