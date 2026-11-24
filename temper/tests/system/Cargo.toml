@@ -9,6 +9,12 @@ publish.workspace = true
 
 [dependencies]
 jig-conformance.workspace = true
+jig-inspect.workspace = true
+temper-worker-inspect.workspace = true
+temper-workload.workspace = true
+temper-landing-fixtures.workspace = true
+temper-engine-domain-forge-tiers.workspace = true
+temper-engine-domain-forge-landing.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-agent-fixtures.workspace = true

@@ -18,6 +18,7 @@ mod fuzzy {
     mod accounts;
     mod composed;
     mod restarts;
+    mod workload;
 }
 mod running_revision;
 

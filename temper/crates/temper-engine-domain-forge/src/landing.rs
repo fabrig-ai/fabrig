@@ -170,6 +170,18 @@ impl Domain {
         }
         tasks.into_boxed()
     }
+
+    /// The read-admission retry that wakes this landing's retained gather.
+    /// For its worlds' inspection adapter (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_landing_read_retry(&self, task: u64) -> Option<skein_lib::Time> {
+        for (owner, pending) in &self.landing.pending {
+            if pending.task == task && pending.retry == Retry::Waiting {
+                return self.read_line.retry_at(Waiter::Landing(*owner));
+            }
+        }
+        None
+    }
 }
 
 /// The repositories whose receipts and heads a train judges.

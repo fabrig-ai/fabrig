@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use skein_world::streams::{Stream, Streams};
 
-use crate::draw::{COMPOSED, ENGINE, Party, Shape, Span, Workload};
+use crate::draw::{COMPOSED, Change, ENGINE, File, Goal, Party, Shape, Span, Workload};
 
 #[test]
 fn workload_replays_its_own_stream_and_draw_order() {
@@ -95,6 +95,57 @@ fn shapes_names_files_and_dependencies_hold_over_seeds() {
             assert!(workload.change("missing").is_none());
         }
     }
+}
+
+#[test]
+fn train_changes_are_independent_without_moving_other_draws() {
+    for shape in [COMPOSED, ENGINE] {
+        for seed in 0..64 {
+            let workload = Workload::draw(&Streams::new(seed), &shape);
+            for goal in workload.goals.iter().filter(|goal| goal.train) {
+                for change in &goal.changes {
+                    assert!(!change.red_once, "seed {seed}: {} leaves its train for repair", change.name);
+                    assert!(
+                        change.after.iter().all(|name| !goal.changes.iter().any(|sibling| sibling.name == *name)),
+                        "seed {seed}: {} stacks a sibling",
+                        change.name
+                    );
+                }
+            }
+        }
+    }
+    let workload = Workload::draw(&Streams::new(17), &COMPOSED);
+    assert_eq!(
+        workload.goals[0],
+        Goal {
+            name: "g0".into(),
+            party: Party::First,
+            after: None,
+            train: false,
+            changes: vec![
+                Change {
+                    name: "g0.c0".into(),
+                    after: vec![],
+                    files: vec![File { path: "g0/c0/f0.txt".into(), text: "g0.c0 f0 897448a6853328b4\n".into() }],
+                    asks: false,
+                    red_once: false
+                },
+                Change {
+                    name: "g0.c1".into(),
+                    after: vec!["g0.c0".into()],
+                    files: vec![File { path: "g0/c1/f0.txt".into(), text: "g0.c1 f0 ae4f45dbca5788d8\n".into() }],
+                    asks: true,
+                    red_once: false
+                },
+            ],
+        },
+        "the non-train draw is unchanged"
+    );
+    assert_eq!(
+        workload.goals[2].changes[2].files.get(1).map(|file| file.text.as_str()),
+        Some("g2.c2 f1 88b4be0ef837d242\n"),
+        "the skipped edge still consumes its coin"
+    );
 }
 
 #[test]

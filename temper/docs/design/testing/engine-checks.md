@@ -131,6 +131,7 @@ change's due step.
   in the inspection `forge` gave, and to nothing else: a task the
   world owes nothing has no fallback wake. The adapter's surface stays
   2.1's; the forge's state gains nothing for it.
+- **A landing's read-admission retry:** while its gather waits in the read line, its retained retry is `Timer(at)`; at the root this is read only while the landing's procedure step is due.
 - **A read in flight:** a read the forge's client has admitted and
   not yet had answered, its holder's owner the token the forge maps to
   the waiting change or landing, wakes it when its answer comes:

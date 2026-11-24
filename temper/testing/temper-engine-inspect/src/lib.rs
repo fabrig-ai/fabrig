@@ -133,6 +133,13 @@ impl View<'_> {
                 wakes.push(Wake::Party(format!("forge: call {call}")));
             }
         }
+        // A gather refused client admission retains its read-line timer even
+        // after its merge write ended and before another call is admitted.
+        if self.root.is_none_or(|root| root.tasks().procedure_due(task).is_some())
+            && let Some(at) = self.forge.inspection_landing_read_retry(task)
+        {
+            wakes.push(Wake::Timer(at));
+        }
         // Restart freshness is owned by the client's resource reader, not a
         // change's read token (domain/forge/catching-up.md, 2 and 4).
         for resource in self.forge.inspection_restart_reads(task) {

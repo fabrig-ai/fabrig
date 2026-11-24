@@ -48,6 +48,7 @@ mod delegates;
 mod design_delivery;
 #[cfg(test)]
 mod goals;
+mod inspection;
 mod link;
 mod long_chat;
 pub mod merge_job;
@@ -58,6 +59,7 @@ mod process;
 pub mod provider;
 pub mod restarts;
 mod review;
+pub mod workload;
 
 pub use agreement::call;
 pub use delegates::survey_delegation;
@@ -129,6 +131,7 @@ pub struct World {
     goal_replies: Option<Vec<(Token, people::Reply)>>,
     absence: absence::Controls,
     account_case: Option<accounts::Story>,
+    workload: Option<workload::Story>,
     notes: notes::Party,
     merge_job: Option<merge_job::Story>,
     close_job: Option<close_job::Story>,
@@ -484,7 +487,17 @@ impl World {
         config: fn(u64) -> engine::Config,
         limits: fn(&mut engine::Limits),
     ) -> Self {
-        let (mut config, mut bounds) = configured_parts(config(seed), repository);
+        Self::configured_values(seed, script, repository, config(seed), limits)
+    }
+
+    fn configured_values(
+        seed: u64,
+        script: Script,
+        repository: bool,
+        config: engine::Config,
+        limits: fn(&mut engine::Limits),
+    ) -> Self {
+        let (mut config, mut bounds) = configured_parts(config, repository);
         limits(&mut bounds);
         for worker in &mut config.core.defaults.workers {
             worker.places = bounds.fleet.slots;
@@ -521,6 +534,7 @@ impl World {
             goal_replies: None,
             absence: absence::Controls::default(),
             account_case: None,
+            workload: None,
             notes: notes::Party::default(),
             merge_job: None,
             close_job: None,
@@ -662,12 +676,13 @@ impl World {
         };
         self.process.tick(self.worker_env.now, &mut around);
         self.account_observe();
+        self.workload_tick();
         self.worker.reclaim();
         self.root.reclaim();
         let result = self.ends.step(self.env.now, &self.store);
         self.keep_finding(result)?;
         if self.engine_quiet() {
-            let result = self.checks.quiet(&self.root, self.env.now, self.iteration);
+            let result = self.composed_checks();
             self.keep_finding(result)?;
         }
         Ok(())
@@ -1245,7 +1260,15 @@ impl World {
         let name = located.as_deref().unwrap_or(b"org/repo");
         let result = match self.forge.api(name, 1, api::op(op, client)) {
             Ok(answer) => {
-                let answer = api::answer(op, answer, client);
+                let mut answer = api::answer(op, answer, client);
+                if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
+                    let Ok(fake::Answer::Jobs(jobs)) =
+                        self.forge.api(name, 1, fake::Op::Read(fake::Read::Jobs { run: run.id }))
+                    else {
+                        panic!("run jobs")
+                    };
+                    run.jobs = api::run_jobs(jobs);
+                }
                 if let Ok(answer) = &answer
                     && skein_forge::measure::answer(answer).expect("fake answer size") > u64::from(client.answer_bytes)
                 {
@@ -1305,7 +1328,7 @@ impl World {
         assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
         self.bind_review_script();
         self.absence_assignment(&assignment);
-        if !self.account_assignment(&assignment) {
+        if !self.workload_assignment(&assignment) && !self.account_assignment(&assignment) {
             self.select_process(assignment.task);
         }
         if self.account_generation.is_some() && assignment.task == 2 {
@@ -1381,7 +1404,11 @@ impl World {
                 assert_eq!(watcher, RUN_WATCH);
             }
             Delivery::AssignedJob { channel, job, workspace } => {
-                self.assign_story_job(channel, job, workspace.as_ref());
+                if self.workload.is_some() {
+                    self.workload_job(channel, job, workspace.as_ref());
+                } else {
+                    self.assign_story_job(channel, job, workspace.as_ref());
+                }
             }
             other @ (Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
@@ -1429,6 +1456,9 @@ impl World {
         #[cfg(test)]
         if let Some(replies) = &mut self.goal_replies {
             replies.push((to, reply));
+            return;
+        }
+        if self.workload_reply(to, &reply) {
             return;
         }
         if self.account_reply(to, &reply) {

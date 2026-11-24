@@ -107,7 +107,7 @@ impl Workload {
             let previous_change = previous.and_then(|goal| goal.changes.last()).map(|change| change.name.as_str());
             let train = members >= 2 && i + 1 == usize::from(count);
             let count = if train { members } else { draw_span(&mut rng, shape.changes) };
-            let changes = draw_changes(&mut rng, &name, count, previous_change);
+            let changes = draw_changes(&mut rng, &name, count, previous_change, train);
             goals.push(Goal { name, party, after, train, changes });
         }
         Workload { goals, tier: shape.tier }
@@ -131,12 +131,14 @@ fn draw_span(rng: &mut Rng, span: Span) -> u8 {
     u8::try_from(rng.between(u64::from(span.least), u64::from(span.most))).expect("span fits in u8")
 }
 
-fn draw_changes(rng: &mut Rng, goal: &str, count: u8, previous_goal: Option<&str>) -> Vec<Change> {
+fn draw_changes(rng: &mut Rng, goal: &str, count: u8, previous_goal: Option<&str>, train: bool) -> Vec<Change> {
     let mut changes = Vec::new();
     for j in 0..count {
         let name = format!("{goal}.c{j}");
         let candidate = if j > 0 { Some(format!("{goal}.c{}", j - 1)) } else { previous_goal.map(str::to_owned) };
-        let after = candidate.filter(|_| rng.below(2) == 0).into_iter().collect();
+        // Spend the same coin even when the train cannot keep a sibling edge:
+        // its members must be ready together, rather than stacked landings.
+        let after = candidate.filter(|_| rng.below(2) == 0).filter(|_| !train || j == 0).into_iter().collect();
         let files = (0..rng.between(1, 2))
             .map(|k| File {
                 path: format!("{goal}/c{j}/f{k}.txt"),
@@ -145,6 +147,8 @@ fn draw_changes(rng: &mut Rng, goal: &str, count: u8, previous_goal: Option<&str
             .collect();
         let asks = rng.below(3) == 0;
         let red_once = rng.below(4) == 0;
+        // A red member leaves its train; only non-train changes draw a repair.
+        let red_once = red_once && !train;
         changes.push(Change { name, after, files, asks, red_once });
     }
     changes

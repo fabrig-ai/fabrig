@@ -36,6 +36,8 @@ pub(crate) struct Process {
     seed: u64,
     /// Let the composed clock reach each Smith deadline before driving it.
     pub(super) clocked: bool,
+    /// A composed workload must not advance a provider beyond its outer clock.
+    pub(super) bounded_clock: bool,
     pub(super) wire: bool,
     previous_provider: Option<Box<Provider>>,
     sent_queries: usize,
@@ -149,6 +151,7 @@ impl Process {
             charter: Box::default(),
             seed,
             clocked: false,
+            bounded_clock: false,
             wire: false,
             previous_provider: None,
             sent_queries: 0,
@@ -234,6 +237,7 @@ impl Process {
         let script = Script { cue: std::mem::take(&mut self.script.cue), turns: turns.into_boxed_slice() };
         let history_messages = self.history_messages;
         let clocked = self.clocked;
+        let bounded_clock = self.bounded_clock;
         let wire = self.wire;
         let previous_provider = if wire { self.agent.take().map(|agent| Box::new(agent.into_backend())) } else { None };
         let tool_payload = self.tool_payload;
@@ -243,6 +247,7 @@ impl Process {
         self.fresh = fresh;
         self.history_messages = history_messages;
         self.clocked = clocked;
+        self.bounded_clock = bounded_clock;
         self.wire = wire;
         self.previous_provider = previous_provider;
         self.tool_payload = tool_payload;
@@ -549,7 +554,13 @@ impl Process {
                 return;
             }
         }
-        self.settled = agent.drive(1);
+        self.settled = if self.bounded_clock {
+            let start = *self.clock_start.get_or_insert(now);
+            let until = Time::ZERO.saturating_add(now.saturating_since(start));
+            agent.drive_until(1, until)
+        } else {
+            agent.drive(1)
+        };
         if self.wire {
             for query in &agent.prompts()[self.sent_queries..] {
                 around.observed.queries.push((around.assignment.expect("query's assignment").task, now, query.clone()));

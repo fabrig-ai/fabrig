@@ -243,7 +243,7 @@ impl World {
     /// Two independently funded parties, each with its own key account.
     #[must_use]
     pub fn two_accounts(seed: u64) -> Self {
-        let mut world = Self::configured_limits(seed, script(), false, config, |limits| {
+        let world = Self::configured_limits(seed, script(), false, config, |limits| {
             limits.accounts.accounts = ACCOUNT_COUNT;
             limits.accounts.holder_accounts = ACCOUNT_COUNT;
             limits.accounts.sign_ins = ACCOUNT_COUNT;
@@ -251,6 +251,11 @@ impl World {
             // Each account may contribute its binding and its credential.
             limits.fleet.grants = ACCOUNT_COUNT * 2;
         });
+        Self::with_two_accounts(world)
+    }
+
+    /// The same people and key accounts on a differently configured composed world.
+    pub(super) fn with_two_accounts(mut world: Self) -> Self {
         let erases = world
             .store
             .rows
