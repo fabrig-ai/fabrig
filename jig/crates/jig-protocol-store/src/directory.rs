@@ -1153,7 +1153,8 @@ pub(crate) fn ready(store: &Store) -> bool {
     store.phase != Phase::Stopped
         && !crate::rehearsal::preparing(store)
         && store.back.is_none()
-        && (crate::transcripts::drop::ready(store)
+        && (crate::rehearsal::frames::ready(store)
+            || crate::transcripts::drop::ready(store)
             || crate::checkpoints::taking::ready(store)
             || phase::ready(store)
             || skein_kv::is_ready(&store.stores.store, &store.limits.store)

@@ -5,7 +5,10 @@ pub mod rehearsal;
 pub mod story;
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{KeptMap, Owner, OwnerSets, codec, keys};
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 /// Pending production jobs upgrade the second build without moving any owner's level.
 pub(super) const JOB: &str = "deleted-repository-forge-rows";
@@ -368,6 +371,44 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
         changed.insert(job_key.into_vec());
     }
     changed.extend(pause_registry_upgrade(before, after, new.text));
+    changed.extend(registry_orders(before, after, &changed));
+    changed
+}
+
+/// A validated new layout may append its fingerprint, not change the remembered prefix.
+fn registry_orders(before: &maps::Maps, after: &maps::Maps, layouts: &BTreeSet<Vec<u8>>) -> BTreeSet<Vec<u8>> {
+    use jig_protocol_store::registry_v1 as wire;
+    use skein_lib::Reader;
+
+    let mut added = BTreeMap::<_, Vec<_>>::new();
+    for key in layouts {
+        if let Some(keys::Own::Layout { family, number, .. }) = keys::decode_own(key)
+            && !before.store.contains_key(key)
+            && let Some(bytes) = after.store.get(key)
+        {
+            let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("added layout");
+            added.entry((family, number)).or_default().push(layout.layout);
+        }
+    }
+    let mut changed = BTreeSet::new();
+    for ((family, number), digests) in added {
+        let key = keys::order(&family, number, 1024).expect("order key");
+        let order = |maps: &maps::Maps| {
+            let bytes = maps.store.get(key.as_ref()).expect("type order");
+            wire::Order::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("order row")
+        };
+        let old = order(before);
+        let mut expected = old.layouts.as_slice().to_vec();
+        for digest in digests {
+            if !expected.contains(&digest) {
+                expected.push(digest);
+            }
+        }
+        assert_eq!(order(after).layouts.as_slice(), expected, "layout order of {family} type {number}");
+        if old.layouts.as_slice() != expected {
+            changed.insert(key.into_vec());
+        }
+    }
     changed
 }
 
