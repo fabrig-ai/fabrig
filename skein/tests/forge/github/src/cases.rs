@@ -84,14 +84,14 @@ pub const NAMES: &[&str] = &[
     "job-log-host-per-owner",
     "installation-repository-removal-refusals",
 ];
-fn case(r: &mut Runner<'_>, name: &'static str, run: impl FnOnce(&mut Runner<'_>) -> Result<bool>) -> Result<()> {
+fn case(r: &mut Runner, name: &'static str, run: impl FnOnce(&mut Runner) -> Result<bool>) -> Result<()> {
     observation(r, name, |r| {
         let holds = run(r)?;
         r.fact(name, holds, "wire observation differs from the fact");
         Ok(())
     })
 }
-fn observation(r: &mut Runner<'_>, name: &'static str, run: impl FnOnce(&mut Runner<'_>) -> Result<()>) -> Result<()> {
+fn observation(r: &mut Runner, name: &'static str, run: impl FnOnce(&mut Runner) -> Result<()>) -> Result<()> {
     r.next(name)?;
     match run(r) {
         Ok(()) => {}
@@ -111,18 +111,18 @@ fn files(path: &str, content: &str) -> Vec<File> {
 fn oid(text: &str) -> Result<api::Commit> {
     github::id::commit(text.as_bytes()).ok_or("invalid commit oid".into())
 }
-fn pull_doc(r: &mut Runner<'_>, index: usize, number: u64) -> Result<crate::wire::Response> {
+fn pull_doc(r: &mut Runner, index: usize, number: u64) -> Result<crate::wire::Response> {
     let repo = r.repo(index)?;
     let token = r.token(index)?;
     r.raw(Method::Get, format!("/repos/{repo}/pulls/{number}"), &token, b"")
 }
-fn merge(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Result<crate::wire::Response> {
+fn merge(r: &mut Runner, index: usize, number: u64, sha: &str) -> Result<crate::wire::Response> {
     let repo = r.repo(index)?;
     let token = r.token(index)?;
     let body = json::object(&[("merge_method", &"merge"), ("sha", &sha)])?;
     r.raw(Method::Put, format!("/repos/{repo}/pulls/{number}/merge"), &token, &body)
 }
-fn merge_repeat_idempotent(r: &mut Runner<'_>, number: u64, sha: &str) -> Result<()> {
+fn merge_repeat_idempotent(r: &mut Runner, number: u64, sha: &str) -> Result<()> {
     r.next("merge-repeat-idempotent")?;
     let first = merge(r, 0, number, sha)?;
     let second = merge(r, 0, number, sha)?;
@@ -148,13 +148,13 @@ fn merge_repeat_idempotent(r: &mut Runner<'_>, number: u64, sha: &str) -> Result
     }
     Ok(())
 }
-fn update(r: &mut Runner<'_>, number: u64, sha: &str) -> Result<crate::wire::Response> {
+fn update(r: &mut Runner, number: u64, sha: &str) -> Result<crate::wire::Response> {
     let repo = r.repo(0)?;
     let token = r.token(0)?;
     let body = json::object(&[("expected_head_sha", &sha)])?;
     r.raw(Method::Put, format!("/repos/{repo}/pulls/{number}/update-branch"), &token, &body)
 }
-fn enqueue(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Result<crate::wire::Response> {
+fn enqueue(r: &mut Runner, index: usize, number: u64, sha: &str) -> Result<crate::wire::Response> {
     let repo = r.repo(index)?;
     let (owner, name) = repo.split_once('/').ok_or("repository name invalid")?;
     let query = github::request::Request::PullGraphql {
@@ -185,14 +185,14 @@ fn enqueue(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Result<c
         encoded.body.as_deref().unwrap_or_default(),
     )
 }
-fn scenario(r: &mut Runner<'_>, index: usize, message: &str) -> Result<(String, String, String, u64)> {
+fn scenario(r: &mut Runner, index: usize, message: &str) -> Result<(String, String, String, u64)> {
     let first = r.base(index)?;
     let base = r.copy_branch(index, &first)?;
     let (head, sha) = r.branch(index, &first, message, files("probe.txt", message))?;
     let n = r.pull(index, &head, &base, false)?;
     Ok((base, head, sha, n))
 }
-fn rule(r: &mut Runner<'_>, index: usize, base: &str, approvals: u64, queue: bool, bypass: bool) -> Result<()> {
+fn rule(r: &mut Runner, index: usize, base: &str, approvals: u64, queue: bool, bypass: bool) -> Result<()> {
     r.remove_rules()?;
     let repo = r.repo(index)?;
     let name = r.name("rule");
@@ -305,7 +305,7 @@ fn queue_rules(out: &mut skein_json::writer::Encoder, squash: bool) {
     out.object_end();
     out.object_end();
 }
-pub fn run(r: &mut Runner<'_>) -> Result<()> {
+pub fn run(r: &mut Runner) -> Result<()> {
     authentication(r)?;
     pulls(r)?;
     rules(r)?;
@@ -321,7 +321,7 @@ pub fn run(r: &mut Runner<'_>) -> Result<()> {
     });
     Ok(())
 }
-fn authentication(r: &mut Runner<'_>) -> Result<()> {
+fn authentication(r: &mut Runner) -> Result<()> {
     case(r, "token-expires-in-an-hour", |r| {
         let before = r.now().as_nanos();
         let id = r.fixtures.installations[0].id;
@@ -416,7 +416,7 @@ fn authentication(r: &mut Runner<'_>) -> Result<()> {
     })?;
     Ok(())
 }
-fn pulls(r: &mut Runner<'_>) -> Result<()> {
+fn pulls(r: &mut Runner) -> Result<()> {
     r.next("mergeable-null-then-settles")?;
     let (base, head, previous, n) = scenario(r, 0, "FAIL")?;
     let created = pull_doc(r, 0, n)?;
@@ -511,7 +511,7 @@ fn pulls(r: &mut Runner<'_>) -> Result<()> {
     let _ = base;
     Ok(())
 }
-fn failing_job(r: &mut Runner<'_>, index: usize, sha: &str) -> Result<api::JobAttempt> {
+fn failing_job(r: &mut Runner, index: usize, sha: &str) -> Result<api::JobAttempt> {
     let answer =
         r.plan(index, api::Op::Read(api::Read::Checks { commit: oid(sha)? }))?.map_err(|_| "checks plan failed")?;
     let api::Answer::Checks(statuses) = answer else {
@@ -519,7 +519,7 @@ fn failing_job(r: &mut Runner<'_>, index: usize, sha: &str) -> Result<api::JobAt
     };
     statuses.iter().find_map(|s| s.job).ok_or("failed job absent".into())
 }
-fn job_logs(r: &mut Runner<'_>, index: usize, sha: &str) -> Result<()> {
+fn job_logs(r: &mut Runner, index: usize, sha: &str) -> Result<()> {
     r.next("job-log-302-blob")?;
     let job = failing_job(r, index, sha)?;
     let repo = r.repo(index)?;
@@ -558,7 +558,7 @@ fn job_logs(r: &mut Runner<'_>, index: usize, sha: &str) -> Result<()> {
     );
     Ok(())
 }
-fn rules(r: &mut Runner<'_>) -> Result<()> {
+fn rules(r: &mut Runner) -> Result<()> {
     r.next("approve-own-422")?;
     let first = r.base(0)?;
     let base = r.copy_branch(0, &first)?;
@@ -625,7 +625,7 @@ fn rules(r: &mut Runner<'_>) -> Result<()> {
     r.fact("bypass-always-merges", matches!(answer, Ok(api::Answer::Merged(_))), "always bypass did not merge");
     queue(r)
 }
-pub fn queue(r: &mut Runner<'_>) -> Result<()> {
+pub fn queue(r: &mut Runner) -> Result<()> {
     let index = r.queue_installation.ok_or("organization installation absent")?;
     r.next("queue-direct-merge-405")?;
     let (base, _head, sha, n) = scenario(r, index, "queue")?;
@@ -653,13 +653,7 @@ pub fn queue(r: &mut Runner<'_>) -> Result<()> {
     observation(r, "queue-dequeued-delivered", |r| queue_dequeued(r, index))?;
     Ok(())
 }
-fn queue_plan(
-    r: &mut Runner<'_>,
-    index: usize,
-    op: api::Op,
-    person: bool,
-    reason: &str,
-) -> Result<Option<api::Answer>> {
+fn queue_plan(r: &mut Runner, index: usize, op: api::Op, person: bool, reason: &str) -> Result<Option<api::Answer>> {
     match r.plan_as(index, op, person)? {
         Ok(answer) => Ok(Some(answer)),
         Err(e) => {
@@ -668,7 +662,7 @@ fn queue_plan(
         }
     }
 }
-fn queue_approval(r: &mut Runner<'_>, index: usize, number: u64) -> Result<bool> {
+fn queue_approval(r: &mut Runner, index: usize, number: u64) -> Result<bool> {
     Ok(queue_plan(
         r,
         index,
@@ -685,13 +679,7 @@ fn queue_approval(r: &mut Runner<'_>, index: usize, number: u64) -> Result<bool>
 }
 // At most thirteen head reads in 180 seconds and twenty-one group reads in 300.
 const CI_POLL_SECONDS: u64 = 15;
-fn queue_ci(
-    r: &mut Runner<'_>,
-    index: usize,
-    commit: api::Commit,
-    seconds: u64,
-    head: bool,
-) -> Result<Option<api::Check>> {
+fn queue_ci(r: &mut Runner, index: usize, commit: api::Commit, seconds: u64, head: bool) -> Result<Option<api::Check>> {
     for attempt in 0..=seconds / CI_POLL_SECONDS {
         let Some(answer) =
             queue_plan(r, index, api::Op::Read(api::Read::Checks { commit }), false, "queue ci read failed")?
@@ -712,7 +700,7 @@ fn queue_ci(
     r.fact(r.case, false, if head { "queue head ci wait expired" } else { "queue group ci wait expired" });
     Ok(None)
 }
-fn queue_head(r: &mut Runner<'_>, index: usize, commit: api::Commit) -> Result<bool> {
+fn queue_head(r: &mut Runner, index: usize, commit: api::Commit) -> Result<bool> {
     match queue_ci(r, index, commit, 180, true)? {
         Some(api::Check::Passed) => Ok(true),
         Some(api::Check::Pending | api::Check::Failed) => {
@@ -726,7 +714,7 @@ fn queue_head(r: &mut Runner<'_>, index: usize, commit: api::Commit) -> Result<b
 const GROUP_POLL_SECONDS: u64 = 5;
 const GROUP_POLL_READS: usize = 25;
 const BRANCHES_PAGE_SIZE: usize = 100;
-fn queue_group_branch(r: &mut Runner<'_>, index: usize, reads: &mut usize) -> Result<Option<Box<[u8]>>> {
+fn queue_group_branch(r: &mut Runner, index: usize, reads: &mut usize) -> Result<Option<Box<[u8]>>> {
     for attempt in 1..=GROUP_POLL_READS {
         *reads = attempt;
         let Some(branches) = queue_plan(
@@ -756,7 +744,7 @@ fn queue_group_branch(r: &mut Runner<'_>, index: usize, reads: &mut usize) -> Re
     r.fact(r.case, false, "queue group branch absent");
     Ok(None)
 }
-fn queue_group(r: &mut Runner<'_>, index: usize) -> Result<Option<api::Commit>> {
+fn queue_group(r: &mut Runner, index: usize) -> Result<Option<api::Commit>> {
     let mut reads = 0;
     let group = queue_group_branch(r, index, &mut reads);
     r.provenance.push(format!("# queue-dequeued-delivered group branch reads {reads}"));
@@ -786,7 +774,7 @@ fn queue_group(r: &mut Runner<'_>, index: usize) -> Result<Option<api::Commit>> 
     }
     Ok(Some(commit))
 }
-fn queue_pending(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Result<()> {
+fn queue_pending(r: &mut Runner, index: usize, number: u64, sha: &str) -> Result<()> {
     r.next("enqueue-pending-check-protected")?;
     if !queue_approval(r, index, number)? {
         return Ok(());
@@ -810,7 +798,7 @@ fn queue_pending(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Re
     );
     Ok(())
 }
-fn queue_merged(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Result<()> {
+fn queue_merged(r: &mut Runner, index: usize, number: u64, sha: &str) -> Result<()> {
     r.next("queue-merged-no-merge-commit-sha")?;
     if !queue_approval(r, index, number)? || !queue_head(r, index, oid(sha)?)? {
         return Ok(());
@@ -858,7 +846,7 @@ fn queue_merged(r: &mut Runner<'_>, index: usize, number: u64, sha: &str) -> Res
     r.fact(r.case, false, "queue merge wait expired before the pull read merged");
     Ok(())
 }
-fn queue_dequeued(r: &mut Runner<'_>, index: usize) -> Result<()> {
+fn queue_dequeued(r: &mut Runner, index: usize) -> Result<()> {
     let repo = r.repo(index)?;
     let token = r.token(index)?;
     let repository = r.raw(Method::Get, format!("/repos/{repo}"), &token, b"")?.json()?;
@@ -930,7 +918,7 @@ fn queue_dequeued(r: &mut Runner<'_>, index: usize) -> Result<()> {
 }
 
 #[expect(clippy::too_many_lines, reason = "ordered cases share their owned branches and pull state")]
-fn repositories(r: &mut Runner<'_>) -> Result<()> {
+fn repositories(r: &mut Runner) -> Result<()> {
     case(r, "installation-repositories-at-once", |r| {
         let token = r.token(0)?;
         let response = r.raw(Method::Get, "/installation/repositories?per_page=100&page=1", &token, b"")?;
@@ -1134,7 +1122,7 @@ fn repositories(r: &mut Runner<'_>) -> Result<()> {
     observation(r, "installation-repository-removal-refusals", access)?;
     Ok(())
 }
-pub fn issues_since_epoch(r: &mut Runner<'_>) -> Result<()> {
+pub fn issues_since_epoch(r: &mut Runner) -> Result<()> {
     let token = r.token(0)?;
     let repo = r.repo(0)?;
     let listing = format!("/repos/{repo}/issues?state=all&sort=updated&direction=asc&per_page=100&page=1");
@@ -1177,7 +1165,7 @@ pub fn issues_since_epoch(r: &mut Runner<'_>) -> Result<()> {
         Ok(())
     })
 }
-fn access(r: &mut Runner<'_>) -> Result<()> {
+fn access(r: &mut Runner) -> Result<()> {
     let mut holds = true;
     for index in 0..2 {
         let installation = r.fixtures.installations[index].id;
@@ -1204,7 +1192,7 @@ fn access(r: &mut Runner<'_>) -> Result<()> {
     );
     Ok(())
 }
-pub fn logs(r: &mut Runner<'_>) -> Result<()> {
+pub fn logs(r: &mut Runner) -> Result<()> {
     if r.fake() {
         case(r, "installation-target-in-log", |r| {
             if let Target::Fake(world) = &mut r.target
@@ -1283,7 +1271,7 @@ pub fn logs(r: &mut Runner<'_>) -> Result<()> {
     })?;
     Ok(())
 }
-fn setup(r: &mut Runner<'_>) -> Result<()> {
+fn setup(r: &mut Runner) -> Result<()> {
     for name in ["inactive-hook-visible", "manifest-hook-invalid-host-accepted"] {
         r.next(name)?;
         if !r.fake() {
@@ -1312,7 +1300,7 @@ fn setup(r: &mut Runner<'_>) -> Result<()> {
 }
 
 /// App mutations belong only to the hosted fake, after repository restoration and revocation.
-pub(crate) fn setup_lifecycle(r: &mut Runner<'_>) -> Result<()> {
+pub(crate) fn setup_lifecycle(r: &mut Runner) -> Result<()> {
     r.next("setup-lifecycle")?;
     if !r.fake() {
         r.provenance.push("# unchecked strays, uninstall, hook-address-set: live App is read only".into());
@@ -1339,7 +1327,7 @@ pub(crate) fn setup_lifecycle(r: &mut Runner<'_>) -> Result<()> {
     r.flush()
 }
 
-pub fn bot_permission_is_not_a_role(r: &mut Runner<'_>) -> Result<()> {
+pub fn bot_permission_is_not_a_role(r: &mut Runner) -> Result<()> {
     case(r, "bot-permission-is-not-a-role", |r| {
         let installation = r.fixtures.installations[0].id;
         let at = r.now().as_nanos() / 1_000_000_000;
