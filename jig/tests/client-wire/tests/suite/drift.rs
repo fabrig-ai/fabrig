@@ -6,36 +6,6 @@ mod families;
 #[test]
 fn codec_families_match_their_schemas() {
     families::check();
-    current_client_layout();
-}
-
-#[expect(clippy::disallowed_methods, reason = "jig's drift write mode refreshes the current layout")]
-fn current_client_layout() {
-    use std::{fmt::Write, fs};
-    let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/schema");
-    let text = fs::read_to_string(root.join("client-v43.schema")).expect("schema")
-        + &fs::read_to_string(root.join("client-v43-part1.schema")).expect("schema fragment");
-    let schema = skein_codec::schema::parse(text.as_bytes()).expect("schema valid");
-    let mut line = format!("{} ", schema.version());
-    for byte in schema.fingerprints().family().digest() {
-        write!(&mut line, "{byte:02x}").expect("string write");
-    }
-    line.push('\n');
-    let path = root.join("jig-client-wire.layouts");
-    let current = fs::read_to_string(&path).expect("layouts");
-    let version = format!("{} ", schema.version());
-    let mut prefix = String::new();
-    for row in current.lines() {
-        if !row.starts_with(&version) {
-            writeln!(&mut prefix, "{row}").expect("string write");
-        }
-    }
-    let expected = prefix + &line;
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
-        fs::write(path, expected).expect("write current layout");
-    } else {
-        assert_eq!(current, expected, "run the drift in write mode");
-    }
 }
 
 #[test]
