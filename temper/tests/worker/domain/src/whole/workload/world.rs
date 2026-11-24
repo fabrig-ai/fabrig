@@ -314,7 +314,7 @@ impl World {
                 self.runs[index].reply = Some(reply);
             }
             agent::Down::Cancel => self.runs[index].cancellations += 1,
-            agent::Down::Drain => self.runs[index].drains += 1,
+            agent::Down::Drain { .. } => self.runs[index].drains += 1,
             agent::Down::Renewals { .. } | agent::Down::Acknowledge { turn: 1 } => {}
             other => panic!("unscripted workload process message: {other:?}"),
         }
