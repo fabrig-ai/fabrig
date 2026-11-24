@@ -1,5 +1,10 @@
 #[cfg(test)]
+#[path = "../support/layout.rs"]
+mod layout;
+
+#[cfg(test)]
 mod tests {
+    use super::layout::split_layout;
     use core::fmt::Write;
 
     use skein_codegen::{Declaration, Error, Type, generate, parse};
@@ -123,7 +128,12 @@ mod tests {
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: bytes 8 b: bytes 9 }").expect("opaque bytes");
         assert_ne!(with, without, "the owned model retains pieces for translation validation");
-        assert_eq!(generate(&with), generate(&without));
+        let with = generate(&with).records;
+        let without = generate(&without).records;
+        let (with_layout, with_code) = split_layout(&with);
+        let (without_layout, without_code) = split_layout(&without);
+        assert_eq!(with_code, without_code, "only LAYOUT changes");
+        assert_ne!(with_layout, without_layout, "held clauses enter the family fingerprint");
     }
 
     #[test]
@@ -132,7 +142,12 @@ mod tests {
         let without =
             parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 b: secret 9 }").expect("opaque bytes");
         assert_ne!(with, without, "the owned model retains pieces for translation validation");
-        assert_eq!(generate(&with), generate(&without));
+        let with = generate(&with).records;
+        let without = generate(&without).records;
+        let (with_layout, with_code) = split_layout(&with);
+        let (without_layout, without_code) = split_layout(&without);
+        assert_eq!(with_code, without_code, "only LAYOUT changes");
+        assert_ne!(with_layout, without_layout, "held clauses enter the family fingerprint");
     }
 
     #[test]

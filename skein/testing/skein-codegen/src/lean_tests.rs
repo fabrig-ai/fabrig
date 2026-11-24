@@ -1,6 +1,10 @@
 //! Lean surface and helper fixture drift (skein/docs/design/data/codec/README.md, 4).
 
+#[path = "../tests/support/layout.rs"]
+mod layout;
+
 use crate::{generate, parse};
+use layout::split_layout;
 
 const FIXTURE: &str = "family helper-fixture 7
 record Empty {}
@@ -153,6 +157,7 @@ fn inserting_a_record_only_adds_its_own_lines() {
         "    CEILINGS.extra_hint_some,",
     ];
     let base = generate(&parse(&[FAMILY, ITEM, REPORT].concat()).expect("base schema")).records;
+    let (base_layout, (base_before, base_after)) = split_layout(&base);
     let body = [ITEM, REPORT].concat();
     // A first declaration cannot name a later one. In the middle, the list
     // names Item, which now has a user where it did not before.
@@ -163,9 +168,12 @@ fn inserting_a_record_only_adds_its_own_lines() {
             "{FAMILY}{before}record Extra {{ title: text 5 entries: list 2 {item} hint: option bytes 3 }}\n{after}"
         );
         let expanded = generate(&parse(&text).expect("schema with Extra")).records;
-        let mut kept = base.lines().peekable();
-        let added: Vec<_> = expanded
+        let (expanded_layout, (expanded_before, expanded_after)) = split_layout(&expanded);
+        assert_ne!(base_layout, expanded_layout, "adding a declaration changes the family fingerprint");
+        let mut kept = base_before.lines().chain(base_after.lines()).peekable();
+        let added: Vec<_> = expanded_before
             .lines()
+            .chain(expanded_after.lines())
             .filter(|line| {
                 if kept.peek() == Some(line) {
                     kept.next();
