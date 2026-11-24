@@ -3,14 +3,41 @@
 
 use std::collections::BTreeMap;
 
-use skein_lib::{Duration, Reader, Time};
-use skein_world::faults::{FaultLedger, Kind, Struck};
+use skein_lib::{Duration, Reader, Rng, Time};
+use skein_world::{
+    faults::{FaultLedger, Kind, Struck},
+    streams::{Stream, Streams},
+};
 use smith_channel::Record as _;
 use smith_events::{Event, Outcome};
-use smith_fake_claude::{End, Fault, Seen, Step};
+use smith_fake_claude::{End, Fault, Seen, Step, Turn};
 use smith_faults::{Retried, Runs};
 
 use super::{Case, Proc, Run};
+
+/// Draw the single session's read turns from its workload generator.
+#[must_use]
+pub fn read_turns(workload: &mut Rng) -> Vec<Turn> {
+    (0..workload.below(3))
+        .map(|_| {
+            Turn::new(vec![Step::Act { tool: "Read".into(), input: serde_json::json!({"file_path":"/work/repo/a"}) }])
+        })
+        .collect()
+}
+
+/// Draw one session's work independently of its provider fault.
+#[must_use]
+pub fn provider_draw(streams: Streams, faults: &mut Rng) -> (Vec<Turn>, Turn) {
+    let mut workload = streams.rng(Stream::Workload, "runs");
+    let turns = read_turns(&mut workload);
+    let fault = match faults.below(3) {
+        0 => Turn::new(vec![Step::RateLimit { resets_at: None }]),
+        1 => Turn::new(vec![Step::LoseLogin, Step::Text("continue".into())]),
+        2 => Turn { steps: vec![], end: End::edge_refusal() },
+        _ => unreachable!("three faults"),
+    };
+    (turns, fault)
+}
 
 #[derive(Default)]
 pub(super) struct Clock {
