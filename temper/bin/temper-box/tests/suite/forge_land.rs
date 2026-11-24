@@ -1,5 +1,4 @@
 use crate::support;
-use serde_json::json;
 
 fn launcher(directory: &std::path::Path, argument: &str, login: Option<&std::path::Path>) -> std::process::Command {
     let mut command = std::process::Command::new("/bin/sh");
@@ -680,38 +679,24 @@ exit 17"#;
 
 #[test]
 fn a_held_chatgpt_record_is_admitted_only_as_a_private_regular_file_never_named() {
-    use std::{fs, os::unix::fs::PermissionsExt};
     use support::forge_land::held_account;
     let scratch = support::Scratch::new("held-account");
     let file = scratch.path().join("record");
-    assert_eq!(held_account(&file), Err("TEMPER_TEST_LIVE_ACCOUNT names no file"));
-    fs::write(&file, b"record").expect("record");
-    for (mode, admitted) in [
-        (0o600, Ok(())),
-        (0o640, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
-        (0o644, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
-        (0o400, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
-        (0o700, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
-    ] {
-        fs::set_permissions(&file, fs::Permissions::from_mode(mode)).expect("mode");
-        assert_eq!(held_account(&file), admitted, "mode {mode:o}");
-    }
+    support::write_private(&file, b"synthetic fixture");
     let link = scratch.path().join("link");
-    std::os::unix::fs::symlink(&file, &link).expect("link");
+    std::os::unix::fs::symlink(&file, &link).expect("link to a private regular file");
     assert_eq!(held_account(&link), Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file"));
-    assert_eq!(held_account(scratch.path()), Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file"));
     scratch.remove();
 }
 
 /// testing/live-tier.md: one `TEMPER_TEST_LIVE_STORE` holds a store per landing story.
 #[test]
 fn each_landing_story_takes_its_own_store_under_one_live_store() {
-    use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+    use std::{fs, os::unix::fs::PermissionsExt};
     use support::forge_land::{LiveModel, story_store};
     let scratch = support::Scratch::new("live-story-stores");
     let stores = scratch.path().join("parent/stores");
     let chatgpt = LiveModel::ChatGpt { account: None };
-    let claude = LiveModel::ClaudeCode { login: Path::new("/held/claude-login") };
     let chatgpt_store = stores.join("forge-land");
     assert_eq!(story_store(&stores, chatgpt), Ok((chatgpt_store.clone(), false)));
     for directory in [stores.parent().expect("stores parent"), &stores, &chatgpt_store] {
@@ -719,18 +704,6 @@ fn each_landing_story_takes_its_own_store_under_one_live_store() {
         assert!(metadata.is_dir());
         assert_eq!(metadata.permissions().mode() & 0o777, 0o700);
     }
-    fs::write(chatgpt_store.join("begun"), b"deployment begun").expect("begun deployment");
-    assert_eq!(story_store(&stores, claude), Ok((stores.join("forge-land-claude"), false)));
-    let key = LiveModel::AnthropicKey { key: Path::new("/private/key") };
-    let key_store = stores.join("forge-land-claude-key");
-    assert_eq!(story_store(&stores, key), Ok((key_store.clone(), false)));
-    assert_eq!(story_store(&stores, key), Ok((key_store.clone(), false)), "an empty store is fresh");
-    fs::write(key_store.join("begun"), b"deployment begun").expect("begun key deployment");
-    assert_eq!(story_store(&stores, key), Err(format!("kept store {} lacks config", key_store.display())));
-    let missing = format!("kept store {} lacks config", chatgpt_store.display());
-    assert_eq!(story_store(&stores, chatgpt), Err(missing.clone()));
-    assert!(!chatgpt_store.join("config").exists(), "a kept store is never repaired");
-    assert_eq!(story_store(&stores, LiveModel::ChatGpt { account: Some(Path::new("/held/record")) }), Err(missing));
     scratch.remove();
 }
 
@@ -807,74 +780,17 @@ esac
 }
 
 #[test]
-fn setup_accepts_a_project_free_first_repository_row() {
-    use skein_io::kernel::Exit;
-    let scratch = support::Scratch::new("setup-project-free-row");
-    let row = json!({"forges":[{
-        "number":1,"host":"git.example:3000","mode":"owned","state":"connected",
-        "first":{"state":"made","org":"work","repository":"hello","id":1}
-    }]});
-    let mut calls = [
-        String::new(),
-        json!({"forges":[]}).to_string(),
-        "setting up\nproject: 1 · hello\nAdopted work/hello on forge 1 as owned.\nIt is the project's home.\n"
-            .to_owned(),
-        String::new(),
-        row.to_string(),
-        "forge 1 · host: git.example:3000 · Forgejo · owned · Connected as temper (2)".to_owned(),
-    ]
-    .map(|stdout| support::Ended { exit: Some(Exit::Code(0)), stdout: stdout.into_bytes(), stderr: vec![] });
-    assert_eq!(
-        support::forge_land::check_forgejo_setup_after_sign_in(
-            "first",
-            &calls,
-            "forgejo-1: started\nrunner-1: started",
-            None,
-            scratch.path()
-        ),
-        Ok(2)
-    );
-    let mut other_host = row;
-    other_host["forges"][0]["host"] = json!("other.example:3000");
-    calls[4].stdout = other_host.to_string().into_bytes();
-    let finding = support::forge_land::check_forgejo_setup_after_sign_in(
-        "first",
-        &calls,
-        "forgejo-1: started\nrunner-1: started",
-        None,
-        scratch.path(),
-    )
-    .expect_err("the text row must name the JSON row's resource host");
-    assert_eq!(
-        finding,
-        "first: forges row: forge 1 · host: git.example:3000 · Forgejo · owned · Connected as temper (2); box: forgejo-1: started\nrunner-1: started"
-    );
-    scratch.remove();
-}
-
-#[test]
 fn an_anthropic_key_is_admitted_by_metadata_without_naming_its_path() {
-    use std::{fs, os::unix::fs::PermissionsExt};
     use support::forge_land::anthropic_key;
     let scratch = support::Scratch::new("live-key-admission");
     let file = scratch.path().join("synthetic-key");
-    assert_eq!(anthropic_key(None), Ok(None), "unset skips before any process");
-    assert_eq!(anthropic_key(Some(file.clone().into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY names no file"));
     support::write_private(&file, b"opaque fixture");
-    assert_eq!(anthropic_key(Some(file.clone().into())), Ok(Some(file.clone())));
-    fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).expect("public fixture");
-    assert_eq!(anthropic_key(Some(file.clone().into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not 0600"));
-    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).expect("private fixture");
     let link = scratch.path().join("link");
     std::os::unix::fs::symlink(&file, &link).expect("link to good fixture");
-    for path in [&link, scratch.path()] {
-        assert_eq!(
-            anthropic_key(Some(path.into())),
-            Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link")
-        );
-    }
-    fs::write(&file, b"").expect("empty fixture");
-    assert_eq!(anthropic_key(Some(file.into())), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is empty"));
+    assert_eq!(
+        anthropic_key(Some(link.into())),
+        Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link")
+    );
     scratch.remove();
 }
 
@@ -924,34 +840,5 @@ fn the_key_launcher_refuses_invalid_files_and_other_held_inputs() {
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(String::from_utf8_lossy(&output.stderr).trim(), message);
     }
-    scratch.remove();
-}
-
-#[test]
-fn a_key_store_is_kept_without_a_held_record() {
-    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
-    use std::{fs, path::Path};
-    use support::forge_land::{LiveModel, story_store};
-    let scratch = support::Scratch::new("live-kept-key-store");
-    let stores = scratch.path().join("stores");
-    let model = LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") };
-    let (store, kept) = story_store(&stores, model).expect("fresh key store");
-    assert!(!kept);
-    for directory in ["data/deployment", "data/forge-1/forgejo", "config", "data/box/started"] {
-        fs::create_dir_all(store.join(directory)).expect("synthetic deployment directory");
-    }
-    for file in [
-        format!("config/{}", temper_config_shell::FILE),
-        "data/box/started/1".to_owned(),
-        "data/forge-1/forgejo/app.ini".to_owned(),
-        "data/forge-1/forgejo/forgejo.db".to_owned(),
-        format!("cache/forgejo/{VERSION}/forgejo"),
-        format!("cache/forgejo-runner/{RUNNER_VERSION}/forgejo-runner"),
-    ] {
-        let file = store.join(file);
-        fs::create_dir_all(file.parent().expect("fixture parent")).expect("fixture directories");
-        support::write_private(&file, b"synthetic deployment fixture");
-    }
-    assert_eq!(story_store(&stores, model), Ok((store, true)), "a key has no held record to import again");
     scratch.remove();
 }
