@@ -1,5 +1,5 @@
 //! Records and bounds drift (skein's data/codec/golden.md, 1).
-use jig_protocol_worker_wire::v21 as codec;
+use jig_protocol_worker_wire::v22 as codec;
 use skein_codegen::{bounds_text, generate, values};
 
 #[path = "../../../../testing/codec-drift.rs"]

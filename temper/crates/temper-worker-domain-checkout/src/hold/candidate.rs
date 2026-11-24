@@ -78,7 +78,7 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
     let spec = nth(holding, repository);
     let request = request(holding, repository);
     let stack = stack(holding);
-    let at = place(holding.workspace.token(), spec);
+    let at = place(holding.disk, spec);
     match step {
         Step::Existing => existing_op(holding, repository),
         Step::SameTree => {
@@ -175,7 +175,7 @@ pub(super) fn op(holding: &Holding, repository: u32, step: Step) -> Op {
 fn existing_op(holding: &Holding, repository: u32) -> Op {
     let spec = nth(holding, repository);
     Op::Fetch {
-        at: place(holding.workspace.token(), spec),
+        at: place(holding.disk, spec),
         store: borrowed(holding, repository).token,
         remote: spec.remote.clone(),
         want: Want::Branch { branch: branch(holding, repository, stack(holding).outcomes.len()) },
@@ -446,7 +446,7 @@ pub(super) fn push_from(
         match stack(holding).outcomes.get(member).expect("member") {
             Combination::Combined { commit, .. } => {
                 let op = Op::Create {
-                    at: place(holding.workspace.token(), spec),
+                    at: place(holding.disk, spec),
                     remote: spec.remote.clone(),
                     commit: *commit,
                     branch: branch(holding, repository, member),
@@ -538,7 +538,7 @@ pub(super) fn pushed(
             }) => {
                 let spec = nth(holding, repository);
                 let op = Op::Fetch {
-                    at: place(holding.workspace.token(), spec),
+                    at: place(holding.disk, spec),
                     store: borrowed(holding, repository).token,
                     remote: spec.remote.clone(),
                     want: Want::Branch { branch: branch(holding, repository, member) },

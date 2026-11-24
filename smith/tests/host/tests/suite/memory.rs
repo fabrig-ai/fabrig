@@ -13,6 +13,8 @@ fn bytes(length: u64) -> Box<[u8]> {
 }
 fn maximum_start(limits: Limits) -> Start {
     Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::default(),
         logical_run: Token::new(7),
@@ -32,6 +34,7 @@ fn maximum_start(limits: Limits) -> Start {
         },
         directories: (0..limits.directories)
             .map(|at| Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 root: Token::new(u64::from(at) + 1),
                 name: vec![
@@ -127,11 +130,12 @@ impl Measured {
                     Down::Start { .. }
                     | Down::Message { .. }
                     | Down::Answer { .. }
+                    | Down::PartKept { .. }
                     | Down::Acknowledge { .. }
                     | Down::Renewals { .. }
                     | Down::Grant { .. }
                     | Down::Cancel
-                    | Down::Drain => {}
+                    | Down::Drain { .. } => {}
                 },
                 Output::Parent(_)
                 | Output::Process(

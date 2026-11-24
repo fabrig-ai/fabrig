@@ -72,11 +72,14 @@
 9. **domain/host.md:** the other side: what a host owes a run and is owed, the
    channel, supervising agent processes, the local host, and one process
    through the inline agent.
-10. **protocol/limits.md:** declared quantities, startup checks, memory and what happens at a limit.
-11. **protocol/limits-derivation.md:** how each layer's limits and a window's room are derived.
-12. **protocol/programs.md:** choosing and signing in to a program backend, and what it promises.
-13. **protocol/programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.
-14. **benchmarks/README.md:** what benchmarks measure, when they run, and how tasks and suites are laid out.
-15. **benchmarks/agents.md:** agent adapters and model tiers.
-16. **benchmarks/results.md:** the result schema and statistics.
-17. **benchmarks/isolation.md:** isolating attempts, logins, and process trees.
+10. **domain/turn-parts.md:** a turn told in parts for a host that keeps a
+   run's place across its restart: the answer and each call's result as
+   they come, a drain at the answer, and a cut turn resumed.
+11. **protocol/limits.md:** declared quantities, startup checks, memory and what happens at a limit.
+12. **protocol/limits-derivation.md:** how each layer's limits and a window's room are derived.
+13. **protocol/programs.md:** choosing and signing in to a program backend, and what it promises.
+14. **protocol/programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.
+15. **benchmarks/README.md:** what benchmarks measure, when they run, and how tasks and suites are laid out.
+16. **benchmarks/agents.md:** agent adapters and model tiers.
+17. **benchmarks/results.md:** the result schema and statistics.
+18. **benchmarks/isolation.md:** isolating attempts, logins, and process trees.

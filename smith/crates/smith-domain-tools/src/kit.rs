@@ -185,6 +185,15 @@ pub(crate) fn call(
     }
 }
 
+pub(crate) fn cut(domain: &mut Domain, kit: Token, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let held = domain.kits.get_mut(Id::from_token(kit)).expect("a kit lives through its cut");
+    for id in &held.flights {
+        flight::cut(domain.flights.get_mut(*id).expect("kit retains flight"), env.now);
+    }
+    held.jobs.cut(env.now);
+    close(domain, kit, &env.limits, out);
+}
+
 pub(crate) fn close(domain: &mut Domain, kit: Token, limits: &Limits, out: &mut Queue<Request>) {
     let id = Id::from_token(kit);
     let kit = domain.kits.get_mut(id).expect("a kit lives until its session closes it");

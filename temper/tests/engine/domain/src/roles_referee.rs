@@ -135,6 +135,7 @@ impl Referee {
                         | jig_domain_core::Record::Core(
                             jig_domain_core::CoreRecord::Settings(_)
                             | jig_domain_core::CoreRecord::Projection(_)
+                            | jig_domain_core::CoreRecord::Part(_)
                             | jig_domain_core::CoreRecord::Call(_)
                             | jig_domain_core::CoreRecord::Deployment(_)
                             | jig_domain_core::CoreRecord::Turn(_)
@@ -190,6 +191,7 @@ impl Referee {
                         | jig_domain_core::Record::Core(
                             jig_domain_core::CoreRecord::Settings(_)
                             | jig_domain_core::CoreRecord::Projection(_)
+                            | jig_domain_core::CoreRecord::Part(_)
                             | jig_domain_core::CoreRecord::Call(_)
                             | jig_domain_core::CoreRecord::Deployment(_)
                             | jig_domain_core::CoreRecord::Turn(_)
@@ -271,6 +273,7 @@ impl Referee {
                             | jig_domain_core::Record::Core(
                                 jig_domain_core::CoreRecord::Settings(_)
                                 | jig_domain_core::CoreRecord::Projection(_)
+                                | jig_domain_core::CoreRecord::Part(_)
                                 | jig_domain_core::CoreRecord::Call(_)
                                 | jig_domain_core::CoreRecord::Deployment(_)
                                 | jig_domain_core::CoreRecord::Turn(_)
@@ -348,6 +351,7 @@ impl Referee {
                     | jig_domain_core::Record::Core(
                         jig_domain_core::CoreRecord::Settings(_)
                         | jig_domain_core::CoreRecord::Projection(_)
+                        | jig_domain_core::CoreRecord::Part(_)
                         | jig_domain_core::CoreRecord::Call(_)
                         | jig_domain_core::CoreRecord::RunProof(_)
                         | jig_domain_core::CoreRecord::Terminal(_)
@@ -361,6 +365,7 @@ impl Referee {
                     jig_domain_core::Key::Core(
                         jig_domain_core::CoreKey::Settings(_)
                         | jig_domain_core::CoreKey::Projection(_)
+                        | jig_domain_core::CoreKey::Part(_)
                         | jig_domain_core::CoreKey::Call(_)
                         | jig_domain_core::CoreKey::RunProof(..)
                         | jig_domain_core::CoreKey::Terminal { .. }

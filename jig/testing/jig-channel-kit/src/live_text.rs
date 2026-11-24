@@ -95,15 +95,15 @@ impl Reply {
                 if text.call.is_some() {
                     return Err(String::from("assertion failed: text.call.is_none()"));
                 }
-                if !crate::world::turns(store).is_empty() {
+                if store.turns().next().is_some() {
                     return Err(String::from("each prefix precedes the durable turn"));
                 }
                 self.prefixes.push(text.text.bytes().into());
                 release = HOLDS.get(self.prefixes.len()).copied();
             }
         } else if state.is_some_and(|state| state.committed_turn >= TURN) {
-            if state.ok_or("committed state")?.writing.is_some() {
-                return Err(String::from("committed reply has no writing"));
+            if state.ok_or("committed state")?.writing.as_ref().is_some_and(|writing| writing.turn.number <= TURN) {
+                return Err(String::from("committed reply has no writing from that turn"));
             }
             if client.text(RUN).is_some_and(|text| text.turn.number <= TURN) {
                 return Err(String::from("committed turn clears retained provisional text"));

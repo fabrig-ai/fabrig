@@ -74,7 +74,14 @@
   including output read during stopping, as a check that exits does.
   An empty tail with no discarded bytes records no output read before
   the pipes closed.
-- **Not a security boundary.** An agent can change what a check runs;
+- **A results directory,** where the start names one for a directory
+  (protocol/channel.md, section 3): the check finds its path in
+  `SMITH_CHECK_RESULTS`, the run having made it if it was missing, and
+  keeps there what it likes; smith never reads it. Its host keeps it as
+  long as the tree, across a restart too, so a check run again on the
+  same tree may skip what passed (turn-parts.md, section 5). Without
+  one, the variable is not set.
+ An agent can change what a check runs;
   whatever guards the host's systems (temper's CI and its authority's
   requirements) guards them. The checks catch failures early, inside the
   run that can fix them.

@@ -24,6 +24,7 @@ Fault: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 FieldProblem: ceilings encoded=68 decoded=64; at_most(3) encoded=7 decoded=3
 Found: ceilings encoded=2097165 decoded=2097152; at_most(3) encoded=16 decoded=3
 Hit: ceilings encoded=2101260 decoded=2101248; at_most(3) encoded=18 decoded=6
+Interrupted: ceilings encoded=2097177 decoded=2097152; at_most(3) encoded=31 decoded=6
 Invalid: ceilings encoded=69 decoded=64; at_most(3) encoded=13 decoded=3
 JobEnd: ceilings encoded=3 decoded=0; at_most(3) encoded=3 decoded=0
 JobExit: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0

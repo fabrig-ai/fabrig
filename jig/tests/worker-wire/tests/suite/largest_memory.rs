@@ -10,9 +10,10 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_worker_wire::SCHEMA,
-        jig_protocol_worker_wire::v21,
+        jig_protocol_worker_wire::v22,
         roots [
             Credential,
+            KeptPart,
             FromWorker,
             FromEngine,
         ]

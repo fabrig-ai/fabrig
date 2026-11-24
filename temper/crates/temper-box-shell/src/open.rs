@@ -1,6 +1,7 @@
 //! The terminal's arguments and startup (client/line.md, 1).
 use skein_io::kernel::{Exit, Fd};
-use skein_shell::{Clock, Config, Host, Kernel};
+use skein_lib::Secret;
+use skein_shell::{Clock, Config, Host, Kernel, Unread};
 use std::{ffi::OsString, os::unix::ffi::OsStrExt, path::Path};
 use temper_client_shell_terminal::{
     address,
@@ -48,9 +49,13 @@ impl From<address::Refused> for Refused {
 }
 /// Reads only whether this directory holds a bearer token; never lends it.
 pub fn check_token(directory: &Path) -> Result<(), Refused> {
-    match skein_shell::read_private_file(&directory.join("token"), 40, skein_shell::effective_user()) {
+    check_token_read(skein_shell::read_private_file(&directory.join("token"), 40, skein_shell::effective_user()))
+}
+
+pub(crate) fn check_token_read(read: Result<Secret, Unread>) -> Result<(), Refused> {
+    match read {
         Ok(token) if token.expose().is_empty() => Err(Refused::NotSignedIn),
-        Err(skein_shell::Unread::Absent) => Err(Refused::NotSignedIn),
+        Err(Unread::Absent) => Err(Refused::NotSignedIn),
         Err(why) => Err(Refused::Directory(super::unread(why))),
         Ok(_) => Ok(()),
     }

@@ -6,12 +6,10 @@
 )]
 
 use crate::transcripts::patches;
-use skein_codec::{patch::Patcher, schema};
-use smith_transcript::Record;
+use skein_codec::{Record, patch::Patcher, schema};
 
-// Smith's schema at jig's smith pin, checked against smith-transcript's
-// generated code by `the_real_copy_is_smiths_schema`.
-const REAL: &str = include_str!("fixtures/smith-transcript-v7.schema");
+// The current transcript schema and its owner set bound the frame machine.
+const REAL: &str = smith_transcript::SCHEMA;
 // Smith's real turn alone, as its set keeps it from the baseline on.
 const REAL_SETS: crate::OwnerSets = crate::OwnerSets {
     sets: &[crate::OwnerSet {
@@ -19,7 +17,11 @@ const REAL_SETS: crate::OwnerSets = crate::OwnerSets {
         families: &[crate::KeptFamily {
             current: REAL,
             name: smith_transcript::FAMILY,
-            frames: Some(crate::Frames { root: smith_transcript::ROOT, texts: &[REAL], patches: &[] }),
+            frames: Some(crate::Frames {
+                root: smith_transcript::ROOT,
+                texts: smith_transcript::patches::kept::smith_transcript::TEXTS,
+                patches: smith_transcript::patches::PATCHES,
+            }),
             ..super::frame_patches::SETS.sets[1].families[0]
         }],
         ..super::frame_patches::SETS.sets[1]
@@ -86,24 +88,24 @@ fn kept_turns_fit(sets: &crate::OwnerSets, limits: &crate::Limits) {
 }
 
 #[test]
-fn the_real_copy_is_smiths_schema() {
+fn the_current_transcript_schema_matches_its_generated_bounds() {
     let schema = schema::parse(REAL.as_bytes()).expect("smith's pinned schema");
-    check_copied_bounds(&schema);
+    check_generated_bounds(&schema);
     let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn");
     assert_eq!(
         Some(u64::from(schema.most_bytes(root))),
         smith_transcript::Turn::encoded_bound(&smith_transcript::CEILINGS),
-        "the copy's bound is smith's"
+        "the parser and generated codec agree on the maximum turn"
     );
     assert_eq!(u64::from(schema.version()), smith_transcript::Turn::FORMAT_VERSION);
     assert_eq!(schema.spelled(schema.family()), smith_transcript::FAMILY.as_bytes());
 }
 
 // Compare every bound in schema order, including bounds inside options and lists.
-fn check_copied_bounds(schema: &schema::Schema) {
+fn check_generated_bounds(schema: &schema::Schema) {
     use schema::{LimitLevel, Type};
     let ceilings = smith_transcript::CEILINGS.values();
-    let names = smith_transcript::v7::LIMIT_NAMES;
+    let names = smith_transcript::v8::LIMIT_NAMES;
     assert_eq!(names.len(), ceilings.as_slice().len(), "smith's generated limit names and values");
     let mut generated = names.iter().zip(ceilings.as_slice());
     for decl in 0..schema.declarations() {
@@ -142,7 +144,7 @@ fn check_copied_bounds(schema: &schema::Schema) {
             }
         }
     }
-    assert_eq!(generated.next(), None, "the copy holds every smith limit");
+    assert_eq!(generated.next(), None, "the schema holds every generated limit");
 }
 
 fn maximum_decl(schema: &schema::Schema, decl: schema::DeclIx) -> (u32, u32) {
@@ -200,7 +202,7 @@ fn typical_turn() -> Box<[u8]> {
     // 48 envelope/message bytes + 2 * 11 text blocks + 16 * (27 call + 65 read-result).
     const TYPICAL_BYTES: usize = 1542;
     let mut bytes = skein_lib::Writer::new(TYPICAL_BYTES);
-    bytes.put(&7_u16.to_be_bytes()).expect("version");
+    bytes.put(&smith_transcript::wire::VERSION.to_be_bytes()).expect("version");
     bytes.put(&[0, 0]).expect("kind, opening");
     bytes.put(&0_u32.to_be_bytes()).expect("endpoint");
     bytes.put(&0_u32.to_be_bytes()).expect("model");

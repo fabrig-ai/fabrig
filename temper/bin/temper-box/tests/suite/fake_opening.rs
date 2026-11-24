@@ -11,7 +11,7 @@ use temper_box_kit::{
 fn cluster_fixture(name: &str, source: &str, configure: bool) -> Value {
     let scratch = Scratch::new(name);
     let directory = skein_scratch::paths::package().join(source);
-    let mut description = cluster::Cluster::description_from(scratch.path(), &directory);
+    let mut description = cluster::Cluster::lay_description_from(scratch.path(), &directory);
     description.bind("proc.forge.ready.address", "127.0.0.1:12345");
     description.prepare("llm");
     let path = description.dir("llm").join("llm.json");

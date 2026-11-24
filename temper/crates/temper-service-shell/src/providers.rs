@@ -11,7 +11,17 @@ const BYTES: u32 = 128 * 1024 * 1024;
 
 /// A missing or unreadable copy leaves the application's defaults running.
 pub fn read(path: &Path, defaults: Box<[ProviderSetting]>, log: &mut impl Write) -> Box<[ProviderSetting]> {
-    match load(path) {
+    read_using(path, defaults, log, load)
+}
+
+/// Decode the startup copy supplied by a reader, with the same bound and fallback as the file reader.
+pub fn read_using(
+    path: &Path,
+    defaults: Box<[ProviderSetting]>,
+    log: &mut impl Write,
+    load: impl FnOnce(&Path) -> std::io::Result<Option<Vec<u8>>>,
+) -> Box<[ProviderSetting]> {
+    match load(path).map_err(|why| why.to_string()).and_then(|bytes| bytes.as_deref().map(decode).transpose()) {
         Ok(Some(values)) => values,
         Ok(None) => defaults,
         Err(why) => {
@@ -21,15 +31,18 @@ pub fn read(path: &Path, defaults: Box<[ProviderSetting]>, log: &mut impl Write)
         }
     }
 }
-fn load(path: &Path) -> Result<Option<Box<[ProviderSetting]>>, String> {
+fn load(path: &Path) -> std::io::Result<Option<Vec<u8>>> {
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(why) => return Err(why.to_string()),
+        Err(why) => return Err(why),
     };
     let mut bytes = Vec::new();
-    file.take(u64::from(BYTES) + 1).read_to_end(&mut bytes).map_err(|why| why.to_string())?;
-    let document = config::document(&bytes, &config::DocumentLimits { bytes: BYTES, tokens: 65_536, depth: 32 })
+    file.take(u64::from(BYTES) + 1).read_to_end(&mut bytes)?;
+    Ok(Some(bytes))
+}
+fn decode(bytes: &[u8]) -> Result<Box<[ProviderSetting]>, String> {
+    let document = config::document(bytes, &config::DocumentLimits { bytes: BYTES, tokens: 65_536, depth: 32 })
         .map_err(|_| "cannot decode the provider list")?;
     let mut problems = config::Problems::empty();
     let values = config::llm::providers_setting(&document, 0, &config::Path::root(), &mut problems)
@@ -37,7 +50,7 @@ fn load(path: &Path) -> Result<Option<Box<[ProviderSetting]>>, String> {
     if !problems.is_empty() {
         return Err("cannot decode the provider list".into());
     }
-    Ok(Some(values))
+    Ok(values)
 }
 #[must_use]
 pub fn render(values: &[ProviderSetting]) -> Box<[u8]> {

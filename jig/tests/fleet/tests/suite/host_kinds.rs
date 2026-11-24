@@ -85,6 +85,7 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
             &mut restarted,
             limits,
             Event::Adopt {
+                kept_part: 0,
                 worker: None,
                 holds: Box::new([]),
                 grants: Box::new([]),
@@ -104,6 +105,7 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
             &mut restarted_with_work,
             limits,
             Event::Adopt {
+                kept_part: 0,
                 worker: None,
                 holds: Box::new([]),
                 grants: Box::new([]),

@@ -4,7 +4,7 @@ use smith_transcript::Record;
 
 use jig_client_test_domain::DIALECT;
 use skein_fake_person::Target;
-use smith_transcript::v7 as source;
+use smith_transcript::v8 as source;
 
 fn call(id: &[u8], name: &[u8]) -> source::Block {
     source::Block::Call(source::Call { id: id.into(), name: name.into(), input: b"{}".as_slice().into(), replay: None })

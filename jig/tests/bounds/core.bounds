@@ -88,6 +88,9 @@ NoteRefusalPastEnd: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 Number: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 OutboxOutcome: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 OutboxOutcomeHeld: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+PartKey: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
+PartKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+PartRecord: ceilings encoded=33554469 decoded=33554432; at_most(3) encoded=40 decoded=3
 Party: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 PartyDeployment: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 PartyPerson: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
@@ -109,8 +112,8 @@ ProposalOutcome: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Proposer: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 ProposerParty: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ProposerTask: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
-Row: ceilings encoded=1073747852 decoded=1073747712; at_most(3) encoded=215 decoded=102
-RunProof: ceilings encoded=1073747849 decoded=1073747712; at_most(3) encoded=212 decoded=75
+Row: ceilings encoded=1073747856 decoded=1073747712; at_most(3) encoded=219 decoded=102
+RunProof: ceilings encoded=1073747853 decoded=1073747712; at_most(3) encoded=216 decoded=75
 SettingsRefusal: ceilings encoded=65540 decoded=65536; at_most(3) encoded=7 decoded=3
 SettledAnswer: ceilings encoded=1048582 decoded=1048576; at_most(3) encoded=9 decoded=3
 SettledAnswerDelivery: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
@@ -121,6 +124,6 @@ TaskBytes: ceilings encoded=8196 decoded=8192; at_most(3) encoded=7 decoded=3
 TerminalRecord: ceilings encoded=1073741852 decoded=1073741824; at_most(3) encoded=31 decoded=3
 TurnProof: ceilings encoded=21 decoded=0; at_most(3) encoded=21 decoded=0
 TurnRecord: ceilings encoded=33554484 decoded=33554432; at_most(3) encoded=55 decoded=3
-Value: ceilings encoded=1073747850 decoded=1073747712; at_most(3) encoded=213 decoded=102
+Value: ceilings encoded=1073747854 decoded=1073747712; at_most(3) encoded=217 decoded=102
 Window: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
-family: ceilings encoded=1073747852 decoded=1073747712; at_most(3) encoded=215 decoded=102
+family: ceilings encoded=1073747856 decoded=1073747712; at_most(3) encoded=219 decoded=102

@@ -15,6 +15,7 @@ pub fn kind(outcome: &Outcome) -> &'static str {
         Outcome::Edited { .. } => "edited",
         Outcome::Exited { .. } => "exited",
         Outcome::Running { .. } => "running",
+        Outcome::Interrupted { .. } => "interrupted",
         Outcome::Job { end, .. } => match end {
             smith_domain_tools::JobEnd::Running => "running",
             smith_domain_tools::JobEnd::Ended(_) => "exited",

@@ -146,8 +146,16 @@ pub fn forgejo_record(address: SocketAddr) -> forge::ForgeRecord {
 /// Seed typed application values beside their core metadata after the fixture's first start.
 /// This is bootstrap data, before any work or owner changes (domain/landing-settings.md, 1.1).
 pub fn seed_settings_file(path: &Path, bytes: &[u8]) {
-    temper_github_app::seed_with(path, &[], settings_writes(bytes)).expect("durable settings fixture");
+    seed_settings_file_with(path, bytes, |path, writes| {
+        temper_github_app::seed_with(path, &[], writes).expect("durable settings fixture");
+    });
 }
+
+/// Compose the same setting metadata and application rows through a supplied store sink.
+pub fn seed_settings_file_with(path: &Path, bytes: &[u8], seed: impl FnOnce(&Path, Vec<jig_protocol_store::Write>)) {
+    seed(path, settings_writes(bytes));
+}
+
 fn settings_writes(bytes: &[u8]) -> Vec<jig_protocol_store::Write> {
     use jig_domain_core::settings as s;
     let mut writes = Vec::new();

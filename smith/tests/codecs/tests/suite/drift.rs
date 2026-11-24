@@ -4,10 +4,10 @@ use std::{fs, path::Path};
 
 use skein_codec::bounds::Declaration;
 use skein_codegen::{bounds_text, generate, values};
-use smith_channel::v13 as channel;
+use smith_channel::v14 as channel;
 use smith_charter::v5 as charter;
 use smith_local_protocol::local_store_v1 as local_store;
-use smith_transcript::v7 as transcript;
+use smith_transcript::v8 as transcript;
 
 const REGENERATE: &str =
     "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";
@@ -20,7 +20,7 @@ fn charter_schema_matches_generated_code() {
 
 #[test]
 fn transcript_schema_matches_generated_code() {
-    assert_family("transcript", 7, smith_transcript::SCHEMA);
+    assert_family("transcript", 8, smith_transcript::SCHEMA);
     check_bounds("transcript", transcript::DECLARATIONS, transcript::CEILINGS.values().as_slice());
 }
 

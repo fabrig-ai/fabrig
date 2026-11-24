@@ -8,6 +8,7 @@ mod jobs;
 mod liveness;
 mod memory;
 mod opening;
+mod parts;
 mod pause;
 mod prepared;
 mod records;

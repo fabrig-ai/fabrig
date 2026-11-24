@@ -4,8 +4,7 @@ use crate::testing::init_fixtures::{directories, environment, scratch};
 use skein_fake_machine::Item;
 use std::fs;
 
-mod startup;
-use startup::{ListenerScript, Startup};
+use super::startup::{ListenerScript, Startup};
 
 #[test]
 fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
@@ -145,4 +144,55 @@ fn a_path_without_openssl_writes_a_box_without_sign_in_and_keeps_running() {
     assert!(value["engine"]["clients"]["provider"].is_null());
     assert!(value["application"].get("machine").is_none());
     assert!(!startup.exists(Path::new("/fixture/data/provider.key")));
+}
+
+#[test]
+fn init_reports_its_writes_and_start_command_on_stderr() {
+    use skein_fake_machine::Is;
+    use std::fmt::Write;
+
+    const ACCOUNT: &str = "init: after starting, continue with ChatGPT or add an OpenAI API key from the accounts page";
+    const NO_GIT: &str =
+        "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as [programs] git\n";
+    const NO_SIGN_IN: &str = "init: no sign-in through temper: openssl is not on PATH\n";
+
+    let config_write = format!("config/{}", temper_config_shell::FILE);
+    let bare_writes: &[&str] = &["data/worker.secret", &config_write];
+    let box_writes: &[&str] = &["data/worker.secret", "data/demo/bin/git", &config_write];
+
+    let root = Path::new("/fixture");
+    let dirs = directories(root);
+    for (boxed, git, names, sign_in, git_warning, command, demo) in [
+        (false, true, bare_writes, "", "", "temper-box serve", None),
+        (false, false, bare_writes, "", NO_GIT, "temper-box serve", None),
+        (true, true, box_writes, NO_SIGN_IN, "", "temper box", Some(Is::Directory)),
+        (true, false, box_writes, NO_SIGN_IN, NO_GIT, "temper box", Some(Is::Directory)),
+    ] {
+        let mut items = vec![Item::directory(b"bin")];
+        if git {
+            items.push(Item::file(b"bin/git", b"").mode(0o755));
+        }
+        let mut startup = Startup::new(&items, true);
+        let written = startup.init(boxed, None).expect("init succeeds");
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        let mut closed = Vec::new();
+        let code = finish_written(&dirs, boxed, written, true, || 42, (&mut stdout, &mut stderr), |fds| closed = fds);
+        assert_eq!(code, 0);
+        assert_eq!(stdout, [] as [u8; 0]);
+        assert_eq!(closed, [11, 12].map(Fd::new));
+
+        let mut expected = String::new();
+        for name in names {
+            writeln!(expected, "init: wrote {}", root.join(name).display()).expect("string");
+        }
+        write!(expected, "{sign_in}{git_warning}{ACCOUNT}\ninit: start it with {command} --config /fixture/config --data /fixture/data --cache /fixture/cache\n").expect("string");
+        let lines = String::from_utf8(stderr).expect("init lines");
+        assert_eq!(lines, expected, "boxed={boxed}, git={git}");
+
+        let document = startup.document();
+        assert!(document["application"].get("workers").is_none());
+        assert!(document["application"].get("welcome").is_none());
+        assert_eq!(startup.kind(&root.join("data/demo")), demo);
+    }
 }

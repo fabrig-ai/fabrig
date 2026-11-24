@@ -37,7 +37,7 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
     use support::ctl::{Call, PROJECT, Step, Story, json};
     let scratch = support::Scratch::new("ctl_cut");
     let forgejo = support::forgejo::Throwaway::start(&scratch);
-    support::configuration(scratch.path(), &forgejo.forge());
+    support::lay_configuration(scratch.path(), &forgejo.forge());
     let adopt = &[
         "repository",
         "adopt",
@@ -97,7 +97,7 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
 fn temper_open_adopts_a_repository_by_commands() {
     let scratch = support::Scratch::new("temper_open_adopt");
     let forgejo = support::forgejo::Throwaway::start(&scratch);
-    support::configuration(scratch.path(), &forgejo.forge());
+    support::lay_configuration(scratch.path(), &forgejo.forge());
     let mut serve = support::serve(scratch.path());
     let link = support::terminal::link(&mut serve, support::WITHIN);
     let open = support::terminal::open(scratch.path(), &scratch.path().join("client"), link.as_ref());
@@ -202,7 +202,7 @@ fn batch_landing(case: &str) {
     let workflow = barrier.gate_workflow_by_test(batch_landing::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yml", workflow.as_bytes());
     forge.add_file("check.sh", batch_landing::CHECK.as_bytes());
-    support::configuration(scratch.path(), &forge.forge());
+    support::lay_configuration(scratch.path(), &forge.forge());
     batch_landing::configure(scratch.path(), forge.repository());
     batch_landing::run_narrowed(scratch.path(), &forge, &barrier);
     forge.stop();
@@ -216,7 +216,7 @@ fn turn_landing_restarts(case: &str) {
     let forge = turn_restart::start(&scratch);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yml", workflow.as_bytes());
-    support::configuration(scratch.path(), &forge.forge());
+    support::lay_configuration(scratch.path(), &forge.forge());
     turn_restart::configure(scratch.path(), forge.repository());
     let (proof, _) = turn_restart::run(scratch.path(), &forge, &barrier, None);
     let proof = proof.expect("held gate");
@@ -962,7 +962,7 @@ fn a_mixed_document_exits_1_naming_its_path() {
         }
     }
     let scratch = support::Scratch::new("cluster_mixed_document");
-    let cluster = support::cluster::Cluster::documents(
+    let cluster = support::cluster::Cluster::lay_documents(
         scratch.path(),
         &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
     );

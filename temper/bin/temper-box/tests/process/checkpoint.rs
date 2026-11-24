@@ -35,7 +35,7 @@ fn projects(root: &Path, mut steps: Vec<Step>) -> serde_json::Value {
 fn a_stopped_checkpoint_is_held_restored_and_removed() {
     let scratch = support::Scratch::new("stopped-checkpoint");
     let root = scratch.path();
-    support::configuration(root, &support::Forge::Unreached);
+    support::lay_configuration(root, &support::Forge::Unreached);
     // Keep the signed-in directory's address usable across each restart.
     let [clients] = support::free_addresses::<1>(&[]);
     let path = root.join(temper_config_shell::FILE);

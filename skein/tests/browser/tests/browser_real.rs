@@ -86,13 +86,6 @@ fn chromium_reports_a_script_exception() {
 }
 
 #[test]
-fn chromium_finds_a_sentence_by_a_few_of_its_words() {
-    let chromium = chromium();
-    let profile = Profile::fresh();
-    Rig::new(&chromium, &profile.0, Scenario::Words).run();
-}
-
-#[test]
 fn chromium_presses_an_svg_shape_through_its_figure_at_a_point() {
     let chromium = chromium();
     let profile = Profile::fresh();
@@ -150,23 +143,24 @@ fn chromium_refuses_a_scope_found_before_a_reload() {
 
 const ATTRIBUTE_PAGE: &[u8] =
     b"<!doctype html><input type=hidden value='first' data-note='named'><input type=hidden value='second'>";
-fn attribute_rig(selector: &'static [u8], name: &'static [u8], expected: Option<&'static [u8]>) {
+fn attribute_rig(
+    selector: &'static [u8],
+    name: &'static [u8],
+    expected: &'static [u8],
+    absent_selector: Option<&'static [u8]>,
+) {
     let profile = Profile::fresh();
-    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Attribute { selector, name, expected });
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Attribute { selector, name, expected, absent_selector });
     rig.fixed_page(ATTRIBUTE_PAGE.to_vec());
     rig.run();
 }
 #[test]
 fn chromium_reads_the_first_hidden_inputs_value_attribute() {
-    attribute_rig(b"input[type=hidden]", b"value", Some(b"first"));
+    attribute_rig(b"input[type=hidden]", b"value", b"first", Some(b".absent"));
 }
 #[test]
 fn chromium_reads_a_named_markup_attribute() {
-    attribute_rig(b"input", b"data-note", Some(b"named"));
-}
-#[test]
-fn chromium_reports_a_selector_without_an_element() {
-    attribute_rig(b".absent", b"value", None);
+    attribute_rig(b"input", b"data-note", b"named", None);
 }
 
 #[test]

@@ -11,7 +11,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_channel::CHANNEL_SCHEMA,
-        smith_channel::v13,
+        smith_channel::v14,
         roots [
             ListAsk,
             ListAnswer,
@@ -27,6 +27,9 @@ fn largest_roots_stay_within_decoded_bounds() {
             Call,
             Withdraw,
             Turn,
+            Part,
+            PartKept,
+            KeptPart,
             Waiting,
             Long,
             LongDone,
@@ -42,5 +45,5 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(CAP, smith_charter::SCHEMA, smith_charter::v5, roots [Charter, RunResult]);
     family!(CAP, smith_local_protocol::SCHEMA, smith_local_protocol::local_store_v1, roots [State, Turn, Delivery, Layouts]);
-    family!(CAP, smith_transcript::SCHEMA, smith_transcript::v7, roots [Hit, Turn]);
+    family!(CAP, smith_transcript::SCHEMA, smith_transcript::v8, roots [Hit, Turn]);
 }

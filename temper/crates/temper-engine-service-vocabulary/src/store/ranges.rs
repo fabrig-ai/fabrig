@@ -69,7 +69,7 @@ pub(super) fn keeps(range: &Range, key: &Key) -> bool {
     match range {
         Range::Census(_) => true,
         Range::Core(CoreRange::Calls) => {
-            let Key::Core(core::Key::Core(core::CoreKey::Call(_))) = key else { return false };
+            let Key::Core(core::Key::Core(core::CoreKey::Call(_) | core::CoreKey::Part(_))) = key else { return false };
             true
         }
         Range::Core(CoreRange::RunProofs) => {

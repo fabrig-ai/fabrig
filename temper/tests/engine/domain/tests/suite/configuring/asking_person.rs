@@ -295,7 +295,7 @@ pub(crate) fn world() -> PersonWorld {
 }
 
 fn transcript(text: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
 
     let block = s::Block::Text(s::Text { text: text.into(), replay: None });
     let message = s::Message { role: s::Role::Assistant, blocks: skein_lib::List::from_boxed(Box::new([block])) };

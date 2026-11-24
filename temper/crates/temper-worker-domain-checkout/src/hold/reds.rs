@@ -46,6 +46,7 @@ pub(super) fn update(
         | State::Waiting { .. }
         | State::Unprepared
         | State::Pushing { .. }
+        | State::Keeping { .. }
         | State::Closed) => {
             interrupted(holding, &action, out);
             other
@@ -100,7 +101,7 @@ fn run(holding: &Holding, id: Id<Hold>, mut running: Running, env: &Env<Limits>,
         }
         out.push(Request::Io {
             owner: id.token(),
-            op: git::Op::Reds { at: place(holding.workspace.token(), spec), action: running.action.clone() },
+            op: git::Op::Reds { at: place(holding.disk, spec), action: running.action.clone() },
             deadline: env.now.saturating_add(env.limits.local_timeout),
         });
         running.repository = repository;

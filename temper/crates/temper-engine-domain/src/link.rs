@@ -54,7 +54,26 @@ pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option
             Some(core::Event::Fleet(fleet::Event::Lost { channel }))
         }
         Link::Up { up, parts } => {
-            let bytes = if let host::LinkUp::Turn { turn, .. } = &up { skein_lib::len_u64(turn.body.len()) } else { 0 };
+            let bytes = match &up {
+                host::LinkUp::Part { part, .. } => skein_lib::len_u64(part.body.len()),
+                host::LinkUp::Turn { turn, .. } => skein_lib::len_u64(turn.body.len()),
+                host::LinkUp::Paused { .. }
+                | host::LinkUp::Ask { .. }
+                | host::LinkUp::Draining
+                | host::LinkUp::Usage { .. }
+                | host::LinkUp::UsageRead { .. }
+                | host::LinkUp::ListRead { .. }
+                | host::LinkUp::JobAnswer { .. }
+                | host::LinkUp::Piece { .. }
+                | host::LinkUp::Logins { .. }
+                | host::LinkUp::SignedOut { .. }
+                | host::LinkUp::Activity { .. }
+                | host::LinkUp::Unauthorized { .. }
+                | host::LinkUp::Limited { .. }
+                | host::LinkUp::AccountRefused { .. }
+                | host::LinkUp::Call { .. }
+                | host::LinkUp::Answer { .. } => 0,
+            };
             let invalid = !parts_within(&parts, &domain.limits);
             let mut event = hub::up(&mut domain.hub_link, channel, up)?;
             domain.hold_bytes(bytes);
@@ -77,7 +96,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
         | WorkerInput::Link {
             link:
                 Link::Up {
-                    up: host::LinkUp::Turn { .. } | host::LinkUp::JobAnswer { .. } | host::LinkUp::Answer { .. },
+                    up: host::LinkUp::Part { .. } | host::LinkUp::Turn { .. } | host::LinkUp::JobAnswer { .. } | host::LinkUp::Answer { .. },
                     ..
                 },
             ..
@@ -448,6 +467,7 @@ pub(crate) fn assignment(domain: &mut Domain, assignment: hub::Assignment) -> cr
         workspace: parts.workspace,
         transcript: assignment.transcript,
         answered: parts.answered,
+        parts: assignment.parts,
         settled: assignment.answered,
         grants: assignment.grants,
     }
@@ -578,6 +598,7 @@ mod tests {
             .insert(
                 task,
                 core::RunProof {
+                    kept_part: 0,
                     worker: None,
                     task,
                     attempt: 1,

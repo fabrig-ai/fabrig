@@ -95,6 +95,11 @@ pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event
             }
             continue;
         }
+        // Frames can settle in a burst while earlier map commits still await their sync.
+        // Keep the next commit here until the map has durable credit for it.
+        if pending.number.saturating_sub(store.stores.store.last()) > u64::from(store.limits.store.queued) {
+            return;
+        }
         let pending = store.transcripts.current.take().expect("current commit");
         commits::submit(store, env, pending.number, pending.ops, above, below);
         if store.phase == Phase::Stopped {

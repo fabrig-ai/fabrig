@@ -56,6 +56,7 @@ impl Jobs {
                 | Outcome::EditFailed { .. }
                 | Outcome::Failed { .. }
                 | Outcome::TimedOut
+                | Outcome::Interrupted { .. }
                 | Outcome::Cancelled
                 | Outcome::Busy
                 | Outcome::NulByte => {}

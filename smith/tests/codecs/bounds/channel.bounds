@@ -35,8 +35,8 @@ DeliveryFailure: ceilings encoded=529 decoded=512; at_most(3) encoded=20 decoded
 DeliveryReason: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 DeliveryRefusal: ceilings encoded=4621 decoded=4608; at_most(3) encoded=19 decoded=6
 DeliveryReply: ceilings encoded=33285 decoded=34304; at_most(3) encoded=38 decoded=81
-Directory: ceilings encoded=4203534 decoded=4215808; at_most(3) encoded=41 decoded=63
-Drain: ceilings encoded=0 decoded=0; at_most(3) encoded=0 decoded=0
+Directory: ceilings encoded=4207635 decoded=4219904; at_most(3) encoded=49 decoded=66
+Drain: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Effect: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Fact: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 FactKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -50,6 +50,7 @@ HostAsk: ceilings encoded=1048648 decoded=1048640; at_most(3) encoded=14 decoded
 HostReply: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
 InvalidStart: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
 InvalidStartValue: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
+KeptPart: ceilings encoded=33554457 decoded=33554432; at_most(3) encoded=28 decoded=3
 LimitFailure: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 Limited: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
 LimitedFault: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
@@ -75,6 +76,9 @@ ModelFaultValue: ceilings encoded=558 decoded=544; at_most(3) encoded=64 decoded
 Operation: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Overflow: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 OverflowValue: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Part: ceilings encoded=33554453 decoded=33554432; at_most(3) encoded=24 decoded=3
+PartKept: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+PartKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PathCap: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PolicyFailure: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 PoolLimit: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
@@ -96,7 +100,7 @@ SavedReply: ceilings encoded=1048582 decoded=1048576; at_most(3) encoded=39 deco
 Scheme: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Signal: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Signalled: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
-Start: ceilings encoded=1142112194 decoded=1142914560; at_most(3) encoded=537 decoded=1218
+Start: ceilings encoded=1679245575 decoded=1680048640; at_most(3) encoded=569 decoded=1278
 StartRefusal: ceilings encoded=19 decoded=0; at_most(3) encoded=19 decoded=0
 TimeoutFailure: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 TranscriptRefusal: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -111,5 +115,5 @@ Waiting: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Window: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 WindowBound: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Withdraw: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
-Workspace: ceilings encoded=269026180 decoded=269816320; at_most(3) encoded=127 decoded=405
-family: ceilings encoded=1142112194 decoded=1142914560; at_most(3) encoded=537 decoded=1218
+Workspace: ceilings encoded=269288644 decoded=270079488; at_most(3) encoded=151 decoded=462
+family: ceilings encoded=1679245575 decoded=1680048640; at_most(3) encoded=569 decoded=1278

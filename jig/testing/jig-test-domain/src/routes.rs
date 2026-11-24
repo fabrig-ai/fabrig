@@ -90,6 +90,9 @@ pub(super) fn route_core(
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
+                | core::Held::TaskPartKept { .. }
+                | core::Held::AcknowledgePart { .. }
+                | core::Held::PartBusy { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained
@@ -451,6 +454,11 @@ fn route_now(
     work: &mut Queue<Work>,
 ) {
     match now {
+        core::Now::PartBusy { key } => work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::PartBusy {
+            run: skein_lib::Token::new(key.task),
+            attempt: skein_lib::Token::new(key.attempt),
+            part: key.number,
+        }))),
         core::Now::Ask { channel, run, attempt, number, bytes } => {
             work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Asked {
                 channel,
@@ -515,6 +523,7 @@ fn route_now(
             run,
             messages,
             transcript,
+            parts,
             grants,
             ..
         } => {
@@ -525,6 +534,7 @@ fn route_now(
                 env.now,
                 jig_domain_hub_link::Event::Prepared {
                     assignment: crate::Assignment {
+                        parts,
                         live,
                         task,
                         attempt,

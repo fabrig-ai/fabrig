@@ -279,6 +279,7 @@ fn classify_failure(tail: &[u8], cut: u64, kind: git::Kind) -> Result<(), git::F
         | git::Kind::DiffPaths
         | git::Kind::Brings
         | git::Kind::IsAncestor
+        | git::Kind::Keep
         | git::Kind::Make
         | git::Kind::Commit => {
             return Err(git::Fault::Broken);

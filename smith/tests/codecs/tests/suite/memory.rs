@@ -6,7 +6,7 @@ use skein_lib::{List, Reader, Writer};
 use smith_charter::Record;
 
 use smith_charter::v5 as charter;
-use smith_transcript::v7 as transcript;
+use smith_transcript::v8 as transcript;
 
 fn charter_limits() -> charter::Limits {
     charter::Limits {

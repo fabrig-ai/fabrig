@@ -70,6 +70,7 @@ pub(crate) enum Up {
     Source(host::LinkUp),
     Ask(wire::Ask),
     ListRead(wire::ListRead),
+    Part(wire::v22::Part),
     Turn(wire::Turn),
     Call(wire::Call),
     Answer(wire::Answer),
@@ -79,7 +80,7 @@ pub(crate) enum Up {
     Limited(wire::Limited),
     AccountRefused(wire::AccountRefused),
 }
-pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v21::Limits) -> Option<Up> {
+pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v22::Limits) -> Option<Up> {
     let mut found = None;
     for rule in wire::KINDS {
         if rule.kind == kind {
@@ -145,6 +146,7 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v21::Limits) -> Opti
             };
             Some(Up::Source(host::LinkUp::SignedOut { name, result }))
         }
+        wire::Kind::Part => Some(Up::Part(wire::v22::Part::decode(limits, reader).ok()?)),
         wire::Kind::Turn => Some(Up::Turn(wire::Turn::decode(limits, reader).ok()?)),
         wire::Kind::Call => Some(Up::Call(wire::Call::decode(limits, reader).ok()?)),
         wire::Kind::JobAnswer => Some(Up::JobAnswer(wire::JobAnswer::decode(limits, reader).ok()?)),
@@ -167,6 +169,8 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v21::Limits) -> Opti
         | wire::Kind::Message
         | wire::Kind::Relayed
         | wire::Kind::TurnKept
+        | wire::Kind::PartKept
+        | wire::Kind::PartBusy
         | wire::Kind::TurnBusy
         | wire::Kind::Acknowledge
         | wire::Kind::Wires
@@ -185,6 +189,18 @@ pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
         },
         Up::Source(up) => up,
         Up::ListRead(record) => host::LinkUp::ListRead { read: record.read, outcome: list_outcome(record.outcome) },
+        Up::Part(record) => host::LinkUp::Part {
+            run: Token::new(record.task),
+            attempt: Token::new(record.attempt),
+            part: jig_domain_link::Part {
+                number: record.number,
+                turn: record.turn,
+                thread: record.thread,
+                call: record.call,
+                kind: part_kind_up(record.kind),
+                body: record.body,
+            },
+        },
         Up::Turn(record) => turn(record),
         Up::Call(record) => call(record),
         Up::Answer(record) => answer(record, parts),
@@ -583,6 +599,8 @@ pub(crate) enum Down {
     AssignJob(wire::Job),
     Message(wire::Inbound),
     Relayed(wire::Relayed),
+    PartKept(wire::PartKept),
+    PartBusy(wire::PartBusy),
     TurnKept(wire::TurnKept),
     TurnBusy(wire::TurnBusy),
     Acknowledge(wire::Acknowledge),
@@ -604,6 +622,8 @@ impl Down {
             Self::AssignJob(_) => wire::Kind::Job,
             Self::Message(_) => wire::Kind::Message,
             Self::Relayed(_) => wire::Kind::Relayed,
+            Self::PartKept(_) => wire::Kind::PartKept,
+            Self::PartBusy(_) => wire::Kind::PartBusy,
             Self::TurnKept(_) => wire::Kind::TurnKept,
             Self::TurnBusy(_) => wire::Kind::TurnBusy,
             Self::Acknowledge(_) => wire::Kind::Acknowledge,
@@ -611,7 +631,7 @@ impl Down {
             Self::Grant(_) => wire::Kind::Grant,
         }
     }
-    pub fn frame(self, limits: &wire::v21::Limits) -> Result<skein_channel::Frame, crate::Unencoded> {
+    pub fn frame(self, limits: &wire::v22::Limits) -> Result<skein_channel::Frame, crate::Unencoded> {
         let (kind, length) = match &self {
             Self::Pause(record) => (wire::Kind::Pause.number(), record.measure(limits)),
             Self::Restarting(record) => (wire::Kind::Restarting.number(), record.measure(limits)),
@@ -625,6 +645,8 @@ impl Down {
             Self::AssignJob(record) => (wire::Kind::Job.number(), record.measure(limits)),
             Self::Message(record) => (0x0181, record.measure(limits)),
             Self::Relayed(record) => (0x0182, record.measure(limits)),
+            Self::PartKept(record) => (wire::Kind::PartKept.number(), record.measure(limits)),
+            Self::PartBusy(record) => (wire::Kind::PartBusy.number(), record.measure(limits)),
             Self::TurnKept(record) => (0x0183, record.measure(limits)),
             Self::TurnBusy(record) => (0x0184, record.measure(limits)),
             Self::Acknowledge(record) => (0x0185, record.measure(limits)),
@@ -650,6 +672,8 @@ impl Down {
             Self::AssignJob(record) => record.write(limits, &mut body),
             Self::Message(record) => record.write(limits, &mut body),
             Self::Relayed(record) => record.write(limits, &mut body),
+            Self::PartKept(record) => record.write(limits, &mut body),
+            Self::PartBusy(record) => record.write(limits, &mut body),
             Self::TurnKept(record) => record.write(limits, &mut body),
             Self::TurnBusy(record) => record.write(limits, &mut body),
             Self::Acknowledge(record) => record.write(limits, &mut body),
@@ -665,7 +689,7 @@ pub(crate) fn down(
     down: host::LinkDown,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v21::Limits,
+    limits: &wire::v22::Limits,
 ) -> Result<Down, crate::Unencoded> {
     match down {
         host::LinkDown::Pause { mode } => {
@@ -707,7 +731,7 @@ pub(crate) fn down(
                 "Sources.sources",
                 skein_lib::length::len_u64(sources.len()),
                 limits.sources_sources,
-                wire::v21::CEILINGS.sources_sources,
+                wire::v22::CEILINGS.sources_sources,
             )?;
             let mut names = List::with_capacity(u32::try_from(sources.len()).expect("measured sources count fits"));
             for name in sources {
@@ -737,6 +761,9 @@ pub(crate) fn down(
             };
             Ok(Down::Relayed(wire::Relayed { task: run.raw(), attempt: attempt.raw(), name: call, answer }))
         }
+        host::LinkDown::PartKept { run, attempt, part } => {
+            Ok(Down::PartKept(wire::PartKept { task: run.raw(), attempt: attempt.raw(), number: part }))
+        }
         host::LinkDown::TurnKept { run, attempt, turn } => {
             Ok(Down::TurnKept(wire::TurnKept { task: run.raw(), attempt: attempt.raw(), number: turn }))
         }
@@ -757,10 +784,10 @@ fn job_record(
     job: host::JobAssignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v21::Limits,
+    limits: &wire::v22::Limits,
 ) -> Result<wire::Job, crate::Unencoded> {
     let workspace = workspace_record(job.workspace, parts)?;
-    let grants = grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v21::CEILINGS.job_grants)?;
+    let grants = grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v22::CEILINGS.job_grants)?;
     Ok(wire::Job {
         task: job.run.raw(),
         attempt: job.attempt.raw(),
@@ -775,7 +802,7 @@ fn assignment_record(
     assignment: host::Assignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v21::Limits,
+    limits: &wire::v22::Limits,
 ) -> Result<wire::Assignment, crate::Unencoded> {
     let run = assignment.assignment;
     let workspace = workspace_record(run.workspace, parts)?;
@@ -783,7 +810,7 @@ fn assignment_record(
         "Assignment.messages",
         skein_lib::length::len_u64(assignment.messages.len()),
         limits.assignment_messages,
-        wire::v21::CEILINGS.assignment_messages,
+        wire::v22::CEILINGS.assignment_messages,
     )?;
     let mut messages =
         List::with_capacity(u32::try_from(assignment.messages.len()).expect("measured messages count fits"));
@@ -801,7 +828,7 @@ fn assignment_record(
         "Assignment.answered",
         skein_lib::length::len_u64(assignment.answered.len()),
         limits.assignment_answered,
-        wire::v21::CEILINGS.assignment_answered,
+        wire::v22::CEILINGS.assignment_answered,
     )?;
     let mut answered =
         List::with_capacity(u32::try_from(assignment.answered.len()).expect("measured answered count fits"));
@@ -816,16 +843,34 @@ fn assignment_record(
         values,
         "Assignment.grants",
         limits.assignment_grants,
-        wire::v21::CEILINGS.assignment_grants,
+        wire::v22::CEILINGS.assignment_grants,
     )?;
     measured(
         "Assignment.charter",
         skein_lib::length::len_u64(run.charter.len()),
         limits.assignment_charter,
-        wire::v21::CEILINGS.assignment_charter,
+        wire::v22::CEILINGS.assignment_charter,
     )?;
     let transcript = transcript(&assignment.turns, limits.assignment_transcript)?;
+    let mut kept_parts = List::with_capacity(u32::try_from(assignment.parts.len()).expect("bounded kept parts"));
+    for part in assignment.parts {
+        kept_parts
+            .push(wire::KeptPart {
+                attempt: part.attempt,
+                turn: part.turn,
+                thread: part.thread,
+                call: part.call,
+                kind: part_kind_down(part.kind),
+                body: part.body,
+            })
+            .expect("one slot per kept part");
+    }
+    let kept_parts = match wire::parts::encode(kept_parts.as_slice(), limits) {
+        Ok(parts) => parts,
+        Err(error) => return Err(problem(error)),
+    };
     Ok(wire::Assignment {
+        parts: kept_parts,
         task: run.run.raw(),
         attempt: run.attempt.raw(),
         identity: run.identity,
@@ -839,7 +884,7 @@ fn assignment_record(
         grants,
     })
 }
-pub(crate) fn problem(problem: wire::v21::Problem) -> crate::Unencoded {
+pub(crate) fn problem(problem: wire::v22::Problem) -> crate::Unencoded {
     crate::Unencoded {
         field: problem.path.name(),
         reason: Some(problem.reason),
@@ -909,7 +954,7 @@ fn transcript(turns: &[Box<[u8]>], bound: u32) -> Result<Box<[u8]>, crate::Unenc
             .ok_or(crate::Unencoded::field("Assignment.transcript"))?;
         length = length.checked_add(4).ok_or(crate::Unencoded::field("Assignment.transcript"))?;
     }
-    measured("Assignment.transcript", length, bound, wire::v21::CEILINGS.assignment_transcript)?;
+    measured("Assignment.transcript", length, bound, wire::v22::CEILINGS.assignment_transcript)?;
     let mut writer = skein_lib::Writer::new(usize::try_from(length).expect("bounded framed transcript fits usize"));
     for turn in turns {
         skein_codec::piece::write(&mut writer, turn).expect("measured framed transcript fits");
@@ -1041,7 +1086,7 @@ pub(crate) fn send(
     frame: skein_channel::Frame,
     version: u16,
     agreed: &List<wire::Agreed>,
-    limits: &wire::v21::Limits,
+    limits: &wire::v22::Limits,
 ) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
     machine.send(frame, version, agreed.as_slice(), limits)
 }
@@ -1051,7 +1096,7 @@ pub(crate) fn receive(
     body: &[u8],
     version: u16,
     agreed: &List<wire::Agreed>,
-    limits: &wire::v21::Limits,
+    limits: &wire::v22::Limits,
 ) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
     machine.receive(kind, body, version, agreed.as_slice(), limits)
 }
@@ -1093,4 +1138,19 @@ fn usage_outcome(outcome: wire::UsageOutcome) -> Option<jig_domain_link::UsageOu
 
 fn reset_wall(reset: Option<u64>) -> Option<skein_lib::Wall> {
     Some(skein_lib::Wall::from_nanos(reset?))
+}
+
+fn part_kind_up(kind: wire::PartKind) -> jig_domain_link::PartKind {
+    match kind {
+        wire::PartKind::Answer => jig_domain_link::PartKind::Answer,
+        wire::PartKind::Result => jig_domain_link::PartKind::Result,
+        wire::PartKind::Window => jig_domain_link::PartKind::Window,
+    }
+}
+fn part_kind_down(kind: jig_domain_link::PartKind) -> wire::PartKind {
+    match kind {
+        jig_domain_link::PartKind::Answer => wire::PartKind::Answer,
+        jig_domain_link::PartKind::Result => wire::PartKind::Result,
+        jig_domain_link::PartKind::Window => wire::PartKind::Window,
+    }
 }

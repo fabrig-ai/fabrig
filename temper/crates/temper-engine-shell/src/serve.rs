@@ -442,30 +442,33 @@ pub fn before_root(
     user: u32,
     record: bool,
 ) -> Result<Inputs, String> {
-    let required = core::mem::take(required);
-    let asked = core::mem::take(asked);
-    let files = read_files_with_asked(required, asked, user)?;
+    before_root_using(
+        required,
+        asked,
+        sign_in,
+        configured_bundle,
+        bundle_limits,
+        record,
+        |required, asked| read_files_with_asked(required, asked, user),
+        bundle::read,
+    )
+}
+
+/// Prepare the same inputs with supplied file and configured bundle readers.
+#[expect(clippy::too_many_arguments, reason = "the startup facts are supplied beside their two readers")]
+pub fn before_root_using(
+    required: &mut Box<[config::File]>,
+    asked: &mut Box<[config::File]>,
+    sign_in: Option<&service::startup::SignIn>,
+    configured_bundle: Option<&[u8]>,
+    bundle_limits: service::limits::Clients,
+    record: bool,
+    read_files: impl FnOnce(Box<[config::File]>, Box<[config::File]>) -> Result<service::settings::Files, String>,
+    read_bundle: impl FnOnce(&[u8], service::limits::Clients) -> Result<service::clients::bundle::Bundle, String>,
+) -> Result<Inputs, String> {
+    let files = read_files(core::mem::take(required), core::mem::take(asked))?;
     let google = google_runtime::resolve(sign_in)?;
-    let mut bundle = match configured_bundle {
-        Some(configured) => Some(bundle::read(configured, bundle_limits)?),
-        None => bundle::own(bundle_limits)?,
-    };
-    if let Some(bundle) = &mut bundle {
-        bundle.fill_sign_in(sign_in.is_some()).ok_or_else(|| {
-            format!(
-                "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
-                configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-            )
-        })?;
-        if record {
-            bundle.fill_record().ok_or_else(|| {
-                format!(
-                    "application.clients.bundle: {}: the page has no </head> for its recording metadata",
-                    configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-                )
-            })?;
-        }
-    }
+    let bundle = bundle::prepare(configured_bundle, bundle_limits, sign_in.is_some(), record, read_bundle)?;
     Ok(Inputs { files, google, bundle })
 }
 pub fn seeds(link_secret: Option<Secret>, local_secret: Option<Secret>) -> Result<Seeds, String> {

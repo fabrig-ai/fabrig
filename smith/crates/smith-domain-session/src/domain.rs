@@ -153,6 +153,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Continue { session, content } => session::continued(domain, env, session, content, out),
         Event::Yield { session } => session::yield_completion(domain, session, out),
         Event::Close { session } => session::close(domain, env, session, out),
+        Event::Cut { session } => session::cut(domain, env, session, out),
         Event::CancelJobs { session } => session::cancel_jobs(domain, env, session, out),
         Event::ReadVersion { session, place, version } => {
             session::read_version(domain, env, session, place, version, out);

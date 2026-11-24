@@ -2,7 +2,7 @@
 pub(crate) mod file;
 mod kept;
 pub(crate) use kept::seed;
-pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file};
+pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file, seed_settings_file_with};
 use std::{
     io::Write,
     net::SocketAddr,

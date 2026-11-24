@@ -90,6 +90,7 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -131,6 +132,7 @@ pub(crate) fn pick(
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -162,7 +164,10 @@ impl crate::Worker {
     pub(crate) fn git_drain(&mut self) {
         for _ in 0..self.git.out.events.len() {
             match self.git.out.events.pop().expect("git events") {
-                component::Event::Started => self.git.ready = true,
+                component::Event::Started => {
+                    self.root.restore_workspaces(self.git.component.take_kept());
+                    self.git.ready = true;
+                }
                 component::Event::Unusable { .. } => self.git.refused = Some(problem(b"git", What::Form)),
                 component::Event::Unswept { path, error } => {
                     self.notes().push(crate::worker_alone::Note::Unswept { path, error });

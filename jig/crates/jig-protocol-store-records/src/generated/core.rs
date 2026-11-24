@@ -1381,6 +1381,70 @@ pub fn call_record_to_domain(record: crate::core_v6::CallRecord, context: &crate
 }
 
 #[must_use]
+pub fn part_key_to_record(value: &jig_domain_core_vocabulary::PartKey) -> crate::core_v6::PartKey {
+    let jig_domain_core_vocabulary::PartKey { task: field_000000, attempt: field_000001, number: field_000002 } = value;
+    crate::core_v6::PartKey {
+        task: *field_000000,
+        attempt: *field_000001,
+        number: *field_000002
+    }
+}
+
+#[must_use]
+pub fn part_key_to_domain(record: crate::core_v6::PartKey) -> jig_domain_core_vocabulary::PartKey {
+    let crate::core_v6::PartKey { task: field_000000, attempt: field_000001, number: field_000002 } = record;
+    jig_domain_core_vocabulary::PartKey {
+        task: field_000000,
+        attempt: field_000001,
+        number: field_000002
+    }
+}
+
+#[must_use]
+pub fn part_kind_to_record(value: &jig_domain_link::PartKind) -> crate::core_v6::PartKind {
+    match value {
+        jig_domain_link::PartKind::Answer => crate::core_v6::PartKind::Answer,
+        jig_domain_link::PartKind::Result => crate::core_v6::PartKind::Result,
+        jig_domain_link::PartKind::Window => crate::core_v6::PartKind::Window,
+    }
+}
+
+#[must_use]
+pub fn part_kind_to_domain(record: crate::core_v6::PartKind) -> jig_domain_link::PartKind {
+    match record {
+        crate::core_v6::PartKind::Answer => jig_domain_link::PartKind::Answer,
+        crate::core_v6::PartKind::Result => jig_domain_link::PartKind::Result,
+        crate::core_v6::PartKind::Window => jig_domain_link::PartKind::Window,
+    }
+}
+
+#[must_use]
+pub fn part_record_to_record(value: &jig_domain_core_vocabulary::PartRecord) -> crate::core_v6::PartRecord {
+    let jig_domain_core_vocabulary::PartRecord { key: field_000000, turn: field_000001, thread: field_000002, call: field_000003, kind: field_000004, body: field_000005 } = value;
+    crate::core_v6::PartRecord {
+        key: part_key_to_record(field_000000),
+        turn: *field_000001,
+        thread: *field_000002,
+        call: *field_000003,
+        kind: part_kind_to_record(field_000004),
+        body: field_000005.clone()
+    }
+}
+
+#[must_use]
+pub fn part_record_to_domain(record: crate::core_v6::PartRecord) -> jig_domain_core_vocabulary::PartRecord {
+    let crate::core_v6::PartRecord { key: field_000000, turn: field_000001, thread: field_000002, call: field_000003, kind: field_000004, body: field_000005 } = record;
+    jig_domain_core_vocabulary::PartRecord {
+        key: part_key_to_domain(field_000000),
+        turn: field_000001,
+        thread: field_000002,
+        call: field_000003,
+        kind: part_kind_to_domain(field_000004),
+        body: field_000005
+    }
+}
+
+#[must_use]
 pub fn deployment_to_record(value: &jig_domain_core_vocabulary::Deployment) -> crate::core_v6::Deployment {
     let jig_domain_core_vocabulary::Deployment { id: field_000000, tasks: field_000001, people: field_000002, sign_ins: field_000003, messages: field_000004, runs: field_000005, calls: field_000006, connector_rows: field_000007, applications: field_000008, commits: field_000009, projects: field_000010, restart_wait_ms: field_000011 } = value;
     crate::core_v6::Deployment {
@@ -1632,7 +1696,7 @@ pub fn account_binding_to_domain(record: crate::core_v6::AccountBinding) -> jig_
 }
 
 pub fn run_proof_to_record(value: &jig_domain_core_vocabulary::RunProof, context: &crate::codec::View) -> Result<crate::core_v6::RunProof, crate::core_v6::Problem> {
-    let jig_domain_core_vocabulary::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016 } = value;
+    let jig_domain_core_vocabulary::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016, kept_part: field_000017 } = value;
     Ok(crate::core_v6::RunProof {
         task: *field_000000,
         attempt: *field_000001,
@@ -1725,13 +1789,14 @@ pub fn run_proof_to_record(value: &jig_domain_core_vocabulary::RunProof, context
                 Some(converted)
             }
             None => None,
-        }
+        },
+        kept_part: *field_000017
     })
 }
 
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn run_proof_to_domain(record: crate::core_v6::RunProof, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::RunProof, crate::core_v6::Problem> {
-    let crate::core_v6::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016 } = record;
+    let crate::core_v6::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016, kept_part: field_000017 } = record;
     Ok(jig_domain_core_vocabulary::RunProof {
         task: field_000000,
         attempt: field_000001,
@@ -1830,7 +1895,8 @@ pub fn run_proof_to_domain(record: crate::core_v6::RunProof, context: &crate::co
                 Some(converted)
             }
             None => None,
-        }
+        },
+        kept_part: field_000017
     })
 }
 

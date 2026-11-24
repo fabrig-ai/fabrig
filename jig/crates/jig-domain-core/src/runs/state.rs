@@ -49,13 +49,16 @@ pub struct Transcript {
 }
 
 impl Core {
-    /// The bytes the run preparations hold or are about to hold, for a
-    /// composing root's byte budget (skein's `programming-model.md`,
+    /// The kept parts' bytes and those run preparations hold or are about to
+    /// hold, for a composing root's byte budget (skein's `programming-model.md`,
     /// 6.1): each preparation counts at its resume allowance from its start
     /// until its load is in, then at the turn bodies and text it keeps.
     #[must_use]
     pub fn transcript_bytes(&self) -> u64 {
         let mut bytes = 0_u64;
+        for (_, part) in &self.kept_parts {
+            bytes = bytes.checked_add(len_u64(part.body.len())).expect("retained part bytes fit u64");
+        }
         for (_, transcript) in &self.transcripts {
             if transcript.loaded {
                 bytes = bytes.checked_add(transcript.text_kept).expect("retained transcript text bytes fit u64");
@@ -103,10 +106,15 @@ impl Core {
     pub fn run_admission(&self, task: &tasks::RunContext, wall: Wall, writes: Box<[authority::Write]>) -> RunAdmission {
         let Some(task) = self.tasks.run_context(task.task) else { return RunAdmission::Wait(crate::RunWait::Host) };
         let choice = self.run_choice(task.task);
+        let reserve = match &choice {
+            Ok(choice) => reserve_floor(&choice.policy).unwrap_or(u64::MAX),
+            Err(_) => self.run_reserve(task.task),
+        };
         let mut findings = Queue::uncapped();
         let checked = self.run_check(
             (task.task, task.project, &task.authority, task.numbers),
             choice.as_ref().ok(),
+            reserve,
             wall,
             writes,
             &mut findings,
@@ -133,6 +141,7 @@ impl Core {
         &self,
         (number, project, task_authority, task_numbers): (u64, u32, &tasks::Authority, tasks::Numbers),
         choice: Option<&RunChoice>,
+        reserve: u64,
         wall: Wall,
         writes: Box<[authority::Write]>,
         findings: &mut Queue<authority::Finding>,
@@ -165,7 +174,7 @@ impl Core {
                 authority,
                 numbers,
                 budget,
-                reserve: self.run_reserve(number),
+                reserve,
                 wall,
                 main_provider: match choice {
                     Some(choice) => choice.accounts.first().expect("choice includes main provider").provider,
@@ -182,10 +191,15 @@ impl Core {
     /// Whether a due agent's admission for no writes is anything but a wait
     /// (domain/engine/executors.md, 1), asking the cheaper checks first.
     pub(crate) fn agent_ready(&self, task: u64) -> bool {
+        if self.unsettled_effect(task) {
+            return false;
+        }
         let Some(row) = self.tasks.task(task) else { return false };
         let current = (task, row.project, &row.authority, row.numbers);
+        let policy = self.chosen_policy(task);
+        let reserve = reserve_floor(&policy).unwrap_or(u64::MAX);
         let mut findings = Queue::uncapped();
-        match self.run_check(current, None, self.run_wall, Box::new([]), &mut findings) {
+        match self.run_check(current, None, reserve, self.run_wall, Box::new([]), &mut findings) {
             authority::RunAnswer::Allow { .. } => unreachable!("no accounts cannot allow a run"),
             authority::RunAnswer::Wait | authority::RunAnswer::Propose | authority::RunAnswer::Refuse => {}
         }
@@ -200,8 +214,8 @@ impl Core {
         if !self.credentials_ready(task, self.run_now) {
             return false;
         }
-        let Ok(choice) = self.run_choice(task) else { return false };
-        match self.run_check(current, Some(&choice), self.run_wall, Box::new([]), &mut findings) {
+        let Ok(choice) = self.run_choice_for_policy(task, Some(policy)) else { return false };
+        match self.run_check(current, Some(&choice), reserve, self.run_wall, Box::new([]), &mut findings) {
             authority::RunAnswer::Allow { .. } => true,
             authority::RunAnswer::Wait | authority::RunAnswer::Propose | authority::RunAnswer::Refuse => {
                 match denied(&mut findings, crate::RunWait::Credential) {

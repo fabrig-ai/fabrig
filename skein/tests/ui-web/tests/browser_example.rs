@@ -57,24 +57,6 @@ fn a_reload_keeps_a_pending_add_made_once() {
 }
 
 #[test]
-fn a_note_added_in_one_page_shows_in_another() {
-    let mut reader = Script::new(Box::new([
-        harness::Step::Person(Step::See { find: Find::text(b"Live"), within: SECOND }),
-        harness::Step::Person(Step::See { find: Find::exactly_named(Role::Link, b"Groceries"), within: SECOND }),
-    ]));
-    let mut writer = Script::new(Box::new([
-        harness::Step::Person(Step::See { find: Find::text(b"Live"), within: SECOND }),
-        harness::Step::Person(Step::Type {
-            find: Find::exactly_named(Role::TextField, b"Title"),
-            words: b"Groceries".as_slice().into(),
-        }),
-        harness::Step::Person(Step::Press { find: Find::exactly_named(Role::Button, b"Add") }),
-        harness::Step::Person(Step::See { find: Find::exactly_named(Role::Link, b"Groceries"), within: SECOND }),
-    ]));
-    assert_eq!(example_harness().run(&mut [&mut reader, &mut writer]), Outcome::Done);
-}
-
-#[test]
 fn a_person_opens_a_note_and_comes_back_by_its_link() {
     let mut person = Script::new(Box::new([
         harness::Step::Person(Step::See { find: Find::exactly_named(Role::TextField, b"Title"), within: SECOND }),

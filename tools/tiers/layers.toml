@@ -5,7 +5,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 [skein]
 "github-conformance::suite" = "real-loop" # Real journal and transcript files over a simulated network.
 "skein-browser-world::browser_facts" = "end-to-end" # Real Chromium and the browser face.
-"skein-browser-world::browser_real" = "end-to-end" # Real Chromium on the served pages.
+"skein-browser-world::browser_real" = "end-to-end" # Native Chromium CDP: accessibility, DOM reads, layout, input and page events.
 "skein-browser-world::suite" = "machine"
 "skein-channel-world::suite" = "protocol" # machine and protocol: framed machines and both channel ends.
 "skein-codec-patches::suite" = "step" # Replays the patch command's owner history over trees in memory.
@@ -59,12 +59,12 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "skein-ui-screen-tests::suite" = "simulated" # step and simulated: drawing functions and terminal iterate over fake io.
 "skein-ui-tests::suite" = "step" # UI containers, value functions and allocation bounds.
 "skein-ui-text-tests::suite" = "simulated" # Terminal iterate over simulated pipes and clock.
-"skein-ui-web-tests::browser_example" = "end-to-end" # UI example's shipped bundle in Chromium.
-"skein-ui-web-tests::browser_harness" = "end-to-end" # Browser harness against real Chromium and served pages.
-"skein-ui-web-tests::browser_stories" = "end-to-end" # Browser shell stories on real Chromium.
+"skein-ui-web-tests::browser_example" = "end-to-end" # Shipped bundle in Chromium: forms, charts, navigation and pending writes across reloads.
+"skein-ui-web-tests::browser_harness" = "end-to-end" # Chromium trouble, roles, input and cross-origin pages; real child pipes, loopback and deadlines.
+"skein-ui-web-tests::browser_stories" = "end-to-end" # Chromium shell wiring, cross-page patches, live DOM and accessibility tree walk, focus.
 "skein-ui-web-tests::machine" = "machine" # step and machine: page mapping, content types and in-memory bundle routes.
 "skein-ui-web-tests::suite" = "real-loop" # Bundle writes and startup reads on the real filesystem.
-"skein-world-tests::simulated" = "simulated" # step, domain and simulated: harness controls, supplied referee state and scripted hosts.
+"skein-world-tests::simulated" = "simulated" # step, domain and simulated: harness controls, supplied referee state, scripted hosts and browser harness bookkeeping.
 "skein-world-tests::suite" = "real-loop" # Real rings, sockets, clocks, signals and fixture children.
 "skein-world::stream" = "step" # Seeded wire's empty-write transition.
 
@@ -162,13 +162,17 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
 "temper-box-shell::real" = "real-loop" # Native sockets, descriptors, terminals, locks, file metadata and child programs.
-"temper-box::domain" = "domain" # step and domain: harness values, scripted openings and client-tool reads.
+# Step and domain: profiles composed in memory and the start's admission decisions over them,
+# the kit's own checks over supplied facts, scripted openings and client-tool reads.
+"temper-box::domain" = "domain"
 "temper-box::live" = "end-to-end"
 "temper-box::live_github" = "end-to-end"
 "temper-box::live_github_managed" = "end-to-end"
 "temper-box::process" = "end-to-end"
 "temper-box::proof_live" = "end-to-end"
-"temper-box::suite" = "end-to-end" # Scratch files, sockets, locks, clocks, shell children and shipped wiring.
+# Native stories and wiring witnesses: fresh init and start, inherited listeners and pipes, the forge child,
+# the held-login lock and hooks, a fetched program's run, parent identities, and the kit's real-loop checks.
+"temper-box::suite" = "end-to-end"
 "temper-charter-set::assembly" = "step" # Assembly functions on fixture texts.
 "temper-client-browser-world::browser_all" = "end-to-end" # Chromium on the shipped bundle and service.
 "temper-client-bundle::steps" = "step" # Build decisions on sample paths, files and commands.

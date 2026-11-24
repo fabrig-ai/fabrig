@@ -7,6 +7,7 @@ use a = jig_domain_authority
 use n = jig_domain_notes
 use f = jig_domain_fleet
 use s = skein_codec::convert
+use l = jig_domain_link
 use h = crate::codec::core
 by hand h
 context crate::codec::View
@@ -140,6 +141,9 @@ enum CallPart = d::CallPart {
     settings_refused tuple
 }
 record CallRecord = d::CallRecord
+record PartKey = d::PartKey
+enum PartKind = l::PartKind
+record PartRecord = d::PartRecord
 record Deployment = d::Deployment
 record PhaseBytes by hand
 record ChangeBytes by hand

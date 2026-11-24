@@ -179,7 +179,7 @@ fn run_story(cancel: bool, calls: bool) -> Outcome {
     let client_root = machine.lay(&[]);
     let mut harness =
         skein_world::World::new(fixtures::SEED, skein_sim::Config::calm(), judge, skein_world::Memory::Unchecked)
-            .with_machine(processes::Machine(machine));
+            .with_machine(processes::Machine(machine, None));
     harness.host(skein_world::HostedProgram {
         program: b"agent-program".as_slice().into(),
         make: processes::agent,

@@ -29,6 +29,7 @@ pub struct Limits {
     pub note_bytes_value: u32,
     pub call_part_note_recalled_entries: u32,
     pub settings_refusal_value: u32,
+    pub part_record_body: u32,
     pub phase_bytes_value: u32,
     pub change_bytes_value: u32,
     pub end_bytes_value: u32,
@@ -58,6 +59,7 @@ pub const CEILINGS: Limits = Limits {
     note_bytes_value: 2_097_152,
     call_part_note_recalled_entries: 16,
     settings_refusal_value: 65_536,
+    part_record_body: 33_554_432,
     phase_bytes_value: 134_217_728,
     change_bytes_value: 268_435_456,
     end_bytes_value: 1_073_741_824,
@@ -87,6 +89,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "note_bytes_value",
     "call_part_note_recalled_entries",
     "settings_refusal_value",
+    "part_record_body",
     "phase_bytes_value",
     "change_bytes_value",
     "end_bytes_value",
@@ -119,6 +122,7 @@ impl Limits {
             self.note_bytes_value,
             self.call_part_note_recalled_entries,
             self.settings_refusal_value,
+            self.part_record_body,
             self.phase_bytes_value,
             self.change_bytes_value,
             self.end_bytes_value,
@@ -152,6 +156,7 @@ impl Limits {
             note_bytes_value: self.note_bytes_value.min(most),
             call_part_note_recalled_entries: self.call_part_note_recalled_entries.min(most),
             settings_refusal_value: self.settings_refusal_value.min(most),
+            part_record_body: self.part_record_body.min(most),
             phase_bytes_value: self.phase_bytes_value.min(most),
             change_bytes_value: self.change_bytes_value.min(most),
             end_bytes_value: self.end_bytes_value.min(most),
@@ -183,6 +188,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::NOTE_BYTES_VALUE,
     paths::CALL_PART_NOTE_RECALLED_ENTRIES,
     paths::SETTINGS_REFUSAL_VALUE,
+    paths::PART_RECORD_BODY,
     paths::PHASE_BYTES_VALUE,
     paths::CHANGE_BYTES_VALUE,
     paths::END_BYTES_VALUE,
@@ -425,6 +431,18 @@ pub mod paths {
     pub const CALL_RECORD_PART: Path = Path::new("CallRecord.part");
     pub const CALL_RECORD_SETTLED: Path = Path::new("CallRecord.settled");
     pub const CALL_RECORD_TAIL: Path = Path::new("CallRecord (tail)");
+    pub const PART_KEY_TASK: Path = Path::new("PartKey.task");
+    pub const PART_KEY_ATTEMPT: Path = Path::new("PartKey.attempt");
+    pub const PART_KEY_NUMBER: Path = Path::new("PartKey.number");
+    pub const PART_KEY_TAIL: Path = Path::new("PartKey (tail)");
+    pub const PART_KIND_TAG: Path = Path::new("PartKind (tag)");
+    pub const PART_RECORD_KEY: Path = Path::new("PartRecord.key");
+    pub const PART_RECORD_TURN: Path = Path::new("PartRecord.turn");
+    pub const PART_RECORD_THREAD: Path = Path::new("PartRecord.thread");
+    pub const PART_RECORD_CALL: Path = Path::new("PartRecord.call");
+    pub const PART_RECORD_KIND: Path = Path::new("PartRecord.kind");
+    pub const PART_RECORD_BODY: Path = Path::new("PartRecord.body");
+    pub const PART_RECORD_TAIL: Path = Path::new("PartRecord (tail)");
     pub const DEPLOYMENT_ID: Path = Path::new("Deployment.id");
     pub const DEPLOYMENT_TASKS: Path = Path::new("Deployment.tasks");
     pub const DEPLOYMENT_PEOPLE: Path = Path::new("Deployment.people");
@@ -522,6 +540,7 @@ pub mod paths {
     pub const RUN_PROOF_TURN: Path = Path::new("RunProof.turn");
     pub const RUN_PROOF_TERMINAL: Path = Path::new("RunProof.terminal");
     pub const RUN_PROOF_WORKER: Path = Path::new("RunProof.worker");
+    pub const RUN_PROOF_KEPT_PART: Path = Path::new("RunProof.kept_part");
     pub const RUN_PROOF_TAIL: Path = Path::new("RunProof (tail)");
     pub const TURN_RECORD_OPENS_WINDOW: Path = Path::new("TurnRecord.opens_window");
     pub const TURN_RECORD_TASK: Path = Path::new("TurnRecord.task");
@@ -6113,6 +6132,195 @@ impl Record for CallRecord {
     }
 }
 
+// Type: PartKey.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartKey {
+    pub task: u64,
+    pub attempt: u64,
+    pub number: u32,
+}
+
+// Record: PartKey.
+impl PartKey {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
+impl Record for PartKey {
+    type Limits = Limits;
+    const TAIL: Path = paths::PART_KEY_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PartKey")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PartKey")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.task, limits, out, paths::PART_KEY_TASK)?;
+        field::write(field::U64, &self.attempt, limits, out, paths::PART_KEY_ATTEMPT)?;
+        field::write(field::U32, &self.number, limits, out, paths::PART_KEY_NUMBER)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            task: field::read(field::U64, limits, reader, paths::PART_KEY_TASK)?,
+            attempt: field::read(field::U64, limits, reader, paths::PART_KEY_ATTEMPT)?,
+            number: field::read(field::U32, limits, reader, paths::PART_KEY_NUMBER)?,
+        })
+    }
+}
+
+// Type: PartKind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum PartKind {
+    Answer,
+    Result,
+    Window,
+}
+
+// Record: PartKind.
+impl PartKind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for PartKind {
+    type Limits = Limits;
+    const TAIL: Path = paths::PART_KIND_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PartKind")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PartKind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Answer => field::put(out, &[0], paths::PART_KIND_TAG),
+            Self::Result => field::put(out, &[1], paths::PART_KIND_TAG),
+            Self::Window => field::put(out, &[2], paths::PART_KIND_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::PART_KIND_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Answer),
+            1 => Ok(Self::Result),
+            2 => Ok(Self::Window),
+            3..=u8::MAX => Err(Problem { path: paths::PART_KIND_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: PartRecord.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PartRecord {
+    pub key: PartKey,
+    pub turn: u32,
+    pub thread: u32,
+    pub call: u32,
+    pub kind: PartKind,
+    pub body: Box<[u8]>,
+}
+
+// Record: PartRecord.
+impl PartRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("PartKey"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("PartKind"),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, part_record_body) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 37;
+}
+
+impl Record for PartRecord {
+    type Limits = Limits;
+    const TAIL: Path = paths::PART_RECORD_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PartRecord")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PartRecord")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.key, limits, out, paths::PART_RECORD_KEY)?;
+        field::write(field::U32, &self.turn, limits, out, paths::PART_RECORD_TURN)?;
+        field::write(field::U32, &self.thread, limits, out, paths::PART_RECORD_THREAD)?;
+        field::write(field::U32, &self.call, limits, out, paths::PART_RECORD_CALL)?;
+        field::write(field::Nested, &self.kind, limits, out, paths::PART_RECORD_KIND)?;
+        field::write(field::Bytes { limit: limits.part_record_body.min(CEILINGS.part_record_body) }, &self.body, limits, out, paths::PART_RECORD_BODY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            key: field::read(field::Nested, limits, reader, paths::PART_RECORD_KEY)?,
+            turn: field::read(field::U32, limits, reader, paths::PART_RECORD_TURN)?,
+            thread: field::read(field::U32, limits, reader, paths::PART_RECORD_THREAD)?,
+            call: field::read(field::U32, limits, reader, paths::PART_RECORD_CALL)?,
+            kind: field::read(field::Nested, limits, reader, paths::PART_RECORD_KIND)?,
+            body: field::read(field::Bytes { limit: limits.part_record_body.min(CEILINGS.part_record_body) }, limits, reader, paths::PART_RECORD_BODY)?,
+        })
+    }
+}
+
 // Type: Deployment.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Deployment {
@@ -7474,6 +7682,7 @@ pub struct RunProof {
     pub turn: Option<TurnProof>,
     pub terminal: Option<TerminalRecord>,
     pub worker: Option<u32>,
+    pub kept_part: u32,
 }
 
 // Record: RunProof.
@@ -7507,11 +7716,12 @@ impl RunProof {
         skein_codec::bounds::Node::Option { item: 24 },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Option { item: 26 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 19, 21, 23, 25, 27] },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6, 8, 10, 11, 13, 15, 16, 17, 19, 21, 23, 25, 27, 28] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 137;
+    pub const ENCODED_AT_ZERO: u64 = 141;
 }
 
 impl Record for RunProof {
@@ -7553,6 +7763,7 @@ impl Record for RunProof {
         field::write(field::Optional { item: field::Nested }, &self.turn, limits, out, paths::RUN_PROOF_TURN)?;
         field::write(field::Optional { item: field::Nested }, &self.terminal, limits, out, paths::RUN_PROOF_TERMINAL)?;
         field::write(field::Optional { item: field::U32 }, &self.worker, limits, out, paths::RUN_PROOF_WORKER)?;
+        field::write(field::U32, &self.kept_part, limits, out, paths::RUN_PROOF_KEPT_PART)?;
         Ok(())
     }
 
@@ -7575,6 +7786,7 @@ impl Record for RunProof {
             turn: field::read(field::Optional { item: field::Nested }, limits, reader, paths::RUN_PROOF_TURN)?,
             terminal: field::read(field::Optional { item: field::Nested }, limits, reader, paths::RUN_PROOF_TERMINAL)?,
             worker: field::read(field::Optional { item: field::U32 }, limits, reader, paths::RUN_PROOF_WORKER)?,
+            kept_part: field::read(field::U32, limits, reader, paths::RUN_PROOF_KEPT_PART)?,
         })
     }
 }
@@ -7928,6 +8140,7 @@ pub enum Value {
     Terminal(TerminalRecord),
     ProposalDecision(ProposalDecisionRecord),
     EscalationDecision(EscalationDecisionRecord),
+    Part(PartRecord),
 }
 
 // Record: Value.
@@ -7941,11 +8154,12 @@ impl Value {
         skein_codec::bounds::Node::Named("TerminalRecord"),
         skein_codec::bounds::Node::Named("ProposalDecisionRecord"),
         skein_codec::bounds::Node::Named("EscalationDecisionRecord"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7] },
+        skein_codec::bounds::Node::Named("PartRecord"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 138;
+    pub const ENCODED_AT_ZERO: u64 = 142;
 }
 
 impl Record for Value {
@@ -7979,6 +8193,7 @@ impl Record for Value {
             Self::Terminal(value) => { field::put(out, &[5], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::ProposalDecision(value) => { field::put(out, &[6], paths::VALUE_TAG)?; value.write(limits, out) },
             Self::EscalationDecision(value) => { field::put(out, &[7], paths::VALUE_TAG)?; value.write(limits, out) },
+            Self::Part(value) => { field::put(out, &[8], paths::VALUE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -7993,7 +8208,8 @@ impl Record for Value {
             5 => Ok(Self::Terminal(TerminalRecord::read(limits, reader)?)),
             6 => Ok(Self::ProposalDecision(ProposalDecisionRecord::read(limits, reader)?)),
             7 => Ok(Self::EscalationDecision(EscalationDecisionRecord::read(limits, reader)?)),
-            8..=u8::MAX => Err(Problem { path: paths::VALUE_TAG, reason: skein_codec::Reason::Tag }),
+            8 => Ok(Self::Part(PartRecord::read(limits, reader)?)),
+            9..=u8::MAX => Err(Problem { path: paths::VALUE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -8012,7 +8228,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 140;
+    pub const ENCODED_AT_ZERO: u64 = 144;
 }
 
 impl Record for Row {
@@ -8142,6 +8358,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Number", nodes: Number::SHAPE },
     skein_codec::bounds::Declaration { name: "OutboxOutcome", nodes: OutboxOutcome::SHAPE },
     skein_codec::bounds::Declaration { name: "OutboxOutcomeHeld", nodes: OutboxOutcomeHeld::SHAPE },
+    skein_codec::bounds::Declaration { name: "PartKey", nodes: PartKey::SHAPE },
+    skein_codec::bounds::Declaration { name: "PartKind", nodes: PartKind::SHAPE },
+    skein_codec::bounds::Declaration { name: "PartRecord", nodes: PartRecord::SHAPE },
     skein_codec::bounds::Declaration { name: "Party", nodes: Party::SHAPE },
     skein_codec::bounds::Declaration { name: "PartyDeployment", nodes: PartyDeployment::SHAPE },
     skein_codec::bounds::Declaration { name: "PartyPerson", nodes: PartyPerson::SHAPE },
@@ -8196,6 +8415,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.note_bytes_value,
     CEILINGS.call_part_note_recalled_entries,
     CEILINGS.settings_refusal_value,
+    CEILINGS.part_record_body,
     CEILINGS.phase_bytes_value,
     CEILINGS.change_bytes_value,
     CEILINGS.end_bytes_value,

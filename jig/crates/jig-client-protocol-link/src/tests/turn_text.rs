@@ -1,7 +1,7 @@
 use super::*;
 use skein_lib::{List, Writer};
 use smith_transcript::Record;
-use smith_transcript::v7 as smith;
+use smith_transcript::v8 as smith;
 
 // The fixed-rule value's first text is "abc"; the second fills another three bytes.
 const FIELD_TEXT: u32 = 3;

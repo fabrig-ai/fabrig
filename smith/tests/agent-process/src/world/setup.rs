@@ -67,6 +67,7 @@ impl Setup {
 pub(crate) struct ParentOptions<'a> {
     pub hang_up: bool,
     pub window: u32,
+    pub parts_after: Option<skein_lib::Duration>,
     pub message: Option<&'a smith_channel::Message>,
     pub live: Option<smith_channel::LiveAsk>,
     pub setup: Setup,
@@ -74,6 +75,6 @@ pub(crate) struct ParentOptions<'a> {
 
 impl Default for ParentOptions<'_> {
     fn default() -> Self {
-        Self { hang_up: false, window: 8, message: None, live: None, setup: Setup::default() }
+        Self { hang_up: false, window: 8, parts_after: None, message: None, live: None, setup: Setup::default() }
     }
 }

@@ -81,6 +81,7 @@ fn fixture(settings: &Settings, charter: run::Charter, scripts: Vec<Script>, win
     disk.write(b"work/README.md", FILE);
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

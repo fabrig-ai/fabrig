@@ -203,7 +203,7 @@ fn private_parts_are_withheld_with_the_same_admission() {
         }
         let decoded = match projected {
             Ok(bytes) => {
-                assert_eq!(Reader::new(&bytes).u16(), Some(7), "{name}: current version");
+                assert_eq!(Reader::new(&bytes).u16(), Some(8), "{name}: current version");
                 Ok(smith_transcript::decode_archived(&limits.smith, &bytes).unwrap())
             }
             Err(error) => Err(error),

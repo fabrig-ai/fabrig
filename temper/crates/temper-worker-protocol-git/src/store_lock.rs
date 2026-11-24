@@ -26,6 +26,7 @@ impl Access {
                 git::Op::Pack { .. }
                 | git::Op::Reset { .. }
                 | git::Op::Reds { .. }
+                | git::Op::Keep { .. }
                 | git::Op::Make { .. }
                 | git::Op::Store { .. }
                 | git::Op::Look { .. }

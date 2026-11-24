@@ -96,6 +96,7 @@ fn checks_that_pass_fail_and_time_out() {
         (22, &b"check-hang"[..], run::Exit::TimedOut),
     ] {
         let done = world.request(FromDomain::Check {
+            results: None,
             owner: Token::new(number),
             program: run::Place { root: world.root(), path: Box::from(name) },
             bound: skein_lib::Duration::from_nanos(10_000_000),
@@ -240,6 +241,7 @@ fn full_kernel_trace_and_file_terminal_replay_through_the_shared_kit() {
 fn successive_harness_runs_preserve_the_absolute_deadline_clock() {
     let mut world = World::new(42, &[]);
     let first = world.request(FromDomain::Check {
+        results: None,
         owner: Token::new(50),
         program: run::Place { root: world.root(), path: b"check-hang".as_slice().into() },
         bound: skein_lib::Duration::from_nanos(10_000_000),
@@ -250,6 +252,7 @@ fn successive_harness_runs_preserve_the_absolute_deadline_clock() {
     let before = world.now();
     assert!(before >= Time::from_nanos(10_000_000), "the first deadline elapsed");
     let second = world.request(FromDomain::Check {
+        results: None,
         owner: Token::new(51),
         program: run::Place { root: world.root(), path: b"check-hang".as_slice().into() },
         bound: skein_lib::Duration::from_nanos(1_000_000),
@@ -311,6 +314,7 @@ fn the_configured_environment_is_seen_by_commands_and_checks_and_none_by_searche
         ));
     }
     let checked = world.request(FromDomain::Check {
+        results: None,
         owner: Token::new(52),
         program: run::Place { root: world.root(), path: b"check-ok".as_slice().into() },
         bound: skein_lib::Duration::from_secs(1),
@@ -386,7 +390,13 @@ fn a_stop_reaches_the_group_and_settles_both_output_pipes_before_cancelled() {
         },
         deadline: far(),
     });
-    assert_eq!(done, ToDomain::Done { owner: Token::new(81), done: tools::Done::Cancelled });
+    assert_eq!(
+        done,
+        ToDomain::Done {
+            owner: Token::new(81),
+            done: tools::Done::CommandCancelled { head: Box::new([]), tail: Box::new([]), dropped: 0 },
+        }
+    );
     assert!(world.trace().iter().any(|entry| entry.contains("to: Group")), "cancel targets the group");
 }
 

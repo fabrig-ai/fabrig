@@ -13,7 +13,7 @@ Ask: ceilings encoded=1048604 decoded=1048576; at_most(3) encoded=31 decoded=3
 AskAnswer: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
 AskBytes: ceilings encoded=1048580 decoded=1048576; at_most(3) encoded=7 decoded=3
 Asked: ceilings encoded=1048605 decoded=1048576; at_most(3) encoded=32 decoded=3
-Assignment: ceilings encoded=2351596229 decoded=2351680512; at_most(3) encoded=303 decoded=543
+Assignment: ceilings encoded=2485813961 decoded=2485898240; at_most(3) encoded=310 decoded=546
 Bound: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Bounds: ceilings encoded=1085 decoded=1024; at_most(3) encoded=109 decoded=48
 Call: ceilings encoded=1048743 decoded=1048704; at_most(3) encoded=48 decoded=9
@@ -39,7 +39,7 @@ FactValue: ceilings encoded=4446 decoded=4416; at_most(3) encoded=39 decoded=9
 Failed: ceilings encoded=16848016 decoded=16847976; at_most(3) encoded=66 decoded=21
 Failure: ceilings encoded=1031 decoded=1024; at_most(3) encoded=15 decoded=3
 Figures: ceilings encoded=10062736 decoded=10107904; at_most(3) encoded=544 decoded=1134
-FromEngine: ceilings encoded=2351596230 decoded=2351680512; at_most(3) encoded=545 decoded=1134
+FromEngine: ceilings encoded=2485813962 decoded=2485898240; at_most(3) encoded=545 decoded=1134
 FromWorker: ceilings encoded=288227333 decoded=290914304; at_most(3) encoded=270 decoded=429
 Grant: ceilings encoded=8218 decoded=8192; at_most(3) encoded=29 decoded=3
 GrantValue: ceilings encoded=8198 decoded=8192; at_most(3) encoded=9 decoded=3
@@ -65,6 +65,7 @@ JobInvalidStart: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decode
 JobInvalidValue: ceilings encoded=4101 decoded=4096; at_most(3) encoded=8 decoded=3
 JobRefusal: ceilings encoded=4102 decoded=4096; at_most(3) encoded=9 decoded=3
 JobRefusalValue: ceilings encoded=4102 decoded=4096; at_most(3) encoded=9 decoded=3
+KeptPart: ceilings encoded=33554457 decoded=33554432; at_most(3) encoded=28 decoded=3
 Limit: ceilings encoded=76 decoded=64; at_most(3) encoded=15 decoded=3
 Limited: ceilings encoded=29 decoded=0; at_most(3) encoded=29 decoded=0
 LimitedAccount: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
@@ -92,6 +93,10 @@ Opening: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Operation: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Oversized: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Parked: ceilings encoded=16842762 decoded=16842752; at_most(3) encoded=16 decoded=6
+Part: ceilings encoded=33554469 decoded=33554432; at_most(3) encoded=40 decoded=3
+PartBusy: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
+PartKept: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
+PartKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Pause: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PauseMode: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 PauseState: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -139,4 +144,4 @@ UsageWindows: ceilings encoded=476 decoded=704; at_most(3) encoded=94 decoded=17
 Wire: ceilings encoded=554 decoded=544; at_most(3) encoded=109 decoded=99
 Work: ceilings encoded=16842762 decoded=16842752; at_most(3) encoded=16 decoded=6
 Workspace: ceilings encoded=1048588 decoded=1048576; at_most(3) encoded=15 decoded=3
-family: ceilings encoded=2351596230 decoded=2351680512; at_most(3) encoded=545 decoded=1134
+family: ceilings encoded=2485813962 decoded=2485898240; at_most(3) encoded=545 decoded=1134

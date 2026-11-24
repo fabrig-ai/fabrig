@@ -38,6 +38,7 @@ pub(super) fn limits(
         run_proof_credentials: domain.accounts.credentials,
         run_proof_outstanding: domain.tasks.run_inbox,
         turn_record_transcript: wire::CEILINGS.turn_record_transcript,
+        part_record_body: wire::CEILINGS.part_record_body,
 
         escalation_decision_reject_reason: domain.escalation_reason_bytes.max(domain.people.words),
         settled_answer_host_body: domain.call_answer_bytes,
@@ -73,6 +74,7 @@ pub(crate) fn row_to_domain(value: wire::Row, limits: &View) -> Result<domain::C
 pub(crate) fn value_to_record(value: &domain::CoreRecord, limits: &View) -> Result<wire::Value, wire::Problem> {
     Ok(match value {
         domain::CoreRecord::Call(value) => wire::Value::Call(maps::call_record_to_record(value, limits)?),
+        domain::CoreRecord::Part(value) => wire::Value::Part(maps::part_record_to_record(value)),
         domain::CoreRecord::Settings(_) => return Err(wire::paths::VALUE_TAG.problem(skein_codec::Reason::Bound)),
         domain::CoreRecord::Deployment(value) => wire::Value::Deployment(maps::deployment_to_record(value)),
         domain::CoreRecord::Projection(value) => {
@@ -92,6 +94,7 @@ pub(crate) fn value_to_record(value: &domain::CoreRecord, limits: &View) -> Resu
 pub(crate) fn value_to_domain(value: wire::Value, limits: &View) -> Result<domain::CoreRecord, wire::Problem> {
     Ok(match value {
         wire::Value::Call(value) => domain::CoreRecord::Call(maps::call_record_to_domain(value, limits)?),
+        wire::Value::Part(value) => domain::CoreRecord::Part(maps::part_record_to_domain(value)),
         wire::Value::Deployment(value) => domain::CoreRecord::Deployment(maps::deployment_to_domain(value)),
         wire::Value::Projection(value) => {
             domain::CoreRecord::Projection(projection_record_to_domain(value.value, limits)?)

@@ -57,6 +57,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::BriefFailed { .. }
                 | Now::RunPrepared { .. }
                 | Now::EndedEscalation { .. }
+                | Now::PartBusy { .. }
                 | Now::RestoreRefused => {}
             },
             Request::Write(..) | Request::Ask { .. } | Request::Held(..) | Request::ProjectMade { .. } => {}
@@ -104,6 +105,9 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::Result { .. }
                 | Held::Acknowledge { .. }
                 | Held::TaskTerminalAcknowledged { .. }
+                | Held::TaskPartKept { .. }
+                | Held::AcknowledgePart { .. }
+                | Held::PartBusy { .. }
                 | Held::TaskTurnKept { .. }
                 | Held::AcknowledgeTurn { .. }
                 | Held::Drained
