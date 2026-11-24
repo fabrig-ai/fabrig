@@ -314,6 +314,11 @@ impl Worker {
     pub fn notes(&mut self) -> &mut Queue<crate::worker_alone::Note> {
         &mut self.notes
     }
+    pub(super) fn set_local_places(&mut self, places: u32) {
+        self.root.set_local_places(places, &self.env, &mut self.out);
+        self.drain_root();
+    }
+
     /// Offer a domain entrance and dispatch its hand-outs in order.
     pub fn offer(&mut self, event: root::Event) {
         self.step(event);

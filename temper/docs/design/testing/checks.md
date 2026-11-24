@@ -377,6 +377,8 @@ landing's or a change's wait and a task's resolve across inspections.
   ignored scenarios of the draft's section 7. A condition an exclusion
   names is read through the adapters of 6.1, or from the world's own
   state, at the moment the fault would be injected.
+- **The restart family** (the draft's 4.8): its kinds, the world each
+  falls in, how each is drawn and its sweeps are `restarts.md`.
 
 ### 6.3 Blame for runs, and an account's faults, in the system world
 

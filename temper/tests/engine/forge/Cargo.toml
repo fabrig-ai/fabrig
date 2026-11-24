@@ -31,6 +31,7 @@ skein-fake-forge-domain.workspace = true
 
 temper-engine-domain-forge-landing = { path = "../../../crates/temper-engine-domain-forge-landing" }
 
+temper-faults.workspace = true
 temper-blame = { path = "../../../testing/temper-blame" }
 
 
