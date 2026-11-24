@@ -276,9 +276,8 @@ to their end. Main's walks are the writer's after-landing work
 | `temper-client-walk-world` | library (`--lib`) | marked-tree links, scripts, box peer and forge sign-in |
 | `temper-client-walk-tool` | `suite` | walks made by the tests, executed in a world and printed into scratch |
 | `temper-client-walk` | `suite` | binary table: help, version and argument refusals |
-| `temper-client-journeys-tool` | library (`--lib`) | recorded fixtures printed and refused safely; source descriptions and empty overlays; drive and journey session machines |
-| `temper-client-journeys-tool` | `suite` | recorded-file admission and output assets; writer and look-refresh scripts in temporary repositories |
-| `temper-client-journeys` | `suite` | binary table and process arguments, redaction report, layout and safe refusals |
+| `temper-client-journeys-tool` | library (`--lib`) | recorded fixtures printed and refused safely; admission and output assets over an in-memory output; the print command's arguments, destination and words; its table; source descriptions and empty overlays; drive and journey session machines; the writer's and refresh's runs on canned answers |
+| `temper-client-journeys` | `suite` | one launch per path: help, version, a refused command and one print through its report and destination; the writer's and refresh's scripts on real git |
 
 - **The host's seam:** `journey::Recorder` records a walk made in the
   native host's world and `Replay` replays it (`temper-client-shell-web`,
@@ -312,9 +311,11 @@ to their end. Main's walks are the writer's after-landing work
 - **A person's print:** redaction takes link and given text out while
   preserving the replay's pages. Record, drawn and printed secret
   hits are refused. A failed proof has only safe record kinds in its
-  refusal. Admission tests check layout refusal before proof, output
-  untouched on refusal and resolving assets on success
-  (`temper-client-journeys-tool`, library and `suite`).
+  refusal. Admission tests, over an output the tests hold in memory,
+  check layout refusal before proof, the output untouched on every
+  refusal, an earlier print kept, resolving assets, stale pages
+  replaced, a capture's start kept and two captures printing the same
+  files (`temper-client-journeys-tool`, library).
 - **Redaction and scan:** fake originals in plain fields, framed
   fields, URL and Debug forms, streams decoded after joining pieces,
   splits across pieces and digests. Typed heads stay in their own acts.
@@ -329,18 +330,25 @@ to their end. Main's walks are the writer's after-landing work
   approval and walks a chain without ancestor marks. Session tests are
   native machines, not walks of main's journeys
   (`temper-client-journeys-tool`, library).
-- **The scripts and sources:** `suite` in
-  `temper-client-journeys-tool` tests refresh by `Printed:`, waiting for
-  an open writer change, refusing writes outside its set and offering
-  written additions and deletions together. Its library tests require
-  a nonempty README for each directory with a walk and an empty
-  overlay at both roots. The delivery check refuses written files
-  beside source changes (`../journey-writer.md`, 5).
-- **The process's refusal:** `temper-client-journeys`, `suite`, checks
-  no original bytes escape, including a failed proof; the refusal
-  tests compare the immediate listings of the journeys root and the
-  tool crate. They do not trace every possible write. The library and
-  admission tests hold their own output trees unchanged on refusal.
+- **The scripts and sources:** the library's tests of the writer's
+  and refresh's runs, on canned answers, hold refresh by `Printed:`,
+  waiting for an open writer change, refusing writes outside its set
+  and offering written additions and deletions together;
+  `temper-client-journeys`'s suite runs the scripts as they ship
+  (`../journey-writer.md`, 7). The library's tests require a nonempty
+  README for each directory with a walk and an empty overlay at both
+  roots. The delivery check refuses written files beside source
+  changes (`../journey-writer.md`, 5).
+- **The command's refusal:** the library holds the print command's
+  outcome as a value, its exit and both streams. Each refusal, a stale
+  proof, a secret's shape, a split token, an undecodable line, a
+  differing mark, the TUI's refusals with their positions, another
+  layout, a destination inside either root even through links and
+  parents, refused arguments, has its exit and its words on stderr, no
+  original byte on either stream, and writes nothing; FILE is not read
+  where the arguments or the destination refuse.
+  `temper-client-journeys`'s suite keeps one print from its arguments
+  through the report, the destination and the caution.
 
 The recorder's key listener and download are the wasm shell's. Native
 saves test the recorder beneath them; the browser kit holds the keys'
@@ -371,7 +379,10 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   read by its name on the branch as it is then, as its own commit's
   diff.
 - **Kept on `main`:** `scripts/look-refresh.sh`, run by the person in
-  their checkout with `look-requests` checked out and clean, fetches
+  their checkout with `look-requests` checked out and clean, through
+  the journeys tool's `look-refresh` command as `../journey-writer.md`,
+  4 runs the writer's, its words, lines and exits the command's under
+  the script's name (`look-refresh: WHY`), fetches
   `main` alone, rebases the branch on `origin/main`, drops each request
   whose name a commit on `main` carries in that trailer once the last
   `Printed:` there covers that commit (`../journey-writer.md`, 6), and pushes it

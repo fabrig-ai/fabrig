@@ -31,8 +31,13 @@ pub fn run(name: &str, program: &OsStr, arguments: &[Box<[u8]>], environment: &[
 }
 
 fn refusal(name: &str, why: &str, out: &mut dyn io::Write) -> u8 {
-    writeln!(out, "{name}: claude: {why}").expect("write launcher refusal to stderr");
-    1
+    let (code, line) = launch_refusal(name, why);
+    out.write_all(line.as_bytes()).expect("write launcher refusal to stderr");
+    code
+}
+
+fn launch_refusal(name: &str, why: &str) -> (u8, String) {
+    (1, format!("{name}: claude: {why}\n"))
 }
 
 fn launch(
@@ -265,6 +270,17 @@ mod tests {
                 "{name} keeps the pinned build from updating itself"
             );
         }
+    }
+
+    #[test]
+    fn a_cache_refusal_names_the_agent_and_claude() {
+        let failure = temper_fetch_shell::fetch::Failed::Refused(temper_fetch::fetch::Failure::Present {
+            file: b"/cache/claude".as_slice().into(),
+        });
+        assert_eq!(
+            launch_refusal("temper-agent", &failure.words()),
+            (1, "temper-agent: claude: /cache/claude: does not match the pinned digest\n".into())
+        );
     }
 
     #[test]

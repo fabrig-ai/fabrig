@@ -68,22 +68,6 @@ fn toml_engine_stopped_tools_read_the_file() {
     assert_eq!(deployment.as_ref(), scratch.path().join("state").as_os_str().as_bytes());
 }
 
-#[test]
-fn toml_engine_refuses_a_box_file_without_workers() {
-    let directories = crate::test_configuration::directories(std::path::Path::new("/fixture"));
-    let Err(why) = crate::serve::prepare_in_with_read(
-        "temper-engine",
-        &[],
-        b"/",
-        &directories,
-        &temper_engine_service::stock::Given::Stock,
-        |_, shape| read_scripted(b"listen = \"127.0.0.1:7100\"\n", shape),
-    ) else {
-        panic!("engine requires workers listener")
-    };
-    assert_eq!(why, format!("temper-engine serve: {FILE}: workers: required in temper-engine's file\n"));
-}
-
 pub(super) fn read_scripted(bytes: &[u8], shape: temper_config_shell::Shape) -> Result<Read, String> {
     let facts = temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false };
     let temper_config_shell::Read { file, document, keys } =

@@ -9,7 +9,7 @@ fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its ca
 (`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
 waits, disk and faults, `worker.md`), where the box's own checks run
-(`box/README.md`), the
+(`box/README.md`), the restarts and stops they inject (`restarts.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
@@ -119,7 +119,7 @@ bin/temper-box/tests/domain          step and domain checks over values: profile
 bin/temper-box/tests/suite           what only real files, sockets, locks, children and shipped wiring show (box/README.md, 4)
 crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
-bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
+bin/temper-box/tests/proof_live.rs   B0's offline driver proof, its twin's walk (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs it
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
 testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)

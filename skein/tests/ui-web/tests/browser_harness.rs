@@ -31,6 +31,29 @@ fn the_harness_reads_the_listening_line() {
 }
 
 #[test]
+#[expect(clippy::disallowed_types, reason = "the browser story measures the caller's wall time, outside the harness")]
+fn an_unmet_see_reports_its_deadline_and_returns_promptly() {
+    let scratch = Scratch::new("harness-see-expiry");
+    let bundle = fixture_bundle(&scratch, READY);
+    let mut person = Script::new(Box::new([
+        harness::Step::Person(Step::See {
+            find: Find::exactly_named(Role::Heading { level: 1 }, b"Ready"),
+            within: Duration::from_secs(1),
+        }),
+        harness::Step::Person(Step::See { find: Find::text(b"Never shown"), within: Duration::from_secs(1) }),
+    ]));
+    let mut harness = fixture_harness(&bundle);
+    let start = std::time::Instant::now();
+    let outcome = harness.run(&mut [&mut person]);
+    let elapsed = start.elapsed();
+    let Outcome::Failed { person: 0, step: 1, report } = outcome else {
+        panic!("the unmet See fails its own step: {outcome:?}");
+    };
+    assert!(report.contains("Missing") && report.contains("the browser step: patience "), "{report}");
+    assert!(elapsed < std::time::Duration::from_secs(15), "the harness returned after {elapsed:?}: {report}");
+}
+
+#[test]
 fn the_harness_searches_the_next_accessible_role() {
     let scratch = Scratch::new("harness-next-role");
     let bundle = fixture_bundle(&scratch, b"export default function init() { const e = document.createElement('input'); e.type = 'number'; e.setAttribute('aria-label', 'Count'); document.querySelector('#app').append(e); }");

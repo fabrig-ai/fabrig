@@ -312,14 +312,13 @@ fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directo
     let address = local(19_003);
     let mut copies = ProviderCopies::default();
     let mut settings = None;
-    support::forgejo_elsewhere::configure_llm_with(
+    support::forgejo_elsewhere::configure_provider_with(
         root,
         address,
         before.clone(),
-        json_bytes(&support::owned::producer_landing_settings_bytes(2)),
         copies.writer(),
         |path, bytes| {
-            assert_eq!(path, config.join("native-landing-settings.json"));
+            assert_eq!(path, config.join("elsewhere-providers.json"));
             settings = Some(json_bytes(bytes));
         },
     );
@@ -333,9 +332,9 @@ fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directo
     let mut expected = before;
     expected["endpoints"][0]["address"] = json!({"socket": address.to_string()});
     assert_eq!(running, expected, "rebinding preserves the complete provider, not stock with a new socket");
-    let settings = settings.expect("captured landing settings");
+    let settings = settings.expect("captured provider settings");
     let edits = support::provider_setup::items(&running);
-    assert!(settings["items"].as_array().expect("items").ends_with(&edits), "ctl commits the running providers");
+    assert_eq!(settings["items"], json!(edits), "ctl commits the running providers");
 }
 
 #[derive(Default)]
@@ -759,9 +758,9 @@ fn landing_fixture(root: &Path, profile: Option<support::turn_restart::Profile>)
 // It reaches `forgejo_elsewhere`, whose capture witness uses Linux's abstract Unix sockets.
 #[cfg(target_os = "linux")]
 #[test]
-fn elsewhere_settings_follow_the_connected_project() {
-    use support::forgejo_elsewhere::{check_adopted_project, project_settings_bytes};
-    let before = json_bytes(&support::owned::producer_landing_settings_bytes(2));
+fn elsewhere_reads_the_connected_project() {
+    use support::forgejo_elsewhere::check_adopted_project;
+    support::forgejo_elsewhere::tests::reads_the_connected_project();
     let reply = |owner, name| support::Ended {
         exit: Some(skein_io::kernel::Exit::Code(0)),
         stdout: format!(
@@ -772,10 +771,7 @@ fn elsewhere_settings_follow_the_connected_project() {
         stderr: Vec::new(),
     };
     let project = check_adopted_project(&reply("elsewhere", "first")).expect("adopted repository");
-    let after = json_bytes(&project_settings_bytes(before.clone(), project));
-    assert_eq!(after["items"][0]["setting"]["project"], 7, "the rule follows the connect answer");
-    assert_eq!(after["items"][0]["set"], before["items"][0]["set"]);
-    assert_eq!(after["items"][1], before["items"][1]);
+    assert_eq!(project, 7, "the project is read from the connect answer");
     assert!(check_adopted_project(&reply("other", "first")).is_err(), "owner must match");
     assert!(check_adopted_project(&reply("elsewhere", "other")).is_err(), "repository must match");
 }

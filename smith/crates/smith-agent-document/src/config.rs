@@ -53,7 +53,7 @@ pub struct Configuration {
     pub declarations: service::profile::Configuration,
 }
 
-/// Validated configuration values awaiting native endpoint resolution and trust loading.
+/// Validated configuration values awaiting endpoint resolution and trust loading.
 /// Decoding retains names and trust sources; it performs no DNS or filesystem effects.
 pub struct Decoded {
     program: Option<Program>,
@@ -247,8 +247,13 @@ impl Decoded {
     /// Resolve the endpoints for a native model-list request.
     pub fn list_endpoints(self) -> Result<llm::Endpoints, String> {
         llm::Endpoints::new(
-            native::endpoints(self.endpoints.llm, &self.limits.llm.connection, &mut std::io::sink())
-                .map_err(ConfigurationRefusal::detail)?,
+            native::endpoints(
+                self.endpoints.llm,
+                &self.limits.llm.connection,
+                &mut std::io::sink(),
+                native::RootReader::Native,
+            )
+            .map_err(ConfigurationRefusal::detail)?,
             ENDPOINTS,
         )
         .map_err(|error| format!("LLM endpoints: {error:?}"))
@@ -261,15 +266,48 @@ impl Decoded {
         let lookup = find_rg;
         #[cfg(not(unix))]
         let lookup = |_: Option<&[u8]>| None;
-        self.resolve_with_rg(errors, lookup)
+        self.resolve_native(
+            errors,
+            lookup,
+            #[cfg(unix)]
+            native::RootReader::Native,
+        )
     }
 
-    fn resolve_with_rg(
+    /// Resolve using the caller's bounded root-read answers for each named trust source.
+    /// Machine trust is requested with no `SSL_CERT_FILE` override; a named PEM bundle carries its path.
+    /// Address and command `PATH` lookup remain native.
+    #[cfg(unix)]
+    pub fn resolve_with_roots(
+        self,
+        errors: &mut dyn std::io::Write,
+        mut read_roots: impl FnMut(
+            &skein_shell::Trust,
+            &skein_shell::RootBounds,
+        ) -> Result<skein_shell::Roots, skein_shell::RootsRefusal>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_native(errors, find_rg, native::RootReader::Given(&mut read_roots))
+    }
+
+    fn resolve_native(
         self,
         errors: &mut dyn std::io::Write,
         lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+        #[cfg(unix)] mut roots: native::RootReader<'_>,
     ) -> Result<Configuration, ConfigurationRefusal> {
-        self.resolve_with(native::resolve, |der, trust| native::endpoint_trust(der, trust, errors), lookup)
+        self.resolve_with(
+            native::resolve,
+            |der, trust| {
+                native::endpoint_trust(
+                    der,
+                    trust,
+                    errors,
+                    #[cfg(unix)]
+                    &mut roots,
+                )
+            },
+            lookup,
+        )
     }
 
     /// Resolve using supplied addresses, endpoint trust and command lookup, without native lookups.

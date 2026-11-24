@@ -2,7 +2,7 @@
 //! (temper/docs/design/domain/landing-proof.md, 2, and temper/docs/design/domain/landing.md, 15;
 //! temper/docs/design/protocol/forge/engine.md, 1).
 use super::{
-    ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,
+    ANSWER, ChatJudge, ChatPhase, LANDING, Process, WITHIN, ctl, fake_llm,
     forgejo::{JobBarrier, Throwaway},
     landing_by_turn, landing_scripts, native_settings_setup, person, serve, write_private,
 };
@@ -588,7 +588,6 @@ fn run_to(
         chat: ChatJudge {
             failed: None,
             phase: if first { ChatPhase::SettingUp } else { ChatPhase::Running },
-            ending: Ending::Stop,
             deadline: super::patience::Patience::watching("the restarted turn's landing", LANDING, &binary),
             forge: Some(forge),
             poll: clock.now().now,

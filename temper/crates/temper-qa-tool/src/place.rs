@@ -1,12 +1,16 @@
 //! Setups restored and recipes proven by the place's own build (qa/places.md, 2, 4, 6–8).
 mod files;
-use crate::faces::{ArchiveFace, DriveFace, RecipeWalk, WalkOutput};
+use crate::faces::{
+    ArchiveFace, DirectoryMode, DriveFace, FilesFace, LockMode, Processes, RecipeWalk, ResolveMode, WalkOutput,
+    WriteMode, WriteOptions, remove_any_if_present,
+};
 use crate::{Home, Kind, Ledger, Pass, Refusal, document as d, private, refused};
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
-    fs::{self, OpenOptions},
+    ffi::OsStr,
     io::Write,
+    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 
@@ -40,24 +44,21 @@ impl PlacePaths {
             drive_lock: directory.join("drive.lock"),
         }
     }
-    pub fn ensure(&self) -> Result<(), Refusal> {
+    pub fn ensure(&self, files: &mut impl FilesFace) -> Result<(), Refusal> {
         for path in [&self.directory, &self.bin, &self.bundle, &self.scratch, &self.copies] {
-            private::directory(path)?;
+            private::directory(path, files)?;
         }
         Ok(())
     }
 }
 
 /// Probe and release immediately: a holder left by an ended pass still owns its place.
-pub fn place_busy(place: &PlacePaths) -> Result<bool, Refusal> {
-    place.ensure()?;
-    let file =
-        private::file(&place.drive_lock, OpenOptions::new().read(true).write(true).create(true).truncate(false))?;
-    match file.try_lock() {
-        Ok(()) => Ok(false),
-        Err(std::fs::TryLockError::WouldBlock) => Ok(true),
-        Err(std::fs::TryLockError::Error(why)) => Err(refused(format!("{}: {why}", place.drive_lock.display()))),
-    }
+pub fn place_busy(place: &PlacePaths, files: &mut impl FilesFace) -> Result<bool, Refusal> {
+    place.ensure(files)?;
+    files
+        .lock(&place.drive_lock, LockMode::Try, true)
+        .map(|lock| lock.is_none())
+        .map_err(|why| refused(format!("{}: {why}", place.drive_lock.display())))
 }
 
 pub struct RecipeInput {
@@ -87,12 +88,14 @@ impl RecipeInput {
 }
 
 /// The ledger is read under its lock, then released before any process runs.
-pub struct PassPlace<D, A> {
+pub struct PassPlace<D, A, F, P> {
     pub paths: PlacePaths,
     pub setups: PathBuf,
     pub pass: Pass,
     pub drive: D,
     pub archive: A,
+    pub files: F,
+    pub processes: P,
     ledger: Ledger,
     ctl_only: bool,
 }
@@ -106,27 +109,36 @@ struct Copy {
     hash: String,
     commit: String,
 }
-impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
-    pub fn for_session(home: &Home, session: u64, drive: D, archive: A) -> Result<Self, Refusal> {
-        let (ledger, pass) = home.read(|ledger| {
+impl<D: DriveFace, A: ArchiveFace, F: FilesFace, P: Processes> PassPlace<D, A, F, P> {
+    pub fn for_session(
+        home: &Home,
+        session: u64,
+        drive: D,
+        archive: A,
+        mut files: F,
+        processes: P,
+    ) -> Result<Self, Refusal> {
+        let (ledger, pass) = home.read(&mut files, |ledger| {
             let number = ledger.pass_command_session(session)?.pass.expect("pass session");
             let pass = ledger.passes.iter().find(|pass| pass.number == number).expect("session's pass").clone();
             Ok((ledger.clone(), pass))
         })?;
         let directory = home.configuration.place_directory(&home.directory, &pass.place)?;
-        let directory =
-            std::path::absolute(&directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-        let setups = std::path::absolute(home.directory.join("passes").join(pass.number.to_string()).join("setups"))
+        let directory = files
+            .resolve(&directory, ResolveMode::Absolute)
+            .map_err(|why| refused(format!("{}: {why}", directory.display())))?;
+        let setups = files
+            .resolve(&crate::pass_files::setups(home, pass.number), ResolveMode::Absolute)
             .map_err(|why| refused(format!("pass {} setups: {why}", pass.number)))?;
         let mut paths = PlacePaths::new(&directory, home.configuration.place_kind(&pass.place));
         paths.ports = home.configuration.ports.get(&pass.place).cloned();
         let ctl_only = !home.configuration.surfaces.iter().any(|surface| surface == "web" || surface == "tui");
-        let place = Self { paths, setups, pass, drive, archive, ledger, ctl_only };
+        let mut place = Self { paths, setups, pass, drive, archive, files, processes, ledger, ctl_only };
         place.available()?;
         Ok(place)
     }
-    fn available(&self) -> Result<(), Refusal> {
-        if place_busy(&self.paths)? {
+    fn available(&mut self) -> Result<(), Refusal> {
+        if place_busy(&self.paths, &mut self.files)? {
             return Err(refused(format!(
                 "the drive session is open at {}; close it first: temper-qa pass close",
                 self.pass.place
@@ -138,7 +150,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         self.available()?;
         if name == "fresh" {
             self.paths.kind.check_fresh()?;
-            remove(&self.paths.setup)?;
+            remove(&self.paths.setup, &mut self.files)?;
             self.empty()?;
             self.write_setup("fresh\n")?;
             say(output, "setup fresh: an empty box")?;
@@ -147,7 +159,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         self.restore(name, output)
     }
     fn catalogue(&mut self) -> Result<BTreeMap<String, Option<String>>, Refusal> {
-        let text = self.drive.list(&self.paths, &self.setups)?;
+        let text = self.drive.list(&self.paths, &self.setups, &mut self.processes)?;
         let mut catalogue = BTreeMap::new();
         for line in text.lines() {
             let (head, description) =
@@ -178,8 +190,9 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let setup = name;
         let catalogue = self.catalogue()?;
         self.check_name(name, &catalogue)?;
-        let local = crate::kind::read_chain(&self.setups, name, crate::kind::ChainUse::Setup)?;
-        self.check_kind(name, local.kind())?;
+        let local = crate::kind::read_chain_with(&self.setups, name, crate::kind::ChainUse::Setup, &mut self.files)?;
+        let kind = local.kind(&mut self.files);
+        self.check_kind(name, kind)?;
         let mut chain = Vec::new();
         for member in local.members.into_iter().rev() {
             let name = member.name;
@@ -193,7 +206,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
                     }
                 }
             }
-            let hash = self.drive.hash(&self.paths, &self.setups, &name)?;
+            let hash = self.drive.hash(&self.paths, &self.setups, &name, &mut self.processes)?;
             let entry = catalogue.get(&name).ok_or_else(|| refused(format!("recipe {name}: missing parent")))?;
             if let Some(why) = entry {
                 return Err(refused(format!("recipe {name}: {why}")));
@@ -203,11 +216,13 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         chain.reverse();
         Ok(chain)
     }
-    fn check_setup_kind(&self, name: &str) -> Result<(), Refusal> {
+    fn check_setup_kind(&mut self, name: &str) -> Result<(), Refusal> {
         if name == "fresh" {
             return self.paths.kind.check_fresh();
         }
-        self.check_kind(name, crate::kind::read_chain(&self.setups, name, crate::kind::ChainUse::Setup)?.kind())
+        let chain = crate::kind::read_chain_with(&self.setups, name, crate::kind::ChainUse::Setup, &mut self.files)?;
+        let kind = chain.kind(&mut self.files);
+        self.check_kind(name, kind)
     }
     fn check_kind(&self, name: &str, kind: Kind) -> Result<(), Refusal> {
         if self.paths.kind == kind {
@@ -220,34 +235,34 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             self.paths.kind.name()
         )))
     }
-    fn empty(&self) -> Result<(), Refusal> {
+    fn empty(&mut self) -> Result<(), Refusal> {
         for name in ["config", "data"] {
-            remove(&self.paths.scratch.join(name))?;
+            remove(&self.paths.scratch.join(name), &mut self.files)?;
         }
         Ok(())
     }
-    fn write_setup(&self, text: &str) -> Result<(), Refusal> {
+    fn write_setup(&mut self, text: &str) -> Result<(), Refusal> {
         let temporary = self.paths.directory.join("setup.tmp");
-        let mut file = private::file(&temporary, OpenOptions::new().write(true).create(true).truncate(true))?;
+        let mut file = private::file(&temporary, &mut self.files, WriteMode::Replace, false)?;
         io(&temporary, file.write_all(text.as_bytes()))?;
-        io(&self.paths.setup, fs::rename(&temporary, &self.paths.setup))
+        io(&self.paths.setup, self.files.rename(&temporary, &self.paths.setup))
     }
-    fn copies(&self, name: &str) -> Result<Vec<Copy>, Refusal> {
+    fn copies(&mut self, name: &str) -> Result<Vec<Copy>, Refusal> {
         let directory = self.paths.copies.join(name);
-        if !directory.exists() {
+        if self.files.facts(&directory, true).is_err() {
             return Ok(Vec::new());
         }
         let mut copies = Vec::new();
-        for entry in io(&directory, fs::read_dir(&directory))? {
-            let entry = io(&directory, entry)?;
-            let file = entry.file_name();
+        for name in io(&directory, self.files.names(&directory))? {
+            let name = io(&directory, name)?;
+            let file = OsStr::from_bytes(&name);
             let Some((hash, commit)) =
                 file.to_str().and_then(|name| name.strip_suffix(".tar")).and_then(|name| name.split_once('-'))
             else {
                 continue;
             };
             if hex(hash, &[64]) && hex(commit, &[40, 64]) {
-                copies.push(Copy { path: entry.path(), hash: hash.into(), commit: commit.into() });
+                copies.push(Copy { path: directory.join(file), hash: hash.into(), commit: commit.into() });
             }
         }
         copies.sort_by(|a, b| a.path.cmp(&b.path));
@@ -255,32 +270,43 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
     }
     fn save_copy(&mut self, recipe: &Recipe, output: &mut impl Write) -> Result<(), Refusal> {
         let directory = self.paths.copies.join(&recipe.name);
-        private::directory(&directory)?;
+        private::directory(&directory, &mut self.files)?;
         let temporary = directory.join("copy.tmp");
-        remove(&temporary)?;
-        private::file(&temporary, OpenOptions::new().write(true).create_new(true))?;
-        if let Err(why) = self.archive.create(&self.paths.scratch, &temporary, &[self.paths.kind.pinned()]) {
-            remove(&temporary)?;
+        remove(&temporary, &mut self.files)?;
+        private::file(&temporary, &mut self.files, WriteMode::New, false)?;
+        if let Err(why) = self.archive.create(
+            &self.paths.scratch,
+            &temporary,
+            &[self.paths.kind.pinned()],
+            &mut self.files,
+            &mut self.processes,
+        ) {
+            remove(&temporary, &mut self.files)?;
             return Err(why);
         }
         let kept = directory.join(format!("{}-{}.tar", recipe.hash, self.pass.build));
-        io(&kept, fs::rename(&temporary, &kept))?;
-        for entry in io(&directory, fs::read_dir(&directory))? {
-            let entry = io(&directory, entry)?;
-            if entry.path() != kept {
-                remove(&entry.path())?;
+        io(&kept, self.files.rename(&temporary, &kept))?;
+        for name in io(&directory, self.files.names(&directory))? {
+            let name = io(&directory, name)?;
+            let path = directory.join(OsStr::from_bytes(&name));
+            if path != kept {
+                remove(&path, &mut self.files)?;
             }
         }
         say(output, &format!("copy {} saved: {} at {}", recipe.name, short(&recipe.hash), short(&self.pass.build)))
     }
     fn walk(&mut self, name: &str, from: Option<&str>, output: &mut impl Write) -> Result<WalkOutput, Refusal> {
         say(output, &format!("walking {name} from {}", from.unwrap_or("fresh")))?;
-        let walked = self.drive.walk(&RecipeWalk { place: &self.paths, setups: &self.setups, name, from })?;
+        let walked = self.drive.walk(
+            &RecipeWalk { place: &self.paths, setups: &self.setups, name, from },
+            &mut self.files,
+            &mut self.processes,
+        )?;
         say(output, &format!("walk {name} ended: {}", walked.code))?;
         Ok(walked)
     }
     fn stop(
-        &self,
+        &mut self,
         name: &str,
         recipe: &str,
         walked: &WalkOutput,
@@ -315,7 +341,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         }
         Ok(code)
     }
-    fn facts(&self, recipe: &str, source: Option<(&str, &Copy)>, output: &mut impl Write) -> Result<(), Refusal> {
+    fn facts(&mut self, recipe: &str, source: Option<(&str, &Copy)>, output: &mut impl Write) -> Result<(), Refusal> {
         if let Some((name, copy)) = source {
             say(output, &format!("copy started from: {name} made at {}", copy.commit))?;
         } else {
@@ -352,9 +378,9 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
     fn restore(&mut self, name: &str, output: &mut impl Write) -> Result<u8, Refusal> {
         let chain = self.chain(name)?;
         let hash = chain.last().expect("nonempty chain").hash.clone();
-        remove(&self.paths.setup)?;
+        remove(&self.paths.setup, &mut self.files)?;
         // The whole log is retained across retries and subsequent walks.
-        private::file(&self.paths.walk_log, OpenOptions::new().write(true).create(true).truncate(true))?;
+        private::file(&self.paths.walk_log, &mut self.files, WriteMode::Replace, false)?;
         let mut ceiling = chain.len();
         let mut saved = Vec::new();
         loop {
@@ -367,7 +393,13 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             }
             self.empty()?;
             if let Some((_, copy)) = &source {
-                self.archive.extract(&copy.path, &self.paths.scratch, &[self.paths.kind.pinned()])?;
+                self.archive.extract(
+                    &copy.path,
+                    &self.paths.scratch,
+                    &[self.paths.kind.pinned()],
+                    &mut self.files,
+                    &mut self.processes,
+                )?;
             }
             let start =
                 source.as_ref().map_or(0, |(index, _)| if index + 1 == chain.len() { *index } else { index + 1 });
@@ -391,7 +423,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
                 if walked.code == 3
                     && let Some((index, copy)) = &walk_source
                 {
-                    remove(&copy.path)?;
+                    remove(&copy.path, &mut self.files)?;
                     ceiling = *index;
                     retry = true;
                     break;
@@ -442,12 +474,12 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             return Err(refused(format!("recipe {name}: cannot be its own parent")));
         }
         let directory = self.setups.join(name);
-        remove(&self.paths.setup)?;
-        remove(&directory)?;
-        io(&directory, fs::create_dir_all(&directory))?;
+        remove(&self.paths.setup, &mut self.files)?;
+        remove(&directory, &mut self.files)?;
+        io(&directory, self.files.directory(&directory, DirectoryMode::Parents))?;
         let result = self.write_recipe(name, input, output);
         if result.as_ref().is_err() || result.as_ref().is_ok_and(|code| *code != 0) {
-            remove(&directory)?;
+            remove(&directory, &mut self.files)?;
         }
         result
     }
@@ -463,19 +495,27 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             text.push_str(line);
             text.push('\n');
         }
-        io(&directory, fs::write(directory.join("recipe"), text))?;
-        io(&directory, fs::write(directory.join("README.md"), format!("{}\n", input.readme)))?;
+        io(&directory, self.files.write(&directory.join("recipe"), text.as_bytes(), WriteOptions::REPLACE, false))?;
+        io(
+            &directory,
+            self.files.write(
+                &directory.join("README.md"),
+                format!("{}\n", input.readme).as_bytes(),
+                WriteOptions::REPLACE,
+                false,
+            ),
+        )?;
         if let Some(scripts) = &input.scripts {
             let bytes = serde_json::to_vec_pretty(scripts).map_err(|why| refused(format!("recipe {name}: {why}")))?;
-            io(&directory, fs::write(directory.join("scripts.json"), bytes))?;
+            io(&directory, self.files.write(&directory.join("scripts.json"), &bytes, WriteOptions::REPLACE, false))?;
         }
         let source = self.setups.parent().expect("pass setups directory").join("files");
-        files::copy(&input.lines, &source, &directory.join("files"))?;
-        let hash = self.drive.hash(&self.paths, &self.setups, name)?;
+        files::copy(&input.lines, &source, &directory.join("files"), &mut self.files)?;
+        let hash = self.drive.hash(&self.paths, &self.setups, name, &mut self.processes)?;
         let from = if input.after == "fresh" {
-            remove(&self.paths.setup)?;
+            remove(&self.paths.setup, &mut self.files)?;
             self.empty()?;
-            private::file(&self.paths.walk_log, OpenOptions::new().write(true).create(true).truncate(true))?;
+            private::file(&self.paths.walk_log, &mut self.files, WriteMode::Replace, false)?;
             None
         } else {
             let restored = self.restore(&input.after, output)?;
@@ -484,7 +524,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             }
             Some(input.after.as_str())
         };
-        remove(&self.paths.setup)?;
+        remove(&self.paths.setup, &mut self.files)?;
         let source = from
             .map(|name| self.copies(name).map(|mut copies| copies.pop().map(|copy| (name, copy))))
             .transpose()?
@@ -510,13 +550,8 @@ fn hex(text: &str, lengths: &[usize]) -> bool {
 fn short(text: &str) -> &str {
     text.get(..12).unwrap_or(text)
 }
-fn remove(path: &Path) -> Result<(), Refusal> {
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.is_dir() => io(path, fs::remove_dir_all(path)),
-        Ok(_) => io(path, fs::remove_file(path)),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(why) => Err(refused(format!("{}: {why}", path.display()))),
-    }
+fn remove(path: &Path, files: &mut impl FilesFace) -> Result<(), Refusal> {
+    io(path, remove_any_if_present(files, path))
 }
 fn io<T>(path: &Path, result: std::io::Result<T>) -> Result<T, Refusal> {
     result.map_err(|why| refused(format!("{}: {why}", path.display())))

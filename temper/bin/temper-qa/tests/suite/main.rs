@@ -15,36 +15,9 @@ fn paragraph(text: &str) -> String {
 #[test]
 fn the_binary_answers_its_table_and_refuses_unknown_commands() {
     let scratch = skein_scratch::Scratch::new("qa-table");
-    for arguments in [
-        vec!["--help"],
-        vec!["-h"],
-        vec!["help"],
-        vec!["--version"],
-        vec!["run", "--help"],
-        vec!["wake", "--help"],
-        vec!["build", "keep", "--help"],
-        vec!["triage", "none", "--help"],
-        vec!["triage", "case", "--help"],
-        vec!["triage", "gap", "--help"],
-        vec!["pass", "gap", "--help"],
-        vec!["gaps", "--help"],
-        vec!["pass", "setup", "--help"],
-        vec!["pass", "recipe", "--help"],
-        vec!["pass", "outcome", "--help"],
-        vec!["pass", "finding", "--help"],
-        vec!["pass", "check", "--help"],
-        vec!["pass", "note", "--help"],
-        vec!["show", "--help"],
-        vec!["lines", "--help"],
-        vec!["report", "--help"],
-        vec!["pass", "open", "--help"],
-        vec!["pass", "hold", "--help"],
-        vec!["pass", "line", "--help"],
-        vec!["pass", "close", "--help"],
-        vec!["nope"],
-    ] {
+    for argument in ["--help", "--version", "nope"] {
         let output = Command::new(skein_scratch::paths::binary("temper-qa"))
-            .args(&arguments)
+            .arg(argument)
             .env_clear()
             .current_dir(scratch.path())
             .stdin(Stdio::null())
@@ -52,8 +25,8 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
             .expect("run tool");
         let stdout = String::from_utf8(output.stdout).expect("stdout");
         let stderr = String::from_utf8(output.stderr).expect("stderr");
-        match arguments.as_slice() {
-            ["--help" | "-h" | "help"] => {
+        match argument {
+            "--help" => {
                 assert_eq!(output.status.code(), Some(0));
                 assert_eq!(
                     paragraph(&stdout),
@@ -89,7 +62,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                 }
                 assert_eq!(stdout, TABLE.help());
             }
-            ["--version"] => {
+            "--version" => {
                 assert_eq!(output.status.code(), Some(0));
                 let prefix = format!("temper-qa {} (", env!("CARGO_PKG_VERSION"));
                 let commit =
@@ -97,21 +70,14 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                 let hash = commit.strip_suffix("-dirty").unwrap_or(commit);
                 assert!(commit == "unknown" || (hash.len() == 12 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())));
             }
-            ["nope"] => {
+            "nope" => {
                 assert_eq!(output.status.code(), Some(2));
                 assert_eq!(stdout, "");
                 assert_eq!(stderr, "temper-qa: no command nope; temper-qa --help says more\n");
                 continue;
             }
-            _ => {
-                assert_eq!(output.status.code(), Some(0));
-                assert_eq!(
-                    paragraph(&stdout),
-                    "internal: not part of temper-qa's public command line; it may change without notice."
-                );
-                assert!(stdout.contains(&format!("temper-qa {}", arguments[..arguments.len() - 1].join(" "))));
-            }
+            _ => unreachable!(),
         }
-        assert!(stderr.is_empty(), "{arguments:?}: {stderr}");
+        assert!(stderr.is_empty(), "{argument}: {stderr}");
     }
 }

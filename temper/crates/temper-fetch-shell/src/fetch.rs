@@ -128,12 +128,12 @@ fn claude_code_with<L>(
     download: impl FnOnce(&mut dyn io::Write) -> Result<(), Failed>,
     out: &mut dyn io::Write,
 ) -> Result<(), Failed> {
-    if claude_present(file, bytes, metadata(file))? {
+    if claude_present(file.as_os_str().as_bytes(), bytes, metadata(file))? {
         return Ok(());
     }
     prepare(file)?;
     let _held = lock(file)?;
-    if claude_present(file, bytes, metadata(file))? {
+    if claude_present(file.as_os_str().as_bytes(), bytes, metadata(file))? {
         return Ok(());
     }
     match out.write_all(b"fetching Claude Code\n") {
@@ -163,14 +163,15 @@ fn lock_claude_cache(file: &Path) -> Result<fs::File, Failed> {
     Ok(lock)
 }
 
-fn claude_present(file: &Path, bytes: u64, metadata: io::Result<(bool, u64)>) -> Result<bool, Failed> {
+fn claude_present(file: &[u8], bytes: u64, metadata: io::Result<(bool, u64)>) -> Result<bool, Failed> {
     match metadata {
         Ok((true, length)) if length == bytes => Ok(true),
-        Ok(_) => Err(Failed::Refused(Failure::Present { file: file.as_os_str().as_bytes().into() })),
+        Ok(_) => Err(Failed::Refused(Failure::Present { file: file.into() })),
         Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(false),
-        Err(why) => Err(file_error(file.as_os_str().as_bytes(), &why)),
+        Err(why) => Err(file_error(file, &why)),
     }
 }
+
 /// The caller's bounded archive extraction (protocol/setup/owned.md, 6).
 pub type Extract = fn(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> fetch::Extraction;
 

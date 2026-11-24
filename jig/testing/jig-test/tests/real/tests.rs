@@ -1,31 +1,4 @@
-use super::{agent_document, prepare, scratch};
 use std::{fs, os::unix::fs::PermissionsExt};
-
-#[test]
-fn a_secret_file_readable_by_others_refuses_the_start() {
-    let directory = scratch("private-secret");
-    let secret = directory.join("worker.secret");
-    fs::write(&secret, b"private-worker-value").expect("secret file");
-    fs::set_permissions(&secret, fs::Permissions::from_mode(0o644)).expect("public permissions");
-    let agent = agent_document(&directory, false);
-    let bytes = format!(
-        r#"{{"workers":[{{
-        "engine":{{"socket":"127.0.0.1:7200"}},"name":"worker-a","secret":"{}","slots":1,
-        "programs":{{"check_interval_ms":60000}},
-        "graces":{{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000}},
-        "agent":{{"program":"jig-test","configuration":"{}","arguments":["agent"]}},
-        "limits":{{"profile":"standard"}},"memory_bytes":1152921504606846976
-    }}],"application":{{"workers":[{{"root":"agent-root"}}]}}}}"#,
-        secret.display(),
-        agent.display()
-    );
-    let mut owned = Vec::new();
-    let error = prepare(bytes.as_bytes(), &mut owned).err().expect("start refused");
-    assert!(error.contains("Unsafe"), "private read refusal: {error}");
-    assert!(!error.contains("private-worker-value"), "diagnostic contains no secret");
-    assert!(owned.is_empty(), "refusal happens before opening runtime descriptors");
-    fs::remove_dir_all(directory).expect("scratch cleanup");
-}
 
 #[test]
 fn provider_key_files_refuse_group_permissions_and_symbolic_links() {

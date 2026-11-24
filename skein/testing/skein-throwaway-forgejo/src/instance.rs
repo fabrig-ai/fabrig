@@ -72,16 +72,7 @@ impl Instance {
     /// # Errors
     /// Returns a readiness or administrator lookup failure; the child is reaped.
     pub fn attach(child: Child, port: u16, scratch: &Path, admin: Token, settings: &Settings) -> Result<Self, Failure> {
-        let secrets = vec![admin.value().to_owned()];
-        let mut instance = Self {
-            child: Mutex::new(Some(child)),
-            port,
-            scratch: scratch.into(),
-            work: None,
-            admin: Account { login: String::new(), id: 0, token: admin, password: String::new() },
-            settings: settings.clone(),
-            secrets,
-        };
+        let mut instance = Self::attached_state(Some(child), port, scratch, admin, settings);
         instance.ready()?;
         let user = instance.exchange(&Outgoing::get("/api/v1/user", Some(&instance.admin.token)))?;
         instance.expect("/api/v1/user", &user, 200)?;
@@ -89,6 +80,18 @@ impl Instance {
             text(&value(&user)?, b"login").ok_or_else(|| Failure::Io("admin login missing".into()))?;
         instance.admin.id = number(&value(&user)?, b"id").ok_or_else(|| Failure::Io("admin id missing".into()))?;
         Ok(instance)
+    }
+    fn attached_state(child: Option<Child>, port: u16, scratch: &Path, admin: Token, settings: &Settings) -> Self {
+        let secrets = vec![admin.value().to_owned()];
+        Self {
+            child: Mutex::new(child),
+            port,
+            scratch: scratch.into(),
+            work: None,
+            admin: Account { login: String::new(), id: 0, token: admin, password: String::new() },
+            settings: settings.clone(),
+            secrets,
+        }
     }
     fn ready(&self) -> Result<(), Failure> {
         let interval = skein_lib::Duration::from_millis(50);
@@ -137,14 +140,17 @@ impl Instance {
     }
     fn log_tail(&self) -> String {
         let bytes = fs::read(self.scratch.join("server.log")).unwrap_or_default();
-        self.mask(&String::from_utf8_lossy(&bytes[bytes.len().saturating_sub(2000)..]))
+        self.mask_log(&bytes[bytes.len().saturating_sub(2000)..])
     }
     /// Returns the server's captured output with the instance's secrets masked.
     /// # Errors
     /// Returns a failure to read the server log.
     pub fn server_log(&self) -> Result<String, Failure> {
         let bytes = fs::read(self.scratch.join("server.log"))?;
-        Ok(self.mask(&String::from_utf8_lossy(&bytes)))
+        Ok(self.mask_log(&bytes))
+    }
+    fn mask_log(&self, bytes: &[u8]) -> String {
+        self.mask(&String::from_utf8_lossy(bytes))
     }
     fn mask(&self, text: &str) -> String {
         let mut text = text.to_owned();
@@ -434,6 +440,30 @@ pub(crate) fn ini(scratch: &Path, port: u16, settings: &Settings, user: &str, se
         settings.git.display(),
         settings.actions
     )
+}
+
+#[cfg(test)]
+mod attachment_tests {
+    use super::{Failure, Instance, Path, Settings, Token};
+
+    fn attached_fixture() -> Instance {
+        Instance::attached_state(None, 0, Path::new("/scratch"), Token::new("owner-secret".into()), &Settings::small())
+    }
+
+    #[test]
+    fn a_server_log_masks_the_attached_instances_secret() {
+        let instance = attached_fixture();
+        assert_eq!(instance.mask_log(b"POST /pulls/1/update 200 owner-secret\n"), "POST /pulls/1/update 200 MASKED\n");
+    }
+
+    #[test]
+    fn an_attached_instance_refuses_cli() {
+        let instance = attached_fixture();
+        match instance.cli(&[]).expect_err("attached cli refused") {
+            Failure::Io(error) => assert_eq!(error, "attached instance has no offline work path"),
+            other => panic!("expected offline path refusal: {other:?}"),
+        }
+    }
 }
 
 #[cfg(all(test, target_os = "linux"))]

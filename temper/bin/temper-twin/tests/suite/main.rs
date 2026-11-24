@@ -1,4 +1,4 @@
-//! The twin binary's table (temper/docs/design/testing/tools.md, 6).
+//! The twin binary's paths through main (temper/docs/design/testing/tools.md, 6).
 mod cli;
 
 use std::process::{Command, Stdio};
@@ -25,30 +25,16 @@ fn version(text: &str) -> bool {
     commit == "unknown" || (hash.len() == 12 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
-fn refusal(text: &str, why: &str) -> bool {
-    text.starts_with(&format!("temper-twin: {why}\nusage:\n"))
-        && text == TABLE.refusal(TABLE.commands.first().expect("bare command"), why)
-}
-
 fn unknown(text: &str) -> bool {
-    refusal(text, "unknown option: --nope")
-}
-
-fn missing(text: &str) -> bool {
-    refusal(text, "--data is not given")
+    text.starts_with("temper-twin: unknown option: --nope\nusage:\n")
+        && text == TABLE.refusal(TABLE.commands.first().expect("bare command"), "unknown option: --nope")
 }
 
 type Check = fn(&str) -> bool;
 type Case = (&'static [&'static str], i32, Check, Check);
 
-const ROWS: &[Case] = &[
-    (&["--help"], 0, help, empty),
-    (&["-h"], 0, help, empty),
-    (&["help"], 0, help, empty),
-    (&["--version"], 0, version, empty),
-    (&["--nope"], 2, empty, unknown),
-    (&[], 2, empty, missing),
-];
+const ROWS: &[Case] =
+    &[(&["--help"], 0, help, empty), (&["--version"], 0, version, empty), (&["--nope"], 2, empty, unknown)];
 
 #[test]
 fn the_binary_answers_its_table_and_refuses_other_shapes() {

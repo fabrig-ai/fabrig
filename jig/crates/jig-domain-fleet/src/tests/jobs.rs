@@ -123,3 +123,24 @@ fn a_job_needs_no_run_models_or_login_inventory() {
     h.step(job(R1, A1, JOB, false));
     assert!(h.settle().contains(&Request::AssignJob { channel: C1, run: R1, attempt: A1 }));
 }
+
+#[test]
+fn a_disk_pause_and_crossed_busy_recover_the_same_job_attempt() {
+    use jig_domain_link::PauseState;
+    for drained in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        worker(&mut h, C1, Box::new([JOB]));
+        h.step(job(R1, A1, JOB, false));
+        let assignment = Request::AssignJob { channel: C1, run: R1, attempt: A1 };
+        assert!(h.settle().contains(&assignment));
+        h.step(Event::Paused { channel: C1, state: PauseState::Paused });
+        h.step(Event::Answer { channel: C1, run: R1, attempt: A1, answer: Answer::Busy, payload: payload(1) });
+        assert!(h.settle().is_empty());
+        if drained {
+            h.step(Event::Paused { channel: C1, state: PauseState::Drained });
+            assert!(h.settle().is_empty());
+        }
+        h.step(Event::Paused { channel: C1, state: PauseState::Taking });
+        assert!(h.settle().contains(&assignment));
+    }
+}

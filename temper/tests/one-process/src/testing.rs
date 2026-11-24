@@ -1,5 +1,5 @@
 //! Drive a deployment store, or its owning service, on the simulated kernel.
-use skein_fake_machine::Machine;
+use skein_fake_machine::{How, Machine, Opened};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_lib::Queue;
 use skein_sim::{Config, Handle, Pid, Sim};
@@ -7,6 +7,7 @@ use temper_engine_service::store::Store;
 
 pub use crate::upgrade::check::pre_settings::pre_settings_refusals_leave_the_whole_directory_unchanged;
 pub use crate::upgrade::rehearsal::live::a_live_change_and_uncertain_write_reach_the_opening_without_network;
+pub use crate::upgrade::rehearsal::settings::Rehearsal;
 
 pub const USER: u32 = 1000;
 
@@ -26,7 +27,19 @@ impl Disk {
     }
 
     pub fn root(&mut self, index: u32) -> Fd {
-        self.sim.root(self.pid, Handle::new(self.machine.reopen_root(index).raw()))
+        let opened = self.machine.reopen_root(index);
+        self.adopt(opened)
+    }
+
+    pub fn directory(&mut self, index: u32, path: &[u8]) -> Fd {
+        let root = self.machine.reopen_root(index);
+        let opened = self.machine.open(root, path, How::DirectoryNoFollow).expect("fixture directory");
+        self.machine.close(root);
+        self.adopt(opened)
+    }
+
+    fn adopt(&mut self, opened: Opened) -> Fd {
+        self.sim.root(self.pid, Handle::new(opened.raw()))
     }
 
     pub fn pass(&mut self, submitted: &mut Queue<Submit>, pending: bool) {
@@ -81,5 +94,28 @@ impl Disk {
             }
         }
         panic!("fixture store closes");
+    }
+}
+
+impl temper_engine_shell::testing::LimitsIo for Disk {
+    fn now(&self) -> skein_shell::Now {
+        skein_shell::Now { now: self.sim.now(), wall: self.sim.wall() }
+    }
+    fn reap(&mut self, completions: &mut Queue<Complete>) {
+        self.sim.reap(self.pid, completions);
+    }
+    fn in_flight(&self) -> u32 {
+        self.sim.in_flight(self.pid)
+    }
+    fn submit(&mut self, submissions: &mut Queue<Submit>, wait: skein_shell::Wait) {
+        self.sim.submit(self.pid, submissions);
+        skein_fake_machine::serve(&mut self.machine, &mut self.sim);
+        if self.sim.ready(self.pid) == 0 {
+            match wait {
+                skein_shell::Wait::No => {}
+                skein_shell::Wait::Forever => assert!(self.sim.advance(), "opening waits for an effect"),
+                skein_shell::Wait::Until(at) => self.sim.advance_to(self.sim.next_due().map_or(at, |due| due.min(at))),
+            }
+        }
     }
 }

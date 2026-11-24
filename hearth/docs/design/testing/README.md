@@ -142,6 +142,29 @@ the system worlds' scenarios through bytes: the argument vectors hearth
 makes, a tool's output cut mid-line, a pipe that fills, a tool killed
 mid-write.
 
+The builder's protocol world holds what the client prints [M1]: for a
+fixture repository on fake git, every part, refusal, error, diff,
+notice and exit of a render or a diff. Each fixture is one run at one
+seed holding all its checks, since what they check is the builder's
+answer, not the cuts, which the thin render's sweep over seeds holds.
+Its scenarios give what a check needs of the machine below:
+
+- **a later revision:** a diff's later tree, whole, committed over the
+  fixture's, the earlier one named `before`;
+- **git failing:** a directory that holds no repository, and a commit
+  whose tree git can't list, so the builder prints git's command, exit
+  and tail as the fake's recordings give them;
+- **a laid store:** records, cache files, temporaries, strays and a
+  record of another uid, and a second call over the store a first one
+  left;
+- **a failed resolution:** mmdebstrap's fake answering with its recorded
+  failures, an unknown package's and an unreachable mirror's, with the
+  progress the builder prints around it, and the indices a resolution
+  caches.
+
+The real loop keeps what only the real tools and the real disk show
+(2.7).
+
 ### 2.6 Simulated worlds
 
 Each process's `iterate` on skein's simulator, the fake machine behind
@@ -165,6 +188,16 @@ no subordinate ids, no mirror, no root.
   that never exits, stopped by signals to its process group, since a
   cgroup's kill needs a delegated subtree and is the real tier's [M2];
   the client on a Unix socket [M3].
+- **What the builder's real loop keeps** [M1]: a scratch repository
+  written equal to the one git makes, and git's absence failing it by
+  name; the thin render through real git; the cache's directory and
+  files with their modes under the real umask; the store's record of
+  its real owner and its directories' modes, and staging's after a
+  scan; one real lock held through its retry; a diff kept from the work
+  tree's configuration and attributes; and git's own tail for a tree it
+  can't read. Each is the only check of its kind on the real disk or
+  real git: what else the real loop showed of the builder is the
+  protocol world's (2.5).
 - **End to end:** `hearth` as processes, one test per path through
   `main`: the client's render and diff in-process [M1]; the steward as a
   daemon, the builders it spawns, and the client talking to it [M3]. The
@@ -263,6 +296,15 @@ kernel (skein/docs/foundation/testing-strategy.md, section 5).
 | env file [M3b] | `grub-editenv` on a scratch file | the file, byte for byte; `set` truncating it and rewriting it in place |
 | firmware [M3] | efibootmgr's writes in an Incus VM on OVMF, for both of a slot's entries | efivarfs's variables after each write; exit 40 for `--create-only --bootnum N` over an existing `N`; after a reboot, `BootNext` gone and `BootCurrent`; what OVMF dropped and reordered, of `BootOrder`'s options only; `efibootmgr -v`, recorded |
 | GRUB [M3b] | the fixed `grub.cfg` and the environment pair on a SeaBIOS VM | `next_entry` consumed in both files before the kernel, each save the whole block, two sectors; the boot counter; the default booted after a panic |
+
+What needs no real tool runs below the profile. The builder resolves
+for real once, the pinned repository's `test-min`, a run that also
+holds the digests and modes of the indices it caches; its failed
+resolutions and its progress are the protocol world's (2.5). The
+fake's replay of each mmdebstrap recording, each case's stanzas cut
+from the committed universe, is `recorded_resolve`'s, and a pinned
+request's split into several `--include` arguments is a step of the
+conformance world's suite.
 
 ### 3.3 What is compared, and what is not
 

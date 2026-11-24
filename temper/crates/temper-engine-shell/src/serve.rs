@@ -105,7 +105,7 @@ pub fn github_runtime(
     let log_origins = if machine.is_none() { github_logs::defaults() } else { List::with_capacity(0) };
     Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
-mod limits;
+pub(crate) mod limits;
 pub(crate) use limits::held_failure;
 pub use limits::{Held, Opening, close_limits_store, limits_hold, open_limits, rehearse_limits};
 

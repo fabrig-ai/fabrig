@@ -5,12 +5,16 @@
 //! account once the test ends. Offline, with no launcher, it dies with the test.
 //! Credentials go to ctl and curl by path alone. No bot credential or store is read
 //! by the driver.
-use super::super::configuration::turn_bounds;
-use super::super::held_login::LOCK_FD_9;
-use super::super::patience::Patience;
+use super::super::{Process, configuration::turn_bounds, held_login::LOCK_FD_9};
 use serde_json::{Value, json};
+use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
-use skein_world::{Deadline, Expired, Starved};
+use skein_shell::{Clock, Host};
+use skein_world::{
+    Deadline, Expired, Referee, Starved,
+    end_to_end::{Binary, Expectation, Mode},
+    real,
+};
 
 use std::{
     fs,
@@ -18,6 +22,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
+    sync::mpsc,
 };
 
 const REQUEST: &str =
@@ -224,11 +229,10 @@ struct Driver {
     client: PathBuf,
     sequence: usize,
     until: Time,
-    deadline: Option<Deadline>,
+    deadline: Deadline,
     phases: Vec<(&'static str, Deadline)>,
     active: Option<usize>,
     starved: Option<Starved>,
-    in_world: bool,
     phase: &'static str,
     requested: Option<Time>,
     api: String,
@@ -243,36 +247,33 @@ struct Transcript<F> {
 }
 
 impl Driver {
-    fn new(store: &Path, client: &Path) -> Self {
-        Self::new_at(store, client, skein_scratch::paths::binary("temper-box"), now())
+    fn owned(store: &Path, client: &Path) -> Self {
+        Self::new_at(
+            store,
+            client,
+            skein_scratch::paths::binary("temper-box"),
+            Deadline::arm("the rung's setup", Duration::from_secs(300)),
+        )
     }
 
-    fn new_at(store: &Path, client: &Path, binary: PathBuf, now: Time) -> Self {
+    fn new_at(store: &Path, client: &Path, binary: PathBuf, deadline: Deadline) -> Self {
         Self {
             binary,
             store: store.into(),
             client: client.into(),
             sequence: 0,
-            until: now.saturating_add(Duration::from_secs(300)),
-            deadline: None,
+            until: deadline.until(),
+            deadline,
             phases: Vec::new(),
             active: None,
             starved: None,
-            in_world: true,
-            phase: "setup",
+            phase: "the rung's setup",
             requested: None,
             api: String::new(),
             header: PathBuf::new(),
             project: String::new(),
             forge: 0,
         }
-    }
-
-    fn owned(store: &Path, client: &Path) -> Self {
-        let mut driver = Self::new(store, client);
-        driver.in_world = false;
-        driver.arm("the rung's setup", Duration::from_secs(300));
-        driver
     }
 
     fn arm(&mut self, phase: &'static str, within: Duration) {
@@ -282,14 +283,14 @@ impl Driver {
     fn arm_deadline(&mut self, phase: &'static str, deadline: Deadline) {
         self.phase = phase;
         self.until = deadline.until();
-        self.deadline = Some(deadline);
+        self.deadline = deadline;
         self.active = None;
     }
 
-    fn deadline(&mut self) -> Option<&mut Deadline> {
+    fn deadline(&mut self) -> &mut Deadline {
         match self.active {
-            Some(index) => Some(&mut self.phases[index].1),
-            None => self.deadline.as_mut(),
+            Some(index) => &mut self.phases[index].1,
+            None => &mut self.deadline,
         }
     }
 
@@ -302,15 +303,13 @@ impl Driver {
             return Ok(());
         }
         let message = format!("phase {} exceeded its bound", self.phase);
-        match self.deadline().map(|deadline| expire(deadline)) {
-            Some(Expired::Starved(starved)) => {
+        match expire(self.deadline()) {
+            Expired::Starved(starved) => {
                 let message = format!("{message}: {}", starved.figures());
                 self.starved = Some(starved);
                 Err(message)
             }
-            Some(Expired::Failed(figures)) => Err(format!("{message}: {figures}")),
-            // The offline setup's 300 s bound exceeds its 240 s world patience.
-            None => Err(message),
+            Expired::Failed(figures) => Err(format!("{message}: {figures}")),
         }
     }
 
@@ -388,19 +387,11 @@ impl Driver {
             .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
             .stdout(out)
             .stderr(err);
-        let mut request_wait =
-            within.filter(|_| !self.in_world).map(|within| Deadline::arm("the rung's forge request", within));
-        let mut world_request =
-            within.filter(|_| self.in_world).map(|within| Patience::arm("the rung's forge request", within));
+        let mut request_wait = within.map(|within| Deadline::arm("the rung's forge request", within));
         let mut child = command.spawn().map_err(|e| e.to_string())?;
-        if let Some(deadline) = self.deadline() {
-            deadline.watch_process(child.id());
-        }
+        self.deadline().watch_process(child.id());
         if let Some(deadline) = &mut request_wait {
             deadline.watch_process(child.id());
-        }
-        if let Some(patience) = &mut world_request {
-            patience.watch_process(child.id());
         }
         if let Some(input) = input {
             child
@@ -417,12 +408,6 @@ impl Driver {
             if let Err(message) = self.check_wait() {
                 super::super::parent::end_child(&mut child);
                 return Err(format!("{message}; call {number}"));
-            }
-            if let Some(patience) = &mut world_request
-                && let Some(figures) = patience.failed()
-            {
-                super::super::parent::end_child(&mut child);
-                return Err(format!("forge request exceeded its bound: {figures}"));
             }
             if let Some(deadline) = &request_wait
                 && deadline.passed()
@@ -637,9 +622,7 @@ pub fn return_on_a_box_of_its_own(
     driver.arm("the held record's new box", Duration::from_secs(240));
     let mut guard = super::super::parent::Guard::new(start_box(binary, store, paths, true));
     let boxed = guard.child.as_mut().expect("return box");
-    if let Some(deadline) = driver.deadline() {
-        deadline.watch_process(boxed.id());
-    }
+    driver.deadline().watch_process(boxed.id());
     let returned = (|| {
         let link = return_link(&mut driver, boxed)?;
         super::super::live::notice(&format!(
@@ -703,12 +686,12 @@ pub fn green_light() {
     let paths = ["config", "data", "cache"].map(|name| store.join(name));
     deployment(&paths);
     super::super::live::notice(&format!("TAG rung-b0-{}", super::live_tag()));
-    run_walk(&store, &paths, &account, false).unwrap_or_else(|message| panic!("{message}"));
+    run_walk(&store, &paths, &account, None).unwrap_or_else(|message| panic!("{message}"));
 }
 
-fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], offline: bool) -> Child {
+fn box_command(binary: &Path, store: &Path, paths: &[PathBuf; 3]) -> skein_world::end_to_end::Command {
     crate::limit_settings::install_paths(paths);
-    let command = skein_world::end_to_end::Command {
+    skein_world::end_to_end::Command {
         program: binary.into(),
         arguments: super::deployment_flags(paths)
             .into_iter()
@@ -717,9 +700,13 @@ fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], offline: bool) -
             .collect(),
         directory: store.into(),
         environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
-    };
-    let command = if offline { super::super::boxed::dying_with_test(command) } else { command };
-    let mut spawn = if offline {
+    }
+}
+
+fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], dies_with_test: bool) -> Child {
+    let command = box_command(binary, store, paths);
+    let command = if dies_with_test { super::super::boxed::dying_with_test(command) } else { command };
+    let mut spawn = if dies_with_test {
         Command::new(&command.program)
     } else {
         let mut spawn = Command::new("setsid");
@@ -739,15 +726,18 @@ fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], offline: bool) -
 }
 
 /// Both faces import, walk, return the account, then stop through these acts.
-fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) -> Result<(), String> {
+fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, probe: Option<&ImportProbe>) -> Result<(), String> {
     let _ = super::cache_forgejo_binaries(&paths[2]);
     let client = store.join("client");
     fs::create_dir(&client).expect("fresh client");
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
     let mut driver = Driver::owned(store, &client);
     super::super::held_login::return_hook(&driver.binary, store, &driver.client, account)?;
-    let mut boxed = start_box(&driver.binary, store, paths, offline);
-    let result = walk(&mut driver, paths, account, offline);
+    let boxed = match probe {
+        Some(_) => WalkBox::Twin(Box::new(start_twin_box(&driver.binary, store, paths))),
+        None => WalkBox::Live(start_box(&driver.binary, store, paths, false)),
+    };
+    let result = walk(&mut driver, paths, account, probe);
     // Ordinary endings return before stopping. The launcher covers a test that ends first.
     let starved = driver.starved.take();
     driver.arm("the rung's held login return", Duration::from_secs(60));
@@ -757,13 +747,93 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) -
         panic!("LOGIN NOT BACK: {message}; box retained for recovery");
     }
     super::super::live::notice("MUST login at its original path; stat regular, nonempty, 0600");
-    let stopped = stop_box(&mut boxed);
-    stopped.expect("box stopped after login return");
+    match boxed {
+        WalkBox::Twin(binary) => stop_twin_box(binary).expect("twin box drained after login return"),
+        WalkBox::Live(mut child) => {
+            stop_box(&mut child).expect("box stopped after login return");
+            if starved.is_some() {
+                super::super::parent::end_child(&mut child);
+            }
+        }
+    }
     if let Some(starved) = starved {
-        super::super::parent::end_child(&mut boxed);
         starved.pass();
     }
     result
+}
+
+enum WalkBox {
+    Twin(Box<Binary>),
+    Live(Child),
+}
+
+fn start_twin_box(program: &Path, store: &Path, paths: &[PathBuf; 3]) -> Binary {
+    let command = box_command(program, store, paths);
+    fs::File::create(store.join("box.out")).expect("box output before the driver's first read");
+    // Keep the driver's file transcript while the tree observer is not being
+    // driven. The shell execs the box in place, so it is the observed leader.
+    let command = skein_world::end_to_end::Command {
+        program: "/bin/sh".into(),
+        arguments: ["-c".into(), "exec \"$@\" </dev/null >box.out 2>box.err".into(), "rung-box".into()]
+            .into_iter()
+            .chain([command.program.into()])
+            .chain(command.arguments)
+            .collect(),
+        ..command
+    };
+    Binary::start_with_tree(
+        super::super::boxed::dying_with_test(command),
+        Mode::Pipes,
+        262_144,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("twin box starts")
+}
+
+#[derive(Default)]
+struct TwinStop {
+    killing: bool,
+    settled: bool,
+}
+
+impl Referee<Process> for TwinStop {
+    fn act(&mut self, _at: Time, procs: &mut [Process]) {
+        if let [Process::Binary(binary)] = procs
+            && !self.killing
+            && !binary.is_empty()
+            && binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty())
+        {
+            binary.signal_tree(Signal::Kill);
+            self.killing = true;
+        }
+    }
+
+    fn watch(&mut self, _at: Time, procs: &[Process]) -> Result<(), String> {
+        let [Process::Binary(binary)] = procs else { return Err("twin box observer missing".into()) };
+        self.settled = binary.is_empty();
+        Ok(())
+    }
+
+    fn passed(&self) -> bool {
+        self.settled
+    }
+}
+
+fn stop_twin_box(mut binary: Box<Binary>) -> Result<(), String> {
+    // In the subreaper fallback the keeper surveys this process's children.
+    // Drive it only now, with every synchronous ctl/curl child already reaped.
+    binary.signal(Signal::Terminate);
+    let mut world = real::World::new(TwinStop::default());
+    world.spawn_with_fds(binary.descriptors(), || Process::Binary(binary));
+    let outcome = world.try_run(&Clock::new(), Duration::from_secs(30))?;
+    let [Process::Binary(binary)] = outcome.procs.as_slice() else { return Err("twin box observer missing".into()) };
+    let exit = binary.exit_status();
+    let left = binary.tree_status().live_at_leader_exit.as_deref();
+    require(
+        exit == Some(Exit::Code(0)) && left == Some(&[]),
+        &format!("twin box exit {exit:?}, live at exit: {left:?}; see box.err"),
+    )
 }
 
 fn twin_peer() -> super::super::llm::Listening {
@@ -837,7 +907,6 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
         ctl::{Call, Step},
         sign_in,
     };
-    use skein_io::kernel::Exit;
     let donor = root.join("donor");
     fs::create_dir(&donor).expect("fake account donor");
     let donor_paths = ["config", "data", "cache"].map(|name| donor.join(name));
@@ -871,28 +940,45 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
     temper_agent_fixtures::providers::write(&paths[1], &destination);
 }
 
+/// One read at the import boundary. Dropping the sender ends the peers.
+type ImportProbe = mpsc::Sender<mpsc::Sender<usize>>;
+
 struct TwinPeers {
     finding: Option<String>,
-    stop: std::sync::mpsc::Receiver<()>,
+    probe: mpsc::Receiver<mpsc::Sender<usize>>,
     ended: bool,
     deadline: Time,
     wake: Time,
 }
 
-impl skein_world::Referee<super::super::Process> for TwinPeers {
-    fn act(&mut self, at: Time, procs: &mut [super::super::Process]) {
+impl Referee<Process> for TwinPeers {
+    fn act(&mut self, at: Time, procs: &mut [Process]) {
         self.wake = at.saturating_add(Duration::from_millis(10));
-        if !self.ended && !matches!(self.stop.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty)) {
-            let [super::super::Process::Issuer(issuer), super::super::Process::Peer(peer)] = procs else {
-                self.finding = Some("twin peers".into());
-                return;
-            };
-            issuer.shutdown();
-            peer.shutdown();
-            self.ended = true;
+        if self.ended {
+            return;
+        }
+        let [Process::Issuer(issuer), Process::Peer(peer)] = procs else {
+            self.finding = Some("twin peers".into());
+            return;
+        };
+        match self.probe.try_recv() {
+            Ok(reply) => {
+                let queries = peer
+                    .observations()
+                    .iter()
+                    .filter(|event| matches!(event, skein_fake_peers::llm::Observation::Query { .. }))
+                    .count();
+                let _ = reply.send(queries);
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                issuer.shutdown();
+                peer.shutdown();
+                self.ended = true;
+            }
+            Err(mpsc::TryRecvError::Empty) => {}
         }
     }
-    fn watch(&mut self, _at: Time, _procs: &[super::super::Process]) -> Result<(), String> {
+    fn watch(&mut self, _at: Time, _procs: &[Process]) -> Result<(), String> {
         match &self.finding {
             Some(why) => Err(why.clone()),
             None => Ok(()),
@@ -915,8 +1001,7 @@ impl skein_world::Referee<super::super::Process> for TwinPeers {
     reason = "the fake peers' world serves the synchronous ctl driver on a scoped thread"
 )]
 pub fn offline_walk(root: &Path) {
-    use super::super::{Process, sign_in};
-    use skein_shell::{Clock, Host};
+    use super::super::sign_in;
     let paths = ["config", "data", "cache"].map(|name| root.join(name));
     deployment(&paths);
     drop(sign_in::patch_configuration(&paths[0]));
@@ -928,15 +1013,15 @@ pub fn offline_walk(root: &Path) {
     // As in account_move: one independent world must serve the fake while
     // the synchronous bounded ctl/curl driver waits for its child commands.
     std::thread::scope(|scope| {
-        let (stop, receiver) = std::sync::mpsc::channel();
-        let (ready, listening) = std::sync::mpsc::channel();
+        let (probe, receiver) = mpsc::channel();
+        let (ready, listening) = mpsc::channel();
         let peers = scope.spawn(move || {
             let clock = Clock::new();
             // Setup plus the unchanged whole-walk bound; not a phase increase.
             let within = Duration::from_secs(700);
             let mut world = skein_world::real::World::new(TwinPeers {
                 finding: None,
-                stop: receiver,
+                probe: receiver,
                 ended: false,
                 deadline: clock.now().now.saturating_add(within),
                 wake: clock.now().now,
@@ -946,23 +1031,25 @@ pub fn offline_walk(root: &Path) {
             ready.send(()).expect("twin peer world ready");
             let outcome = world.run(&clock, within);
             assert!(outcome.procs.iter().all(Host::is_empty), "twin peer io drained");
-            let seen = super::peer_seen(&outcome.procs, index);
-            assert!(!seen.requests.is_empty(), "twin served the driver");
-            assert!(seen.answers.iter().all(Result::is_ok), "every twin answer served");
-            assert!(
-                seen.schemes.iter().all(|scheme| *scheme == Some(skein_llm::Scheme::Bearer)),
-                "plan bearer transport"
-            );
+            super::peer_seen(&outcome.procs, index)
         });
         listening.recv().expect("twin peers constructed");
-        let walked = run_walk(root, &paths, &account, true);
-        drop(stop);
-        peers.join().expect("independent twin world");
+        let walked = run_walk(root, &paths, &account, Some(&probe));
+        drop(probe);
+        let seen = peers.join().expect("independent twin world");
         walked.unwrap_or_else(|message| panic!("{message}"));
+        assert!(!seen.requests.is_empty(), "twin served the driver");
+        assert!(seen.answers.iter().all(Result::is_ok), "every twin answer served");
+        assert!(seen.schemes.iter().all(|scheme| *scheme == Some(skein_llm::Scheme::Bearer)), "plan bearer transport");
     });
 }
 
-fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Value, String> {
+fn setup(
+    driver: &mut Driver,
+    paths: &[PathBuf; 3],
+    account: &Path,
+    probe: Option<&ImportProbe>,
+) -> Result<Value, String> {
     let link = loop {
         let output = fs::read_to_string(driver.store.join("box.out")).map_err(|e| e.to_string())?;
         if let Some(link) = output.lines().find(|line| line.starts_with("http://") && line.contains("secret=")) {
@@ -974,6 +1061,9 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
     driver.ctl(&["sign-in", "-"], Some(&link))?;
     setup_tools(driver)?;
     let baseline = setup_observer(driver, paths)?;
+    if let Some(probe) = probe {
+        check_before_import(driver, probe)?;
+    }
     driver.ctl(&["account", "import", account.to_str().ok_or("held path")?, "--key", "connect-plan"], None)?;
     let accounts = driver.wait(&["account", "list"], "usable")?;
     require(
@@ -985,8 +1075,7 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
     Ok(baseline)
 }
 
-/// All ordinary ctl setup before importing the held account, shared by the
-/// live walk and the process proof with the existing fake model.
+/// All ordinary ctl setup before importing the held account, shared by both faces.
 fn setup_tools(driver: &mut Driver) -> Result<(), String> {
     configure_model(driver)?;
     driver.ctl(&["forge", "setup", "--playground", "--key", "rung-forge"], None)?;
@@ -1102,62 +1191,27 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3]) -> Result<Value, St
     Ok(baseline)
 }
 
-/// Process-tier proof of the live setup through its last pre-import read.
-/// The ordinary harness supervises the existing TLS fake; no account is added
-/// and no real provider is contacted. The shared steps still use real Forgejo.
-pub fn offline_setup(root: &Path) {
-    use super::super::{
-        boxed,
-        ctl::{Call, Step},
+fn check_before_import(driver: &mut Driver, probe: &ImportProbe) -> Result<(), String> {
+    let accounts = driver.ctl(&["account", "list"], None)?;
+    require(accounts["accounts"]["party"] == json!([]), "no party account before the twin's import")?;
+    let project = driver.project.clone();
+    check_funding(&driver.ctl(&["project", "show", &project], None)?)?;
+
+    driver.check_wait()?;
+    let (reply, count) = mpsc::channel();
+    probe.send(reply).map_err(|_| "twin peers stopped before the import check")?;
+    let remaining = std::time::Duration::from_nanos(driver.until.saturating_since(now()).as_nanos());
+    let queries = match count.recv_timeout(remaining) {
+        Ok(queries) => queries,
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            return Err("twin peers did not acknowledge the import check".into());
+        }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            driver.check_wait()?;
+            return Err("twin import check timed out before the peer acknowledged it".into());
+        }
     };
-    use skein_io::kernel::Exit;
-    use std::{cell::RefCell, rc::Rc};
-    let paths = ["config", "data", "cache"].map(|name| root.join(name));
-    deployment(&paths);
-    let _issuer = super::super::sign_in::patch_configuration(&paths[0]);
-    let peer = super::super::sign_in::plan_peer(Box::new([]));
-    peer.configure(&paths[0]);
-    let _ = super::cache_forgejo_binaries(&paths[2]);
-    let driver = Rc::new(RefCell::new(Driver::new(root, &root.join("client"))));
-    let tools = driver.clone();
-    let prepared = Rc::new(RefCell::new(Ok(())));
-    let tool_result = prepared.clone();
-    let outcome = boxed::run_ctl_with_llm(
-        root,
-        super::deployment_flags(&paths),
-        root,
-        vec![
-            Step::Run(Call::sign_in()),
-            Step::Then(Box::new(move |_| {
-                *tool_result.borrow_mut() = setup_tools(&mut tools.borrow_mut());
-                // Return to the harness before the observer reads setup's logs.
-                Call::new(&["me", "--json"])
-            })),
-        ],
-        boxed::BOX_DEADLINE,
-        |_| -> Result<(), String> {
-            prepared.borrow().clone()?;
-            let mut driver = driver.borrow_mut();
-            setup_observer(&mut driver, &paths)?;
-            let accounts = driver.ctl(&["account", "list"], None)?;
-            require(accounts["accounts"]["party"] == json!([]), "no account imported by the offline setup")?;
-            let project = driver.project.clone();
-            let project = driver.ctl(&["project", "show", &project], None)?;
-            check_funding(&project)?;
-            Ok(())
-        },
-        boxed::CtlLlm { expected_exits: Vec::new(), peer, on_link: Box::new(|| {}) },
-    );
-    let stderr = String::from_utf8_lossy(&outcome.stderr);
-    assert_eq!(outcome.exit, Some(Exit::Code(0)), "box stop: {stderr}");
-    assert_eq!(outcome.left, Some(vec![]), "no surviving children: {stderr}");
-    for call in &outcome.calls {
-        assert_eq!(call.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&call.stderr));
-    }
-    assert_eq!(outcome.calls.len(), 2, "sign-in and setup checkpoint");
-    outcome.checked.expect("pre-import checkpoint").expect("all pre-import setup passed");
-    assert!(outcome.model.expect("fake model observations").requests.is_empty(), "no model call before import");
-    eprintln!("OFFLINE B0 setup passed through account-import boundary, zero model requests; box drained");
+    require(queries == 0, &format!("the twin's model saw {queries} queries before import"))
 }
 
 fn check_funding(project: &Value) -> Result<(), String> {
@@ -1182,9 +1236,9 @@ fn check_funding(project: &Value) -> Result<(), String> {
     Ok(())
 }
 
-fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool) -> Result<(), String> {
-    let baseline = setup(driver, paths, account)?;
-    if offline {
+fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, probe: Option<&ImportProbe>) -> Result<(), String> {
+    let baseline = setup(driver, paths, account, probe)?;
+    if probe.is_some() {
         // Parking is required, but its stock ten-second threshold is not B0's
         // subject. The full two-minute hold below remains the same on both faces.
         let inventory = driver.ctl(&["settings", "show"], None)?;
@@ -1434,7 +1488,12 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     fn driver(start: Time) -> Driver {
-        Driver::new_at(Path::new("transcript"), Path::new("client"), PathBuf::from("temper-box"), start)
+        Driver::new_at(
+            Path::new("transcript"),
+            Path::new("client"),
+            PathBuf::from("temper-box"),
+            at("the rung's setup", Duration::from_secs(300), start),
+        )
     }
 
     pub fn an_expired_rung_phase_starts_no_further_command() {

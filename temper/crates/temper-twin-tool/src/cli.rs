@@ -1,7 +1,17 @@
 //! The twin's table and run (temper/docs/design/testing/tools.md, 4).
 use crate::{Input, Refusal, Replace, Take};
 use skein_shell::{Command, Fallback, Front, Reach, Set, Setting, Settings, Table};
-use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
+use std::{
+    ffi::OsStr,
+    fmt::Write,
+    io,
+    os::unix::ffi::OsStrExt,
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
+
+#[cfg(test)]
+mod tests;
 
 pub const TABLE: Table = Table {
     binary: "temper-twin",
@@ -104,36 +114,32 @@ const FLAGS: Settings = Settings {
     reason = "the binary's capture: temper-twin's arguments, once (skein/docs/foundation/cli.md, 6)"
 )]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
-    run(&skein_shell::arguments(), &Table { version, commit, ..TABLE })
+    let answer =
+        run(&skein_shell::arguments(), &Table { version, commit, ..TABLE }, |path, bytes| std::fs::write(path, bytes));
+    print!("{}", answer.stdout);
+    eprint!("{}", answer.stderr);
+    ExitCode::from(answer.code)
 }
 
-fn run(arguments: &[Box<[u8]>], table: &Table) -> ExitCode {
-    match table.front(arguments) {
-        Front::Print(text) => {
-            print!("{text}");
-            ExitCode::SUCCESS
-        }
-        Front::Refuse(text) => {
-            eprint!("{text}");
-            ExitCode::from(2)
-        }
-        Front::Run { command, rest } => {
-            debug_assert_eq!(command, &TWIN);
-            let input = match parse(rest) {
-                Ok(input) => input,
-                Err(why) => {
-                    eprint!("{}", table.refusal(&TWIN, &why));
-                    return ExitCode::from(2);
-                }
-            };
-            match convert(input) {
-                Ok(()) => ExitCode::SUCCESS,
-                Err(line) => {
-                    eprintln!("{line}");
-                    ExitCode::from(2)
-                }
-            }
-        }
+struct Answer {
+    code: u8,
+    stdout: String,
+    stderr: String,
+}
+
+type WriteDocument = fn(&Path, &[u8]) -> io::Result<()>;
+
+fn run(arguments: &[Box<[u8]>], table: &Table, write: WriteDocument) -> Answer {
+    let result = match table.front(arguments) {
+        Front::Print(text) => Ok(text),
+        Front::Refuse(text) => Err(text),
+        Front::Run { command, rest } => parse(rest)
+            .map_err(|why| table.refusal(command, &why))
+            .and_then(|input| convert(input, write).map_err(|line| format!("{line}\n"))),
+    };
+    match result {
+        Ok(stdout) => Answer { code: 0, stdout, stderr: String::new() },
+        Err(stderr) => Answer { code: 2, stdout: String::new(), stderr },
     }
 }
 
@@ -201,7 +207,7 @@ fn parse(arguments: &[Box<[u8]>]) -> Result<Options, String> {
     Ok(Options { source, values, out: out.ok_or("--out is not given")?, replaces: replaces.into_boxed_slice() })
 }
 
-fn convert(options: Options) -> Result<(), String> {
+fn convert(options: Options, write: WriteDocument) -> Result<String, String> {
     let Options { source, values, out, replaces } = options;
     let values = match values {
         Some(path) => crate::read_takes(&read(&path)?).map_err(|why| line(&why))?,
@@ -218,22 +224,24 @@ fn convert(options: Options) -> Result<(), String> {
         }),
     };
     let twin = result.map_err(|why| line(&why))?;
-    if std::fs::write(&out, &twin.document).is_err() {
+    if write(&out, &twin.document).is_err() {
         return Err(format!("write: {}", out.to_string_lossy().escape_debug()));
     }
+    let mut stdout = String::new();
     for (task, turns) in &twin.report.turns {
-        println!("task {task}: {turns} turns");
+        writeln!(stdout, "task {task}: {turns} turns").expect("writing a String");
     }
     for (task, blocks) in &twin.report.dropped {
-        println!("task {task}: {blocks} opaque blocks dropped");
+        writeln!(stdout, "task {task}: {blocks} opaque blocks dropped").expect("writing a String");
     }
     for (replace, count) in replaces.iter().zip(&twin.report.replaced) {
-        println!("{}: {count}", String::from_utf8_lossy(&replace.old).escape_debug());
+        writeln!(stdout, "{}: {count}", String::from_utf8_lossy(&replace.old).escape_debug())
+            .expect("writing a String");
     }
     for (take, count) in values.iter().zip(&twin.report.taken) {
-        println!("take {}: {count} uses", take.name);
+        writeln!(stdout, "take {}: {count} uses", take.name).expect("writing a String");
     }
-    Ok(())
+    Ok(stdout)
 }
 fn read(path: &PathBuf) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|_| format!("read: {}", path.to_string_lossy().escape_debug()))

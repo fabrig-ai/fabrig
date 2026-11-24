@@ -1,8 +1,9 @@
 //! The deployment is opened before its engine is sized (configuration/limit-settings.md, 3).
 use crate::path;
 use jig_domain_core::settings::Override;
-use skein_io::kernel::Fd;
-use skein_lib::Queue;
+use skein_io::kernel::{Complete, Fd, Submit};
+use skein_lib::{Queue, Time};
+use skein_shell::{Clock, Kernel, Now, Wait};
 use std::fmt::Write;
 use temper_engine_service::{
     self as service,
@@ -25,10 +26,11 @@ pub fn limits_hold(data: &std::path::Path) -> Result<Option<Held>, String> {
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(why) => return Err(format!("{}: {why}", path.display())),
     };
-    limits_hold_over(&path, &text).map(Some)
+    parse_held(&path, &text).map(Some)
 }
 
-fn limits_hold_over(path: &std::path::Path, text: &str) -> Result<Held, String> {
+/// Parse the held file when it is present, even if it is empty.
+pub fn parse_held(path: &std::path::Path, text: &str) -> Result<Held, String> {
     let mut jig = Vec::new();
     let mut temper = Vec::new();
     let mut lines: Vec<(Box<[u8]>, usize)> = Vec::new();
@@ -104,12 +106,13 @@ pub fn open_limits(
         skein_shell::Kernel::open(skein_shell::Config { operations: service::store::KERNEL_HANDOFF_ENTRIES })
             .map_err(|why| why.to_string())?;
     let clock = skein_shell::Clock::new();
-    let result = opened(&mut store, &mut kernel, &clock, Some(deployment));
+    let mut io = Ring { kernel: &mut kernel, clock: &clock };
+    let result = opened(&mut store, &mut io, Some(deployment));
     if let Err(why) = result {
-        closed(&mut store, &mut kernel, &clock);
+        closed(&mut store, &mut io);
         return Err(why);
     }
-    let state = resolved(&mut store, &mut kernel, &clock, inputs, held.as_ref())?;
+    let state = resolved(&mut store, &mut io, inputs, held.as_ref(), &mut std::io::stderr())?;
     if let Some(held) = held {
         eprintln!("{}", held.line);
     }
@@ -145,34 +148,84 @@ pub fn rehearse_limits(
     let mut kernel =
         skein_shell::Kernel::open(skein_shell::Config { operations: service::store::KERNEL_HANDOFF_ENTRIES })
             .map_err(|why| why.to_string())?;
-    let settings = match opened(&mut store, &mut kernel, &clock, None) {
-        Ok(true) => Some(resolved(&mut store, &mut kernel, &clock, inputs, held)?),
+    rehearse_opening(
+        store,
+        &mut Ring { kernel: &mut kernel, clock: &clock },
+        began,
+        inputs,
+        held,
+        &mut std::io::stderr(),
+    )
+}
+
+/// The kernel and clock beneath the store-only opening loop.
+#[doc(hidden)]
+pub trait LimitsIo {
+    fn now(&self) -> Now;
+    fn reap(&mut self, completions: &mut Queue<Complete>);
+    fn in_flight(&self) -> u32;
+    fn submit(&mut self, submissions: &mut Queue<Submit>, wait: Wait);
+}
+
+struct Ring<'a> {
+    kernel: &'a mut Kernel,
+    clock: &'a Clock,
+}
+
+impl LimitsIo for Ring<'_> {
+    fn now(&self) -> Now {
+        self.clock.now()
+    }
+    fn reap(&mut self, completions: &mut Queue<Complete>) {
+        self.kernel.reap(completions);
+    }
+    fn in_flight(&self) -> u32 {
+        self.kernel.in_flight()
+    }
+    fn submit(&mut self, submissions: &mut Queue<Submit>, wait: Wait) {
+        self.kernel.submit(submissions, wait);
+    }
+}
+
+/// Open a rehearsal store that has adopted its source and scratch, then resolve the copy's limits.
+#[doc(hidden)]
+pub fn rehearse_opening(
+    mut store: Store,
+    io: &mut impl LimitsIo,
+    began: Time,
+    inputs: LimitInputs,
+    held: Option<&Held>,
+    diagnostics: &mut dyn std::io::Write,
+) -> Result<Opening, String> {
+    let settings = match opened(&mut store, io, None) {
+        Ok(true) => Some(resolved(&mut store, io, inputs, held, diagnostics)?),
         Ok(false) => None,
         Err(why) => {
-            closed(&mut store, &mut kernel, &clock);
+            closed(&mut store, io);
             return Err(why);
         }
     };
     Ok(Opening { store, settings, began })
 }
+
 /// Read, resolve and install the opened store's limit settings; a held pair replaces both kinds.
 fn resolved(
     store: &mut Store,
-    kernel: &mut skein_shell::Kernel,
-    clock: &skein_shell::Clock,
+    io: &mut impl LimitsIo,
     inputs: LimitInputs,
     held: Option<&Held>,
+    diagnostics: &mut dyn std::io::Write,
 ) -> Result<LimitSettings, String> {
     let over = held.map(|held| (held.jig.as_ref(), held.temper.as_ref()));
     let state = match store.resolve_settings(inputs, over) {
         Ok(state) => state,
         Err(why) => {
-            closed(store, kernel, clock);
+            closed(store, io);
             return Err(limit_failure(&why, held));
         }
     };
     for left in &state.in_force.left_out {
-        eprintln!("{}", left_out_line(left));
+        writeln!(diagnostics, "{}", left_out_line(left)).expect("printing to stderr failed");
     }
     Ok(state)
 }
@@ -196,20 +249,15 @@ fn text(why: &service::startup::Problems) -> String {
 /// Until the store opens, or, for a rehearsal, ends at a terminal. A start, naming its
 /// `deployment`, refuses in its own words; a rehearsal has none and keeps its terminals and
 /// its jobs' progress for its engine's report. Whether the store opened.
-fn opened(
-    store: &mut Store,
-    kernel: &mut skein_shell::Kernel,
-    clock: &skein_shell::Clock,
-    deployment: Option<&[u8]>,
-) -> Result<bool, String> {
+fn opened(store: &mut Store, io: &mut impl LimitsIo, deployment: Option<&[u8]>) -> Result<bool, String> {
     let mut completions = Queue::uncapped();
     let mut ended = false;
     loop {
-        kernel.reap(&mut completions);
+        io.reap(&mut completions);
         while let Some(complete) = completions.pop() {
             store.complete(complete);
         }
-        let skein_shell::Now { now, wall } = clock.now();
+        let Now { now, wall } = io.now();
         store.clock(now, wall);
         store.iterate();
         let mut keep = Queue::uncapped();
@@ -282,7 +330,7 @@ fn opened(
         while let Some(event) = keep.pop() {
             store.events().push(event);
         }
-        if (store.opened() || ended) && kernel.in_flight() == 0 && store.submissions().is_empty() {
+        if (store.opened() || ended) && io.in_flight() == 0 && store.submissions().is_empty() {
             return Ok(store.opened());
         }
         let wait = if store.work_pending(now) {
@@ -290,29 +338,29 @@ fn opened(
         } else {
             store.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
         };
-        kernel.submit(store.submissions(), wait);
+        io.submit(store.submissions(), wait);
     }
 }
 pub fn close_limits_store(store: &mut Store) -> Result<(), String> {
     let mut kernel =
         skein_shell::Kernel::open(skein_shell::Config { operations: service::store::KERNEL_HANDOFF_ENTRIES })
             .map_err(|why| why.to_string())?;
-    closed(store, &mut kernel, &skein_shell::Clock::new());
+    closed(store, &mut Ring { kernel: &mut kernel, clock: &Clock::new() });
     Ok(())
 }
-fn closed(store: &mut Store, kernel: &mut skein_shell::Kernel, clock: &skein_shell::Clock) {
+fn closed(store: &mut Store, io: &mut impl LimitsIo) {
     store.close();
     let mut completions = Queue::uncapped();
     loop {
-        kernel.reap(&mut completions);
+        io.reap(&mut completions);
         while let Some(complete) = completions.pop() {
             store.complete(complete);
         }
-        let skein_shell::Now { now, wall } = clock.now();
+        let Now { now, wall } = io.now();
         store.clock(now, wall);
         store.iterate();
         while store.events().pop().is_some() {}
-        if store.closed() && kernel.in_flight() == 0 {
+        if store.closed() && io.in_flight() == 0 {
             break;
         }
         let wait = if store.work_pending(now) {
@@ -320,7 +368,7 @@ fn closed(store: &mut Store, kernel: &mut skein_shell::Kernel, clock: &skein_she
         } else {
             store.next_deadline().map_or(skein_shell::Wait::Forever, skein_shell::Wait::Until)
         };
-        kernel.submit(store.submissions(), wait);
+        io.submit(store.submissions(), wait);
     }
 }
 

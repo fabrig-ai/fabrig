@@ -5,7 +5,6 @@ use skein_fake_person_browser::{
 };
 use std::{
     fs,
-    net::TcpListener,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
@@ -125,17 +124,6 @@ impl Tier {
             request: &self.forged,
             done: skein_fake_person::Find::text(b"Forged"),
         }
-    }
-    #[must_use]
-    pub fn reserved(name: &str) -> Self {
-        let tier = Self::new(name);
-        let listener = TcpListener::bind("127.0.0.1:0").expect("reserve restart port");
-        let address = listener.local_addr().expect("restart address");
-        let path = tier.scratch.path().join("config.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        value["application"]["server"]["listener"]["socket"] = serde_json::json!(address.to_string());
-        private(&path, &serde_json::to_vec(&value).expect("reserved deployment JSON"));
-        tier
     }
     #[must_use]
     pub fn request_script(&self) -> skein_fake_person_browser::Script {

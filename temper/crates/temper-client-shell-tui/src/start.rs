@@ -259,12 +259,15 @@ pub fn depth(environment: &[EnvironmentEntry]) -> Depth {
     }
 }
 
-#[must_use]
-pub fn terminal_refusal(name: &str, given: bool) -> String {
+fn terminal_refusal(name: &str, given: bool) -> String {
     if given { Refused::NotATerminal.line(name) } else { format!("{name}: no command; {name} --help lists them\n") }
 }
 
-#[must_use]
+fn require_terminal(name: &str, argument: Option<&[u8]>, terminal: bool) -> Result<(), (u8, String)> {
+    if terminal { Ok(()) } else { Err((1, terminal_refusal(name, argument.is_some()))) }
+}
+
+/// Start the bare TUI, returning any startup refusal for the binary to print.
 pub fn run(
     name: &str,
     argument: Option<&[u8]>,
@@ -272,18 +275,10 @@ pub fn run(
     working: &[u8],
     version: &[u8],
     clock: &Clock,
-) -> u8 {
-    if skein_shell::terminal_modes(Fd::new(0)).is_err() || skein_shell::terminal_modes(Fd::new(1)).is_err() {
-        eprint!("{}", terminal_refusal(name, argument.is_some()));
-        return 1;
-    }
-    match start(argument, environment, working, version, clock, None) {
-        Ok(code) => code,
-        Err(why) => {
-            eprint!("{}", why.line(name));
-            1
-        }
-    }
+) -> Result<u8, (u8, String)> {
+    let terminal = skein_shell::terminal_modes(Fd::new(0)).is_ok() && skein_shell::terminal_modes(Fd::new(1)).is_ok();
+    require_terminal(name, argument, terminal)?;
+    start(argument, environment, working, version, clock, None).map_err(|why| (1, why.line(name)))
 }
 
 struct BoxStart {

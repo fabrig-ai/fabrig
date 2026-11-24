@@ -1,4 +1,4 @@
-use super::{LimitInputs, limit_failure, limits_hold_over, service};
+use super::{LimitInputs, limit_failure, parse_held, service};
 use skein_lib::{List, Secret};
 use std::path::Path;
 use temper_service_core::derived;
@@ -57,7 +57,7 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
     // Store::resolve_settings takes the stock payload when a fresh store has no kept agents.
     inputs.sources.payload = derived::STOCK.payload;
     let hub = jig_protocol_config_fixtures::small().hub;
-    let held = limits_hold_over(
+    let held = parse_held(
         &data.join("limits-held"),
         &format!(
             "hub.turn_bytes {}\nhub.transcript_bytes {}\nhub.turn_queue_bytes {}\n",

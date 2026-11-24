@@ -95,6 +95,17 @@ pub enum Step {
     /// Read the page's address; the story fails unless its path, query kept, is this one.
     Address(Box<[u8]>),
 }
+#[derive(Clone, Copy)]
+struct Bound {
+    until: Time,
+    within: Duration,
+}
+impl Bound {
+    fn new(now: Time, within: Duration) -> Self {
+        Self { until: now.saturating_add(within), within }
+    }
+}
+
 enum Awaited {
     Trouble(Box<[u8]>),
     Status(u16),
@@ -102,18 +113,19 @@ enum Awaited {
 pub struct Script {
     steps: VecDeque<Step>,
     person: Option<Person<Box<[u8]>>>,
+    person_until: Option<Time>,
     at: u32,
     action: Option<ServerAction>,
     title: Option<Box<[u8]>>,
     keeping: bool,
     commanding: bool,
     focused: Option<skein_fake_person::Find>,
-    pressed: Option<(skein_fake_person::Find, Time, bool)>,
+    pressed: Option<(skein_fake_person::Find, Bound, bool)>,
     growth: Option<growth::Growth>,
     keep_box: Option<keep_box::KeepBox>,
     tabs: Option<tabs::Awaiting>,
     press: Option<(skein_fake_person::Find, skein_browser::boundary::Point)>,
-    awaited: Option<(Time, Awaited)>,
+    awaited: Option<(Bound, Awaited)>,
     request: Option<super::Asked>,
     status: Option<u16>,
     text: Option<(skein_fake_person::Find, Box<[u8]>, bool)>,
@@ -124,6 +136,7 @@ impl Script {
         Self {
             steps: steps.into_vec().into(),
             person: None,
+            person_until: None,
             at: 0,
             action: None,
             title: None,
@@ -151,28 +164,38 @@ impl Script {
         true
     }
     fn await_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
-        let Some((until, awaited)) = self.awaited.take() else {
+        let Some((bound, awaited)) = self.awaited.take() else {
             return false;
         };
-        let (met, words) = match &awaited {
-            Awaited::Trouble(words) => (
-                face.trouble()
-                    .iter()
-                    .any(|text| !words.is_empty() && text.windows(words.len()).any(|part| part == words.as_ref())),
-                format!("trouble containing {}", String::from_utf8_lossy(words)),
-            ),
+        let met = match &awaited {
+            Awaited::Trouble(words) => face
+                .trouble()
+                .iter()
+                .any(|text| !words.is_empty() && text.windows(words.len()).any(|part| part == words.as_ref())),
             Awaited::Status(status) => {
-                (self.status == Some(*status), format!("status {status}, saw {:?}", self.status))
+                if let Some(actual) = self.status
+                    && actual != *status
+                {
+                    face.fail(format!("expected status {status}, saw {actual}"));
+                    self.status = None;
+                    self.at += 1;
+                    return true;
+                }
+                self.status == Some(*status)
             }
         };
         if met {
             self.at += 1;
             self.status = None;
-        } else if now >= until {
-            face.fail(format!("did not receive {words} within its bound"));
+        } else if now >= bound.until {
+            let words = match awaited {
+                Awaited::Trouble(words) => format!("trouble containing {}", String::from_utf8_lossy(&words)),
+                Awaited::Status(status) => format!("status {status}"),
+            };
+            face.expire(bound.within, format!("did not receive {words} within its bound"));
             self.at += 1;
         } else {
-            self.awaited = Some((until, awaited));
+            self.awaited = Some((bound, awaited));
         }
         true
     }
@@ -193,6 +216,7 @@ impl Script {
                 }
                 skein_fake_person::Found::Node(_) => {
                     self.at += 1;
+                    return Some(Next::Wait { until: None });
                 }
             }
         }
@@ -226,28 +250,54 @@ impl Script {
         Some(Next::Wait { until: None })
     }
     fn check_pressed(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Option<Next<Box<[u8]>>> {
-        let (find, until, mut present) = self.pressed.take()?;
+        let (find, bound, mut present) = self.pressed.take()?;
         match skein_fake_person::Face::find(face, &find) {
             skein_fake_person::Found::Pending => {}
             skein_fake_person::Found::Absent => present = false,
             skein_fake_person::Found::Node(node) => {
                 present = true;
-                if face.pressed(node) && now <= until {
+                if face.pressed(node) && now <= bound.until {
                     self.at += 1;
                     return Some(Next::Wait { until: None });
                 }
             }
         }
-        if now >= until {
-            if !present {
-                return Some(Next::Failed { step: self.at, why: skein_fake_person::Why::Missing { find } });
-            }
-            face.fail(format!("node {find:?} is not pressed within its bound"));
+        if now >= bound.until {
+            let why = if present {
+                format!("node {find:?} is not pressed within its bound")
+            } else {
+                format!("{:?}", skein_fake_person::Why::Missing { find })
+            };
+            face.expire(bound.within, why);
             self.at += 1;
             return Some(Next::Wait { until: None });
         }
-        self.pressed = Some((find, until, present));
-        Some(Next::Wait { until: Some(until) })
+        self.pressed = Some((find, bound, present));
+        Some(Next::Wait { until: Some(bound.until) })
+    }
+    fn person_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Option<Next<Box<[u8]>>> {
+        let person = self.person.as_mut()?;
+        self.person_until = None;
+        match person.next(face, now) {
+            Next::Done => {
+                self.at += person.at();
+                self.person = None;
+                None
+            }
+            Next::Failed { step, why } => {
+                if let Some(bound) = person.expired() {
+                    face.expire(bound, format!("{why:?}"));
+                    Some(Next::Wait { until: None })
+                } else {
+                    Some(Next::Failed { step: self.at + step, why })
+                }
+            }
+            Next::Wait { until } => {
+                self.person_until = until;
+                Some(Next::Wait { until })
+            }
+            next @ Next::Do(_) => Some(next),
+        }
     }
     fn check_focus(&mut self, face: &mut BrowserFace<'_>) -> Option<Next<Box<[u8]>>> {
         if let Some(find) = self.focused.take() {
@@ -332,16 +382,8 @@ impl Play for Script {
         if let Some(next) = self.check_title(face) {
             return next;
         }
-        if let Some(person) = &mut self.person {
-            let next = person.next(face, now);
-            match next {
-                Next::Done => {
-                    self.at += person.at();
-                    self.person = None;
-                }
-                Next::Failed { step, why } => return Next::Failed { step: self.at + step, why },
-                other @ (Next::Do(_) | Next::Wait { .. }) => return other,
-            }
+        if let Some(next) = self.person_step(face, now) {
+            return next;
         }
         let Some(step) = self.steps.pop_front() else {
             return Next::Done;
@@ -356,7 +398,7 @@ impl Play for Script {
                 self.at += 1;
             }
             Step::Tabs { tabs, within } => {
-                self.tabs = Some(tabs::Awaiting::new(tabs, now.saturating_add(within)));
+                self.tabs = Some(tabs::Awaiting::new(tabs, Bound::new(now, within)));
                 self.tabs_step(face, now);
             }
             Step::Run(command) => {
@@ -380,17 +422,17 @@ impl Play for Script {
             Step::PressAt { find, at } => self.press = Some((find, at)),
             Step::Focused(find) => self.focused = Some(find),
             Step::Pressed { find, within } => {
-                self.pressed = Some((find, now.saturating_add(within), false));
+                self.pressed = Some((find, Bound::new(now, within), false));
                 return self.check_pressed(face, now).expect("pressed step is waiting");
             }
             Step::Compose { find, words } => self.text = Some((find, words, true)),
             Step::Type { find, words } => self.text = Some((find, words, false)),
             Step::Trouble { words, within } => {
-                self.awaited = Some((now.saturating_add(within), Awaited::Trouble(words)));
+                self.awaited = Some((Bound::new(now, within), Awaited::Trouble(words)));
             }
             Step::Request { method, path, host, headers, body, status, within } => {
                 self.request = Some(super::Asked { method, path, host, headers, body });
-                self.awaited = Some((now.saturating_add(within), Awaited::Status(status)));
+                self.awaited = Some((Bound::new(now, within), Awaited::Status(status)));
             }
             Step::Visit { origin, path } => {
                 face.visit(origin, &path);
@@ -452,11 +494,12 @@ impl Play for Script {
     }
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
         self.tabs_step(face, now);
-        if self.pressed.as_ref().is_some_and(|(_, until, _)| now >= *until)
-            && let Some(Next::Failed { why, .. }) = self.check_pressed(face, now)
-        {
-            face.fail(format!("{why:?}"));
-            self.at += 1;
+        if self.pressed.as_ref().is_some_and(|(_, bound, _)| now >= bound.until) {
+            self.check_pressed(face, now);
+        }
+        // A bounded person wait can expire while its find is still pending.
+        if self.person_until.is_some_and(|until| now >= until) {
+            self.person_step(face, now);
         }
         if self.commanding && face.command_done() {
             self.commanding = false;
@@ -466,11 +509,10 @@ impl Play for Script {
             self.keeping = false;
             self.at += 1;
         }
-        if self.awaited.as_ref().is_some_and(|(until, _)| now >= *until) {
+        if self.awaited.as_ref().is_some_and(|(bound, _)| self.status.is_some() || now >= bound.until) {
             self.await_step(face, now);
         }
-        if let Some(why) = self.growth.as_ref().and_then(|growth| growth.expired(now)) {
-            face.fail(why);
+        if self.growth.as_ref().is_some_and(|growth| growth.expire(face, now)) {
             self.growth = None;
             self.at += 1;
         }

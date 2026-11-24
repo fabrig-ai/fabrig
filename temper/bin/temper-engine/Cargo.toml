@@ -38,9 +38,7 @@ temper-github-app.workspace = true
 temper-service-core.workspace = true
 serde_json.workspace = true
 skein-scratch.workspace = true
-skein-shell.workspace = true
 temper-shell.workspace = true
-temper-protocol-store.workspace = true
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
