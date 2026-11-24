@@ -3,6 +3,7 @@ use super::{
     Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, offered_piece,
     pool_ledger_fields, specification_document_fields, task_contract_document_fields, too_large, w,
 };
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn project_resource_role_fields(value: &w::ProjectResourceRole) -> c::ProjectResourceRole {
@@ -74,26 +75,8 @@ pub(crate) fn project_policy_role_piece(
     Err(too_large())
 }
 
-pub(crate) fn policy_judge_fields(value: &w::PolicyJudge) -> c::PolicyJudge {
-    c::PolicyJudge { connector: value.connector, requirement: value.requirement, parameters: value.parameters }
-}
-
-pub(crate) fn policy_guard_fields(value: &w::PolicyGuard) -> c::PolicyGuard {
-    match value {
-        w::PolicyGuard::Guarded => c::PolicyGuard::Guarded,
-        w::PolicyGuard::Observed(row) => c::PolicyGuard::Observed { freshness: row.freshness },
-    }
-}
-
 pub(crate) fn policy_requirement_fields(value: &w::PolicyRequirement) -> c::PolicyRequirement {
-    c::PolicyRequirement {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: crate::translate::answers::pattern(&value.pattern),
-        judge: policy_judge_fields(&value.judge),
-        guard: policy_guard_fields(&value.guard),
-        must_be_guarded: value.must_be_guarded,
-    }
+    client::policy_requirement_to_domain(value.clone())
 }
 
 pub(crate) fn policy_requirement_piece(
@@ -116,7 +99,7 @@ pub(crate) fn policy_requirement_piece(
 }
 
 pub(crate) fn policy_permission_fields(value: &w::PolicyPermission) -> c::PolicyPermission {
-    c::PolicyPermission { connector: value.connector, permission: value.permission, role: value.role }
+    client::policy_permission_to_domain(value.clone())
 }
 
 pub(crate) fn project_policy_fields(value: &w::ProjectPolicy, limits: &Limits) -> Result<c::ProjectPolicy, w::Problem> {

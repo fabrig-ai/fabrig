@@ -1,6 +1,7 @@
 //! The small store's owner records (protocol/client/small-store.md, 1).
 use super::{answers, documents, pages, too_large};
 use crate::Limits;
+use crate::generated::client;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Ask, Family};
@@ -181,9 +182,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::SetRoles(value) => {
             let mut holdings = List::with_capacity(value.holdings.len());
             for row in &value.holdings {
-                holdings
-                    .push(c::Holding { party: row.party, role: answers::held_role(&row.role) })
-                    .expect("reserved decoded holdings");
+                holdings.push(client::holding_to_domain(row.clone())).expect("reserved decoded holdings");
             }
             c::Ask::SetRoles { project: value.project, holdings }
         }
@@ -286,10 +285,7 @@ pub fn restore_table(
 }
 
 fn account_holder(value: &w::AskAccountHolder) -> c::AskAccountHolder {
-    match value {
-        w::AskAccountHolder::Own => c::AskAccountHolder::Own,
-        w::AskAccountHolder::Deployment => c::AskAccountHolder::Deployment,
-    }
+    client::ask_account_holder_to_domain(value.clone())
 }
 
 fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Problem> {

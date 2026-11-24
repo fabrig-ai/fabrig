@@ -1,53 +1,25 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 use crate::Limits;
+use crate::generated::client;
 use crate::translate::text_problem;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
-use skein_lib::{List, Wall, bytes};
+use skein_lib::bytes;
 
 pub(crate) fn person_address(value: &w::PersonAddress) -> c::PersonAddress {
-    match value {
-        w::PersonAddress::Party(row) => c::PersonAddress::Party(row.value),
-        w::PersonAddress::Role(row) => c::PersonAddress::Role(row.value),
-    }
-}
-
-pub(crate) fn proposer(value: &w::Proposer) -> c::Proposer {
-    match value {
-        w::Proposer::Task(row) => c::Proposer::Task(row.value),
-        w::Proposer::Party(row) => c::Proposer::Party(row.value),
-    }
+    client::person_address_to_domain(value.clone())
 }
 
 pub(crate) fn recipient(value: &w::Recipient) -> c::Recipient {
-    match value {
-        w::Recipient::Task(row) => c::Recipient::Task(row.value),
-        w::Recipient::Party(row) => c::Recipient::Party(row.value),
-        w::Recipient::Role(row) => c::Recipient::Role { project: row.project, role: row.role },
-        w::Recipient::Roles(row) => {
-            let mut list0 = List::with_capacity(row.roles.len());
-            for item in &row.roles {
-                list0.push(*item).expect("reserved supplied list");
-            }
-            c::Recipient::Roles { project: row.project, roles: list0 }
-        }
-    }
+    client::recipient_to_domain(value.clone())
 }
 
 pub(crate) fn actor(value: &w::Actor) -> c::Actor {
-    match value {
-        w::Actor::Party(row) => c::Actor::Party(row.value),
-        w::Actor::Task(row) => c::Actor::Task(row.value),
-        w::Actor::Deployment => c::Actor::Deployment,
-        w::Actor::ProjectDeployment(row) => c::Actor::ProjectDeployment { project: row.project },
-    }
+    client::actor_to_domain(value.clone())
 }
 
 pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
-    match value {
-        w::PartyKind::Person => c::PartyKind::Person,
-        w::PartyKind::Service => c::PartyKind::Service,
-    }
+    client::party_kind_to_domain(value.clone())
 }
 
 pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Problem> {
@@ -87,35 +59,14 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
     })
 }
 
-pub(crate) fn person_stall_notice(value: &w::PersonStallNotice) -> c::PersonStallNotice {
-    c::PersonStallNotice { message: value.message, at: Wall::from_nanos(value.at), activity: value.activity }
-}
-
 pub(crate) fn person_wait(value: &w::PersonWait) -> c::PersonWait {
-    let opt0 = match &(&value.notice) {
-        Some(item) => Some(person_stall_notice(item)),
-        None => None,
-    };
-    c::PersonWait {
-        since: Wall::from_nanos(value.since),
-        stall: value.stall,
-        deadline: Wall::from_nanos(value.deadline),
-        notice: opt0,
-    }
+    client::person_wait_to_domain(value.clone())
 }
 
 pub(crate) fn escalation_holder(value: &w::EscalationHolder) -> c::EscalationHolder {
-    match value {
-        w::EscalationHolder::Task(row) => c::EscalationHolder::Task(row.value),
-        w::EscalationHolder::Person(row) => c::EscalationHolder::Person(row.value),
-        w::EscalationHolder::Role(row) => c::EscalationHolder::Role { project: row.project, role: row.role },
-    }
+    client::escalation_holder_to_domain(value.clone())
 }
 
 pub(crate) fn requester(value: &w::Requester) -> c::Requester {
-    match value {
-        w::Requester::Task(row) => c::Requester::Task(row.value),
-        w::Requester::Person(row) => c::Requester::Person(row.value),
-        w::Requester::Deployment(row) => c::Requester::Deployment { project: row.project },
-    }
+    client::requester_to_domain(value.clone())
 }

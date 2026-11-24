@@ -3,6 +3,7 @@ use super::{
     Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields,
     message_proposal_kind_fields, proposed_task_piece, specification_document_fields, too_large, w,
 };
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChange {
@@ -22,10 +23,7 @@ pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChang
 }
 
 pub(crate) fn address_change_fields(value: &w::AddressChange) -> c::AddressChange {
-    c::AddressChange {
-        revision: crate::translate::answers::revision(&value.revision),
-        address: crate::translate::facts::person_address(&value.address),
-    }
+    client::address_change_to_domain(value.clone())
 }
 
 pub(crate) fn retained_amendment_fields(

@@ -1,13 +1,10 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Limits, List, Reader, Wall, c, chip_fields, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn task_status_fields(value: &w::TaskStatus) -> c::TaskStatus {
-    match value {
-        w::TaskStatus::Done => c::TaskStatus::Done,
-        w::TaskStatus::Failed => c::TaskStatus::Failed,
-        w::TaskStatus::Cancelled => c::TaskStatus::Cancelled,
-    }
+    client::task_status_to_domain(value.clone())
 }
 
 pub(crate) fn task_link_fields(value: &w::TaskLink, limits: &Limits) -> Result<c::TaskLink, w::Problem> {
@@ -87,7 +84,7 @@ pub(crate) fn task_resource_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::ResourceLine::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = crate::translate::facts::resource_line(&row);
+        let row = client::resource_line_to_domain(row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }

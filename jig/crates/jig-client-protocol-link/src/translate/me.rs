@@ -38,11 +38,11 @@ pub(crate) fn template(value: &w::Template, limits: &Limits) -> Result<c::Templa
         resources: symbols(&value.resources),
         number: value.number,
         name: crate::translate::facts::document_text(&value.name, limits)?,
-        executor: crate::translate::operations::restore_executor(&value.executor),
+        executor: crate::generated::client::template_executor_to_domain(value.executor.clone()),
         contract: task_contract_document_fields(&value.contract, limits)?,
         shallower: value.shallower,
-        budget: crate::translate::operations::restore_budget(&value.budget),
-        deadline: crate::translate::operations::restore_deadline(&value.deadline),
+        budget: crate::generated::client::template_budget_to_domain(value.budget.clone()),
+        deadline: crate::generated::client::template_deadline_to_domain(value.deadline.clone()),
         tracked: value.tracked,
         flags: c::TaskFlags {
             ended_by: match &value.flags.ended_by {
@@ -78,7 +78,7 @@ pub(crate) fn overrides(
 pub(crate) fn symbols(values: &List<w::Symbol>) -> List<c::Symbol> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        rows.push(c::Symbol { connector: value.connector, symbol: value.symbol }).expect("same capacity");
+        rows.push(crate::generated::client::symbol_to_domain(value.clone())).expect("same capacity");
     }
     rows
 }
@@ -86,7 +86,7 @@ pub(crate) fn symbols(values: &List<w::Symbol>) -> List<c::Symbol> {
 pub(crate) fn wire_symbols(values: &List<c::Symbol>) -> List<w::Symbol> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        rows.push(w::Symbol { connector: value.connector, symbol: value.symbol }).expect("same capacity");
+        rows.push(crate::generated::client::symbol_to_record(value)).expect("same capacity");
     }
     rows
 }

@@ -197,7 +197,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
     Ok(c::Task {
         tasks_left: value.tasks_left,
         concluded: match &value.concluded {
-            Some(value) => Some(c::Concluded { by: value.by, at: Wall::from_nanos(value.at) }),
+            Some(value) => Some(crate::generated::client::concluded_to_domain(value.clone())),
             None => None,
         },
         talk: match &value.talk {

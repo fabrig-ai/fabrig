@@ -1,5 +1,6 @@
 //! Exhaustive settings and history translations (protocol/client/wire.md, 1).
 use crate::Limits;
+use crate::generated::client;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
@@ -398,17 +399,11 @@ pub fn restore_setting_item(value: &w::SettingItem, limits: &Limits) -> Result<c
 }
 #[must_use]
 pub fn wire_running(value: &c::Running) -> w::Running {
-    match value {
-        c::Running::Stays => w::Running::Stays,
-        c::Running::Moves => w::Running::Moves,
-    }
+    client::running_to_record(value)
 }
 #[must_use]
 pub fn restore_running(value: &w::Running) -> c::Running {
-    match value {
-        w::Running::Stays => c::Running::Stays,
-        w::Running::Moves => c::Running::Moves,
-    }
+    client::running_to_domain(value.clone())
 }
 pub fn wire_change_settings(value: &c::ChangeSettings, limits: &w::Limits) -> Result<w::ChangeSettings, w::Problem> {
     Ok(w::ChangeSettings {
@@ -739,51 +734,21 @@ pub(crate) fn wire_document_text(value: &c::DocumentText) -> w::DocumentText {
     w::DocumentText { bytes: bytes::copy_of(value.bytes()), cut: value.cut }
 }
 fn wire_template_override(value: &c::TemplateOverride) -> w::TemplateOverride {
-    w::TemplateOverride {
-        template: value.template,
-        executor: match value.executor {
-            Some(value) => Some(super::operations::executor(value)),
-            None => None,
-        },
-        budget: match value.budget {
-            Some(value) => Some(super::operations::budget(value)),
-            None => None,
-        },
-        deadline: match value.deadline {
-            Some(value) => Some(super::operations::deadline(value)),
-            None => None,
-        },
-        priority: value.priority,
-    }
+    client::template_override_to_record(value)
 }
 fn restore_template_override(value: &w::TemplateOverride) -> c::TemplateOverride {
-    c::TemplateOverride {
-        template: value.template,
-        executor: match &value.executor {
-            Some(v) => Some(super::operations::restore_executor(v)),
-            None => None,
-        },
-        budget: match &value.budget {
-            Some(v) => Some(super::operations::restore_budget(v)),
-            None => None,
-        },
-        deadline: match &value.deadline {
-            Some(v) => Some(super::operations::restore_deadline(v)),
-            None => None,
-        },
-        priority: value.priority,
-    }
+    client::template_override_to_domain(value.clone())
 }
 fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
     Ok(w::Template {
         resources: super::documents::me::wire_symbols(&value.resources),
         number: value.number,
         name: wire_document_text(&value.name),
-        executor: super::operations::executor(value.executor),
+        executor: client::template_executor_to_record(&value.executor),
         contract: wire_task_contract(&value.contract, limits)?,
         shallower: value.shallower,
-        budget: super::operations::budget(value.budget),
-        deadline: super::operations::deadline(value.deadline),
+        budget: client::template_budget_to_record(&value.budget),
+        deadline: client::template_deadline_to_record(&value.deadline),
         tracked: value.tracked,
         flags: w::TaskFlags {
             ended_by: match value.flags.ended_by {
@@ -834,14 +799,7 @@ fn wire_task_contract(
             let mut rows = List::with_capacity(choices.len());
             let mut size = 0_u32;
             for choice in choices {
-                let mut fields = List::with_capacity(choice.fields.len());
-                for field in &choice.fields {
-                    fields
-                        .push(w::FieldRule { name: bytes::copy_of(&field.name), max: field.max })
-                        .expect("same capacity");
-                }
-                let row =
-                    w::VerdictChoice { code: choice.code, words: choice.words, followups: choice.followups, fields };
+                let row = client::verdict_choice_to_record(choice);
                 size = size
                     .checked_add(row.measure(limits)?)
                     .ok_or(super::too_large())?
@@ -862,26 +820,7 @@ fn wire_task_contract(
     })
 }
 fn wire_owner_part(value: &c::Part) -> w::Part {
-    let kind = match value.kind {
-        c::PartKind::Resource => w::PartKind::Resource,
-        c::PartKind::Pool => w::PartKind::Pool,
-        c::PartKind::Result => w::PartKind::Result,
-        c::PartKind::Procedure => w::PartKind::Procedure,
-        c::PartKind::Effect => w::PartKind::Effect,
-        c::PartKind::Outbox => w::PartKind::Outbox,
-        c::PartKind::Hold => w::PartKind::Hold,
-    };
-    let key = match &value.key {
-        c::PartKey::Number(value) => w::PartKey::Number(w::PartKeyNumber { value: *value }),
-        c::PartKey::Path(values) => {
-            let mut rows = List::with_capacity(values.len());
-            for value in values {
-                rows.push(bytes::copy_of(value)).expect("same capacity");
-            }
-            w::PartKey::Path(w::PartKeyPath { value: rows })
-        }
-    };
-    w::Part { connector: value.connector, kind, key }
+    client::part_to_record(value)
 }
 
 // Count the bounded pieces before reserving the actual rows; an empty change allocates no rows.

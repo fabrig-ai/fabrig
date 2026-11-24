@@ -1,79 +1,15 @@
 //! The fixed task query and the task owner's whole lines.
 use super::{documents, facts, w};
 use crate::Limits;
+use crate::generated::client;
 use jig_client_domain::contract as c;
 use skein_lib::Wall;
 
 pub(super) fn query(value: &c::TaskQuery) -> w::TaskQuery {
-    let requester = match value.requester {
-        None => None,
-        Some(c::Requester::Task(value)) => Some(w::Requester::Task(w::RequesterTask { value })),
-        Some(c::Requester::Person(value)) => Some(w::Requester::Person(w::RequesterPerson { value })),
-        Some(c::Requester::Deployment { project }) => {
-            Some(w::Requester::Deployment(w::RequesterDeployment { project }))
-        }
-    };
-    w::TaskQuery {
-        parts: {
-            let mut parts = skein_lib::List::with_capacity(value.parts.len());
-            for ask in &value.parts {
-                parts
-                    .push(w::PartAsk { owner: w::Family { number: ask.owner }, kind: ask.kind, version: ask.version })
-                    .expect("same part count");
-            }
-            parts
-        },
-        project: value.project,
-        requester,
-        root: value.root,
-        parent: value.parent,
-        label: value.label,
-        phase: match value.phase {
-            None => None,
-            Some(v) => Some(match v {
-                c::PhaseClass::Working => w::PhaseClass::Working,
-                c::PhaseClass::Waiting => w::PhaseClass::Waiting,
-                c::PhaseClass::Held => w::PhaseClass::Held,
-                c::PhaseClass::Closing => w::PhaseClass::Closing,
-                c::PhaseClass::Ended => w::PhaseClass::Ended,
-            }),
-        },
-        executor: match value.executor {
-            None => None,
-            Some(v) => Some(match v {
-                c::ExecutorKind::Job => w::ExecutorKind::Job,
-                c::ExecutorKind::Agent => w::ExecutorKind::Agent,
-                c::ExecutorKind::Procedure => w::ExecutorKind::Procedure,
-                c::ExecutorKind::Person => w::ExecutorKind::Person,
-            }),
-        },
-        tracked: value.tracked,
-        order: match value.order {
-            c::QueryOrder::Number => w::QueryOrder::Number,
-            c::QueryOrder::Changed => w::QueryOrder::Changed,
-            c::QueryOrder::Activity => w::QueryOrder::Activity,
-            c::QueryOrder::Priority => w::QueryOrder::Priority,
-            c::QueryOrder::Ended => w::QueryOrder::Ended,
-        },
-    }
+    client::task_query_to_record(value)
 }
 pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
-    c::TaskFlags {
-        ended_by: match &value.ended_by {
-            w::EndedBy::Result => c::EndedBy::Result,
-            w::EndedBy::Requester => c::EndedBy::Requester,
-            w::EndedBy::Standing => c::EndedBy::Standing,
-            w::EndedBy::Closer(closer) => {
-                c::EndedBy::Closer(c::Closer { connector: closer.connector, code: closer.code })
-            }
-        },
-        conversation: value.conversation,
-        listed: value.listed,
-        retention: match &value.retention {
-            w::Retention::Kept => c::Retention::Kept,
-            w::Retention::ForgottenOnceRead => c::Retention::ForgottenOnceRead,
-        },
-    }
+    client::task_flags_to_domain(value.clone())
 }
 pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
     match value {
@@ -184,18 +120,6 @@ pub(crate) fn check_rows(
     Ok(())
 }
 
-fn part_owner(value: &w::Owner) -> c::Owner {
-    match value {
-        w::Owner::Jig => c::Owner::Jig,
-        w::Owner::Family(owner) => c::Owner::Family(owner.number),
-    }
-}
 fn not_served(value: &w::NotServed) -> c::NotServed {
-    let mut served = skein_lib::List::with_capacity(value.served.len());
-    for range in &value.served {
-        served
-            .push(c::Served { owner: part_owner(&range.owner), first: range.first, last: range.last })
-            .expect("same ranges");
-    }
-    c::NotServed { owner: part_owner(&value.owner), served }
+    client::not_served_to_domain(value.clone())
 }

@@ -2,6 +2,7 @@
 use super::asks::{wire_note_scope, wire_proposal_key};
 use super::{Undecodable, documents, objects, pages};
 use crate::Limits;
+use crate::generated::client;
 use alloc::boxed::Box;
 use jig_client_domain::Readable;
 use jig_client_domain::contract as c;
@@ -37,10 +38,7 @@ pub fn read(read: &c::Read) -> w::Read {
         c::Read::ActivityBeside { task, position, side } => w::Read::ActivityBeside(w::ReadActivityBeside {
             task: *task,
             position: *position,
-            side: match side {
-                c::Side::Earlier => w::ActivitySide::Earlier,
-                c::Side::Later => w::ActivitySide::Later,
-            },
+            side: client::activity_side_to_record(side),
         }),
         c::Read::Me => w::Read::Me,
         c::Read::Task { task } => w::Read::Task(w::ReadTask { task: *task }),
@@ -79,26 +77,16 @@ pub fn read(read: &c::Read) -> w::Read {
 }
 fn cursor(value: Option<&c::Cursor>) -> Option<w::Cursor> {
     match value {
-        Some(value) => Some(w::Cursor { value: bytes::copy_of(value.value.bytes()) }),
+        Some(value) => Some(super::client::cursor_to_record(value)),
         None => None,
     }
 }
 fn inbox_group(value: c::InboxReadGroup) -> w::InboxReadGroup {
-    match value {
-        c::InboxReadGroup::Needs => w::InboxReadGroup::Needs,
-        c::InboxReadGroup::Updates => w::InboxReadGroup::Updates,
-    }
+    client::inbox_read_group_to_record(&value)
 }
 fn inbox_kind(value: Option<c::InboxGroup>) -> Option<w::InboxGroup> {
     match value {
-        Some(value) => Some(match value {
-            c::InboxGroup::Questions => w::InboxGroup::Questions,
-            c::InboxGroup::Proposals => w::InboxGroup::Proposals,
-            c::InboxGroup::Escalations => w::InboxGroup::Escalations,
-            c::InboxGroup::PersonTasks => w::InboxGroup::PersonTasks,
-            c::InboxGroup::Results => w::InboxGroup::Results,
-            c::InboxGroup::Replies => w::InboxGroup::Replies,
-        }),
+        Some(value) => Some(client::inbox_group_to_record(&value)),
         None => None,
     }
 }
