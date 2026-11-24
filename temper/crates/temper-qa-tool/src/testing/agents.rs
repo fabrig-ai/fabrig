@@ -1,4 +1,4 @@
-//! Agents and scripted programs (temper/docs/design/testing/qa/contracts.md, 4).
+//! Agents and scripted programs (temper/docs/design/testing/qa/README.md, 6).
 use super::{Connection, Tree, path_io};
 use crate::{
     CaseState, Exit, FindingState, Home, Refusal,
@@ -99,7 +99,7 @@ impl<F: Default> Default for Agents<F> {
 }
 
 impl Agents<RealFiles> {
-    pub fn on_disk(files: RealFiles) -> Self {
+    pub(super) fn on_disk(files: RealFiles) -> Self {
         Self { real: Some(RealProcesses::default()), ..Self::new(files) }
     }
 }

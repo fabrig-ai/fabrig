@@ -1,4 +1,4 @@
-//! The runner's wakes and deadlines in memory (temper/docs/design/testing/qa/contracts.md, 4).
+//! The runner's wakes and deadlines in memory (temper/docs/design/testing/qa/README.md, 6).
 use temper_qa_tool::{
     events::{self, Events},
     faces::ClockFace,

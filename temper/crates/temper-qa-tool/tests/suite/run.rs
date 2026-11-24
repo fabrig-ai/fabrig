@@ -3,17 +3,10 @@ use super::world::{World, baseline, id};
 use std::fs;
 use temper_qa_tool::{Exit, faces::RealFiles};
 
-fn request_directory(world: &World, pass: u64, request: u64) -> std::path::PathBuf {
-    world.home.directory.join("passes").join(pass.to_string()).join("requests").join(request.to_string())
-}
 fn deployment(world: &World, name: &str, body: &str) -> Vec<String> {
     let script = world.home.directory.join(format!("{name}.sh"));
-    fs::write(&script, format!(r#"set -eu
-printf '%s\n' "$PWD" "$CAPTURED" "$TEMPER_INTERNAL_QA_HOME" "$TEMPER_INTERNAL_QA_AREA" "$@" >> "$TEMPER_INTERNAL_QA_HOME/{name}-calls"
-find . -type f | sort > "$TEMPER_INTERNAL_QA_HOME/{name}-files"
-if read -r ignored; then exit 94; fi
-{body}
-"#)).expect("deployment script");
+    let source = format!("set -eu\nif read -r ignored; then exit 94; fi\n{body}\n");
+    fs::write(&script, source).expect("deployment script");
     vec!["/bin/sh".into(), script.display().to_string()]
 }
 fn seed_request(world: &World, count: u64, time: u64, page: &str, commit: &str) -> u64 {

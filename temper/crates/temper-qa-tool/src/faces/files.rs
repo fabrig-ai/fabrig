@@ -1,4 +1,4 @@
-//! Files, locks, Unix sockets and build checksums (temper/docs/design/testing/qa/contracts.md, 1).
+//! Files, locks, Unix sockets and build checksums (temper/docs/design/testing/qa/README.md, 6).
 use crate::{Refusal, manifest, refused};
 use sha2::{Digest, Sha256};
 use std::{

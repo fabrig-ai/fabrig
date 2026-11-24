@@ -1,4 +1,4 @@
-//! The watcher and tick loop over the QA world in memory (temper/docs/design/testing/qa/contracts.md, 5).
+//! The watcher and tick loop over the QA world in memory (temper/docs/design/testing/qa/README.md, 6).
 use std::{
     io,
     os::unix::ffi::OsStrExt,

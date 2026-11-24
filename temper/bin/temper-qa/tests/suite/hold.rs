@@ -32,26 +32,19 @@ exit 4
 "#;
 
 fn home() -> (Scratch, Home, PathBuf) {
-    home_kind(temper_qa_tool::Kind::Box)
-}
-pub(super) fn home_kind(kind: temper_qa_tool::Kind) -> (Scratch, Home, PathBuf) {
     let scratch = Scratch::new("qa-holder");
     fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent"],"triage":"low","pass":"high"},"request":{"command":["file"]}}"#).expect("config");
-    if kind == temper_qa_tool::Kind::Deployment {
-        let path = scratch.path().join("qa.json");
-        let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("config")).expect("JSON");
-        config["places"] = serde_json::json!([{"directory":"places/1","kind":"deployment","ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
-        fs::write(path, serde_json::to_vec(&config).expect("JSON")).expect("config");
-    }
     let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
     home.transact(&mut RealFiles, |ledger, _| {
         ledger.record_landing("build", 10, None, "Start", 0);
         let pages = [("web".into(), vec!["work".into()]), ("ctl".into(), vec!["task".into()])].into();
-        let triage = ledger.start_session(1, "low", pages, vec!["fresh".into(), "turn-landing".into()], if kind == temper_qa_tool::Kind::Deployment { vec!["turn-landing".into()] } else { Vec::new() }, 0).expect("triage");
+        let triage = ledger
+            .start_session(1, "low", pages, vec!["fresh".into(), "turn-landing".into()], Vec::new(), 0)
+            .expect("triage");
         ledger.add_case(
             triage,
             &CaseInput::decode(
-                if kind == temper_qa_tool::Kind::Box { br#"{"surface":"web","page":"work","setup":"fresh","steps":[{"do":"press Start","expect":"started"}]}"# } else { br#"{"surface":"ctl","page":"task","setup":"turn-landing","steps":[{"do":"ctl task list","expect":"listed"}]}"# },
+                br#"{"surface":"web","page":"work","setup":"fresh","steps":[{"do":"press Start","expect":"started"}]}"#,
                 "case",
             )?,
             1,
@@ -59,12 +52,18 @@ pub(super) fn home_kind(kind: temper_qa_tool::Kind) -> (Scratch, Home, PathBuf) 
         ledger.end_session(triage, Exit::Code(0), None, 2, "qa")?;
         ledger.keep_build("build", 3)?;
         ledger.set_build_holds("build", vec![1], 1)?;
-        assert_eq!(ledger.start_pass("places/1", kind, &["web".into(), "ctl".into()], "high", 4).expect("pass").session, 2);
+        assert_eq!(
+            ledger
+                .start_pass("places/1", temper_qa_tool::Kind::Box, &["web".into(), "ctl".into()], "high", 4)
+                .expect("pass")
+                .session,
+            2
+        );
         Ok(())
     })
     .expect("pass records");
     let place = home.directory.join("places/1");
-    for directory in ["bin", "bundle", kind.name()] {
+    for directory in ["bin", "bundle", "box"] {
         fs::create_dir_all(place.join(directory)).expect("place");
     }
     let fake = place.join("bin/temper-client-journeys");

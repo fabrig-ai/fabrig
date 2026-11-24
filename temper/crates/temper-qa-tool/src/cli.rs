@@ -331,7 +331,7 @@ pub const TABLE: Table = Table {
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
 };
 
-/// The command entry's answer before it takes any effect (temper/docs/design/testing/qa/contracts.md, 3).
+/// The command entry's answer before it takes any effect (temper/docs/design/testing/qa/README.md, 6).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Admission<'a> {
     /// A page on stdout (0) or a refusal on stderr (2).

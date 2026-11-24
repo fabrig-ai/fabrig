@@ -1,4 +1,4 @@
-//! The runner's home and its faces (temper/docs/design/testing/qa/contracts.md, 4).
+//! The runner's home and its faces (temper/docs/design/testing/qa/README.md, 6).
 use super::{Agent, Agents, Clock, Git, Tree, id};
 use crate::{
     Home, Ledger, Refusal,
@@ -60,7 +60,7 @@ impl<F: FilesFace> World<F> {
 
     /// Put the loop fixture's configuration in an existing home. Each call to `files` supplies
     /// a handle on the same paths, including the handles held by Git and Agents.
-    pub fn over(directory: &Path, files: impl Fn() -> F + 'static) -> Self {
+    fn over(directory: &Path, files: impl Fn() -> F + 'static) -> Self {
         let mut handle = files();
         handle.write(&directory.join("qa.json"), CONFIGURATION, REPLACE, false).expect("config");
         let home = Home::open(directory, &mut handle).expect("home");

@@ -1,22 +1,22 @@
-//! The shared QA world over scratch files and real program fallback (temper/docs/design/testing/qa/contracts.md, 4).
+//! The shared QA world over scratch files and real program fallback (temper/docs/design/testing/qa/README.md, 6).
 use skein_scratch::Scratch;
 use std::ops::{Deref, DerefMut};
 use temper_qa_tool::{faces::RealFiles, testing};
 
-pub use testing::{Agent, Clock, Range, id, land};
+pub use testing::{Agent, Clock, id, land};
 pub type Git = testing::Git<RealFiles>;
 pub type Loop = testing::Loop<RealFiles>;
 
 pub struct World {
-    pub scratch: Scratch,
     inner: testing::World<RealFiles>,
+    _scratch: Scratch,
 }
 
 impl World {
     pub fn new() -> Self {
         let scratch = Scratch::new("qa-run");
         let inner = testing::World::on_disk(scratch.path());
-        Self { scratch, inner }
+        Self { inner, _scratch: scratch }
     }
 }
 

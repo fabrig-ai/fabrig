@@ -1,4 +1,4 @@
-//! Commands through the QA entry over the runner's world (temper/docs/design/testing/qa/contracts.md, 3–6).
+//! Commands through the QA entry over the runner's world (temper/docs/design/testing/qa/README.md, 6).
 mod builds;
 mod commands;
 mod gaps;

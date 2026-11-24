@@ -1,4 +1,4 @@
-//! The QA world's shared paths and their handles (temper/docs/design/testing/qa/contracts.md, 4).
+//! The QA world's shared paths and their handles (temper/docs/design/testing/qa/README.md, 6).
 use super::Connection;
 use crate::{
     Refusal,

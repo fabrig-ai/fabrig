@@ -8,7 +8,7 @@ mod socket;
 mod tree;
 mod world;
 
-pub use agents::{Agent, Agents, Child, DriveStreams, HolderCommand};
+pub use agents::{Agent, Agents, Child, DriveStreams};
 pub use clock::Clock;
 pub use git::{Git, Node, Range, baseline, baseline_with};
 pub use socket::Connection;

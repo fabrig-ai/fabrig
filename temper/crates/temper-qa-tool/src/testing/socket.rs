@@ -1,4 +1,4 @@
-//! Nonblocking byte streams for the world's sockets and children (temper/docs/design/testing/qa/contracts.md, 4).
+//! Nonblocking byte streams for the world's sockets and children (temper/docs/design/testing/qa/README.md, 6).
 use std::{
     cell::RefCell,
     collections::VecDeque,

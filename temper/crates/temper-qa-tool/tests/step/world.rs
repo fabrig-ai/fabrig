@@ -1,4 +1,4 @@
-//! The QA world's answers to the runner (temper/docs/design/testing/qa/contracts.md, 4).
+//! The QA world's answers to the runner (temper/docs/design/testing/qa/README.md, 6).
 use std::{
     ffi::{OsStr, OsString},
     io::{ErrorKind, Read, Write},

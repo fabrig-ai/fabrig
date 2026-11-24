@@ -1,4 +1,4 @@
-//! The QA runner's replaying world (temper/docs/design/testing/qa/contracts.md, 5).
+//! The QA runner's replaying world (temper/docs/design/testing/qa/README.md, 6).
 mod build_files;
 mod builds;
 mod cli;

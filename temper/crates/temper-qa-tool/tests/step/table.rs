@@ -1,4 +1,4 @@
-//! The command table's answers before any effect (temper/docs/design/testing/qa/contracts.md, 3).
+//! The command table's answers before any effect (temper/docs/design/testing/qa/README.md, 6).
 use skein_shell::{Command, Reach};
 use temper_qa_tool::{Admission, TABLE, admit};
 

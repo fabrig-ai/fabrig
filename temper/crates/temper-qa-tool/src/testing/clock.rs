@@ -1,4 +1,4 @@
-//! The runner's clock, advanced by tests and waits (temper/docs/design/testing/qa/contracts.md, 4).
+//! The runner's clock, advanced by tests and waits (temper/docs/design/testing/qa/README.md, 6).
 use crate::{
     events::Events,
     faces::{ClockFace, Moment},

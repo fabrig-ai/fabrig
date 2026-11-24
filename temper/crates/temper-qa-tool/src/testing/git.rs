@@ -1,8 +1,8 @@
-//! A scripted git DAG and its worktrees (temper/docs/design/testing/qa/contracts.md, 4).
+//! A scripted git DAG and its worktrees (temper/docs/design/testing/qa/README.md, 6).
 use super::{Tree, id, path_io};
 use crate::{
     Refusal,
-    faces::{Changed, Commit, DirectoryMode, Entry, FilesFace, GitFace, RealFiles, RemoveMode, trailers},
+    faces::{Changed, Commit, DirectoryMode, Entry, FilesFace, GitFace, RemoveMode, trailers},
 };
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -34,14 +34,8 @@ pub struct Git<F = Tree> {
     pub calls: Vec<String>,
     pub fail_head: bool,
     pub fail_add: bool,
-    pub fail_remove: bool,
     pub move_error: Option<String>,
     pub prunes: usize,
-}
-impl Default for Git<RealFiles> {
-    fn default() -> Self {
-        Self::new(RealFiles)
-    }
 }
 
 impl<F> Git<F> {
@@ -54,7 +48,6 @@ impl<F> Git<F> {
             calls: Vec::new(),
             fail_head: false,
             fail_add: false,
-            fail_remove: false,
             move_error: None,
             prunes: 0,
         }
@@ -222,9 +215,6 @@ impl<F: FilesFace> GitFace for Git<F> {
     }
     fn remove_tree(&mut self, path: &Path) -> Result<(), Refusal> {
         self.calls.push(format!("remove {}", path.display()));
-        if self.fail_remove {
-            return Err(Refusal("remove refused".into()));
-        }
         match self.files.remove(path, RemoveMode::Tree) {
             Err(why) if why.kind() == ErrorKind::NotFound => Ok(()),
             result => path_io(path, result),

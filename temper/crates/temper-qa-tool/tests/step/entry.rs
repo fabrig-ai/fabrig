@@ -1,4 +1,4 @@
-//! The QA entry answers admission before touching its faces (temper/docs/design/testing/qa/contracts.md, 3).
+//! The QA entry answers admission before touching its faces (temper/docs/design/testing/qa/README.md, 6).
 use std::{
     ffi::{OsStr, OsString},
     io::{self, Read},
