@@ -255,7 +255,7 @@ fn refused_start() {
     let before = snapshot(dir);
     let output = command("llm", &doc).output().expect("refused fake");
     assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert_eq!(
         output.stderr,
         format!("temper fake llm: {}: retained output differs from expected seeded bytes\n", added_key.display())
@@ -357,7 +357,7 @@ fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
     symlink(&target, &state).expect("link");
     let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
     assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     let stderr = String::from_utf8(output.stderr).expect("stderr");
     assert_eq!(stderr.lines().count(), 1, "{stderr}");
     assert!(stderr.starts_with(&format!("temper-box fake forge: state {} refused: ", state.display())), "{stderr}");

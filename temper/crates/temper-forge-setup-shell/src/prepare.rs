@@ -1,10 +1,8 @@
 //! The preparation's locked host; all decisions belong to its machine.
 use crate::{command, files, process};
 use skein_lib::{Duration, Queue, Secret};
-use std::{
-    io::{self, Write},
-    path::Path,
-};
+use std::io::{self, Write};
+use std::path::Path;
 use temper_forge_setup::{
     place::{File, Place},
     prepare::{self, Event, Exit, Failure, Found, Prepare, Ran, Request},
