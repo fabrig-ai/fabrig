@@ -39,6 +39,7 @@ pub(super) struct Story {
     latched: BTreeSet<u64>,
     linked: BTreeSet<u64>,
     comparison: Option<comparison::Run>,
+    named_at: Option<u64>,
 }
 
 impl World {
@@ -75,6 +76,7 @@ impl World {
         world.workload = Some(Story {
             workload,
             comparison,
+            named_at: None,
             names: Names::new(),
             other,
             replies: BTreeMap::new(),
@@ -181,14 +183,14 @@ impl World {
         for goal in goals.iter().filter(|goal| !goal.train) {
             let ask = setup::goal(self, goal, milestone);
             let task = created(&self.workload_ask(goal.party, ask));
-            self.name_goal(goal, task);
+            self.name_goal(&goal.name, task);
         }
     }
 
-    fn name_goal(&mut self, goal: &Goal, task: u64) {
+    fn name_goal(&mut self, name: &str, task: u64) {
         let story = self.workload.as_mut().expect("workload");
-        if story.names.task(&goal.name).is_none() {
-            story.names.name(&goal.name, task).expect("unique goal task");
+        if story.names.task(name).is_none() {
+            story.names.name(name, task).expect("unique goal task");
             self.ends.expect(task, Expect::Ends, GOAL_BOUND).expect("nonzero bound");
         }
     }
@@ -227,44 +229,49 @@ impl World {
         self.discover_workload_names();
         self.link_workload_changes();
         self.prepare_workload_questions();
-        self.answer_workload_questions();
-        self.workload_answer_park();
-        self.latch_workload();
+        // Enqueuing the scripts' requests does not change the task projection.
+        let tasks = self.root.tasks().view_tasks();
+        self.answer_workload_questions(&tasks);
+        self.workload_answer_park(&tasks);
+        self.latch_workload(&tasks);
         self.workload_comparison_tick();
     }
 
     fn discover_workload_names(&mut self) {
-        let goals = self.workload().goals.clone();
-        for goal in &goals {
+        let story = self.workload.as_mut().expect("workload");
+        if story.named_at == Some(self.store.applied) {
+            return;
+        }
+        // Discovery reads only committed rows. A new commit may add an as-yet
+        // unnamed task; unchanged rows cannot reveal another name.
+        story.named_at = Some(self.store.applied);
+        for index in 0..self.workload().goals.len() {
+            let goal = &self.workload().goals[index];
             if self.workload_names().task(&goal.name).is_none() {
                 let marker = scripts::goal_cue(goal);
-                let task = self.store.rows.values().find_map(|row| match row {
-                    engine::Record::Core(jig_domain_core::Record::Tasks(
-                        tasks::Stored::Live(row) | tasks::Stored::Ended(row),
-                    )) if row.spec.words.starts_with(marker.as_bytes()) => Some(row.number),
-                    _ => None,
-                });
+                let task = super::task_rows(&self.store)
+                    .find(|row| row.spec.words.starts_with(marker.as_bytes()))
+                    .map(|row| row.number);
                 if let Some(task) = task {
-                    self.name_goal(goal, task);
+                    let name = goal.name.clone();
+                    self.name_goal(&name, task);
                 }
             }
-            for change in &goal.changes {
+            for change_index in 0..self.workload().goals[index].changes.len() {
+                let change = &self.workload().goals[index].changes[change_index];
                 if self.workload_names().task(&change.name).is_some() {
                     continue;
                 }
                 let cue = scripts::change_cue(change);
-                let task = self.store.rows.values().find_map(|row| match row {
-                    engine::Record::Core(jig_domain_core::Record::Tasks(
-                        tasks::Stored::Live(row) | tasks::Stored::Ended(row),
-                    )) if matches!(row.executor, tasks::Executor::Procedure { connector: 1, code: 2 })
-                        && String::from_utf8_lossy(&row.spec.words).contains(&cue) =>
-                    {
-                        Some(row.number)
-                    }
-                    _ => None,
-                });
+                let task = super::task_rows(&self.store)
+                    .find(|row| {
+                        matches!(row.executor, tasks::Executor::Procedure { connector: 1, code: 2 })
+                            && String::from_utf8_lossy(&row.spec.words).contains(&cue)
+                    })
+                    .map(|row| row.number);
                 if let Some(task) = task {
-                    self.workload.as_mut().expect("workload").names.name(&change.name, task).expect("unique change");
+                    let name = change.name.clone();
+                    self.workload.as_mut().expect("workload").names.name(&name, task).expect("unique change");
                 }
             }
         }
@@ -594,4 +601,32 @@ fn created(reply: &people::Reply) -> u64 {
     };
     assert_eq!(first, last);
     *first
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_commit_reveals_an_unnamed_change() {
+        let mut world = World::composed_workload(0);
+        let name = "g1.c0";
+        // Complete the setup's queued commits before adding the store fixture.
+        while !world.store.pending.is_empty() {
+            world.store.tick(false).expect("setup commit");
+        }
+        world.discover_workload_names();
+        assert_eq!(world.workload_names().task(name), None);
+        let mut row = super::super::task_rows(&world.store).next().expect("opened task").clone();
+        row.number = world.root.deployment().tasks + 1;
+        row.executor = tasks::Executor::Procedure { connector: 1, code: 2 };
+        row.spec.words = format!("@change:{name}@").into_bytes().into();
+        let number = row.number;
+        world.store.seed(
+            Box::new([engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]),
+            Box::default(),
+        );
+        world.discover_workload_names();
+        assert_eq!(world.workload_names().task(name), Some(number));
+    }
 }

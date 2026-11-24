@@ -168,7 +168,7 @@ impl World {
             .is_some_and(|f| !f.parked && f.park.as_ref().is_some_and(|(_, producer, _)| *producer == task))
     }
 
-    pub(in crate::composed) fn workload_answer_park(&mut self) {
+    pub(in crate::composed) fn workload_answer_park(&mut self, tasks: &[crate::composed::tasks::ViewTask]) {
         let Some(f) = &self.workload_faults else { return };
         if !f.parked {
             return;
@@ -176,7 +176,7 @@ impl World {
         let (name, _, _) = f.park.as_ref().expect("parked producer");
         let marker = format!("@park:{name}@");
         let party = self.workload().change(name).expect("change").0.party;
-        let answer = self.root.tasks().view_tasks().iter().find_map(|view| {
+        let answer = tasks.iter().find_map(|view| {
             let row = self.root.tasks().task(view.number)?;
             row.spec.words.starts_with(marker.as_bytes()).then_some((row.number, row.revisions.spec))
         });

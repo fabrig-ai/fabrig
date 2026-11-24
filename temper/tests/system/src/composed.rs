@@ -72,6 +72,25 @@ const STEPS: u64 = 10000;
 const ADOPTION: Token = Token::new(900);
 const RUN_WATCH: Token = Token::new(901);
 
+// Task rows have two disjoint key ranges, in this order. Other store records
+// cannot contribute to a task observation (including its live/ended ordering).
+fn task_rows(store: &Store) -> impl Iterator<Item = &tasks::TaskRecord> {
+    [tasks::Key::Live(0)..=tasks::Key::Live(u64::MAX), tasks::Key::Ended(0)..=tasks::Key::Ended(u64::MAX)]
+        .into_iter()
+        .flat_map(|range| {
+            store.rows.range(
+                Key::Core(jig_domain_core::Key::Tasks(*range.start()))
+                    ..=Key::Core(jig_domain_core::Key::Tasks(*range.end())),
+            )
+        })
+        .map(|(_, row)| match row {
+            engine::Record::Core(jig_domain_core::Record::Tasks(
+                tasks::Stored::Live(row) | tasks::Stored::Ended(row),
+            )) => row.as_ref(),
+            _ => unreachable!("task key range"),
+        })
+}
+
 /// What crossed the independently driven roots and process channel.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Observed {

@@ -330,12 +330,8 @@ impl World {
         if !self.absence.enabled {
             return;
         }
-        for row in self.store.rows.values() {
-            if let engine::Record::Core(jig_domain_core::Record::Tasks(
-                tasks::Stored::Live(task) | tasks::Stored::Ended(task),
-            )) = row
-                && self.absence.tries.last() != Some(&task.tries)
-            {
+        for task in super::task_rows(&self.store) {
+            if self.absence.tries.last() != Some(&task.tries) {
                 self.absence.tries.push(task.tries);
             }
         }
