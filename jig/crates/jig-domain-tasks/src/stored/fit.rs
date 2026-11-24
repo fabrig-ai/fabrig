@@ -307,6 +307,17 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     } else if value.spec.job.is_some() || crate::batch::job_contract(&value.contract) {
         return Err(RestoreCause::Accounting);
     }
+    if let Some(wait) = value.person_wait
+        && let Some(offer) = wait.offer
+        && (wait.notice.is_none()
+            || !crate::control::valid_address(offer.holder)
+            || match value.executor {
+                Executor::Person(address) => address == offer.holder,
+                Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => true,
+            })
+    {
+        return Err(RestoreCause::Accounting);
+    }
     numbers(value.numbers)?;
     spec(&value.spec, limits)?;
     contract(&value.contract, limits)?;

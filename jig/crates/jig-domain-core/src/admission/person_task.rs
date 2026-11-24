@@ -53,8 +53,27 @@ fn person_result(result: people::PersonResult) -> tasks::TaskResult {
     }
 }
 
+pub(crate) fn address_matches(address: tasks::PersonAddress, person: u64, role: Option<people::Role>) -> bool {
+    match address {
+        tasks::PersonAddress::Person(address) => address == person,
+        tasks::PersonAddress::Role(address) => match role {
+            Some(role) => address == role.number(),
+            None => false,
+        },
+    }
+}
+
+pub(crate) fn addresses(row: &tasks::TaskRecord) -> Option<(tasks::PersonAddress, Option<tasks::PersonAddress>)> {
+    let tasks::Executor::Person(first) = row.executor else { return None };
+    let offer = match row.person_wait {
+        Some(tasks::PersonWait { offer: Some(offer), .. }) => Some(offer.holder),
+        Some(tasks::PersonWait { offer: None, .. }) | None => None,
+    };
+    Some((first, offer))
+}
+
 impl Core {
-    /// Recheck the stored owner and current address before answering an act on an ended task.
+    /// Recheck both addresses before returning the retained decision.
     pub(crate) fn person_task_ended(
         &self,
         party: crate::routing::party::dispatch::Party,
@@ -73,14 +92,15 @@ impl Core {
             && task <= self.counters.deployment().tasks
             && row.project == project
             && role.is_some()
-            && match row.executor {
-                tasks::Executor::Person(tasks::PersonAddress::Person(address)) => address == person,
-                tasks::Executor::Person(tasks::PersonAddress::Role(address)) => {
-                    role.expect("membership").number() == address
+            && match addresses(&row) {
+                Some((first, offered)) => {
+                    address_matches(first, person, role)
+                        || match offered {
+                            Some(address) => address_matches(address, person, role),
+                            None => false,
+                        }
                 }
-                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {
-                    false
-                }
+                None => false,
             };
         if !allowed {
             return people::Outcome::Refused(people::Refusal::Unknown);

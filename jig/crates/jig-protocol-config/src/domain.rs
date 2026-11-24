@@ -228,14 +228,7 @@ pub(crate) fn capacity(limits: &jig_domain_core_vocabulary::Limits) -> Option<(&
     let operations = u64::from(tasks.delegates).checked_add(1);
     let scopes = u64::from(authority.grants).checked_add(3);
     let hosts = u64::from(fleet.configured_workers).checked_add(1);
-    // jig_domain_core::inbox::waiting_capacity is private to the core.
-    let waiting = match u64::from(tasks.inbox_messages).checked_mul(2) {
-        Some(count) => match count.checked_add(u64::from(authority.roles)) {
-            Some(count) => count.checked_add(4),
-            None => None,
-        },
-        None => None,
-    };
+    let waiting = Some(jig_domain_core_vocabulary::inbox::waiting_requirement(limits));
     let models = accounts.accounts.min(jig_domain_tasks::MODELS);
     let grants = u64::from(accounts.credentials).checked_add(u64::from(models));
     for (index, (member, configured, requires, dependency, required)) in [

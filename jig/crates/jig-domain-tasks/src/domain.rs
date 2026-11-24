@@ -19,6 +19,8 @@ pub(crate) struct Task {
     pub published: Option<Box<TaskRecord>>,
     pub record: TaskRecord,
     pub alarm: Option<Alarm>,
+    // A stall still to route after the one requester notice has run.
+    pub person_stall_clock: bool,
     pub grace_alarm: Option<Alarm>,
     pub procedure_offered: Option<u64>,
     // Connector facts changed after the current step context was offered.
@@ -34,6 +36,7 @@ impl Task {
             published: None,
             record,
             alarm: None,
+            person_stall_clock: false,
             grace_alarm: None,
             procedure_offered: None,
             procedure_woken: false,
@@ -984,7 +987,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::CancelQuestion { reply_to, task, question } => {
             crate::questions::cancel(domain, env, reply_to, task, question, out);
         }
-        Event::PersonStallNotice { task, message } => crate::person::stalled(domain, env, task, message, out),
+        Event::PersonStallNotice { task, message, offer } => {
+            crate::person::stalled(domain, env, task, message, offer, out);
+        }
+        Event::RearmPersonStall { task, may_pass } => crate::person::rearm(domain, env, task, may_pass),
         Event::MetNotice { task, dependency, removed, by, message } => {
             crate::wake::met(domain, env, task, (dependency, removed), by, message, out);
         }
@@ -1037,7 +1043,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         && let Some(task) = task_mut(domain, number)
     {
         match task.record.phase {
-            Phase::Active(Active::Due | Active::Idle) if crate::person::pending(&task.record) => {
+            Phase::Active(Active::Due | Active::Idle) if crate::person::deadline(task).is_some() => {
                 out.push(Request::PersonStallDue { task: number });
             }
             Phase::Active(Active::Idle)
@@ -1370,6 +1376,28 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     }
     task.observed_hold = held;
     let escalation = crate::escalation::begin(&mut task.record);
+    schedule_alarm(domain, env, number);
+    save_live(domain, env, number, out);
+    crate::grace::schedule(domain, env, number);
+    crate::escalation::schedule(domain, env, number);
+    if escalation {
+        out.push(Request::EscalationNeeded {
+            context: crate::escalation::context(domain, number).expect("new held person context"),
+        });
+    }
+    if became_held {
+        let revision = record(domain, number).expect("held task").revisions.hold;
+        crate::subscriptions::notify_state(domain, number, crate::NoticeState::Held { revision }, &[], out);
+    }
+    if unavailable {
+        crate::proposals::holder_unavailable(domain, number, out);
+        crate::escalation::holder_unavailable(domain, number, out);
+    }
+}
+
+pub(crate) fn schedule_alarm(domain: &mut Domain, env: &Env<Limits>, number: u64) {
+    let task = task_mut(domain, number).expect("scheduled task is live");
+    let person_deadline = crate::person::deadline(task);
     // Admission permits equality with the wall. Wake just after it, without
     // another alarm or a durable deadline carrier (domain/authority-budgets.md, 1).
     let wall = match deadline(&task.record, env.wall) {
@@ -1380,9 +1408,7 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         None => None,
     };
     let until = match task.record.phase {
-        Phase::Active(Active::Due | Active::Idle) if crate::person::pending(&task.record) => {
-            Some(task.record.person_wait.expect("active person wait").deadline)
-        }
+        Phase::Active(Active::Due | Active::Idle) if person_deadline.is_some() => person_deadline,
         Phase::Active(Active::Idle) => wall,
         Phase::Active(Active::Due) => match task.record.suspension {
             Some(suspension) if suspension.until > env.wall => Some(suspension.until),
@@ -1411,14 +1437,6 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         None => None,
     };
     task.alarm = alarm;
-    save_live(domain, env, number, out);
-    crate::grace::schedule(domain, env, number);
-    crate::escalation::schedule(domain, env, number);
-    if escalation {
-        out.push(Request::EscalationNeeded {
-            context: crate::escalation::context(domain, number).expect("new held person context"),
-        });
-    }
     match alarm {
         Some(alarm) => {
             let armed = domain.alarms.arm(number, alarm.due);
@@ -1427,14 +1445,6 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         None => {
             domain.alarms.cancel(number);
         }
-    }
-    if became_held {
-        let revision = record(domain, number).expect("held task").revisions.hold;
-        crate::subscriptions::notify_state(domain, number, crate::NoticeState::Held { revision }, &[], out);
-    }
-    if unavailable {
-        crate::proposals::holder_unavailable(domain, number, out);
-        crate::escalation::holder_unavailable(domain, number, out);
     }
 }
 

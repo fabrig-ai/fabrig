@@ -279,6 +279,7 @@ record RejectedEscalation by hand # by and by_kind jointly represent the decider
 enum Escalation by hand # rejected payload splits its decider into two fields
 record PersonAnswer = d::PersonAnswer { at via s::wall }
 record PersonStallNotice = d::PersonStallNotice { at via s::wall }
+record PersonOffer = d::PersonOffer { since via s::wall }
 record PersonWait = d::PersonWait { since via s::wall, deadline via s::wall }
 record RecurringState = d::RecurringState { last_batch slice }
 record QuestionCredit = d::QuestionCredit

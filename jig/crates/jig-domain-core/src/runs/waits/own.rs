@@ -357,6 +357,25 @@ pub(super) fn policy_entry(row: &TaskRecord, inbox: &[Entry]) -> Option<Entry> {
     })
 }
 
+/// The second inbox entry is another way to answer, not another wait.
+pub(super) fn party_fact(row: &TaskRecord, mut fact: Entry) -> Option<Entry> {
+    match fact.kind {
+        EntryKind::PersonTask => {
+            if let Some(offer) = row.person_wait?.offer {
+                let whom = crate::inbox::person_whom(row.project, offer.holder);
+                if row.taken_by.is_none() && fact.whom != whom {
+                    return None;
+                }
+                fact.whom = whom;
+                fact.at = offer.since;
+            }
+            Some(fact)
+        }
+        EntryKind::Question { .. } | EntryKind::Escalation { .. } | EntryKind::Proposal { .. } => Some(fact),
+        EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => None,
+    }
+}
+
 pub(super) fn party(core: &Core, limits: &Limits, row: &TaskRecord, fact: &Entry, hears: Option<Holder>) -> Wait {
     let at = match fact.whom {
         Whom::Person(person) => Holder::Person(person),
@@ -388,14 +407,11 @@ fn entry(
             Holder::Task(task) => proposal_passes(core, limits, row, tasks::ProposalHolder::Task(task)),
             Holder::Person(person) => proposal_passes(core, limits, row, tasks::ProposalHolder::Person(person)),
         },
-        EntryKind::PersonTask if core.escalation_fallback(row.project) == Some(at) => false,
-        EntryKind::PersonTask if hears != Some(at) => hears.is_some(),
-        EntryKind::PersonTask | EntryKind::Question { .. } | EntryKind::Escalation { .. } => {
-            match wait_holder(core, limits, row, Some(at)) {
-                Some(next) => next != at,
-                None => false,
-            }
-        }
+        EntryKind::PersonTask => crate::admission::escalation::next_person_holder(core, limits, row).is_some(),
+        EntryKind::Question { .. } | EntryKind::Escalation { .. } => match wait_holder(core, limits, row, Some(at)) {
+            Some(next) => next != at,
+            None => false,
+        },
         EntryKind::Reply { .. } | EntryKind::ChatReply { .. } => unreachable!("a reply is not a wait"),
     };
     let then = if passes { AtBound::PassUp } else { AtBound::Overdue };

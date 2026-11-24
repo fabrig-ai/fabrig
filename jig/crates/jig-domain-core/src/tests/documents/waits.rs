@@ -190,6 +190,7 @@ fn a_person_task_below_names_its_role() {
         stall: Duration::from_secs(1),
         deadline: Wall::from_nanos(1_000_000_000),
         notice: None,
+        offer: None,
     });
     restore(&mut core, &limits, Box::new([parent, child]));
     assert_eq!(
@@ -429,12 +430,28 @@ fn party_entries_keep_the_escalation_proposal_and_person_clocks() {
             },
         ]
     );
+    row.escalation = tasks::Escalation::Waiting { holder: FINAL, revision: 1, entry: 7, since: SINCE };
+    let stalls = limits.tasks.escalation_stall.max(limits.tasks.proposal_stall);
+    let past = Wall::from_nanos(SINCE.as_nanos() + stalls.as_nanos() + 1);
+    let document = task_from_row(&core, &limits, 1, &row, past).unwrap();
+    let expected = [limits.tasks.escalation_stall, limits.tasks.proposal_stall];
+    assert_eq!(document.waits.len(), 2);
+    for (record, stall) in document.waits.iter().zip(expected) {
+        assert_eq!(record.bound, at(SINCE, stall, AtBound::Overdue));
+        let Bound::At { at, .. } = record.bound else { panic!("a final role has a stall bound") };
+        assert!(at < past);
+    }
     row.escalation = tasks::Escalation::Unheld { revision: 1 };
     row.proposal = None;
     row.executor = tasks::Executor::Person(tasks::PersonAddress::Role(0));
     row.phase = tasks::Phase::Active(tasks::Active::Idle);
-    row.person_wait =
-        Some(tasks::PersonWait { since: SINCE, stall: limits.tasks.person_stall, deadline: SOON, notice: None });
+    row.person_wait = Some(tasks::PersonWait {
+        since: SINCE,
+        stall: limits.tasks.person_stall,
+        deadline: SOON,
+        notice: None,
+        offer: None,
+    });
     let document = document_matching_line(&core, &limits, &row);
     assert_eq!(
         document.wait,
@@ -447,6 +464,44 @@ fn party_entries_keep_the_escalation_proposal_and_person_clocks() {
             hears: Some(PARENT),
         })
     );
+}
+
+#[test]
+fn a_person_offer_moves_the_one_party_wait_and_its_bound() {
+    const ADDRESSEE: u64 = 6;
+    const FIRST_OFFER: Wall = Wall::from_nanos(200);
+    const FINAL_OFFER: Wall = Wall::from_nanos(300);
+    let (core, limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.phase = tasks::Phase::Active(tasks::Active::Due);
+    row.executor = tasks::Executor::Person(tasks::PersonAddress::Person(ADDRESSEE));
+    let stall = limits.tasks.person_stall;
+    let deadline = Wall::from_nanos(SINCE.as_nanos() + stall.as_nanos());
+    let notice = tasks::PersonStallNotice { message: 7, at: FIRST_OFFER, activity: 1 };
+    let cases = [
+        (None, Holder::Person(ADDRESSEE), SINCE, AtBound::PassUp),
+        (Some(tasks::PersonAddress::Person(1)), REQUESTER, FIRST_OFFER, AtBound::PassUp),
+        (Some(tasks::PersonAddress::Role(0)), FINAL, FINAL_OFFER, AtBound::Overdue),
+    ];
+    for (address, holder, since, then) in cases {
+        let offer = match address {
+            Some(holder) => Some(tasks::PersonOffer { holder, since }),
+            None => None,
+        };
+        row.person_wait =
+            Some(tasks::PersonWait { since: SINCE, stall, deadline, notice: offer.is_some().then_some(notice), offer });
+        let document = document_matching_line(&core, &limits, &row);
+        let expected = Wait {
+            task: row.number,
+            kind: WaitKind::Party,
+            object: WaitObject::Entry { kind: people::EntryKind::PersonTask, at: holder },
+            since,
+            bound: at(since, stall, then),
+            hears: Some(PARENT),
+        };
+        assert_eq!(document.waits.as_slice(), core::slice::from_ref(&expected));
+        assert_eq!(document.wait, Some(expected));
+    }
 }
 
 #[test]

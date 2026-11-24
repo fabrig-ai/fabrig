@@ -1843,6 +1843,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Retained { .. }
         | tasks::Event::Settled { .. }
         | tasks::Event::PersonStallNotice { .. }
+        | tasks::Event::RearmPersonStall { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
         | tasks::Event::QuestionParked { .. }

@@ -241,6 +241,7 @@ mod tests {
             stall: Duration::from_secs(60),
             deadline: Wall::from_nanos(60_000_000_000),
             notice: None,
+            offer: None,
         });
         assert!(holds(Moment::QuestionOpen, people::ANSWERS_LATE, &row, false));
         assert!(!holds(Moment::RunEnded, people::ANSWERS_AN_ENDED_RUN, &row, false));

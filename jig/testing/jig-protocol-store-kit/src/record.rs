@@ -97,6 +97,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
             stall: Duration::from_nanos(3),
             deadline: Wall::from_nanos(62),
             notice: Some(task::PersonStallNotice { message: 67, at: Wall::from_nanos(71), activity: 73 }),
+            offer: None,
         }),
         recurring: Some(Box::new(task::RecurringState {
             template: task_template(),
