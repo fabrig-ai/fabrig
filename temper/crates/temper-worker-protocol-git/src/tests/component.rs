@@ -4,6 +4,8 @@ use skein_io::kernel;
 use temper_worker_domain_checkout::git;
 const FETCHED: &[u8] =
     b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/fetched\n";
+// One byte past the component fixture's stdout limit.
+const OVERLONG_PROGRESS: usize = 513;
 
 #[test]
 fn every_push_fault_keeps_gits_stderr_tail() {
@@ -582,33 +584,18 @@ fn a_point_spawns_one_local_update_ref_without_an_identity() {
     }
 }
 
-/// temper/docs/design/protocol/git-operations.md, 1.6: merge progress is not a parsed result.
+/// temper/docs/design/protocol/git-operations.md, 1.6: neither command's stdout is a parsed result.
 #[test]
 fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
     for code in [0, 1] {
-        let mut component = fixtures::Started::new();
-        component.down(Request::Io {
-            owner: fixtures::OWNER,
-            op: git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None },
-            deadline: fixtures::DEADLINE,
-            identity: Some(fixtures::identity()),
-        });
-        let (child, pipes) = component.spawned();
-        component.stdout(pipes[0], &[b'x'; 513]);
-        component.end(pipes[0]);
-        component.end(pipes[1]);
-        component.exited(child, code);
-        component.closed(child, &pipes);
+        let mut component = start_with_identity(merge());
+        super::view::invocation(&mut component, &[b'x'; OVERLONG_PROGRESS], code);
         let expected = if code == 0 {
             git::Done::Merged
         } else {
             assert_eq!(component.done(), None, "the conflict listing still runs");
-            let (child, pipes) = component.spawned();
-            component.stdout(pipes[0], b"baseline\0");
-            component.end(pipes[0]);
-            component.end(pipes[1]);
-            component.exited(child, 0);
-            component.closed(child, &pipes);
+            super::view::invocation(&mut component, b"", 0);
+            super::view::invocation(&mut component, b"baseline\0", 0);
             git::Done::Conflicted { files: Box::new([b"baseline".as_slice().into()]), cut: false }
         };
         super::view::empty(&mut component);
@@ -617,40 +604,92 @@ fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
 }
 
 #[test]
-fn only_the_checkout_and_merge_invocations_receive_lazy_fetch_credentials() {
-    for (op, exit) in [
+fn overlong_unterminated_history_stdout_does_not_refuse_conflicts() {
+    let mut component = start_with_identity(merge());
+    super::view::invocation(&mut component, b"", 1);
+    super::view::invocation(&mut component, &[b'x'; OVERLONG_PROGRESS], 0);
+    assert_eq!(component.done(), None, "only the listing can finish the conflicted merge");
+    super::view::invocation(&mut component, b"baseline\0", 0);
+    super::view::empty(&mut component);
+    assert_eq!(
+        component.done(),
+        Some((fixtures::OWNER, git::Done::Conflicted { files: Box::new([b"baseline".as_slice().into()]), cut: false }))
+    );
+}
+
+#[test]
+fn history_fetch_failure_names_log_and_keeps_the_object() {
+    for (stderr, expected) in [
         (
-            git::Op::CheckOut { at: fixtures::at(), commit: fixtures::COMMIT, clean: true, identity: 1, account: None },
-            0,
+            b"fatal: unable to access 'https://forge.invalid/o/r.git/': \
+              Failed to connect to forge.invalid port 443 after 0 ms: Could not connect to server\n\
+              fatal: could not fetch 1545e581943f2dd5f6250aa315b8c67fd118b3de from promisor remote\n"
+                .as_slice(),
+            git::Fault::Unreachable,
         ),
-        (git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None }, 1),
+        (b"fatal: unable to read 4cb29ea38f70d7c61b2a3a25b02e3bdf44905402\n", git::Fault::Broken),
     ] {
-        let mut component = fixtures::Started::new();
-        component.down(Request::Io {
-            owner: fixtures::OWNER,
-            op,
-            deadline: fixtures::DEADLINE,
-            identity: Some(fixtures::identity()),
-        });
-        assert_spawn_credentials(&component, true);
+        let mut component = start_with_identity(merge());
+        super::view::invocation(&mut component, b"", 1);
         let (child, pipes) = component.spawned();
+        component.stdout(pipes[1], stderr);
         component.end(pipes[0]);
         component.end(pipes[1]);
-        component.exited(child, exit);
+        component.exited(child, 128);
         component.closed(child, &pipes);
-        assert_spawn_credentials(&component, false);
+        let Some((fixtures::OWNER, git::Done::FailedWithOutput { fault, diagnostic })) = component.done() else {
+            panic!("history fetch failure with output")
+        };
+        assert_eq!(fault, expected);
+        assert_eq!(diagnostic.command(), Some(b"log".as_slice()));
+        assert_eq!(diagnostic.output(), stderr);
+        assert_eq!(diagnostic.cut(), 0);
+        assert!(component.below.out.io.is_empty() && component.below.out.kernel.is_empty());
     }
 }
 
-fn assert_spawn_credentials(component: &fixtures::Started, remote: bool) {
+#[test]
+fn only_the_promisor_invocations_receive_lazy_fetch_credentials() {
+    let checkout =
+        git::Op::CheckOut { at: fixtures::at(), commit: fixtures::COMMIT, clean: true, identity: 1, account: None };
+    for (op, invocations) in [
+        (checkout, [(0, true, b"checkout".as_slice()), (0, false, b"clean")].as_slice()),
+        (merge(), &[(1, true, b"merge".as_slice()), (0, true, b"log"), (0, false, b"diff-files")]),
+    ] {
+        let mut component = start_with_identity(op);
+        for &(exit, remote, word) in invocations {
+            assert_spawn_credentials(&component, word, remote);
+            super::view::invocation(&mut component, b"", exit);
+        }
+    }
+}
+
+fn merge() -> git::Op {
+    git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None }
+}
+
+fn start_with_identity(op: git::Op) -> fixtures::Started {
+    let mut component = fixtures::Started::new();
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op,
+        deadline: fixtures::DEADLINE,
+        identity: Some(fixtures::identity()),
+    });
+    component
+}
+
+fn assert_spawn_credentials(component: &fixtures::Started, word: &[u8], remote: bool) {
     let mut spawned = false;
     for request in &component.below.out.io {
         if let skein_io::Request::Spawn { spawn, .. } = request {
             assert!(!spawned, "only one spawn");
             spawned = true;
+            assert!(spawn.args.contains(&Box::from(word)));
             assert_eq!(spawn.env.contains(&Box::from(b"GIT_CONFIG_COUNT=1".as_slice())), remote);
             if !remote {
                 for entry in &spawn.env {
+                    assert!(!entry.starts_with(b"GIT_CONFIG_COUNT="));
                     assert!(!entry.starts_with(b"GIT_CONFIG_KEY_"));
                     assert!(!entry.starts_with(b"GIT_CONFIG_VALUE_"));
                 }
@@ -658,6 +697,7 @@ fn assert_spawn_credentials(component: &fixtures::Started, remote: bool) {
             assert_eq!(spawn.args.contains(&Box::from(b"remote.origin.promisor=true".as_slice())), remote);
             if remote {
                 assert!(spawn.env.contains(&Box::from(b"GIT_COMMITTER_NAME=Temper Bot".as_slice())));
+                assert!(spawn.env.contains(&Box::from(b"GIT_CONFIG_KEY_0=http.extraHeader".as_slice())));
                 assert!(spawn.env.contains(&Box::from(
                     b"GIT_CONFIG_VALUE_0=Authorization: Basic dGVtcGVyLWJvdDp0b2stMQ==".as_slice()
                 )));

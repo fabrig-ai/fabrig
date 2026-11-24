@@ -243,6 +243,7 @@ impl Operation {
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::UpdateIndex { .. }
             | Command::Add
@@ -282,6 +283,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::Add
             | Command::DiffPaths { .. }
@@ -319,6 +321,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::Add
             | Command::DiffPaths { .. }
@@ -450,7 +453,7 @@ impl Operation {
                 | None => false,
             };
         let progress = match self.command {
-            Command::Merge { .. } => true,
+            Command::Merge { .. } | Command::MergeHistory { .. } => true,
             Command::Reds(_)
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
@@ -539,6 +542,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffIndex { .. }
