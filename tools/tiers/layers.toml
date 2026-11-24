@@ -162,17 +162,20 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
 "temper-box-shell::real" = "real-loop" # Native sockets, descriptors, terminals, locks, file metadata and child programs.
-# Step and domain: profiles composed in memory and the start's admission decisions over them,
-# the kit's own checks over supplied facts, scripted openings and client-tool reads.
+"temper-box-shell::simulated" = "simulated" # Fake forge and LLM hosts on the simulated kernel.
+# Step and domain: composed profiles and their admission, the kit's checks over supplied facts,
+# scripted openings, relay framing and routing, the landing kit's decisions and client-tool reads.
 "temper-box::domain" = "domain"
 "temper-box::live" = "end-to-end"
 "temper-box::live_github" = "end-to-end"
 "temper-box::live_github_managed" = "end-to-end"
 "temper-box::process" = "end-to-end"
 "temper-box::proof_live" = "end-to-end"
-# Native stories and wiring witnesses: fresh init and start, inherited listeners and pipes, the forge child,
-# the held-login lock and hooks, a fetched program's run, parent identities, and the kit's real-loop checks.
+# Native witnesses: fresh init and serve, command dispatch, listeners, pipes and ports; forge setup,
+# exec, signals and locks; program login and launch; fakes (TLS, images and restart), relay shutdown;
+# landing launcher, held-login hooks and kept data; parent identities and the kit's real-loop checks.
 "temper-box::suite" = "end-to-end"
+"temper-box::system" = "system" # A fresh sitting's settings on the client world joined to the engine.
 "temper-charter-set::assembly" = "step" # Assembly functions on fixture texts.
 "temper-client-browser-world::browser_all" = "end-to-end" # Chromium on the shipped bundle and service.
 "temper-client-bundle::steps" = "step" # Build decisions on sample paths, files and commands.

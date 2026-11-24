@@ -40,6 +40,10 @@ path = "tests/proof_live.rs"
 name = "domain"
 path = "tests/domain/main.rs"
 
+[[test]]
+name = "system"
+path = "tests/system.rs"
+
 [dependencies]
 temper-version.workspace = true
 temper-box-shell.workspace = true
@@ -116,7 +120,6 @@ jig-client-protocol-wire.workspace = true
 skein-fake-oauth.workspace = true
 skein-http.workspace = true
 temper-worker-protocol-git.workspace = true
-temper-worker-domain-checkout.workspace = true
 jig-domain-fleet.workspace = true
 jig-domain-tasks.workspace = true
 skein-fake-llm-domain.workspace = true

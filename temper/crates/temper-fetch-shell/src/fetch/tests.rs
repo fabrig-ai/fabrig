@@ -1,5 +1,39 @@
 use super::*;
 use std::cell::RefCell;
+use temper_fetch::fetch as model;
+
+#[path = "../../../../testing/forge_fetch.rs"]
+mod forge_fetch;
+
+#[test]
+fn fetch_effect_rows() {
+    use forge_fetch::{CACHE, RELEASE, ROOTS, Row, Script};
+    use model::{Fetched, Pin};
+
+    // This driver receives a pin; forge_fetch_rows checks Linux pin selection.
+    let binary = Fetched::read(b"fetched forgejo 0 of 3 bytes\n").expect("Forgejo progress name").binary;
+    let pin = Pin {
+        binary,
+        origin: Origin { host: b"mirror.example.invalid".as_slice().into(), port: 443 },
+        path: RELEASE.into(),
+        digest: [0x42; 32],
+        file: CACHE.into(),
+        bottle: None,
+    };
+    for row in [Row::Digest, Row::Present, Row::MissingRoots] {
+        let host = Script::new(Some(row));
+        let mut stdout = Vec::new();
+        let result = run_with(
+            Fetch::new(Box::new([pin.clone()]), 32),
+            || host.roots(Path::new(ROOTS)),
+            |(), request| Ok(host.answer(request)),
+            &mut stdout,
+        );
+        assert_eq!(result.expect_err("refused fetch").words(), row.diagnostic(&"42".repeat(32)));
+        assert_eq!(stdout, row.stdout(), "{row:?}");
+        host.check();
+    }
+}
 
 #[test]
 fn claude_cache_hit_and_refusals_request_only_metadata() {
