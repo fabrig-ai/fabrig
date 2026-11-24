@@ -23,9 +23,9 @@ use skein_lib::{List, Queue, Token, bytes, stream, usize_of};
 
 use super::boundary::{Closed, Event, Lower, LowerEvent, ReadWait, Request, Room, Unsent, Waiting, WriteWait};
 use super::frame::{Control, Frame, Header, Term, control_frame, decode_control, parse_header};
-use super::opening::{accept_open, check_terms, local_terms, offers_version};
+use super::opening::{accept_open, check_terms, local_terms, offers_version, table_words};
 use super::read::{ReadKind, classify};
-use super::schema::{Limits, Role, Schema, SchemaError};
+use super::schema::{Limits, Role, Schema, SchemaError, Version};
 use super::write::admit;
 use Phase::{Finished, Ready, Refusing, WaitAccept, WaitOpen, WaitOwner, WaitTerms};
 
@@ -242,7 +242,8 @@ impl Machine {
     pub fn down(&mut self, request: Request, up: &mut Queue<Event>, below: &mut Queue<Lower>) {
         match request {
             Request::Open { credential } => self.open(credential),
-            Request::Accept { version } => self.accept(version),
+            Request::Accept { version } => self.accept(version, None),
+            Request::AcceptWith { table } => self.accept(table.version, Some(table)),
             Request::Refuse { reason, text } => self.refuse(reason, text, Closed::RefusedHere(reason)),
             Request::Read => self.read(up),
             Request::Send { token, frame } => self.send(token, frame, up),
@@ -338,7 +339,7 @@ impl Machine {
         }
     }
 
-    fn accept(&mut self, version: u16) {
+    fn accept(&mut self, version: u16, table: Option<Version>) {
         let allowed = match self.phase {
             WaitOwner { lowest, highest } => version >= lowest && version <= highest,
             Phase::Idle
@@ -352,6 +353,13 @@ impl Machine {
             | Phase::Closed => false,
         };
         if !allowed {
+            return;
+        }
+        if let Some(table) = table
+            && let Err(error) = self.schema.install_version(table, self.role, &self.limits)
+        {
+            let text = table_words(error);
+            self.refuse(2, text, Closed::RefusedHere(2));
             return;
         }
         let answer = Control::Accept { version, features: 0 };
