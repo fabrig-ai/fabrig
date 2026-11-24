@@ -40,8 +40,8 @@ pub mod accounts;
 #[cfg(test)]
 mod adoption_hold;
 mod agreement;
-#[cfg(test)]
 mod chat;
+pub use chat::assert_committed_landing_reply;
 #[cfg(test)]
 mod checks;
 pub mod close_job;

@@ -4,11 +4,15 @@
 use super::{World, agreement, call, engine, fake, parties, tasks, text_script};
 use skein_fake_llm_domain::api::{Part, Script, Turn};
 
+#[cfg(test)]
 const REQUEST: &[u8] = b"Add the line \"Tier walk: first.\" to the end of README.md in widget.";
+#[cfg(test)]
 const PROHIBITION: &str =
     "Repository changes must go through change; never implement them by writing your chat workspace.";
+#[cfg(test)]
 const COMPLETION: &str = "After calling change, say only that work started until the delegate reports.";
 
+#[cfg(test)]
 fn chat(turns: Vec<Turn>) -> World {
     requested_chat(turns, REQUEST)
 }
@@ -29,6 +33,7 @@ fn requested_chat(turns: Vec<Turn>, request: &[u8]) -> World {
     world
 }
 
+#[cfg(test)]
 fn finish_chat(world: &mut World) {
     for _ in 0..10000 {
         world.tick();
@@ -40,6 +45,7 @@ fn finish_chat(world: &mut World) {
     panic!("chat did not park: {:?}", world.observed);
 }
 
+#[cfg(test)]
 fn assert_prompt(world: &World) {
     let prompt = &world.agent().prompts()[0];
     let system = String::from_utf8_lossy(&prompt.system);
@@ -51,6 +57,7 @@ fn assert_prompt(world: &World) {
     assert!(!world.assignment().run.policy.modify, "the stock chat inspects its workspace");
 }
 
+#[cfg(test)]
 fn assert_no_landing(world: &World) {
     assert!(!world.forge.observations().iter().any(|observation| matches!(
         observation,
@@ -72,6 +79,7 @@ fn a_stock_chat_cannot_edit_its_workspace_in_place_of_a_change() {
     );
 }
 
+#[cfg(test)]
 fn refused_workspace_change(tool: &[u8], arguments: &[u8]) {
     // The system world is the lowest tier joining Smith tools, Open replies and durable change admission.
     let mut turns =
@@ -104,6 +112,7 @@ fn refused_workspace_change(tool: &[u8], arguments: &[u8]) {
     assert_prompt(&world);
 }
 
+#[cfg(test)]
 fn assert_refused_tool(world: &World, tool: &[u8]) {
     let prompt = world.agent().prompts().last().expect("feedback reaches the next turn");
     let parts = prompt.messages.iter().flat_map(|message| &message.parts).collect::<Vec<_>>();
@@ -132,6 +141,7 @@ fn main_commit(world: &World) -> String {
     hex
 }
 
+#[cfg(test)]
 fn started_change() -> (World, String) {
     let mut world = chat(Vec::new());
     let hex = main_commit(&world);
@@ -251,11 +261,13 @@ fn landing_report(world: &mut World) -> String {
     panic!("delegate did not report a landing: {:?}", world.observed);
 }
 
+#[cfg(test)]
 const EXECUTION_RULES: [&str; 3] = [
     "CI status cannot prove compilation, tests or execution, even if a producer could not compile or run.",
     "Starter echo checks run no code.",
     "Use result or forge evidence; else say unknown.",
 ];
+#[cfg(test)]
 const FALSE_EXECUTION: &[u8] =
     b"The delegate said it couldn't compile or run anything itself, so the CI check is the only run of the code.";
 const UNAVAILABLE: &str = "Could not compile or run code: compilation and execution were unavailable.";
@@ -292,8 +304,16 @@ fn a_stock_chat_distinguishes_starter_ci_from_running_code() {
     );
     let prompt = dark.agent().prompts().last().expect("reporting turn");
     let system = String::from_utf8_lossy(&prompt.system);
-    let evidence = prompt
-        .messages
+    let evidence = evidence(&prompt.messages);
+    assert!(evidence.contains(&report), "the reporting turn must receive the landed result: {evidence}");
+    assert!(evidence.contains("starter check passed"), "the reporting turn retains the inspected echo workflow");
+    for rule in EXECUTION_RULES {
+        assert!(system.contains(rule), "reporting prompt must distinguish check status from execution: {rule}");
+    }
+}
+
+fn evidence(messages: &[skein_fake_llm_domain::api::Message]) -> String {
+    messages
         .iter()
         .flat_map(|message| &message.parts)
         .filter_map(|part| match part {
@@ -301,12 +321,50 @@ fn a_stock_chat_distinguishes_starter_ci_from_running_code() {
             Part::ToolCall { .. } | Part::Opaque { .. } => None,
         })
         .collect::<Vec<_>>()
-        .join("\n");
-    assert!(evidence.contains(&report), "the reporting turn must receive the landed result: {evidence}");
-    assert!(evidence.contains("starter check passed"), "the reporting turn retains the inspected echo workflow");
-    for rule in EXECUTION_RULES {
-        assert!(system.contains(rule), "reporting prompt must distinguish check status from execution: {rule}");
+        .join("\n")
+}
+
+/// Follow the reporting query through Smith to the chat's first committed landing reply.
+pub fn assert_committed_landing_reply() {
+    const CHAT: u64 = 1;
+    const REPLY: &[u8] = b"The change landed.";
+    let mut world = requested_chat(Vec::new(), b"Add CSV export to widget");
+    world.chat_ending = tasks::EndedBy::Result;
+    let mut world = echo_change(world, "Add CSV export to widget", "export.csv", "fruit,count\\n");
+    let report = landing_report(&mut world);
+    let merge = main_commit(&world);
+    assert_eq!(report.lines().next(), Some(merge.as_str()), "the ended change names its merge");
+    let told = format!("Result from task 2:\n{report}");
+    let finish = call(b"finish", br#"{"report":"The change landed."}"#);
+    let script = Script { cue: text_script(REPLY).cue, turns: Box::new([finish]) };
+    begin_reporting(&mut world, script);
+    let ended = engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(CHAT)));
+
+    // Look at the reporting activation's query while its reply is still absent from the store.
+    let mut heard = false;
+    for _ in 0..super::STEPS {
+        world.tick();
+        let assigned = world.assignment();
+        if assigned.task == CHAT && !world.process.prepared() {
+            if let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
+                world.store.rows.get(&ended)
+            {
+                let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) = &row.phase else {
+                    panic!("the chat ends with a committed report: {:?}", row.phase);
+                };
+                assert_eq!(words.as_ref(), REPLY);
+                assert!(heard, "the reporting query must carry the landed result before the reply commits");
+                world.run();
+                return;
+            }
+            if let Some(prompt) = world.agent().prompts().first() {
+                let received = evidence(&prompt.messages);
+                assert!(received.contains(&told), "reporting query must include the change's result: {received}");
+                heard = true;
+            }
+        }
     }
+    panic!("the chat did not commit its landing reply: {:?}", world.observed);
 }
 
 fn echo_change(mut world: World, request: &str, path: &str, content: &str) -> World {
@@ -325,6 +383,13 @@ fn echo_change(mut world: World, request: &str, path: &str, content: &str) -> Wo
         world.forge.advance(b"org/repo", b"main", b".forgejo/workflows/ci.yml", ECHO_WORKFLOW);
     }
     let hex = main_commit(&world);
+    let mut first_reply = text_script(b"I started the change.").turns[0].clone();
+    if world.chat_ending == tasks::EndedBy::Result {
+        // A finite chat must park explicitly to wait for its delegate.
+        let mut wait = call(b"wait", b"{}");
+        wait.lines = [first_reply.lines, wait.lines].concat().into_boxed_slice();
+        first_reply = wait;
+    }
     let script = Script {
         cue: b"Help the person with their work.".as_slice().into(),
         turns: Box::new([
@@ -343,7 +408,7 @@ fn echo_change(mut world: World, request: &str, path: &str, content: &str) -> Wo
                 format!(r#"{{"words":"{request}. README.md says The answer is 42. CI only echoes a message."}}"#)
                     .as_bytes(),
             ),
-            text_script(b"I started the change.").turns[0].clone(),
+            first_reply,
         ]),
     };
     world.scripts = super::VecDeque::from([
@@ -420,9 +485,21 @@ fn every_composed_clock_move_visits_an_off_grid_stall_bound() {
     }
 }
 
+#[cfg(test)]
 fn reporting_prompt(world: &mut World) {
     // Deliberately script the observed false reply: the oracle is the supplied instructions and evidence.
-    world.parked.get_mut(&1).expect("parked chat").resume(text_script(FALSE_EXECUTION));
+    begin_reporting(world, text_script(FALSE_EXECUTION));
+    for _ in 0..10000 {
+        world.tick();
+        if world.assignment().task == 1 && world.observed.gone == 3 {
+            return;
+        }
+    }
+    panic!("reporting chat did not park: {:?}", world.observed);
+}
+
+fn begin_reporting(world: &mut World, script: Script) {
+    world.parked.get_mut(&1).expect("parked chat").resume(script);
     world.act(
         parties::Ask::Say {
             task: parties::Task::Number(1),
@@ -431,11 +508,4 @@ fn reporting_prompt(world: &mut World) {
         },
         [42; 16],
     );
-    for _ in 0..10000 {
-        world.tick();
-        if world.assignment().task == 1 && world.observed.gone == 3 {
-            return;
-        }
-    }
-    panic!("reporting chat did not park: {:?}", world.observed);
 }

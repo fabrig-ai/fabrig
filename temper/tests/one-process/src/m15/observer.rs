@@ -114,7 +114,7 @@ struct Observer {
     pages: usize,
     last_page: Option<Vec<skein_ui::Node>>,
     checkpoints: usize,
-    manifest: bool,
+    check_token_shape: bool,
 }
 #[derive(Default, Debug)]
 pub struct Counts {
@@ -134,12 +134,13 @@ pub(crate) fn enabled() -> bool {
     OBSERVER.with(|observer| observer.borrow().is_some())
 }
 pub(crate) fn start() {
-    OBSERVER.with(|observer| *observer.borrow_mut() = Some(Observer::default()));
+    OBSERVER
+        .with(|observer| *observer.borrow_mut() = Some(Observer { check_token_shape: true, ..Observer::default() }));
 }
 pub(crate) fn start_manifest() {
     // The fake's first manifest conversion uses its first fixed test key.
     let pem = skein_fake_forge_github::keys::pem(skein_fake_forge_github::keys::KEYS[0]).expect("fake manifest PEM");
-    let mut observer = Observer { manifest: true, ..Observer::default() };
+    let mut observer = Observer { check_token_shape: true, ..Observer::default() };
     observer.key(&pem);
     OBSERVER.with(|cell| *cell.borrow_mut() = Some(observer));
 }
@@ -228,7 +229,7 @@ impl Observer {
             });
             finding
         };
-        if inspect(path, first).is_some() || (self.manifest && first == 0 && token_shape(path)) {
+        if inspect(path, first).is_some() || (self.check_token_shape && first == 0 && token_shape(path)) {
             return Err(format!("issued secret in {surface} filename"));
         }
         if inspect(bytes, first).is_some() {
@@ -238,7 +239,7 @@ impl Observer {
                 String::from_utf8_lossy(path)
             ));
         }
-        if self.manifest && first == 0 && token_shape(bytes) {
+        if self.check_token_shape && first == 0 && token_shape(bytes) {
             return Err(format!("installation token shape in {surface}"));
         }
 
@@ -422,7 +423,7 @@ fn response(bytes: &[u8]) -> Option<(usize, &[u8])> {
     (bytes.len() >= used).then(|| (used, &bytes[end + 4..used]))
 }
 fn secret_path(path: &[u8]) -> bool {
-    if path == b"state/secrets" || path.starts_with(b"state/secrets/") || path.starts_with(b"input/") {
+    if path == b"state/secrets" || path.starts_with(b"state/secrets/") {
         return true;
     }
     let Some(generation) = path.strip_prefix(b"state/generations/") else { return false };
@@ -534,6 +535,8 @@ pub(crate) fn checkpoint() -> Result<(), String> {
 pub(crate) fn tokens() -> usize {
     OBSERVER.with(|cell| cell.borrow().as_ref().map_or(0, |observer| observer.tokens.len()))
 }
+const APP_DOWNLOAD: &[u8] = b"app.pem";
+
 pub(crate) fn input(peer: &mut Peer) -> (u64, Vec<skein_fake_machine::Item>) {
     use skein_forge::github::{pin, request::Method, setup};
     use skein_lib::{ReplyTo, Token, Wall};
@@ -589,7 +592,7 @@ pub(crate) fn input(peer: &mut Peer) -> (u64, Vec<skein_fake_machine::Item>) {
     (
         value["id"].as_u64().expect("fake App id"),
         vec![
-            skein_fake_machine::Item::file(b"app.pem", pem).mode(0o600),
+            skein_fake_machine::Item::file(APP_DOWNLOAD, pem).mode(0o600),
             skein_fake_machine::Item::file(b"llm.key", fixtures::LLM_TOKEN).mode(0o600),
         ],
     )
@@ -600,6 +603,7 @@ fn scan_directory(
     dir: skein_fake_machine::Opened,
     path: &[u8],
     counts: &mut Counts,
+    allow_download: bool,
 ) -> Result<(), String> {
     loop {
         let entries = disk.list(dir, 32, 4096).expect("public file listing");
@@ -612,9 +616,13 @@ fn scan_directory(
                 continue;
             }
             observer.check("persisted filename", b"", &path)?;
+            if allow_download && path.strip_prefix(b"setup/") == Some(APP_DOWNLOAD) {
+                // The one downloaded input, checked by metadata before this walk.
+                continue;
+            }
             if kind == skein_fake_machine::Is::Directory {
                 let child = disk.open(dir, &name, skein_fake_machine::How::Directory).expect("public directory");
-                let finding = scan_directory(observer, disk, child, &path, counts);
+                let finding = scan_directory(observer, disk, child, &path, counts, allow_download);
                 disk.close(child);
                 finding?;
             } else if kind == skein_fake_machine::Is::File {
@@ -650,16 +658,44 @@ fn scan_directory(
     }
     Ok(())
 }
+fn scan_root(
+    observer: &mut Observer,
+    disk: &mut skein_fake_machine::Machine,
+    root: skein_fake_machine::Opened,
+    name: &[u8],
+    counts: &mut Counts,
+    allow_download: bool,
+) -> Result<(), String> {
+    use skein_fake_machine::How;
+    if name == b"state" {
+        let secrets = disk
+            .open(root, b"generations/1/secrets", How::Directory)
+            .map_err(|_| String::from("jig's secrets store must exist"))?;
+        disk.close(secrets);
+    }
+    if allow_download && name == b"setup" {
+        let download = disk
+            .open(root, APP_DOWNLOAD, How::ReadNoFollow)
+            .map_err(|_| String::from("the person's App key download must exist"))?;
+        let facts = disk.stat(download);
+        disk.close(download);
+        if facts.is != skein_fake_machine::Is::File || facts.mode & 0o777 != 0o600 || facts.links != 1 {
+            return Err(String::from("only the person's single private App key download may be left in setup"));
+        }
+    }
+    scan_directory(observer, disk, root, name, counts, allow_download)
+}
+
 pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Result<Counts, String> {
-    finish_roots(disk, &[b"state", b"worker", b"client"])
+    finish_roots(disk, true)
 }
 
-/// A manifest browser downloads no handover; the setup root is public too.
+/// A manifest browser downloads no handover, so setup has no exception.
 pub(crate) fn finish_manifest(disk: &mut skein_fake_machine::Machine) -> Result<Counts, String> {
-    finish_roots(disk, &[b"state", b"worker", b"client", b"setup"])
+    finish_roots(disk, false)
 }
 
-fn finish_roots(disk: &mut skein_fake_machine::Machine, roots: &[&[u8]]) -> Result<Counts, String> {
+fn finish_roots(disk: &mut skein_fake_machine::Machine, allow_download: bool) -> Result<Counts, String> {
     OBSERVER.with(|cell| {
         let mut observer = cell.borrow_mut().take().expect("active observer");
         observer.scan()?;
@@ -671,9 +707,9 @@ fn finish_roots(disk: &mut skein_fake_machine::Machine, roots: &[&[u8]]) -> Resu
             wire_replies: observer.artifacts.iter().filter(|artifact| artifact.surface == "wire reply body").count(),
             ..Counts::default()
         };
-        for (index, name) in roots.iter().enumerate() {
+        for (index, name) in [b"state".as_slice(), b"worker", b"client", b"setup"].into_iter().enumerate() {
             let root = disk.reopen_root(u32::try_from(index).expect("scenario root"));
-            let finding = scan_directory(&mut observer, disk, root, name, &mut counts);
+            let finding = scan_root(&mut observer, disk, root, name, &mut counts, allow_download);
             disk.close(root);
             finding?;
         }

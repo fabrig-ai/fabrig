@@ -3768,12 +3768,23 @@ pub fn change_world_in(
     change_world_funded(world, policy, 40)
 }
 
-#[expect(clippy::too_many_lines, reason = "the root change fixture builds both producer and review routes")]
 #[must_use]
 pub fn change_world_funded(
+    world: World,
+    policy: paths::Change,
+    spend: u64,
+) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
+    change_world_with_result_words(world, policy, spend, 32)
+}
+
+/// Prepare the same producer with room for a story's landing result words.
+#[expect(clippy::too_many_lines, reason = "the root change fixture builds both producer and review routes")]
+#[must_use]
+pub fn change_world_with_result_words(
     mut world: World,
     policy: paths::Change,
     spend: u64,
+    words: u32,
 ) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
     let paths::Change { no_ci, owner_gate: _, tracked } = policy;
     if no_ci {
@@ -3867,11 +3878,11 @@ pub fn change_world_funded(
                         ]),
                         inputs: Box::new([]),
                     },
-                    // Reserve 32 bytes for landing identity beside its live result label.
+                    // Keep landing identity beside its live result label.
                     contract: tasks::Contract::Change {
                         connector: 0,
                         kind: 1,
-                        words: 32 + RESULT_MESSAGE_BYTES,
+                        words: words + RESULT_MESSAGE_BYTES,
                         choices: Box::new([]),
                     },
                     authority: child_authority,

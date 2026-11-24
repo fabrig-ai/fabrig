@@ -74,12 +74,24 @@ pub(super) fn produce(world: &mut World, producer: &engine::Assignment, branch: 
 }
 
 pub(super) fn review_world() -> (World, engine::Assignment, [u8; 32]) {
-    review_in(World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None))
+    review_in(review_fixture())
+}
+
+fn review_fixture() -> World {
+    World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None)
 }
 
 fn review_in(world: World) -> (World, engine::Assignment, [u8; 32]) {
-    let (mut world, _, producer, branch) = change_world_in(world, Change::default());
-    let head = produce(&mut world, &producer, &branch);
+    let (world, _, producer, branch) = change_world_in(world, Change::default());
+    review_production(world, &producer, &branch)
+}
+
+fn review_production(
+    mut world: World,
+    producer: &engine::Assignment,
+    branch: &[u8],
+) -> (World, engine::Assignment, [u8; 32]) {
+    let head = produce(&mut world, producer, branch);
     let reviewer = next_assignment(&mut world, 2);
     (world, reviewer, head)
 }
@@ -210,6 +222,63 @@ fn a_changes_reviewer_reads_its_own_pull() {
         panic!("items")
     };
     assert!(items.iter().any(|item| item.number == pull.number && item.title.as_ref() == b"Small fix"));
+}
+
+#[test]
+fn a_landed_change_returns_the_same_result_on_two_party_reads() {
+    use jig_domain_core::{documents as docs, reads};
+    let (world, _, producer, branch) = temper_engine_domain_world::forge_routes::change_world_with_result_words(
+        review_fixture(),
+        Change::default(),
+        40,
+        64,
+    );
+    let (mut world, reviewer, checked) = review_production(world, &producer, &branch);
+    let task = requester(&world, reviewer.task);
+    let pull = change_row(&world, task).pull.expect("the reviewed pull");
+    finish_review(
+        &mut world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
+    for _ in 0..MAX_TICKS {
+        if super::goal_landing::ended(&world, task).is_some() {
+            break;
+        }
+        world.tick();
+    }
+    assert!(super::goal_landing::ended(&world, task).is_some(), "the approved change ends");
+    let merge = std::iter::from_fn(|| world.fake.pop_observation())
+        .find_map(|seen| match seen {
+            fake::Observation::Merged { repository, number, head, commit, .. }
+                if repository.as_ref() == b"org/repo" && number == pull && translate::commit(head) == checked =>
+            {
+                Some(translate::commit(commit))
+            }
+            _ => None,
+        })
+        .expect("the forge merged the reviewed pull at its checked head");
+
+    let mut read = || {
+        let reads::Answer::Ended(receipt) = world.party_read(reads::Read::Task { task }) else {
+            panic!("an ended task receipt")
+        };
+        let reads::EndedValue::Task { document, result } = receipt.value else { panic!("task receipt") };
+        assert_eq!(document.chip.number, task);
+        assert_eq!(document.chip.phase, docs::PhaseLine::Ended);
+        assert_eq!(result.task.number, task);
+        assert_eq!(result.task.phase, docs::PhaseLine::Ended);
+        result
+    };
+    let first = read();
+    let second = read();
+    assert_eq!(first, second, "a second party request returns the same typed result");
+    let docs::Ending::Done(docs::ResultValue::Change { kind, part, words }) = first.ending else {
+        panic!("landed change result")
+    };
+    assert_eq!(kind, 1, "landed");
+    assert_eq!(part.key, tasks::PartKey::Number(pull));
+    assert_eq!(words.bytes.split(|byte| *byte == b'\n').next(), Some(engine::commit_text(&merge).as_ref()));
 }
 
 // The fake and renderer carry a 60 KiB generated file without a model or service.

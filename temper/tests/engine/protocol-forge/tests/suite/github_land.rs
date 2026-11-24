@@ -6,7 +6,7 @@ use skein_lib::{Duration, Wall};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{changes::change_row, translate::commit};
-use temper_engine_protocol_forge_world::protocol::Protocol;
+use temper_engine_protocol_forge_world::{fixtures::GITHUB, protocol::Protocol};
 
 fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::Decision {
     // Public admission recipe: protocol.rs's change_step / opened_change_in.
@@ -85,8 +85,12 @@ fn name_pull(world: &mut Protocol) {
 }
 
 fn prepared(world: &mut Protocol) {
+    prepared_with_file(world, b"file", b"change");
+}
+
+fn prepared_with_file(world: &mut Protocol, path: &[u8], contents: &[u8]) {
     world.adopt();
-    world.produce(b"temper/51");
+    world.produce_file(b"temper/51", path, contents);
     let mut row = change_row();
     row.change.since = world.wall();
     row.change.gates = Box::new([]);
@@ -95,6 +99,10 @@ fn prepared(world: &mut Protocol) {
 
 fn opened(world: &mut Protocol) {
     prepared(world);
+    open_prepared(world);
+}
+
+fn open_prepared(world: &mut Protocol) {
     enroll(world);
     assert_eq!(step(world, 1, change::Status::Passed), change::Decision::Effect(change::Effect::Open));
     assert_eq!(world.writes(), 1);
@@ -372,6 +380,48 @@ fn direct_landing_finish_and_two_writes() {
     let finishes = scheduled_landing(&mut world, 2, 30);
     landed_once(&world, &finishes, 2);
     world.finish();
+}
+
+#[test]
+fn the_app_bot_merges_its_one_pull_at_the_checked_head() {
+    const README: &[u8] = b"README.md";
+    const EDITED: &[u8] = b"# app\nChanged by temper.\n";
+    let mut world = Protocol::github(742);
+    prepared_with_file(&mut world, README, EDITED);
+    open_prepared(&mut world);
+    let finishes = scheduled_landing(&mut world, 2, 30);
+    landed_once(&world, &finishes, 2);
+    world.finish();
+
+    let opened: Vec<_> = world
+        .observations()
+        .iter()
+        .filter(|row| matches!(row, Observation::Opened { kind: raw::Kind::Pull, .. }))
+        .collect();
+    let merged: Vec<_> = world.observations().iter().filter(|row| matches!(row, Observation::Merged { .. })).collect();
+    let [Observation::Opened { repository, number: pull, branches: Some(branches), by: author, .. }] =
+        opened.as_slice()
+    else {
+        panic!("one opened pull: {opened:?}")
+    };
+    let [Observation::Merged { repository: merged_repository, number, base, head, commit, by }] = merged.as_slice()
+    else {
+        panic!("one merge: {merged:?}")
+    };
+    assert_eq!(repository.as_ref(), GITHUB.path);
+    assert_eq!(merged_repository, repository);
+    assert_eq!(number, pull);
+    assert_eq!(branches.base.as_ref(), b"main");
+    assert_eq!(base.as_ref(), b"main");
+    assert_eq!(*by, skein_forge_kit::fake_github::BOT, "the installed App's bot");
+    assert_eq!(author, by);
+
+    let pushed: Vec<_> = world.branches().iter().filter(|(name, _)| name.as_ref() != b"main").collect();
+    let [(name, tip)] = pushed.as_slice() else { panic!("one pushed branch: {pushed:?}") };
+    assert_eq!(*name, &branches.head);
+    assert_eq!(*tip, head);
+    assert_eq!(world.branch(b"main"), *commit);
+    assert_eq!(world.file(*commit, README), Some(EDITED));
 }
 
 #[test]
