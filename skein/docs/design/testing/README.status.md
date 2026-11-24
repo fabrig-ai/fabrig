@@ -25,8 +25,6 @@ counted around each reused pass, never by an address.
   [in flight: change 9030]
 - **Not yet:** 4: the fake machine's metadata beyond mode `0o777`, times
   and attributes, its subvolume and filesystem answers, and tree programs.
-- **Not yet:** 4: a test's read-back of a link's target and of the node a
-  handle names. [in flight: change 13930]
 - **Not yet:** 7: the focused cost-saving and suite CPU-margin proofs;
   selected instruction ratios establish neither a whole-suite saving nor its margin.
 
