@@ -593,6 +593,14 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   every seed and under any interleaving; each change's CI reads its
   verdict from its tree, red once where `red_once`, so that its gates are
   the same at every seed.
+- **A producer's question to its party** is a person task, as jig's
+  workload asks one (`jig/docs/design/domain/testing-workloads.md`, 2):
+  where `asks`, the producer delegates one task to its goal's party's
+  person, and the party's report on that task is the answer, at once
+  unless an act says otherwise. A producer holds no reference to its
+  party's chat (the engine's references admit its requester, its
+  delegates and those it was introduced to), and the world wires no
+  introduction for it.
 - **Its streams:** the workload from `Workload`; the acts from `Parties`;
   the world's scheduling from `Scheduling`, part `system`; each injector
   from its `Faults` part.
