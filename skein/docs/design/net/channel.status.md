@@ -2,7 +2,6 @@
 
 2026-11-24. Where skein's code lags or departs from [channel.md](channel.md).
 
-- **Not yet:** 5.2: a responder accepting with a table of its own.
 
 
 - **Departs:** 8.3: four cells of `skein-channel/src/machine.rs` break "its
