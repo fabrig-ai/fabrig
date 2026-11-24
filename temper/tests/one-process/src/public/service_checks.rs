@@ -100,7 +100,7 @@ impl Judge {
             stopping: false,
             ready: false,
             project: None,
-            owners: super::owners::Walk::new(store),
+            owners: super::owners::Walk::new(store, name == super::owners::REVOKED),
             load: super::load::Walk::new(),
             abandoned: super::abandoned::Walk::new(),
             revocation: super::revocation::Walk::new(),
@@ -204,7 +204,7 @@ impl Judge {
             }
             if self.stage != usize::MAX {
                 match self.name.as_str() {
-                    "every_owner_version_and_kind_answers_as_declared" => {
+                    super::owners::DECLARED | super::owners::REVOKED => {
                         if self.owners.act(
                             now,
                             caller,
@@ -315,7 +315,7 @@ impl skein_world::Referee<Proc> for Judge {
         if self.name == "public_reads_past_the_limits_are_busy_while_signed_in_work_is_answered" && self.setup {
             self.ready = self.load.ready(visitor, &service.observer);
         }
-        if self.name == "every_owner_version_and_kind_answers_as_declared" && self.setup {
+        if matches!(self.name.as_str(), super::owners::DECLARED | super::owners::REVOKED) && self.setup {
             self.ready &= self.owners.ready(caller, visitor);
         }
 

@@ -145,6 +145,7 @@ instructions = 10_600_000_000
 [gate.default.skein.simulated]
 cpu_s = 3
 instructions = 48_100_000_000
+accepted_instructions = 39_800_000_000
 
 [gate.default.skein.real-loop]
 cpu_s = 7
@@ -187,6 +188,7 @@ instructions = 22_200_000_000
 [gate.default.smith.simulated]
 cpu_s = 11
 instructions = 73_200_000_000
+accepted_instructions = 84_200_000_000
 
 [gate.default.smith.real-loop]
 cpu_s = 2
@@ -375,12 +377,19 @@ cpu_s = 2
 
 [gate.default.hearth.simulated]
 instructions = 25_300_000_000
+accepted_instructions = 44_000_000_000
 
 [[gate.default.moves]]
 from = "hearth.real-loop"
 to = "hearth.simulated"
 cpu_s = 3.9
 why = "hearth-builder-world's tests that replay left its real-loop binary for a binary of their own (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "hearth.real-loop"
+to = "hearth.simulated"
+cpu_s = 3.0
+why = "hearth's builder render, diff, outcome, repository and store cases, 220, left its real and suite binaries for the simulated world (temper/docs/design/draft/slow-tests-down.md, 5.2); the user's figure of 2026-11-24."
 
 [gate.default.repository]
 ideal_s = 30

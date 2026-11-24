@@ -115,12 +115,12 @@ fn a_main_model_edit_preserves_the_remaining_choice() {
 }
 fn me_requiring_effort() -> c::Me {
     let mut me = me();
-    let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
-    model.efforts = List::with_capacity(2);
-    model.efforts.push(fixtures::acts::text(b"low")).unwrap();
-    model.efforts.push(fixtures::acts::text(b"high")).unwrap();
-    model.effort = Some(fixtures::acts::text(b"high"));
+    require_effort(me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap());
     me
+}
+fn require_effort(model: &mut c::MeModel) {
+    model.efforts = List::from_boxed(Box::new([fixtures::acts::text(b"low"), fixtures::acts::text(b"high")]));
+    model.effort = Some(fixtures::acts::text(b"high"));
 }
 fn effort_draft() -> (c::Me, Draft) {
     let me = me_requiring_effort();
@@ -339,6 +339,9 @@ fn preview(me: &mut c::Me, model: &[u8], effort: Option<&[u8]>) {
         List::from_boxed(Box::new([c::MeDefault { template: jig_client::shapes::CHAT, choice: chosen }]));
 }
 fn task_page() -> (crate::pages::Pages, jig_client::Client, c::Task) {
+    task_page_with_me(me())
+}
+fn task_page_with_me(me: c::Me) -> (crate::pages::Pages, jig_client::Client, c::Task) {
     let mut f = fixtures::chat::opened();
     let mut task = fixtures::chat::task();
     task.llm = Some(choice(b"first"));
@@ -357,10 +360,7 @@ fn task_page() -> (crate::pages::Pages, jig_client::Client, c::Task) {
         skein_lib::Time::ZERO,
         skein_lib::Wall::EPOCH,
         jig_client::Event::Up {
-            up: jig_client::Up::Watched {
-                watch: f.me,
-                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me()))),
-            },
+            up: jig_client::Up::Watched { watch: f.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
         },
         &mut Queue::uncapped(),
     );
@@ -401,6 +401,55 @@ fn one_press_on_a_task_sends_one_amendment() {
     let [c::Ask::Amend { task: number, change, .. }] = asks.as_ref() else { panic!("one amendment: {asks:?}") };
     assert_eq!(*number, task.chip.task);
     assert_eq!(change.llm.as_ref().unwrap().main.model.bytes(), b"second");
+}
+#[test]
+fn a_model_then_an_effort_press_send_one_amendment_each() {
+    let mut me = me();
+    require_effort(me.projects.get_mut(0).unwrap().models.get_mut(1).unwrap());
+    let (mut pages, client, task) = task_page_with_me(me);
+    let mut out = Queue::uncapped();
+    let env = fixtures::env(&fixtures::limits());
+    let task = task.chip.task;
+    for (edit, effort) in
+        [(Act::Model { index: 1, account: None }, b"high".as_slice()), (Act::Effort { index: 0 }, b"low")]
+    {
+        crate::pages::step(
+            &mut pages,
+            &env,
+            &client,
+            crate::pages::Event::Act { act: crate::pages::Act::Choice(edit) },
+            &mut out,
+        );
+        let Some(crate::pages::Request::Client(jig_client::Event::Send {
+            key,
+            request: jig_client::Ask::Jig(ask),
+            ..
+        })) = out.pop()
+        else {
+            panic!("the press sends an amendment");
+        };
+        assert!(out.is_empty(), "exactly one amendment per press");
+        let c::Ask::Amend { task: number, change, .. } = *ask else { panic!("amendment: {ask:?}") };
+        assert_eq!(number, task);
+        let amended = change.llm.expect("amended model choice");
+        assert_eq!(amended.main.model.bytes(), b"second");
+        assert_eq!(amended.main.effort.as_ref().expect("amended effort").bytes(), effort);
+
+        let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::Amended { task },
+        ))));
+        crate::pages::step(
+            &mut pages,
+            &env,
+            &client,
+            crate::pages::Event::Told { told: jig_client::Told::Answered { key, outcome: outcome.clone() } },
+            &mut out,
+        );
+        assert_eq!(pages.choice.pending, None);
+        assert_eq!(pages.choice.outcome, Some(outcome));
+        assert_eq!(pages.choice.requested, Some(amended));
+        assert!(out.is_empty(), "applying the answer sends nothing");
+    }
 }
 #[test]
 fn the_same_press_sends_nothing() {

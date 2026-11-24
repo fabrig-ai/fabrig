@@ -465,8 +465,8 @@ hands it its macOS tiers' runs. Linux's own tests are listed by name.
   540 CPU s. A plan compiles the walks and runs none; a red after landing
   is repaired by name, under `process-tier.md`'s rule.
 - **The two drivers' offline proofs, after landing** (`process-tier.md`, *Two drivers'
-  offline proofs*): the next after-landing run on main runs B0's setup
-  and twin walk and the managed sitting's Ready in profile
+  offline proofs*): the next after-landing run on main runs B0's twin
+  walk and the managed sitting's Ready in profile
   `process-temper` and reads their CPU against the tier's budgets; B0's
   twin serves its setup and walk for at most 700 s. The owner's next
   `scripts/proof-live-github-managed.sh fake` dry run proves the test as
