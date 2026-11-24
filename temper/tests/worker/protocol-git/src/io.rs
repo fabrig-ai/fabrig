@@ -31,7 +31,9 @@ impl Invocation {
         Self { word: word.into(), exit, stdout: stdout.into(), stderr: stderr.into(), fault: Fault::None }
     }
 }
-fn is_command(word: &[u8]) -> bool {
+/// Identify the git command word after the common settings.
+#[must_use]
+pub fn is_command(word: &[u8]) -> bool {
     !word.starts_with(b"-") && word != b"remote.origin.promisor=true"
 }
 #[derive(Debug, Default)]

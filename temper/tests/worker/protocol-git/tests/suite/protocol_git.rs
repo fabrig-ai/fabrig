@@ -4,9 +4,8 @@ use temper_worker_domain_checkout::git;
 use temper_worker_protocol_git::invocation::{self, Command};
 use temper_worker_protocol_git_world::{
     fixtures,
-    io::{Fault, IndexOverride, Invocation, Node},
+    io::{Fault, IndexOverride, Invocation, Node, is_command},
     referee::{Expected, Verdict},
-    transcripts::Transcript,
     world::{self, Stop},
 };
 
@@ -176,15 +175,9 @@ fn outputs_cut_at_random_and_past_each_cap_end_as_git_md_says() {
 }
 
 fn reply(op: &git::Op, command: &Command, stdout: &[u8]) -> Invocation {
-    let mut argv = b"git\n".to_vec();
-    for arg in invocation::arguments_for(op, command) {
-        argv.extend_from_slice(&arg);
-        argv.push(b'\n');
-    }
-    Invocation {
-        transcript: Transcript { argv: argv.into_boxed_slice(), exit: 0, stdout: stdout.into(), stderr: Box::new([]) },
-        fault: Fault::None,
-    }
+    let args = invocation::arguments_for(op, command);
+    let word = args.iter().skip(26).map(AsRef::as_ref).find(|word| is_command(word)).expect("scripted command");
+    Invocation::scripted(word, 0, stdout, b"")
 }
 
 #[test]
