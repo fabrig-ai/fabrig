@@ -271,8 +271,11 @@ pub const COMPOSED: Shape;
 - **The milestone:** a count `m` drawn in `milestone`; where `m` is 2 or
   more, the first `m` goals form a chain, each after the one before. Where
   a goal depends on another, its first change names the earlier goal's
-  last change in its `after` with chance one half: a change that waits on
-  another goal (P113's shape).
+  last change in its `after` with chance one half, P113's shape. A goal
+  after another starts only once that one has ended (its batch's
+  dependency, `temper/docs/design/domain/milestones.md`, 4), so the earlier goal's change has ended by the time this
+  `after` is made, and the change never waits on it: no world running
+  this draw makes a change wait on another goal (8.1).
 - **The train:** where `train` allows one, the last goal outside the
   milestone, or the milestone's last where every goal is in it, is the
   train goal, its changes a count drawn in `train`, at least 2; every
@@ -745,7 +748,6 @@ each world (`restarts.md`, 9). This goal adds:
 | `people_act_on_goals_at_any_step` | the engine's domain world | people and parties | `CANCELS_A_GOAL`, `CANCELS_A_CHANGE`, `CANCELS_A_LANDING`, `HOLDS_A_MEMBER`, `RELEASES_A_MEMBER`, `ANSWERS_LATE`, `NEVER_ANSWERS`, `ANSWERS_TWICE`, `ANSWERS_AN_ENDED_RUN`, `WORDS_TO_AN_ENDED_PRODUCER`, jig's `AMENDS_A_PASSED_DEADLINE` | `open::exclude`; jig's S15 exclusion |
 | `people_act_on_the_landing_train` | the engine's forge world | people and parties | `CANCELS_A_LANDING`, `HOLDS_A_MEMBER`, `RELEASES_A_MEMBER`, `CANCELS_A_CHANGE` | `open::exclude` |
 | `the_engines_tables_reach_their_bounds` | the engine's domain world | the engine's own bounds | `FORGE_WRITE_ENTRIES`, `FORGE_READ_ADMISSIONS`, `BRANCH_HOLDS`, `LANDING_ROWS` | `open::exclude` |
-| `changes_wait_on_other_goals` | the engine's domain world | runs that park, resume and move | `A_CHANGE_WAITS_ON_ANOTHER_GOAL` | `open::exclude` |
 | `a_restart_changes_no_outcome` | the engine's domain world | restarts, compared (section 7) | `temper_faults::restarts::ENGINE` | `open::exclude` |
 | `worker_runs_park_resume_and_move` | the worker's domain world | runs that park, resume and move | `DELIVERED_THEN_PARKED`, `RESUMED_ON_ANOTHER_WORKER` | none |
 | `the_workers_tables_reach_their_bounds` | the worker's domain world | the engine's own bounds | `WORKSPACES`, `PREPARE_PERMITS`, `PER_RUN_SCRATCH`, `RUN_SLOTS`, `BUILD_PLACES` | none |
@@ -762,6 +764,14 @@ each world (`restarts.md`, 9). This goal adds:
   configured: it is named, with why, in a comment beside its sweep's
   `configure` calls, as smith's sweeps name theirs
   (`smith/docs/design/faults.md`, 5), and the design's status says so.
+- **`A_CHANGE_WAITS_ON_ANOTHER_GOAL` takes no sweep:** the workload's
+  milestone starts a goal only once the goal it depends on has ended, so
+  the `after` its first change names on the earlier goal's change never
+  waits (3.1), and a draw that started the later goal while the earlier
+  lives would change what a milestone is. The kind stays in
+  `temper_faults::parks`, named by `open`'s P113 exclusion, whose ignored
+  scenario `a_change_waits_on_another_goal` makes the wait by hand; the
+  family's other kinds fall in the worker's sweep and jig's.
 - **A sweep's checks** are its world's as they stand, with `Ends` over
   every goal where the world runs goals, and its acts' expectations.
 

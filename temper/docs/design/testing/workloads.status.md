@@ -8,7 +8,7 @@
   `temper-workload`. [in flight: change 14969]
   4.1, 6: the engine's domain world's workload, its acts and its people's
   sweep. [in flight: change 14980]
-  8.1: the engine's domain world's bounds' and parks' sweeps.
+  8.1: the engine's domain world's bounds' sweep.
   [in flight: change 14998]
   7: the comparison in the engine's domain world. [in flight: change 14999]
   4.2: the parties' acts on the forge world's landing train.
