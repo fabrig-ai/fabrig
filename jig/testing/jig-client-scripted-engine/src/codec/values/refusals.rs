@@ -42,6 +42,15 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
         }
         c::Refusal::Role { held } => w::Refusal::Role(w::RefusalRole { held: (held).as_ref().map(wire_held_role) }),
         c::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken { by: *(by) }),
+        c::Refusal::QuestionAnswered { question, by } => w::Refusal::QuestionAnswered(w::RefusalQuestionAnswered {
+            question: *question,
+            by: match by {
+                c::QuestionAnswerer::Task(number) => w::QuestionAnswerer::Task(w::AnswererNumber { number: *number }),
+                c::QuestionAnswerer::Person(number) => {
+                    w::QuestionAnswerer::Person(w::AnswererNumber { number: *number })
+                }
+            },
+        }),
         c::Refusal::NotWaiting => w::Refusal::NotWaiting,
         c::Refusal::NoFurther => w::Refusal::NoFurther,
         c::Refusal::Authority { lacking, proposable } => {

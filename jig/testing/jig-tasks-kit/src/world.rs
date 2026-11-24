@@ -605,7 +605,11 @@ impl World {
                 None
             }
             Event::Turn { task, cumulative, .. }
-            | Event::Activation { task, cause: Cause::Priced { cumulative }, .. } => Some((*task, *cumulative)),
+            | Event::Activation {
+                task,
+                cause: Cause::Priced { cumulative } | Cause::Parked { cumulative: Some(cumulative) },
+                ..
+            } => Some((*task, *cumulative)),
             Event::Leave { .. }
             | Event::CloseProject { .. }
             | Event::Place { .. }
@@ -655,7 +659,7 @@ impl World {
             | Event::NowWritten { .. }
             | Event::RecordWords { .. }
             | Event::Refusals { .. }
-            | Event::Activation { cause: Cause::Unpriced, .. }
+            | Event::Activation { cause: Cause::Unpriced | Cause::Parked { cumulative: None }, .. }
             | Event::PreparationWaiting { .. }
             | Event::PreparationPaused { .. }
             | Event::PreparationCounted { .. }
