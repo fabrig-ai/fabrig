@@ -12,15 +12,22 @@ pub enum Verdict {
 pub struct Expected {
     done: Option<git::Done>,
     fault: Option<git::Fault>,
+    removed: Option<Box<[u8]>>,
 }
 impl Expected {
     #[must_use]
     pub fn done(done: git::Done) -> Self {
-        Self { done: Some(done), fault: None }
+        Self { done: Some(done), fault: None, removed: None }
     }
     #[must_use]
     pub fn fault(fault: git::Fault) -> Self {
-        Self { done: None, fault: Some(fault) }
+        Self { done: None, fault: Some(fault), removed: None }
+    }
+    /// For an operation with no background work, cleanup must finish before Done.
+    #[must_use]
+    pub fn after_remove(mut self, path: &[u8]) -> Self {
+        self.removed = Some(path.into());
+        self
     }
 }
 #[derive(Debug, Default)]
@@ -32,7 +39,7 @@ impl Referee {
     pub fn stop(&mut self, spawns: u32) {
         self.stopped_at = Some(spawns);
     }
-    pub fn observe(&mut self, event: Event, below: &Below, owner: Token) {
+    pub fn observe(&mut self, event: Event, below: &Below, owner: Token, expected: &Expected) {
         let (got, done) = match event {
             Event::Done { owner, done } => (owner, done),
             Event::Unswept { .. } => return,
@@ -41,6 +48,10 @@ impl Referee {
         assert_eq!(got, owner);
         assert!(self.terminals.is_empty(), "one terminal per operation");
         assert_eq!(below.closed_children, below.spawns, "all children closed before Done");
+        if let Some(path) = &expected.removed {
+            assert!(!below.tree.contains_key(path.as_ref()), "temporary file removed before Done: {path:?}");
+            assert!(below.file_completions_drained(), "cleanup completions drained before Done");
+        }
         self.check(below);
         self.terminals.push((got, done));
     }

@@ -1,10 +1,9 @@
 //! The domain-face disk faults, one translated operation at a time.
 use skein_lib::Token;
-use std::collections::BTreeMap;
 use temper_fake_checkout::{Checkout, git};
 use temper_worker_checkout_world::{
     forge::Forge,
-    translate::{commit, cut, perform, perform_with_capacity, used},
+    translate::{commit, cut, disk_snapshot as snapshot, perform, perform_with_capacity, used},
 };
 use temper_worker_domain_checkout::git::{Done, Fault, Into, Op, Place, Reds, Want};
 
@@ -78,12 +77,6 @@ fn advanced(forge: &mut Forge) -> u64 {
     forge.advance(b"forge/r", b"main", b"a", b"new a");
     forge.advance(b"forge/r", b"main", b"b", b"new b");
     forge.advance(b"forge/r", b"main", b"c", b"new c")
-}
-fn snapshot(disk: &Checkout) -> BTreeMap<Vec<u8>, (Vec<u8>, u64)> {
-    disk.files()
-        .into_iter()
-        .map(|(path, bytes)| (path.to_vec(), (bytes.to_vec(), disk.version(path).expect("file"))))
-        .collect()
 }
 fn pack_count(disk: &Checkout, directory: &[u8]) -> usize {
     disk.tree(&[directory, b"/objects/pack"].concat()).len()

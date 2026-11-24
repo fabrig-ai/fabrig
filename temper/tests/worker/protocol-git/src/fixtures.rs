@@ -88,6 +88,7 @@ pub fn copy_script(script: &Script) -> Script {
             })
             .collect(),
         exit_first: script.exit_first,
+        read_stdin_to_end: script.read_stdin_to_end,
         file_failure: script.file_failure,
         view_failure: script.view_failure,
     }
