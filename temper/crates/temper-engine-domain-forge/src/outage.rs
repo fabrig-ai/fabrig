@@ -134,7 +134,7 @@ pub(super) fn deadline(d: &Domain) -> Option<Time> {
     }
 }
 /// An explicit unavailable answer exempts this read until it answers again.
-pub(super) fn reading(d: &Domain, owner: Token) -> bool {
+pub(crate) fn reading(d: &Domain, owner: Token) -> bool {
     let Some(state) = &d.outage else { return false };
     match state.reads.get(&owner) {
         Some(reading) => reading.outage,

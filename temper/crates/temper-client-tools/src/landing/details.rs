@@ -175,6 +175,11 @@ pub(super) fn hold_text(value: &w::LandingHold, out: &mut Text) {
             out.put(b" timed out\n");
         }
         w::LandingHold::Turn => out.put(b"held: turn refused\n"),
+        w::LandingHold::Read(value) => {
+            out.put(b"held: ");
+            out.put(&value.reason);
+            out.put(b"\n");
+        }
     }
 }
 pub(super) fn train_json(value: Option<&w::Train>, out: &mut Encoder) {
@@ -332,6 +337,12 @@ pub(super) fn hold_json(value: &w::LandingHold, out: &mut Encoder) {
     match value {
         w::LandingHold::Prepare => out.string(b"prepare"),
         w::LandingHold::Turn => out.string(b"turn"),
+        w::LandingHold::Read(value) => {
+            out.object_start();
+            out.key(b"read");
+            out.string(&value.reason);
+            out.object_end();
+        }
         w::LandingHold::Record(value) => {
             out.object_start();
             out.key(b"record");

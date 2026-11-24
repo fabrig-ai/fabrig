@@ -15,19 +15,27 @@ fn quote(path: &Path) -> String {
 /// Installed before import; used by the box and the launcher's EXIT trap.
 /// An interrupted import is covered even if its reply never reached the driver.
 pub fn return_hook(binary: &Path, store: &Path, client: &Path, account: &Path) -> Result<(), String> {
-    write_hook(binary, store, client, account, false)
+    ReturnHook::compose(binary, store, client, account).install()
 }
 
 /// Install an export-only recovery hook for a fresh client, keeping later imports excluded.
 /// Installation shares the give-back lock and preserves terminal cleanup.
 pub fn recovery_hook(binary: &Path, store: &Path, client: &Path, account: &Path) -> Result<(), String> {
-    write_hook(binary, store, client, account, true)
+    ReturnHook::compose(binary, store, client, account).write(true)
 }
 
-fn write_hook(binary: &Path, store: &Path, client: &Path, account: &Path, recovering: bool) -> Result<(), String> {
-    let hook = store.join("give-back");
-    let body = format!(
-        r#"#!/bin/sh
+/// The give-back's destination and script, before installation takes the lock.
+pub struct ReturnHook {
+    pub path: std::path::PathBuf,
+    pub script: String,
+}
+
+impl ReturnHook {
+    #[must_use]
+    pub fn compose(binary: &Path, store: &Path, client: &Path, account: &Path) -> Self {
+        let path = store.join("give-back");
+        let script = format!(
+            r#"#!/bin/sh
 set -eu
 exec 9>{lock}
 {LOCK_FD_9}
@@ -39,14 +47,24 @@ if [ ! -e {account} ]; then
 fi
 /usr/bin/python3 -I -B -c 'import os,stat,sys; s=os.lstat(sys.argv[1]); ok=stat.S_ISREG(s.st_mode) and stat.S_IMODE(s.st_mode)==0o600 and s.st_size>0; ok and print(f"LOGIN BACK: regular file mode={{stat.S_IMODE(s.st_mode):o}} bytes={{s.st_size}} owner={{s.st_uid}}"); sys.exit(0 if ok else 1)' {account}
 "#,
-        account = quote(account),
-        binary = quote(binary),
-        client = quote(client),
-        lock = quote(&store.join("login.lock")),
-        terminal = quote(&store.join("terminal-return")),
-        returning = quote(&store.join("returning"))
-    );
-    install_hook(store, &hook, &body, recovering)
+            account = quote(account),
+            binary = quote(binary),
+            client = quote(client),
+            lock = quote(&store.join("login.lock")),
+            terminal = quote(&store.join("terminal-return")),
+            returning = quote(&store.join("returning"))
+        );
+        Self { path, script }
+    }
+
+    pub fn install(self) -> Result<(), String> {
+        self.write(false)
+    }
+
+    fn write(self, recovering: bool) -> Result<(), String> {
+        let store = self.path.parent().expect("store");
+        install_hook(store, &self.path, &self.script, recovering)
+    }
 }
 
 fn install_hook(store: &Path, hook: &Path, body: &str, recovering: bool) -> Result<(), String> {
@@ -83,23 +101,42 @@ fn install_hook(store: &Path, hook: &Path, body: &str, recovering: bool) -> Resu
 /// The import and return share exclusion, including a return after an interrupted reply.
 #[must_use]
 pub fn import_guard(binary: &Path, store: &Path, client: &Path, arguments: &[&str]) -> super::ctl::Call {
-    let wrapper = store.join("import-held");
-    let body = format!(
-        r#"#!/bin/sh
+    Import::compose(binary, store, client, arguments).write()
+}
+
+/// The import wrapper and its command, before opening the wrapper's destination.
+pub struct Import {
+    pub script: String,
+    pub call: super::ctl::Call,
+}
+
+impl Import {
+    #[must_use]
+    pub fn compose(binary: &Path, store: &Path, client: &Path, arguments: &[&str]) -> Self {
+        let wrapper = store.join("import-held");
+        let script = format!(
+            r#"#!/bin/sh
 set -eu
 exec 9>{lock}
 {LOCK_FD_9}
 test ! -e {returning} || exit 1
 exec {binary} ctl {client} "$@" </dev/null
 "#,
-        lock = quote(&store.join("login.lock")),
-        returning = quote(&store.join("returning")),
-        binary = quote(binary),
-        client = quote(client),
-    );
-    super::write_private(&wrapper, body.as_bytes());
-    fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700)).expect("executable import guard");
-    super::ctl::Call::command(&wrapper, arguments)
+            lock = quote(&store.join("login.lock")),
+            returning = quote(&store.join("returning")),
+            binary = quote(binary),
+            client = quote(client),
+        );
+        Self { script, call: super::ctl::Call::command(&wrapper, arguments) }
+    }
+
+    #[must_use]
+    pub fn write(self) -> super::ctl::Call {
+        let wrapper = self.call.program().expect("import wrapper path");
+        super::write_private(wrapper, self.script.as_bytes());
+        fs::set_permissions(wrapper, fs::Permissions::from_mode(0o700)).expect("executable import guard");
+        self.call
+    }
 }
 
 /// Each box returns the account before stopping, on success and failure alike.

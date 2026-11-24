@@ -5,6 +5,7 @@
 //! to the real kernel (runtime/kernel.md, 8).
 
 mod reach;
+mod read_back;
 
 use alloc::vec::Vec;
 

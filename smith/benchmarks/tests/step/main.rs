@@ -15,6 +15,7 @@ mod fault {
     mod tests;
 }
 mod failure_probes;
+mod files;
 mod large_effects;
 mod large_write_probe;
 mod offline;

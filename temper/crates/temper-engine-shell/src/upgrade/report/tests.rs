@@ -323,13 +323,18 @@ fn checking_an_empty_deployment_names_the_missing_generation() {
 #[test]
 fn going_back_on_an_empty_deployment_names_the_unreadable_directory() {
     let report = super::tests::report(Event::BackRefused { owner: Token::new(1), why: BackRefusal::Unreadable });
-    assert_eq!(
-        lines("temper-engine", &report, &directories(), b"/state"),
-        (concat!(
-            "temper-engine upgrade: the deployment could not be read; check its directory and permissions, or restore a backup\n",
-            "temper-engine upgrade: whole rehearsal/tool time: 1000000000 ns\n",
-        ).into(), 1)
-    );
+    for binary in ["temper-engine", "temper-box"] {
+        assert_eq!(
+            lines(binary, &report, &directories(), b"/state"),
+            (
+                format!(
+                    "{binary} upgrade: the deployment could not be read; check its directory and permissions, or restore a backup\n\
+                 {binary} upgrade: whole rehearsal/tool time: 1000000000 ns\n"
+                ),
+                1
+            )
+        );
+    }
 }
 
 #[test]

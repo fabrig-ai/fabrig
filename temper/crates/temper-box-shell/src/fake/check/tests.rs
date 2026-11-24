@@ -155,7 +155,7 @@ const DELETED: &[u8] =
     b"{\"observation\":\"deleted\",\"repository\":\"org/repo\",\"branch\":\"work\",\"at\":7,\"by\":2}\n";
 const MISSING: &str = "observations: no checkpoint";
 const REFUSED: &str = "line 1: decode: Refusal { variant: None, member: [111, 98, 115, 101, 114, 118, 97, 116, 105, 111, 110], reason: Json }";
-fn encoded(records: Records) -> Result<Vec<Vec<u8>>, String> {
+fn encoded(records: Records<File>) -> Result<Vec<Vec<u8>>, String> {
     records
         .map(|record| {
             let mut bytes = skein_lib::List::with_capacity(u32::try_from(DELETED.len()).expect("fixture line length"));
@@ -369,6 +369,106 @@ fn unreadable_store(path: &Path, errno: u8) -> Outcome {
         &[BOUNDARY, &diagnostic(&format!("opening {}: errno {errno}", path.display()))].concat(),
     )
 }
+#[test]
+fn check_run() {
+    use crate::serve::configured_agent_with;
+    use std::{cell::RefCell, collections::BTreeMap, io::Cursor};
+    use temper_config_shell::{Facts, Shape};
+    use temper_service::stock;
+
+    let root = Path::new("/fixture");
+    let directories = crate::directories::tests::given(root);
+    let data = crate::path(&directories.data);
+    let config = crate::path(&directories.config).join(temper_config_shell::FILE);
+    let agents = data.join("agents.setting");
+    let local = data.join("local.setting");
+    let check = Check { forge: 1, observations: root.join("observations"), store: root.join("copy") };
+    let copy = temper_agent_fixtures::Setting { figures: stock::agents(), providers: Box::new([]) }.bytes();
+    let inventory = BTreeMap::from([
+        (config.clone(), temper_config_shell::render(&crate::tests::configuration::file(), Shape::Standalone)),
+        (agents.clone(), copy),
+        (check.observations.clone(), START.into()),
+    ]);
+    let before = inventory.clone();
+    let reads = RefCell::new(Vec::new());
+    let mut log = Vec::new();
+    let actual = outcome_with(
+        &check,
+        || {
+            let read = temper_config_shell::read_with(
+                Shape::Standalone,
+                || {
+                    reads.borrow_mut().push(crate::path(&directories.config).join(temper_config_shell::FORMER));
+                    Err(std::io::Error::from_raw_os_error(2))
+                },
+                |bound| {
+                    reads.borrow_mut().push(config.clone());
+                    assert!(skein_lib::len_u64(inventory[&config].len()) <= u64::from(bound));
+                    Ok(inventory[&config].clone())
+                },
+                || Ok(Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false }),
+            )
+            .map_err(|why| why.to_string())?;
+            configuration_with(
+                &directories,
+                &read.into(),
+                |path| panic!("no configured executable: {}", path.display()),
+                |bytes, _| {
+                    configured_agent_with(
+                        bytes,
+                        &directories,
+                        &[],
+                        &mut log,
+                        |path, bound| {
+                            reads.borrow_mut().push(path.to_path_buf());
+                            let copy = inventory.get(path).cloned();
+                            assert!(copy.as_ref().is_none_or(|bytes| skein_lib::len_u64(bytes.len()) <= bound));
+                            Ok(copy)
+                        },
+                        || {
+                            Ok(stock::Given::Stock
+                                .with_providers(Box::new([]), Box::new([stock::scripted(crate::scripted::PREFERRED)])))
+                        },
+                        |part| {
+                            let bytes = crate::agent::figures::configuration(
+                                part.figures.as_ref().expect("box figures"),
+                                None,
+                                data,
+                                &part.environment,
+                            )?;
+                            crate::agent::prepare_bytes_with(bytes, &mut std::io::sink(), |_| Ok(()))
+                        },
+                    )
+                },
+            )
+        },
+        |path| {
+            reads.borrow_mut().push(path.to_path_buf());
+            Ok(Cursor::new(inventory[path].as_ref()))
+        },
+        |path, limits| {
+            run_store_with(path, StoreHost::new(limits.store), |root| {
+                reads.borrow_mut().push(root.to_path_buf());
+                Err(2)
+            })
+        },
+    );
+    assert_eq!(actual, unreadable_store(&check.store, 2));
+    assert!(log.is_empty(), "setting reads emit no fallback warnings: {log:?}");
+    assert_eq!(
+        reads.into_inner(),
+        [
+            crate::path(&directories.config).join(temper_config_shell::FORMER),
+            config,
+            agents,
+            local,
+            check.observations,
+            check.store,
+        ]
+    );
+    assert_eq!(inventory, before, "the check creates no data or cache entries and keeps agents.setting");
+}
+
 fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     let (agent, _) = crate::tests::configuration::documents(root, "/fixture/temper");
     fs::write(root.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");

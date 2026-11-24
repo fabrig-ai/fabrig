@@ -2,7 +2,10 @@
 use super::{Account, Environment, LoginOutcome, Source};
 use crate::settings::Settings;
 use skein_shell::Clock;
-use std::path::PathBuf;
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Decision {
@@ -55,10 +58,14 @@ pub(super) fn run(
     }
 }
 
-pub(super) fn remove_key(file: &std::path::Path) -> Result<(), String> {
-    match std::fs::remove_file(file) {
+fn remove_key(file: &Path) -> Result<(), String> {
+    remove_key_with(file, |file| std::fs::remove_file(file))
+}
+
+pub(super) fn remove_key_with(file: &Path, unlink: impl FnOnce(&Path) -> io::Result<()>) -> Result<(), String> {
+    match unlink(file) {
         Ok(()) => Ok(()),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(()),
         Err(_) => Err("cannot remove private key".into()),
     }
 }

@@ -164,6 +164,42 @@ fn the_drain_bound_cancels_a_run_still_in_its_turn() {
 }
 
 #[test]
+fn a_refused_take_up_save_rebuilds_from_the_assigned_start() {
+    use temper_worker_domain_world::whole::parts::{Fallback, fallback};
+    fallback(Fallback::RefusedSave).expect("world checks");
+}
+
+#[test]
+fn another_workstream_does_not_take_up_a_crashed_tree() {
+    use temper_worker_domain_world::whole::parts::{Fallback, fallback};
+    fallback(Fallback::OtherWorkstream).expect("world checks");
+}
+
+#[test]
+fn different_repositories_do_not_take_up_a_crashed_tree() {
+    use temper_worker_domain_world::whole::parts::{Fallback, fallback};
+    fallback(Fallback::DifferentRepositories).expect("world checks");
+}
+
+#[test]
+fn a_crashed_answer_resumes_in_its_saved_workspace() {
+    use temper_worker_domain_world::whole::parts::{InFlight, crashes};
+    crashes(InFlight::Answer).expect("world checks");
+}
+
+#[test]
+fn a_crashed_check_resumes_with_its_previous_results() {
+    use temper_worker_domain_world::whole::parts::{InFlight, crashes};
+    crashes(InFlight::Check).expect("world checks");
+}
+
+#[test]
+fn a_crashed_command_resumes_in_its_saved_workspace() {
+    use temper_worker_domain_world::whole::parts::{InFlight, crashes};
+    crashes(InFlight::Command).expect("world checks");
+}
+
+#[test]
 fn a_link_drain_saves_the_turn_and_stays_linked_after_every_acknowledgement() {
     let report = run(118, Case::LinkDrained).expect("world checks");
     assert_eq!((report.drains, report.cancellations, report.saves), (1, 0, 1));

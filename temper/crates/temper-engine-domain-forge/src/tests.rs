@@ -260,6 +260,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
+                read_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,
@@ -608,6 +609,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         Request::Call { call, op, .. } => (*call, op.clone()),
         Request::Resource { .. }
         | Request::LandingUnmade { .. }
+        | Request::LandingRead(_)
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
         | Request::MilestoneMarked { .. }
@@ -717,6 +719,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         }
         Request::Call { .. }
         | Request::LandingUnmade { .. }
+        | Request::LandingRead(_)
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
         | Request::MilestoneMarked { .. }
@@ -820,6 +823,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         Request::Call { op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings), .. } => {}
         Request::Call { .. }
         | Request::LandingUnmade { .. }
+        | Request::LandingRead(_)
         | Request::HoldDropped { .. }
         | Request::LinkNoted { .. }
         | Request::MilestoneMarked { .. }

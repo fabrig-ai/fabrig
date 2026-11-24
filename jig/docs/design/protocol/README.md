@@ -87,10 +87,10 @@ section 4. What is still open is listed in section 14.
    **service-testing.md**, the services' tests and worlds.
 3. **channel/README.md:** jig's channel between the engine and its workers, and
    where host tools' calls are decoded; **channel/wires.md**, the wires a
-   worker's opening states by version and layout, and what a version
-   mismatch costs; **channel/bridges.md**, how the channel speaks them
-   across versions: the engine's statement, terms, translation in its
-   components, and what cannot go down;
+   worker's opening states by layout and text, the engine's check, the
+   kinds' table and terms; **channel/layouts.md**, how the engine
+   converts between its layouts and a worker's, and what the worker's
+   cannot keep;
    **channel/owners.md**, bytes of other owners and where they are decoded;
    **channel/liveness.md**, liveness and flow control;
    **channel/worker-link.md**, the worker's link on each side;

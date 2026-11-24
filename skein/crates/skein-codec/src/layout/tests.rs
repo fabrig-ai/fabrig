@@ -289,6 +289,53 @@ fn dropping_whole_enum_refuses_before_between_and_after_kept_variants() {
     }
 }
 
+#[test]
+fn split_enum_conversion_uses_the_whole_plan_without_room_for_the_tag() {
+    let old = schema("record P { n: u8 } enum R { first: P, dropped, empty }", 1);
+    let new = schema("record P { n: u16 } enum R { empty, next was first: P }", 2);
+    let plan = Plan::between(Mode::Keep, &old, root(&old, None), &[], &new, root(&new, None), &[])
+        .expect("whole enumeration derives");
+    let mut work = Workspace::new();
+    let mut whole = Buffer::with_capacity(3);
+    let mut payload = Buffer::with_capacity(2);
+    assert_eq!(plan.convert_variant(0, &[1], &mut payload, &mut work), Err(Misconverted::Room));
+    assert!(work.fit(&plan));
+    for encoded in [&[0, 82][..], &[2][..]] {
+        let (&tag, body) = encoded.split_first().expect("tag precedes body");
+        plan.convert(encoded, &mut whole, &mut work).expect("whole value converts");
+        let (&target, rest) = whole.as_slice().split_first().expect("target tag precedes body");
+        let allocations = skein_heap::Span::start();
+        assert_eq!(plan.convert_variant(tag, body, &mut payload, &mut work), Ok(target));
+        assert_eq!(allocations.made(), 0);
+        assert_eq!(plan.variant_tag(tag), Ok(target));
+        assert_eq!(payload.as_slice(), rest);
+    }
+    assert_eq!(plan.variant_tag(0), Ok(1));
+    assert_eq!(plan.variant_tag(2), Ok(0));
+    assert_eq!(plan.variant_tag(3), Err(Misconverted::Tag));
+    assert_eq!(plan.convert_variant(3, &[], &mut payload, &mut work), Err(Misconverted::Tag));
+    let Misconverted::Refused(index) = plan.variant_tag(1).expect_err("the target lacks this variant") else {
+        panic!("expected an indexed refusal");
+    };
+    assert_eq!(plan.refusal(index), Some((Refused::Variant, "R", "dropped")));
+    assert_eq!(plan.convert_variant(1, &[], &mut payload, &mut work), Err(Misconverted::Refused(index)));
+    assert_eq!(plan.convert_variant(0, &[82], &mut Buffer::with_capacity(1), &mut work), Err(Misconverted::Room));
+    assert_eq!(plan.convert_variant(0, &[], &mut payload, &mut work), Err(Misconverted::Short));
+    assert_eq!(plan.convert_variant(2, &[82], &mut payload, &mut work), Err(Misconverted::Trailing));
+    let variant =
+        Plan::between(Mode::Read, &old, root(&old, Some(b"first")), &[], &new, root(&new, Some(b"next")), &[])
+            .expect("single variant derives");
+    assert_eq!(variant.variant_tag(0), Err(Misconverted::Tag));
+    assert_eq!(variant.convert_variant(0, &[82], &mut payload, &mut work), Err(Misconverted::Tag));
+
+    let identity =
+        Plan::between(Mode::Read, &old, root(&old, None), &[], &old, root(&old, None), &[]).expect("identity derives");
+    assert!(identity.keeps() && work.fit(&identity));
+    assert_eq!(identity.convert_variant(0, &[82], &mut payload, &mut work), Ok(0));
+    assert_eq!(payload.as_slice(), &[82]);
+    assert_eq!(identity.convert_variant(3, &[], &mut payload, &mut work), Err(Misconverted::Tag));
+}
+
 fn check_refusal(p: &Plan, wire: &[u8], prefix: &[u8], why: (Refused, &str, &str)) {
     let mut work = Workspace::new();
     assert!(work.fit(p));

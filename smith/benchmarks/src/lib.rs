@@ -7,7 +7,8 @@
 
 mod bundle;
 mod check;
-mod formats;
+pub mod files;
+pub mod formats;
 mod judgment;
 mod models;
 mod passive;
@@ -43,26 +44,26 @@ pub mod process;
 
 pub mod grade;
 
-pub use agent::{Agent, Configuration, PinnedConfiguration, Provider, read_configuration};
-pub use models::{ModelChoice, ModelTiers, read_model_tiers};
+pub use agent::{Agent, Configuration, PinnedConfiguration, Provider, read_configuration, read_configuration_with};
+pub use models::{ModelChoice, ModelTiers, read_model_tiers, read_model_tiers_with};
 pub use result::{
     Artifact, AttemptResult, BudgetLimit, CheckVerdict, Child, ChildStop, Clamp, Classification, Counts, Delegation,
     End, Exit, FailureReason, Forced, Headroom, Health, Identity, Measure, ModelIdentity, Outcome, RESULT_VERSION,
     Requested, ResourceScope, Resources, Share, ShareBound, SharePart, SmithFace, Spend, SpendBasis, TimeRecord,
-    Timing, classify_smith_exit, parse_result, read_result, render_result,
+    Timing, classify_smith_exit, parse_result, read_result, read_result_with, render_result,
 };
 pub use stats::{
     Comparison, Interval, LargeEffect, ProbeVerdict, audit_sample, bootstrap_ratio, coefficient_of_variation,
     interleave, large_effect, median, minimum_detectable_effect, pass_interval, probe_verdict,
 };
 pub use suite::{
-    Arm, CatalogueTask, Design, GuardSelection, Selection, Suite, SuiteAgent, catalogue, choose_guards,
-    choose_guards_with_costs, include, read_suite, validate_suite,
+    Arm, CatalogueTask, Design, GuardSelection, Selection, Suite, SuiteAgent, catalogue, catalogue_with, choose_guards,
+    choose_guards_with_costs, include, read_suite, read_suite_with, validate_suite,
 };
 pub use summary::{
     ArmSummary, AttemptRow, BASELINE_VERSION, Baseline, MetricSummary, PassCounts, PeakScope, RunSummary,
-    SUMMARY_VERSION, SummaryComparison, baseline, baseline_group, committed_costs, read_baseline, read_results,
-    read_summary, summarise, write_summary,
+    SUMMARY_VERSION, SummaryComparison, baseline, baseline_group, committed_costs, read_baseline, read_baseline_with,
+    read_results, read_results_with, read_summary, read_summary_with, summarise, write_summary, write_summary_with,
 };
 pub use tokens::{Convention, ResponseTokens, ScopeKind, TokenCounts, TokenLedger, TokenRecord, Usage};
 
@@ -70,9 +71,13 @@ pub use judgment::{Judgment, judge, judge_suite};
 
 pub use passive::{HeadroomOf, Passive};
 
-pub use bundle::{BundleCheck, BundleManifest, Pin, check_bundle, read_bundle_manifest, seed_source};
+pub use bundle::{
+    BundleCheck, BundleManifest, Pin, check_bundle, check_bundle_with, read_bundle_manifest, read_bundle_manifest_with,
+    seed_source, seed_source_with,
+};
 pub use check::{
-    ManifestCounts, check_benchmark_tree, check_benchmark_tree_with_bundles, check_task, check_tree, seed_digest,
+    ManifestCounts, check_benchmark_tree, check_benchmark_tree_with, check_benchmark_tree_with_bundles, check_task,
+    check_task_with, check_tree, check_tree_with, seed_digest, seed_digest_with,
 };
 pub use task::{
     Before, Budget, Calibration, Count, Estimate, EventCheck, Grade, Kind, OutcomeCheck, Refusal, Task, Variant,

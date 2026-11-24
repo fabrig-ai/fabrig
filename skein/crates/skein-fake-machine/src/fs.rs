@@ -104,6 +104,12 @@ pub enum Is {
 /// One entry a `list` hands back: what it is, and its name.
 pub type Listed = (Is, Box<[u8]>);
 
+/// The opaque identity of a node within a machine. Names and handles may
+/// change without changing it, and a node that survives a crash keeps it.
+/// A newly made node has a different identity, even at the same name.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Node(NodeId);
+
 /// What `stat` finds of something open.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Facts {
@@ -220,7 +226,7 @@ impl Item {
 type NodeId = u64;
 
 #[derive(Clone, Debug, Hash)]
-pub(crate) struct Node {
+pub(crate) struct NodeState {
     owner: u32,
     body: Body,
     /// Owner or other bits are checked against the configured effective user.
@@ -271,8 +277,8 @@ struct Found {
 /// The fake filesystem. See the crate documentation.
 #[derive(Debug, Hash)]
 pub struct Machine {
-    pub(crate) nodes: BTreeMap<NodeId, Node>,
-    durable_nodes: BTreeMap<NodeId, Node>,
+    pub(crate) nodes: BTreeMap<NodeId, NodeState>,
+    durable_nodes: BTreeMap<NodeId, NodeState>,
     pending_writes: BTreeMap<NodeId, Vec<(u64, Vec<u8>)>>,
     pending_dirs: BTreeSet<NodeId>,
     /// New second names wait for their target directory to be synced.
@@ -304,7 +310,7 @@ impl Machine {
     /// A filesystem whose newly created nodes belong to this effective user.
     #[must_use]
     pub fn for_user(effective_user: u32) -> Machine {
-        let top = Node {
+        let top = NodeState {
             owner: effective_user,
             body: Body::Directory { entries: BTreeMap::new(), removed: false },
             mode: NEW_DIRECTORY,
@@ -368,7 +374,7 @@ impl Machine {
                     let found =
                         self.resolve(root, target, false, true).expect("a laid hard-link target beneath its root");
                     let node = found.node.expect("a hard-link target is laid first");
-                    assert!(matches!(self.node(node).body, Body::File(_)), "hard links name regular files");
+                    assert!(matches!(self.node_state(node).body, Body::File(_)), "hard links name regular files");
                     let previous = self.entries_mut(parent).insert(Box::from(last), node);
                     assert!(previous.is_none(), "a new hard-link name");
                     let node = self.node_mut(node);
@@ -404,7 +410,7 @@ impl Machine {
     /// The bytes of the file `file` has open from `at`, `len` at most:
     /// fewer at its end, none past it.
     pub fn read(&self, file: Opened, at: u64, len: u32) -> Result<Vec<u8>, Refusal> {
-        let bytes = match &self.node(self.handle(file).node).body {
+        let bytes = match &self.node_state(self.handle(file).node).body {
             Body::File(bytes) => bytes,
             Body::Directory { .. } => return Err(Refusal::IsADirectory),
             Body::Link(_) | Body::Special(_) => fail("a handle is never to a link, a FIFO or a device"),
@@ -438,7 +444,7 @@ impl Machine {
 
     /// Writes each piece whole at the file's current end, preserving earlier bytes.
     pub fn append(&mut self, file: Opened, bytes: &[u8]) -> Result<(), Refusal> {
-        let at = match &self.node(self.handle(file).node).body {
+        let at = match &self.node_state(self.handle(file).node).body {
             Body::File(contents) => skein_lib::len_u64(contents.len()),
             Body::Directory { .. } | Body::Link(_) | Body::Special(_) => fail("only a file is opened to append"),
         };
@@ -453,7 +459,7 @@ impl Machine {
         {
             Rc::make_mut(contents).shrink_to_fit();
         }
-        let node = self.node(id).clone();
+        let node = self.node_state(id).clone();
         match node.body {
             Body::File(_) => {
                 self.pending_writes.remove(&id);
@@ -514,7 +520,7 @@ impl Machine {
         }
         self.crash_moves(&mut surviving, &mut rng);
         for ((dir, name), linked) in &self.pending_links {
-            if let Some(Node { body: Body::Directory { entries, .. }, .. }) = surviving.get_mut(dir)
+            if let Some(NodeState { body: Body::Directory { entries, .. }, .. }) = surviving.get_mut(dir)
                 && entries.get(name) == Some(linked)
             {
                 let previous = self.durable_nodes.get(dir).and_then(|node| match &node.body {
@@ -545,10 +551,26 @@ impl Machine {
         self.issue(node, How::Directory)
     }
 
+    /// The identity of the node `handle` has open.
+    #[must_use]
+    pub fn node(&self, handle: Opened) -> Node {
+        Node(self.handle(handle).node)
+    }
+
+    /// A copy of the target bytes of a link opened with [`How::PathNoFollow`],
+    /// without resolving them. Returns `None` if `handle` names another kind of node.
+    #[must_use]
+    pub fn link_target(&self, handle: Opened) -> Option<Vec<u8>> {
+        match &self.node_state(self.handle(handle).node).body {
+            Body::Link(target) => Some(target.to_vec()),
+            Body::File(_) | Body::Directory { .. } | Body::Special(_) => None,
+        }
+    }
+
     /// What `file` has open: kind, size, permissions, owner and current links.
     #[must_use]
     pub fn stat(&self, file: Opened) -> Facts {
-        let node = self.node(self.handle(file).node);
+        let node = self.node_state(self.handle(file).node);
         let mode = node.mode;
         let owner = node.owner;
         let links = node.links;
@@ -558,6 +580,17 @@ impl Machine {
             Body::Link(target) => Facts { is: Is::Link, size: skein_lib::len_u64(target.len()), mode, owner, links },
             Body::Special(is) => Facts { is: *is, size: 0, mode, owner, links },
         }
+    }
+
+    /// Set the permission bits of an owned node for direct machine users.
+    /// The mode is durable once the file or directory is synced.
+    pub fn set_permissions(&mut self, file: Opened, mode: u32) -> Result<(), Refusal> {
+        let id = self.handle(file).node;
+        if self.node_state(id).owner != self.owner {
+            return Err(Refusal::Permission);
+        }
+        self.node_mut(id).mode = mode & 0o7777;
+        Ok(())
     }
 
     /// Moves the entry `from` of the directory `from_dir` has open to the
@@ -645,7 +678,7 @@ impl Machine {
         }
         if self.is_directory(source)
             || !self.may(to_dir, WRITE)
-            || (self.node(source).owner != self.owner && !self.may(source, READ | WRITE))
+            || (self.node_state(source).owner != self.owner && !self.may(source, READ | WRITE))
         {
             return Err(Refusal::Permission);
         }
@@ -700,7 +733,7 @@ impl Machine {
         assert!(usize::try_from(room).is_ok_and(|room| room >= LONGEST_NAME), "a list has room for any name");
         let handle = self.handle(dir);
         let (node, after) = (handle.node, handle.listed.clone());
-        let entries = match &self.node(node).body {
+        let entries = match &self.node_state(node).body {
             Body::Directory { removed: true, .. } => return Err(Refusal::NotFound),
             Body::Directory { entries, removed: false } => entries,
             Body::File(_) => return Err(Refusal::NotADirectory),
@@ -803,7 +836,7 @@ impl Machine {
                 if dir == root {
                     return Err(Refusal::Escape);
                 }
-                dir = self.node(dir).parent.expect("a directory beneath a root has a parent");
+                dir = self.node_state(dir).parent.expect("a directory beneath a root has a parent");
                 continue;
             }
             if last && create && slash {
@@ -823,7 +856,7 @@ impl Machine {
                     Err(Refusal::NotFound)
                 };
             };
-            match &self.node(node).body {
+            match &self.node_state(node).body {
                 Body::Link(_) if no_follow && path_only && last && !slash => {
                     return Ok(Found { parent: dir, name: Some(name), node: Some(node), slash });
                 }
@@ -887,7 +920,7 @@ impl Machine {
             if here == dir {
                 return true;
             }
-            at = self.node(here).parent;
+            at = self.node_state(here).parent;
         }
         false
     }
@@ -915,7 +948,7 @@ impl Machine {
         }
         self.durable_nodes.insert(
             id,
-            Node {
+            NodeState {
                 owner: self.owner,
                 body: durable_body,
                 mode: mode & PERMISSIONS,
@@ -926,7 +959,7 @@ impl Machine {
         );
         self.nodes.insert(
             id,
-            Node { owner: self.owner, body, mode: mode & PERMISSIONS, parent: parent_of, named: true, links },
+            NodeState { owner: self.owner, body, mode: mode & PERMISSIONS, parent: parent_of, named: true, links },
         );
         let previous = self.entries_mut(parent).insert(name, id);
         assert!(previous.is_none(), "a name is made only where none is");
@@ -961,7 +994,7 @@ impl Machine {
 
     /// Forgets `node` if no name and no handle has it.
     fn release(&mut self, node: NodeId) {
-        if self.node(node).named {
+        if self.node_state(node).named {
             return;
         }
         for handle in self.handles.values() {
@@ -988,11 +1021,11 @@ impl Machine {
         self.handles.get(&handle.raw()).expect("the handle was checked")
     }
 
-    fn node(&self, node: NodeId) -> &Node {
+    fn node_state(&self, node: NodeId) -> &NodeState {
         self.nodes.get(&node).expect("a node the machine holds")
     }
 
-    fn node_mut(&mut self, node: NodeId) -> &mut Node {
+    fn node_mut(&mut self, node: NodeId) -> &mut NodeState {
         self.nodes.get_mut(&node).expect("a node the machine holds")
     }
 
@@ -1005,14 +1038,14 @@ impl Machine {
     }
 
     fn lookup(&self, dir: NodeId, name: &[u8]) -> Option<NodeId> {
-        match &self.node(dir).body {
+        match &self.node_state(dir).body {
             Body::Directory { entries, .. } => entries.get(name).copied(),
             Body::File(_) | Body::Link(_) | Body::Special(_) => None,
         }
     }
 
     fn is(&self, node: NodeId) -> Is {
-        match self.node(node).body {
+        match self.node_state(node).body {
             Body::File(_) => Is::File,
             Body::Directory { .. } => Is::Directory,
             Body::Link(_) => Is::Link,
@@ -1025,14 +1058,14 @@ impl Machine {
     }
 
     fn removed(&self, node: NodeId) -> bool {
-        match self.node(node).body {
+        match self.node_state(node).body {
             Body::Directory { removed, .. } => removed,
             Body::File(_) | Body::Link(_) | Body::Special(_) => false,
         }
     }
 
     fn has_entries(&self, node: NodeId) -> bool {
-        match &self.node(node).body {
+        match &self.node_state(node).body {
             Body::Directory { entries, .. } => !entries.is_empty(),
             Body::File(_) | Body::Link(_) | Body::Special(_) => false,
         }
@@ -1040,7 +1073,7 @@ impl Machine {
 
     /// Whether the owner may do all of `bits` to `node`.
     fn may(&self, node: NodeId, bits: u32) -> bool {
-        let node = self.node(node);
+        let node = self.node_state(node);
         let shift = if node.owner == self.owner { 6_u32 } else { 0_u32 };
         (node.mode >> shift) & bits == bits
     }
@@ -1081,7 +1114,7 @@ fn fail(what: &str) -> ! {
 
 // Crash recovery follows the surviving namespace, rather than a stale inode
 // copy from before an unlink or directory move.
-fn recover_links(nodes: &mut BTreeMap<NodeId, Node>) {
+fn recover_links(nodes: &mut BTreeMap<NodeId, NodeState>) {
     let mut counts = BTreeMap::<NodeId, u32>::new();
     for (&id, node) in nodes.iter() {
         if let Body::Directory { removed, .. } = &node.body {

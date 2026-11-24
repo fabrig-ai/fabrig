@@ -18,6 +18,10 @@ skein-sim-world.workspace = true
 skein-fake-checkout.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
+skein-sim.workspace = true
+temper-box-shell.workspace = true
+temper-fake.workspace = true
 skein-fake-machine = { path = "../../../skein/crates/skein-fake-machine" }
 skein-fake-forge-domain.workspace = true
 skein-fake-peers.workspace = true

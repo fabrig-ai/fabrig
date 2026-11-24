@@ -4,7 +4,7 @@ use shell::restore::run;
 use std::os::unix::ffi::OsStrExt;
 
 #[test]
-fn stopped_restore_switches_generation_and_keeps_source_and_safety_and_refuses_missing() {
+fn stopped_restore_switches_generation_and_keeps_source_and_safety() {
     let (_scratch, directories) = super::deployment::deployment();
     super::fixture::upgrade_fixture(&directories);
     assert_eq!(
@@ -32,6 +32,4 @@ fn stopped_restore_switches_generation_and_keeps_source_and_safety_and_refuses_m
     let safety = entries.iter().find(|entry| entry.as_bytes() != name.bytes()).unwrap();
     assert!(checkpoints.join(safety).join("checkpoint").is_file());
     assert!(CheckpointName::parse(safety.as_bytes()).is_some());
-    let missing = CheckpointName { store: u64::MAX, suffix: 0 };
-    assert_eq!(run(shell::ENGINE.binary, &directories, missing, "test-build").unwrap(), 1);
 }

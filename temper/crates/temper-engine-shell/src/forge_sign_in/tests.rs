@@ -3,6 +3,9 @@ use crate::configuration_tests::read_scripted;
 use crate::test_configuration as configuration;
 use temper_service_shell::jig_directories;
 
+mod credentials;
+mod sources;
+
 #[test]
 fn a_public_client_refuses_before_creating_any_file() {
     use crate::forge;

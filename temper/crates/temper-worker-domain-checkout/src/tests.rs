@@ -1,5 +1,7 @@
 //! Feed the domain events, inspect the requests that come out.
 
+mod kept;
+
 use alloc::boxed::Box;
 
 use skein_lib::bytes::copy_of;
@@ -40,6 +42,7 @@ fn merge_spec() -> Spec {
 /// The domain, its environment and its output queue.
 struct Harness {
     observe_reds: bool,
+    observe_marks: bool,
     domain: Domain,
     env: Env<Limits>,
     out: Queue<Request>,
@@ -50,6 +53,7 @@ impl Harness {
         assert!(valid(&limits), "the test limits are valid");
         Harness {
             observe_reds: false,
+            observe_marks: false,
             domain: Domain::new(&limits),
             env: Env { now: NOW, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -185,12 +189,23 @@ impl Harness {
 
     /// Unrelated stories settle the optional prepare files immediately; the reds story observes them.
     fn prepare_files(&mut self) {
-        if self.observe_reds {
-            return;
-        }
         let mut kept = Queue::uncapped();
         while let Some(request) = self.out.pop() {
-            if let Request::Io { owner, op: Op::Reds { action: crate::git::Reds::Prepare { .. }, .. }, .. } = request {
+            let mark = if let Request::Io { op: Op::Keep { mark, .. }, .. } = &request {
+                !self.observe_marks
+                    && match mark {
+                        Some(mark) => mark.state == crate::git::KeptState::Held,
+                        None => true,
+                    }
+            } else {
+                false
+            };
+            if let Request::Io { owner, op: Op::Reds { action: crate::git::Reds::Prepare { .. }, .. }, .. } = request
+                && !self.observe_reds
+            {
+                step(&mut self.domain, &self.env, Event::Done { owner, done: Done::Succeeded }, &mut self.out);
+            } else if mark {
+                let Request::Io { owner, .. } = request else { unreachable!() };
                 step(&mut self.domain, &self.env, Event::Done { owner, done: Done::Succeeded }, &mut self.out);
             } else {
                 kept.push(request);
@@ -954,7 +969,18 @@ fn a_push_commits_the_tree_on_its_start_and_pushes_it_to_the_push_branch() {
         }
     );
     let told = Tally { landed: 1, moved: 0, failed: 0, refused: 0, unchanged: 1, aborted: 0 };
-    assert_eq!(h.facts().last(), Some(&Fact::Pushed { client: Token::new(1), to: Target::Push, tally: told }));
+    let facts = h.facts();
+    assert_eq!(
+        facts.as_slice().get(facts.as_slice().len().saturating_sub(3)..),
+        Some(
+            [
+                Fact::Pushed { client: Token::new(1), to: Target::Push, tally: told },
+                Fact::Started { client: Token::new(1), op: Kind::Keep },
+                Fact::Ended { client: Token::new(1), done: crate::Ending::Succeeded },
+            ]
+            .as_slice()
+        )
+    );
 }
 
 #[test]

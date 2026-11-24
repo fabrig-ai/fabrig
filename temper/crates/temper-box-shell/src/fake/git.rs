@@ -48,7 +48,9 @@ fn start(
     Ok((git, kernel))
 }
 
-fn invocation(
+/// Build the invocation from the process facts, beneath the supplied root.
+#[must_use]
+pub fn invocation(
     arguments: &[Box<[u8]>],
     program: &[u8],
     environment: &[EnvironmentEntry],

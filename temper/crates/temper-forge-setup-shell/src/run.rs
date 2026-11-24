@@ -1,8 +1,12 @@
 //! A run holds its lock across admission and hands it to the final process.
 use crate::{command, process};
+use skein_lib::Secret;
 use std::io;
+use std::path::Path;
 use temper_forge_setup::{
+    prepare::Ran,
     run::{self, Launch, Refusal},
+    spec::Spec,
     state,
 };
 /// A run returns only when its process did not start.
@@ -16,13 +20,27 @@ pub enum Failed {
     Exec(io::Error),
 }
 pub(crate) fn checked(limits: &skein_io::Limits, launch: &Launch) -> Result<process::Lock, Failed> {
-    let lock = process::lock(crate::path(&launch.lock)).map_err(|why| match why {
+    checked_with(
+        launch,
+        process::lock,
+        |path, bound| skein_shell::read_private_file(path, bound, skein_shell::effective_user()),
+        |spec| command::run_one(limits, spec),
+    )
+}
+
+/// Admits a run in lock, record, then binary order without starting its process.
+pub fn checked_with<L>(
+    launch: &Launch,
+    lock: impl FnOnce(&Path) -> Result<L, process::Refused>,
+    read_private: impl FnOnce(&Path, u32) -> Result<Secret, skein_shell::Unread>,
+    capture: impl FnOnce(&Spec) -> Result<Ran, command::Error>,
+) -> Result<L, Failed> {
+    let lock = lock(crate::path(&launch.lock)).map_err(|why| match why {
         process::Refused::Held => Failed::Locked,
         process::Refused::Io(io::ErrorKind::NotFound) => Failed::Refused(Refusal::NotPrepared),
         process::Refused::Io(why) => Failed::Lock(why),
     })?;
-    let bytes = match skein_shell::read_private_file(crate::path(&launch.state), 1 << 20, skein_shell::effective_user())
-    {
+    let bytes = match read_private(crate::path(&launch.state), 1 << 20) {
         Ok(bytes) => Some(bytes),
         Err(skein_shell::Unread::Absent) => None,
         Err(_) => return Err(Failed::State("cannot be read as a private file")),
@@ -33,17 +51,20 @@ pub(crate) fn checked(limits: &skein_io::Limits, launch: &Launch) -> Result<proc
         .transpose()
         .map_err(|_| Failed::State("cannot be decoded"))?;
     run::admit_state(launch, state.as_ref()).map_err(Failed::Refused)?;
-    let ran = command::run_one(limits, &launch.version).map_err(Failed::Version)?;
-    let line = ran.stdout.expose().split(|b| *b == b'\n').next().unwrap_or_default();
-    run::admit_binary(launch, &String::from_utf8_lossy(line.strip_suffix(b"\r").unwrap_or(line)))
-        .map_err(Failed::Refused)?;
+    let ran = capture(&launch.version).map_err(Failed::Version)?;
+    run::admit_binary(launch, &command::first_line(&ran)).map_err(Failed::Refused)?;
     Ok(lock)
 }
 /// Locks, checks and execs, returning only a failure.
 #[must_use]
 pub fn run(limits: &skein_io::Limits, launch: &Launch) -> Failed {
-    match checked(limits, launch) {
-        Ok(lock) => Failed::Exec(process::exec(&launch.exec, lock)),
+    run_with(|| checked(limits, launch), |lock| process::exec(&launch.exec, lock))
+}
+
+/// Keeps the admitted lock in the final exec's hands; a refused admission never execs.
+pub fn run_with<L>(checked: impl FnOnce() -> Result<L, Failed>, exec: impl FnOnce(L) -> io::Error) -> Failed {
+    match checked() {
+        Ok(lock) => Failed::Exec(exec(lock)),
         Err(why) => why,
     }
 }

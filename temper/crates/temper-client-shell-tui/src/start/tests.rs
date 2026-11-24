@@ -555,6 +555,36 @@ fn staged(moved: &[&str]) -> Disk {
 }
 
 #[test]
+fn origin_directories_keep_components_private_and_unshortened() {
+    // The longest DNS name, including the dots between its labels.
+    let longest = ["a".repeat(63), "b".repeat(63), "c".repeat(63), "d".repeat(61)].join(".");
+    for (origin, relative) in [
+        (origin(), "at/127.0.0.1/8367".to_owned()),
+        (Origin::Http("[::1]:8367".parse().expect("IPv6")), "at/::1/8367".to_owned()),
+        (Origin::Https { name: b"dev.fabrig.ai".as_slice().into(), port: 443 }, "at/dev.fabrig.ai/443".to_owned()),
+        (Origin::Https { name: longest.as_bytes().into(), port: 443 }, format!("at/{longest}/443")),
+    ] {
+        let mut disk = Disk::new(&[]);
+        let root = Path::new("tui");
+        let expected = root.join(relative);
+        assert_eq!(disk.prepare(&origin), (expected.clone(), true));
+        for path in [expected.as_path(), expected.parent().expect("host"), &root.join("at")] {
+            assert_eq!(disk.mode(path) & 0o777, 0o700, "{}", path.display());
+        }
+        assert!(!disk.prepare(&origin).1);
+    }
+}
+
+#[test]
+fn origin_directories_refuse_a_public_or_linked_parent() {
+    for parent in [Item::directory(b"tui/at").mode(0o755), Item::link(b"tui/at", b".")] {
+        let mut disk = Disk::new(&[parent]);
+        let result = super::deployment::prepare_with(Path::new("tui"), &origin(), USER, &mut disk);
+        assert!(result.is_err());
+    }
+}
+
+#[test]
 fn flat_files_move_only_with_both_matching_witnesses() {
     let mut disk = flat(Some(SAVED), true);
     let (destination, made) = disk.prepare(&origin());
