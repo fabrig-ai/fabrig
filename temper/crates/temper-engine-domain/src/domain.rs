@@ -520,7 +520,7 @@ impl Domain {
         );
         forge_config.namespace = Box::from(config.core.deployment);
         let mut forge = forge::Domain::new(
-            &limits.forge,
+            &crate::translate::forge_limits(limits),
             config.core.seed,
             forge_config,
             &config.identities,
@@ -1647,7 +1647,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     );
     forge_config.namespace = Box::from(config.core.deployment);
     let Ok(_forge) = forge::Domain::new(
-        &limits.forge,
+        &crate::translate::forge_limits(limits),
         config.core.seed,
         forge_config,
         &config.identities,

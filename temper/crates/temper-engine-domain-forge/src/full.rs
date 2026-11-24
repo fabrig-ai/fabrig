@@ -121,6 +121,30 @@ pub(crate) fn update(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
     advance(d, env, FullKind::ReadAdmission, reads_full, out);
     crate::domain::catching_up::advance(d, env, out);
 }
+/// The writer of the earliest reservation that still holds outbox room.
+pub(crate) fn oldest_reservation(d: &Domain) -> Option<u64> {
+    let mut oldest: Option<(u64, u64)> = None;
+    for (reservation, (order, task)) in &d.full.reservations {
+        let live = match reservation {
+            Reservation::Asked(waiter) => d.room.asked.contains(waiter),
+            Reservation::Call(owner) => d.call_room.contains(owner),
+            Reservation::Projection(entry) => d.projection_room.contains(entry),
+        };
+        if live
+            && match oldest {
+                Some((prior, _)) => *order < prior,
+                None => true,
+            }
+        {
+            oldest = Some((*order, *task));
+        }
+    }
+    match oldest {
+        Some((_, task)) => Some(task),
+        None => None,
+    }
+}
+
 fn table_name(table: FullKind) -> &'static [u8] {
     match table {
         FullKind::Outbox => b"the forge's outbox",

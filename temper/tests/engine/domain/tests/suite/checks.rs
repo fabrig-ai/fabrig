@@ -22,6 +22,24 @@ fn a_composed_quiet_point_checks_its_other_roots() {
 }
 
 #[test]
+fn a_refused_procedure_wait_is_a_quiet_point_finding() {
+    use jig_domain_core::ReportRefusal;
+    use skein_lib::{Env, Wall};
+    use temper_engine_domain_world::walking;
+
+    let env = Env { limits: walking::limits(), now: Time::ZERO, wall: Wall::EPOCH };
+    let mut root = engine::Domain::new(walking::config(91), &env.limits).expect("fixture engine");
+    let task = 72;
+    engine::step(
+        &mut root,
+        &env,
+        engine::Event::Forge(Box::new(forge::Event::WaitsRefused { task, why: ReportRefusal::TooManyThings })),
+    );
+    let finding = Checks::new(91).quiet(&root, env.now, 1).expect_err("refused wait report is a fault");
+    assert_eq!(finding, "seed 91: at 0 ns, iteration 1: engine task 72: wait report refused: TooManyThings");
+}
+
+#[test]
 fn an_unopened_world_without_a_refusal_is_found_at_close() {
     use temper_engine_domain_world::ends::{Ends, OPENING};
 

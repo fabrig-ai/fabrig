@@ -93,6 +93,7 @@ pub(crate) fn forget(d: &mut Domain, goal: u64, out: &mut Queue<Request>) {
     for task in &tasks {
         discard_check(d, *task);
         d.closing.rows.remove(task);
+        crate::waits::forget(d, *task);
         out.push(Request::Erase { key: Key::Closer(*task) });
     }
 }

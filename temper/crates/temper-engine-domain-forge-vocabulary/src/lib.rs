@@ -118,7 +118,8 @@ pub use domain::{DEFAULT_CHANGE_TITLE, tag, untag};
 pub use gates::{GateCandidate, GateLast, GatePattern, Requires, Touched, covers, covers_branch, touched};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
-    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
+    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STANDALONE_WAIT_FIGURES, STOPPED_TEXT_BYTES,
+    TierLimits, valid,
 };
 pub use panel::{
     MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelApproval, PanelGate, PanelQuestion, PanelQuestions,

@@ -1,7 +1,10 @@
 //! Landing writes join the shared line without keeping their decision (forge/room.md, 3–4).
 use super::*;
 use crate::room;
+use jig_domain_core_vocabulary::waits::{Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
+use skein_lib::List;
+use temper_client_protocol_wire::waits::{CHANGE_OPENING, LANDING_ROOM, THING_ENTRY};
 
 const TASK: u64 = 61;
 const OTHER: u64 = 62;
@@ -225,7 +228,7 @@ fn assert_wait(out: &[Request], on: policy::Awaited) {
 }
 
 fn asks(out: &[Request]) -> Box<[u64]> {
-    let mut asks = skein_lib::List::uncapped();
+    let mut asks = List::uncapped();
     for request in out {
         if let Request::WakeProcedure { task } = request {
             asks.push(*task).unwrap();
@@ -234,7 +237,7 @@ fn asks(out: &[Request]) -> Box<[u64]> {
     asks.into_boxed()
 }
 fn entries(out: &[Request]) -> Box<[u64]> {
-    let mut entries = skein_lib::List::uncapped();
+    let mut entries = List::uncapped();
     for request in out {
         if let Request::Save { record: Stored::Entry { entry, .. }, .. } = request {
             entries.push(entry.number).unwrap();
@@ -245,6 +248,24 @@ fn entries(out: &[Request]) -> Box<[u64]> {
 fn free_one(d: &mut Domain) -> Box<[Request]> {
     // Withdrawal's outcome frees one of the committed entries.
     outputs(d, Event::Withdraw { entry: 1 })
+}
+
+fn assert_room_report(out: &[Request], task: u64, step: u32, since: Wall, oldest: u64) {
+    let [record] = wait_report(out, task).expect("room report") else { panic!("one room wait") };
+    let owner = refusals::entry(oldest).task;
+    let mut entries = List::with_capacity(4);
+    for number in oldest..oldest.checked_add(4).unwrap() {
+        entries.push(Thing { what: THING_ENTRY, number, owner: Some(owner) }).unwrap();
+    }
+    assert_eq!(
+        record,
+        &Reported {
+            kind: WaitKind::Room,
+            object: WaitObject::Procedure { step, things: entries },
+            since,
+            bound: ReportedBound::None(Unbounded::Behind(owner)),
+        }
+    );
 }
 
 #[test]
@@ -258,7 +279,9 @@ fn landing_writes_wait_and_keep_one_fresh_entry() {
     ] {
         let mut d = full(kind);
         let mut prior = d.landing(TASK).unwrap().clone();
-        assert_wait(&drive(&mut d, TASK, 91), on);
+        let waiting = drive(&mut d, TASK, 91);
+        assert_wait(&waiting, on);
+        assert_room_report(&waiting, TASK, LANDING_ROOM, env().wall, 1);
         prior.room = Some(1);
         prior.waiting = Some(on);
         assert_eq!(d.landing(TASK), Some(&prior), "{kind}: only its place and wait are saved");
@@ -266,11 +289,14 @@ fn landing_writes_wait_and_keep_one_fresh_entry() {
         assert!(!d.entries.contains_key(&91));
         d.wait_landing(&env(), TASK, None);
         assert!(!d.landing.due.contains_key(&TASK), "no room poll");
-        assert_eq!(asks(&free_one(&mut d)).as_ref(), &[TASK]);
+        let freed = free_one(&mut d);
+        assert_eq!(asks(&freed).as_ref(), &[TASK]);
+        assert_room_report(&freed, TASK, LANDING_ROOM, env().wall, 2);
         assert!(d.room_asked(TASK));
         assert_eq!(room::reserved(&d), 1);
         let out = drive(&mut d, TASK, FRESH);
         assert_eq!(entries(&out).as_ref(), &[FRESH], "{kind}: kept exactly once");
+        assert_eq!(wait_report(&out, TASK), Some([].as_slice()));
         let write = &d.entries.get(&FRESH).unwrap().entry.effect.write;
         assert!(
             match kind {
@@ -315,14 +341,18 @@ fn open_change(d: &mut Domain, entry: u64) -> Box<[Request]> {
 fn a_change_waiting_first_takes_room_before_a_landing() {
     let mut d = full("open");
     change_waiter(&mut d, None);
-    open_change(&mut d, 90);
+    let joined = open_change(&mut d, 90);
+    assert_room_report(&joined, OTHER, CHANGE_OPENING, env().wall, 1);
     assert_eq!(d.change(OTHER).unwrap().room, Some(1));
+    let checked_again = open_change(&mut d, 93);
+    assert_eq!(wait_report(&checked_again, OTHER), None, "an unchanged step is silent");
     assert_wait(&drive(&mut d, TASK, 91), policy::Awaited::Open);
     assert_eq!(d.landing(TASK).unwrap().room, Some(2));
     assert_eq!(asks(&free_one(&mut d)).as_ref(), &[OTHER]);
     assert_wait(&drive(&mut d, TASK, 92), policy::Awaited::Open);
     let out = open_change(&mut d, FRESH);
     assert_eq!(entries(&out).as_ref(), &[FRESH]);
+    assert_eq!(wait_report(&out, OTHER), Some([].as_slice()));
     assert_eq!(d.landing(TASK).unwrap().room, Some(2));
     assert_eq!(d.change(OTHER).unwrap().room, None);
 }
@@ -333,7 +363,11 @@ fn landing_room_places_restart_in_order_without_a_saved_decision() {
     assert_wait(&drive(&mut before, TASK, 91), policy::Awaited::Open);
     change_waiter(&mut before, None);
     open_change(&mut before, 92);
-    let mut d = landing_fixture_with(fixtures::connected_domain());
+    let started = Wall::from_nanos(1);
+    assert!(started < env().wall);
+    let mut d = restoring_domain(started);
+    fixtures::connect(&mut d);
+    let mut d = landing_fixture_with(d);
     for task in [OTHER, fixtures::CHANGE] {
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(before.change(task).unwrap().clone())) });
     }
@@ -341,11 +375,23 @@ fn landing_room_places_restart_in_order_without_a_saved_decision() {
     let mut ended = landing_row(63, policy::Phase::Cancelled);
     ended.room = Some(3);
     outputs(&mut d, Event::Restore { record: Stored::Landing(ended) });
+    let closer_task = 64;
+    let ended_closer = 65;
+    for (task, done) in [(closer_task, false), (ended_closer, true)] {
+        let row = closer::closer(task, 7, done);
+        outputs(&mut d, Event::Restore { record: Stored::Closer(row) });
+    }
     for (_, row) in &before.entries {
         outputs(&mut d, Event::Restore { record: Stored::Entry { entry: row.entry.clone(), held: true } });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::CatchUp);
+    let reports = outputs(&mut d, Event::CatchUp);
+    assert_room_report(&reports, TASK, LANDING_ROOM, started, 1);
+    assert_room_report(&reports, OTHER, CHANGE_OPENING, started, 1);
+    assert_eq!(wait_report(&reports, fixtures::CHANGE), Some([].as_slice()));
+    assert_eq!(wait_report(&reports, closer_task), Some([].as_slice()));
+    assert_eq!(wait_report(&reports, 63), None);
+    assert_eq!(wait_report(&reports, ended_closer), None);
 
     for _ in 0..32_u32 {
         if d.fresh_reads_in() {

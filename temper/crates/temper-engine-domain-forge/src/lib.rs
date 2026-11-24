@@ -34,6 +34,7 @@ pub use report::{Report, WAIT_REPORT, age_words, wait_kind};
 mod room;
 mod settling;
 mod stall;
+mod waits;
 pub use approvals::{ApprovalWait, ShortApproval};
 pub use settling::gates_settled;
 pub use temper_engine_domain_forge_vocabulary::boundary;

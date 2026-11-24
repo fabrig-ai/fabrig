@@ -1,6 +1,8 @@
 //! One first-come-first-served outbox line (domain/forge/room.md, 2–4).
 use crate::{Domain, Limits, Request};
-use skein_lib::{Env, Queue, Set, Token};
+use jig_domain_core_vocabulary::waits::{Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
+use skein_lib::{Env, List, Map, Queue, Set, Token, Wall};
+use temper_client_protocol_wire::waits::THING_ENTRY;
 use temper_engine_domain_forge_landing::Phase;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -13,6 +15,7 @@ pub(crate) enum Waiter {
 
 #[derive(Hash, Debug)]
 pub(crate) struct State {
+    pub(crate) places: Map<Waiter, Place>,
     pub(crate) asked: Set<Waiter>,
     passed: Set<Waiter>,
     pub(crate) ready: bool,
@@ -21,6 +24,7 @@ pub(crate) struct State {
 impl State {
     pub(crate) fn new(limits: &Limits) -> Self {
         Self {
+            places: Map::uncapped(),
             asked: Set::with_capacity(
                 limits
                     .changes
@@ -38,6 +42,81 @@ impl State {
             ready: false,
         }
     }
+}
+
+#[derive(Debug, Hash)]
+pub(crate) struct Place {
+    order: u64,
+    since: Wall,
+}
+
+const NAMED_ENTRIES: usize = 4;
+
+#[derive(PartialEq, Eq, Debug, Hash)]
+pub(crate) struct Holders {
+    entries: [Option<Thing>; NAMED_ENTRIES],
+    // Reservations do not have an entry number yet.
+    reservation: Option<u64>,
+}
+
+pub(crate) fn holders(d: &Domain) -> Holders {
+    let mut entries = [None; NAMED_ENTRIES];
+    for (slot, (number, row)) in entries.iter_mut().zip(d.entries.iter()) {
+        *slot = Some(Thing { what: THING_ENTRY, number: *number, owner: Some(row.entry.task) });
+    }
+    let reservation = if d.entries.is_empty() { crate::domain::full::oldest_reservation(d) } else { None };
+    Holders { entries, reservation }
+}
+
+/// Keep a place's join time alongside its durable order, without storing a second timestamp.
+pub(crate) fn observe(d: &mut Domain, task: u64, since: Wall) {
+    let procedure = d.changes.contains_key(&task) || d.landing.rows.contains_key(&task) || d.closer(task).is_some();
+    for waiter in [Waiter::Change(task), Waiter::Landing(task), Waiter::Release(task)] {
+        if procedure && let Some(order) = place(d, waiter) {
+            let prior = d.room.places.get(&waiter);
+            if let Some(prior) = prior
+                && prior.order == order
+            {
+                continue;
+            }
+            d.room.places.insert(waiter, Place { order, since }).expect("one join per place");
+        } else {
+            d.room.places.remove(&waiter);
+        }
+    }
+}
+
+/// The room record for a procedure with a place in the line (waits.md, 7).
+pub(crate) fn waited(d: &Domain, _env: &Env<Limits>, task: u64, step: u32) -> Option<Reported> {
+    let mut waiting = None;
+    for waiter in [Waiter::Release(task), Waiter::Change(task), Waiter::Landing(task)] {
+        if let Some(place) = d.room.places.get(&waiter) {
+            waiting = Some((waiter, place));
+            break;
+        }
+    }
+    let (waiter, place) = waiting?;
+    let holders = holders(d);
+    let [first, ..] = holders.entries;
+    let behind = if let Some(entry) = first {
+        entry.owner?
+    } else {
+        let reservation = holders.reservation?;
+        if reservation == task || d.room.asked.contains(&waiter) {
+            return None;
+        }
+        reservation
+    };
+    let mut things = List::with_capacity(u32::try_from(NAMED_ENTRIES).expect("wait object bound"));
+    for entry in holders.entries.into_iter().flatten() {
+        things.push(entry).expect("at most four entries");
+    }
+    Some(Reported {
+        kind: WaitKind::Room,
+        object: WaitObject::Procedure { step, things },
+        since: place.since,
+        bound: ReportedBound::None(Unbounded::Behind(behind)),
+    })
 }
 
 pub(crate) fn reserved(d: &Domain) -> u32 {
@@ -158,6 +237,9 @@ pub(crate) fn asked(d: &Domain, waiter: Waiter) -> bool {
 }
 
 pub(crate) fn leave(d: &mut Domain, waiter: Waiter) {
+    if let Waiter::Change(task) | Waiter::Landing(task) | Waiter::Release(task) = waiter {
+        crate::waits::changed(d, task);
+    }
     d.room.asked.remove(&waiter);
     d.room.passed.remove(&waiter);
 }
@@ -200,7 +282,7 @@ pub(crate) fn stepping(d: &mut Domain, task: u64) {
 
 pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::domain::full::update(d, env, out);
-    let mut stale = skein_lib::List::uncapped();
+    let mut stale = List::uncapped();
     for (owner, pending) in &d.makings {
         let live = match d.holds.get(&pending.name) {
             Some(hold) => hold.task == pending.task,
@@ -216,7 +298,7 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         leave(d, Waiter::Making(owner));
     }
     // A completed making may have left during its read's answer.
-    let mut gone = skein_lib::List::uncapped();
+    let mut gone = List::uncapped();
     for waiter in &d.room.asked {
         if place(d, *waiter).is_none() {
             gone.push(*waiter).expect("asked waiters");
@@ -233,6 +315,7 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         crate::domain::full::update(d, env, out);
     }
     if !d.room.ready || d.stopping {
+        crate::waits::flush(d, env, out);
         return;
     }
     let mut admitted = false;
@@ -263,4 +346,5 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if admitted || saturated {
         crate::domain::full::update(d, env, out);
     }
+    crate::waits::flush(d, env, out);
 }

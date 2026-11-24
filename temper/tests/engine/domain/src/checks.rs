@@ -49,9 +49,13 @@ impl Checks {
         let mut inspections = Vec::with_capacity(others.len() + 1);
         inspections.push(&inspection);
         inspections.extend_from_slice(others);
-        let result = check_waits(&inspections, moment)
-            .and_then(|()| check_tables(&inspections, moment))
-            .and_then(|()| jig_inspect::records(core, moment, self.record_wall));
+        let result = if let Some((task, why)) = root.forge().inspection_wait_refusal() {
+            Err(inspection.finding(moment, &format!("task {task}"), &format!("wait report refused: {why:?}")))
+        } else {
+            check_waits(&inspections, moment)
+                .and_then(|()| check_tables(&inspections, moment))
+                .and_then(|()| jig_inspect::records(core, moment, self.record_wall))
+        };
         self.bounded.clear();
         self.bounded.extend(
             inspection

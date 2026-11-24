@@ -1731,7 +1731,12 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
         });
     }
     if let Some(task) = oldest.or(oldest_last) {
-        forge::step(&mut domain.forge, &env.with(env.limits.forge), forge::Event::DropChange { task }, out);
+        forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(env),
+            forge::Event::DropChange { task },
+            out,
+        );
     }
 }
 
@@ -2001,7 +2006,7 @@ pub(super) fn start_recovered_change(
                 follow_check: None,
             },
         };
-        forge::step(&mut domain.forge, &env.with(env.limits.forge), registration, &mut out);
+        forge::step(&mut domain.forge, &crate::translate::environment_forge(env), registration, &mut out);
         domain.work.push(Work::ForgeSettings(out));
         if domain.forge.change(task).is_none() {
             return true;
@@ -5289,7 +5294,7 @@ pub(crate) fn effect_ask(
                     let mut out = Queue::uncapped();
                     forge::step(
                         &mut domain.forge,
-                        &env.with(env.limits.forge),
+                        &crate::translate::environment_forge(env),
                         forge::Event::DropErased { task },
                         &mut out,
                     );

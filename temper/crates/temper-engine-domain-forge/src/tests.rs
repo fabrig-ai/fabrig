@@ -165,6 +165,7 @@ pub(crate) const LIMITS: Limits = Limits {
         comment_bytes: 256,
         interval: Duration::from_secs(5),
     },
+    waits: STANDALONE_WAIT_FIGURES,
     change_policy: temper_engine_domain_forge_change::Limits {
         reruns: 1,
         repairs: 3,
@@ -401,6 +402,19 @@ pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     }
     values.into_boxed()
 }
+fn wait_report(requests: &[Request], task: u64) -> Option<&[jig_domain_core_vocabulary::waits::Reported]> {
+    let mut report = None;
+    for request in requests {
+        if let Request::Waits { task: waiter, waits } = request
+            && *waiter == task
+        {
+            assert!(report.is_none(), "only one report per task in a step: {requests:?}");
+            report = Some(waits.as_slice());
+        }
+    }
+    report
+}
+
 fn ready(d: &mut Domain) -> Box<[Request]> {
     let mut out = Queue::uncapped();
     resume(d, &env(), &mut out);

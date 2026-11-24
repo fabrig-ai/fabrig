@@ -3,10 +3,12 @@ asked: Add a /health endpoint that reports the store's state
 requester: you · spent 1.20 of 5.00 · no deadline
 settings: revision 1
 waiting on: Waiting for an answer to its question 228316 · since 2026-11-24 06:07 UTC · passes up at 2026-11-24 08:07 UTC
-waits: 2
+waits: 4
   question 228316 to task 34 · since 2026-11-24 06:07 UTC · passes up at 2026-11-24 08:07 UTC · hears task 34
   dependency task 17 · since 2026-11-24 05:50 UTC · no bound: no deadline · hears task 34
+  room at checking: entry 7 of task 51 · since 2026-10-24 15:02 UTC · no bound: behind task 51
+  step at ancestry: task 15090 · since 2026-10-24 15:02 UTC · holds at 2026-11-24 08:07 UTC
 acts:
   task stop 41 --key KEY
   task cancel 41 REASON --key KEY
-digest: task 3abe212d9ab183a2
+digest: task 936f95b85a34f1a6

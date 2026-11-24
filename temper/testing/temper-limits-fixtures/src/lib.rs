@@ -212,6 +212,7 @@ const FORGE: forge::Limits = forge::Limits {
         // Interval between issue projection checks, from the engine forge world fixture.
         interval: Duration::from_secs(5),
     },
+    waits: forge::STANDALONE_WAIT_FIGURES,
     change_policy: temper_engine_domain_forge_change::Limits {
         reruns: 1,
         // Repair attempts, from the engine forge world fixture.

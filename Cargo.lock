@@ -6353,6 +6353,7 @@ dependencies = [
  "skein-lib",
  "skein-ui",
  "temper-client-domain-forge",
+ "temper-client-protocol-wire",
  "temper-settings-form",
 ]
 

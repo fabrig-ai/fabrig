@@ -892,6 +892,7 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
     // judgement. Refresh restored projections before reads start, and the
     // subject at each change step (gates.md, 1, Valid at a spec revision).
     if let forge::Event::CatchUp = &event {
+        prepare_wait_catch_up(domain);
         for task in domain.forge.change_tasks() {
             if let Some(row) = domain.core.tasks.task(task) {
                 domain.forge.refresh_spec_revision(task, row.revisions.spec, &mut out);
@@ -911,6 +912,31 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
         return;
     }
     forge_route::outputs(domain, env, decision, &mut out);
+}
+
+fn prepare_wait_catch_up(domain: &mut Domain) {
+    let rows = domain.core.tasks.view_tasks();
+    let mut live = List::with_capacity(u32::try_from(rows.len()).expect("bounded live tasks"));
+    for row in &rows {
+        if let Some(task) = domain.core.tasks.task(row.number)
+            && let tasks::Executor::Procedure {
+                connector,
+                code: forge_route::CHANGE_CODE | forge_route::LANDING_CODE | forge_route::GOAL_CLOSER_CODE,
+            } = task.executor
+            && connector == domain.config.forge_connector
+        {
+            match task.phase {
+                tasks::Phase::Ended(_) => {}
+                tasks::Phase::Waiting
+                | tasks::Phase::Active(_)
+                | tasks::Phase::Closing(_)
+                | tasks::Phase::Held { .. } => {
+                    live.push(task.number).expect("live procedure is among live tasks");
+                }
+            }
+        }
+    }
+    domain.forge.prepare_wait_catch_up(live);
 }
 
 // Refuse at the step still waiting for this connector, before any output translation.

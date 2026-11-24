@@ -3,6 +3,7 @@ use super::{Cut, Me, Text, acts, clock, llm};
 use jig_client::contract::{self as c, waits::Bound};
 use skein_json::writer::Encoder;
 use skein_lib::Wall;
+use temper_client_protocol_wire::waits as codes;
 
 const fn kind(value: c::WaitKind) -> &'static [u8] {
     match value {
@@ -156,7 +157,7 @@ fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn crate::jig::ren
             llm::run_wait_text(*run, out);
         }
         c::WaitObject::News { subscriptions, timer } => news(subscriptions, *timer, out),
-        c::WaitObject::Procedure { step, things } => procedure(wait.kind, *step, things, out),
+        c::WaitObject::Procedure { step, things } => procedure(*step, things, out),
     }
 }
 fn news(subscriptions: &skein_lib::List<u64>, timer: Option<Wall>, out: &mut Text) {
@@ -176,17 +177,25 @@ fn news(subscriptions: &skein_lib::List<u64>, timer: Option<Wall>, out: &mut Tex
         out.put(b" nothing armed");
     }
 }
-fn procedure(kind: c::WaitKind, step: u32, things: &skein_lib::List<c::Thing>, out: &mut Text) {
-    if kind == c::WaitKind::Step {
+fn procedure(step: u32, things: &skein_lib::List<c::Thing>, out: &mut Text) {
+    if let Some(name) = codes::step_name(step) {
+        out.put(b" at ");
+        out.put(name);
+    } else {
         out.put(b" ");
         out.number(u64::from(step));
     }
-    let mut separator = b" ".as_slice();
+    let mut separator = b": ".as_slice();
     for thing in things {
         out.put(separator);
-        out.put(b"thing ");
-        out.number(u64::from(thing.what));
-        out.put(b" ");
+        if let Some(name) = codes::thing_name(thing.what) {
+            out.put(name);
+            out.put(if thing.what == codes::THING_PULL { b" #" } else { b" " });
+        } else {
+            out.put(b"thing ");
+            out.number(u64::from(thing.what));
+            out.put(b" ");
+        }
         out.number(thing.number);
         if let Some(owner) = thing.owner {
             out.put(b" of ");

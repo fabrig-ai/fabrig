@@ -2898,7 +2898,10 @@ impl Domain {
         let Some(ready) = self.landing.decisions.remove(&task) else { return };
         if due {
             match ready {
-                Ready::Gathered { owner, pending } => commit_decision(self, env, owner, pending, out),
+                Ready::Gathered { owner, pending } => {
+                    commit_decision(self, env, owner, pending, out);
+                    crate::waits::report(self, env, task, out);
+                }
                 Ready::Read(step) => read_decision(self, env, task, step, out),
             }
         } else {

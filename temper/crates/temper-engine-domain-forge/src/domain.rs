@@ -344,6 +344,7 @@ pub struct Domain {
     review_requests: Map<u64, skein_forge::api::Commit>,
     pub(crate) makings: Map<Token, goal_branch::Making>,
     pub(crate) room: crate::room::State,
+    pub(crate) wait_reports: crate::waits::State,
     pub(crate) full: full::State,
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
@@ -1090,6 +1091,7 @@ impl Domain {
             review_requests: Map::with_capacity(l.changes),
             makings: Map::with_capacity(l.holds),
             room: crate::room::State::new(l),
+            wait_reports: crate::waits::State::new(),
             full: full::State::new(l.entries),
             panel_ci: Map::with_capacity(l.changes),
             issues: Map::with_capacity(l.issues),
@@ -1788,6 +1790,10 @@ impl Domain {
 
 /// Decide one parent event and collect its durable records and outputs.
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    if let Event::WaitsRefused { task, why } = event {
+        crate::waits::refused(d, task, why);
+        return;
+    }
     decide(d, env, event, out);
     read_afresh_complete(d, env, out);
     catching_up::advance(d, env, out);
@@ -1814,16 +1820,22 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Pushed { party, device, endpoint, answer } => {
             crate::devices::pushed(d, party, device, &endpoint, answer, out);
         }
-        Event::Closer { row } => crate::closer::save(d, row, out),
+        Event::Closer { row } => {
+            let task = row.task;
+            crate::closer::save(d, row, out);
+            crate::waits::changed(d, task);
+        }
         Event::CloserRelayed { task, relay } => {
             if let Some(mut row) = d.closer(task).cloned() {
                 row.relay = relay;
                 crate::closer::save(d, row, out);
+                crate::waits::changed(d, task);
             }
         }
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
             crate::closer::check(d, env, task, step, repository, branch, base, out);
+            crate::waits::changed(d, task);
         }
         Event::ChangeEnding { task, ending } => {
             crate::room::leave(d, crate::room::Waiter::Change(task));
@@ -1869,7 +1881,10 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Landing { row } => crate::landing::register(d, env, row, out),
         Event::VetoLanding { task, entry } => crate::landing::veto(d, env, task, entry, out),
         Event::DeferLandingMerge { task, entry } => crate::landing::defer_merge(d, task, entry, out),
-        Event::StepLanding { task, entry, heard } => crate::landing::step(d, env, task, entry, heard, out),
+        Event::StepLanding { task, entry, heard } => {
+            crate::landing::step(d, env, task, entry, heard, out);
+            crate::waits::changed(d, task);
+        }
         Event::Settle => {
             d.stopping = true;
             d.restart_fresh = None;
@@ -2415,6 +2430,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 StepInput { task, entry, heard, gates, queue_repair_active, kept, merge_job, pending },
                 out,
             );
+            crate::waits::changed(d, task);
         }
         Event::ReleaseChange { task, release } => {
             let take = match d.changes.get(&task) {
@@ -2503,14 +2519,14 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Client(event) => child(d, env, event, out),
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
-        // No forge procedure reports waits yet. A refusal does not step a procedure.
-        Event::WaitsRefused { .. } => {}
+        Event::WaitsRefused { .. } => unreachable!("a refusal never steps the connector"),
         Event::CatchUp => {
             d.catching_up_report = Some(crate::Report::new(env.now));
             read_afresh(d, env, out);
             settle_outbox(d, env, out);
             d.room.ready = true;
             crate::landing::restore_waits(d, env);
+            crate::waits::begin_catch_up(d, d.restore_started.unwrap_or(env.wall));
         }
     }
     release::first_page(d, env, out);
@@ -8175,6 +8191,8 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
         heads::free(d, env, out);
         d.releases.remove(&task);
         crate::room::leave(d, crate::room::Waiter::Release(task));
+        crate::waits::report(d, env, task, out);
+        crate::waits::forget(d, task);
         emit(out, Request::Erase { key: Key::Release(task) });
         emit(out, Request::Released { task });
         return;
@@ -10645,6 +10663,9 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
 
 /// Remember the cold part last put: callers may already have replaced the in-memory row.
 pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, row: ChangeRow) {
+    if row.room.is_some() {
+        crate::waits::changed(d, row.task);
+    }
     if row.frozen() {
         d.merge_withheld.remove(&row.task);
     }
