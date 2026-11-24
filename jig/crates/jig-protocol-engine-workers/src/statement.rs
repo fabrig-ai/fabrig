@@ -1,4 +1,4 @@
-//! The statement handed up whole and its checks (jig/docs/design/protocol/channel/wires.md, 3 and 5).
+//! The statement handed up whole and its checks (jig/docs/design/protocol/channel/wires.md, 2 and 3).
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{
     self as wire, Credential, Root, Spoken,

@@ -13,7 +13,7 @@ pub use plans::Plans;
 /// Worker texts kept per wire.
 pub const MAX_TEXTS: u32 = 8;
 
-/// One wire as the worker's credential states it.
+/// One wire as the worker's credential states it (jig/docs/design/protocol/channel/wires.md, 2).
 #[derive(Clone, Copy, Debug)]
 pub struct Theirs<'a> {
     pub name: &'a str,
@@ -117,7 +117,8 @@ impl Unconverted {
     }
 }
 
-/// One channel's conversions and their fitted workspace.
+/// One channel's conversions and their fitted workspace
+/// (jig/docs/design/protocol/channel/layouts.md, 3 and 4).
 #[derive(Clone, Debug)]
 pub struct Peer {
     same: bool,

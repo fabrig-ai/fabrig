@@ -1,4 +1,4 @@
-//! Whole frames between the engine's and worker's layouts (jig/docs/design/protocol/channel/contracts.md, 2).
+//! Whole frames between the engine's and worker's layouts (jig/docs/design/protocol/channel/layouts.md, 3 and 4).
 use crate::layouts::{Cause, Nested, Peer, Unconverted};
 use crate::{KINDS, Kind, sizes, v22};
 use alloc::boxed::Box;
@@ -10,7 +10,8 @@ use skein_lib::Buffer;
 mod down;
 mod up;
 
-/// Keeps the carried parts, then the record, at the worker's layout.
+/// Keeps the carried parts, then the record, at the worker's layout
+/// (jig/docs/design/protocol/channel/layouts.md, 4.1).
 /// A refused body of a kept part is dropped; a refused window turn is not.
 pub fn send(peer: &mut Peer, frame: Frame, limits: &v22::Limits) -> Result<Frame, Unconverted> {
     if peer.same() {
@@ -32,7 +33,8 @@ pub fn send(peer: &mut Peer, frame: Frame, limits: &v22::Limits) -> Result<Frame
     frame_from(peer, Mode::Keep, number, worker_kind, out.as_slice())
 }
 
-/// Reads the record into the engine's layout, then the parts it carries.
+/// Reads the record into the engine's layout, then the parts it carries
+/// (jig/docs/design/protocol/channel/layouts.md, 4.2).
 /// With no layout difference, only the returned frame's ownership costs an allocation.
 pub fn receive(peer: &mut Peer, kind: u16, body: &[u8], limits: &v22::Limits) -> Result<Frame, Unconverted> {
     if peer.same() {

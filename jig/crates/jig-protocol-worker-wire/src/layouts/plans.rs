@@ -126,7 +126,8 @@ impl Plans {
         Ok(Plans { wires })
     }
 
-    /// Checks a worker's wires in the engine's order and fits the channel's conversions.
+    /// Checks a worker's wires in the engine's order and fits the channel's conversions
+    /// (jig/docs/design/protocol/channel/wires.md, 3).
     pub fn judge(&mut self, theirs: &[Theirs<'_>]) -> Result<Peer, Box<[u8]>> {
         for (index, wire) in theirs.iter().enumerate() {
             for earlier in theirs.iter().take(index) {
