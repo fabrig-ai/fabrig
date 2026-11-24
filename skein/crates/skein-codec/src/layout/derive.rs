@@ -153,6 +153,50 @@ fn matched_part(old: &Schema, shape: Shape, new: &Schema, current: Target) -> Op
     None
 }
 
+fn tombstone_named(schema: &Schema, first: FieldIx, count: u32, name: &[u8]) -> Option<FieldIx> {
+    for index in first.index()..add(first.index(), count) {
+        let at = FieldIx::new(index);
+        if schema.spelled(schema.field(at).name) == name {
+            return Some(at);
+        }
+    }
+    None
+}
+
+fn matched_tombstone(schema: &Schema, decl: DeclIx, live: &Schema, field: FieldIx) -> Option<FieldIx> {
+    let (first, count) = schema.tombstones(decl);
+    if count == 0 {
+        return None;
+    }
+    let name = live.spelled(live.field(field).name);
+    if let Some(found) = tombstone_named(schema, first, count, name) {
+        return Some(found);
+    }
+    // Match the live field and tombstone the same way on the way out and back.
+    for &was in live.was(Named::Field(field)) {
+        if let Some(found) = tombstone_named(schema, first, count, live.spelled(was)) {
+            return Some(found);
+        }
+    }
+    for index in first.index()..add(first.index(), count) {
+        let at = FieldIx::new(index);
+        for &was in schema.was(Named::Field(at)) {
+            if schema.spelled(was) == name {
+                return Some(at);
+            }
+        }
+    }
+    None
+}
+
+fn restored_default(live: &Schema, field: FieldIx, other: &Schema, tombstone: Option<FieldIx>) -> Option<Box<[u8]>> {
+    let bytes = match live.default(field) {
+        Some(bytes) => bytes,
+        None => other.default(tombstone?)?,
+    };
+    Some(Box::from(bytes))
+}
+
 impl Builder {
     fn new(policy: Policy, head: Option<u16>, old_head: bool, tag: Option<u8>) -> Self {
         Self {
@@ -284,26 +328,43 @@ impl Builder {
     fn check_drops(
         &mut self,
         old: &Schema,
-        decl: Span,
-        first: FieldIx,
+        new: &Schema,
+        pair: u32,
+        a: DeclIx,
+        b: DeclIx,
         used: &List<bool>,
     ) -> Result<List<DropField>, Underived> {
-        let mut dropped = List::with_capacity(used.len());
+        let keep = match self.policy {
+            Policy::Between(Mode::Keep) => true,
+            Policy::Strict | Policy::Between(Mode::Read) => false,
+        };
+        let mut dropped = List::with_capacity(if keep { used.len() } else { 0 });
+        let record = old.declaration(a);
+        let (first, _) = parts(record.shape);
         for offset in 0..used.len() {
             if *used.get(offset).expect("one slot per source field") {
                 continue;
             }
-            let field = FieldIx::new(add(first.index(), offset));
-            let default = match old.default(field) {
-                Some(bytes) => {
-                    if bytes.is_empty() && empty(old, At::Type(old.field(field).ty)) {
-                        continue; // Every value of this field is already at its default.
-                    }
-                    Some(Box::from(bytes))
-                }
-                None => None,
-            };
-            let refusal = self.refusal(old, decl, old.field(field).name, Refused::Field)?;
+            let field = FieldIx::new(add(first, offset));
+            let live = old.field(field);
+            let tombstone = matched_tombstone(new, b, old, field);
+            let matching = &self.pairs.get(pair).expect("text pair").matching;
+            if let Some(at) = tombstone
+                && compare_types(matching, old, new, live.ty, new.field(at).ty) != Comparison::Equal
+            {
+                return Err(Underived { why: Why::Retyped, decl: record.name, part: Some(live.name), old: true });
+            }
+            if !keep || old.droppable(field) {
+                continue;
+            }
+            let default = restored_default(old, field, new, tombstone);
+            if let Some(bytes) = &default
+                && bytes.is_empty()
+                && empty(old, At::Type(live.ty))
+            {
+                continue; // Every value of this field is already at its default.
+            }
+            let refusal = self.refusal(old, record.name, live.name, Refused::Field)?;
             dropped.push(DropField { offset, default, refusal }).expect("one check per dropped field");
         }
         Ok(dropped)
@@ -334,8 +395,12 @@ impl Builder {
                 Shape::Record { first: bf, count: bc, versioned: bv },
             ) => {
                 let mut fields = List::with_capacity(bc);
-                let mut used = List::with_capacity(ac);
-                if let Policy::Between(Mode::Keep) = self.policy {
+                let track_used = match self.policy {
+                    Policy::Between(Mode::Keep) => true,
+                    Policy::Strict | Policy::Between(Mode::Read) => new.tombstones(b).1 != 0,
+                };
+                let mut used = List::with_capacity(if track_used { ac } else { 0 });
+                if track_used {
                     for _ in 0..ac {
                         used.push(false).expect("one slot per old field");
                     }
@@ -372,12 +437,20 @@ impl Builder {
                         Field { source: Source::Old(old_offset), node: Some(node) }
                     } else {
                         in_place = false;
-                        let bytes = new.default(field).ok_or(part.error(Why::NoDefault))?;
-                        Field { source: Source::Default(Box::from(bytes)), node: None }
+                        let tombstone = matched_tombstone(old, a, new, field);
+                        let matching = &self.pairs.get(pair).expect("text pair").matching;
+                        if let Some(at) = tombstone
+                            && compare_types(matching, old, new, old.field(at).ty, new.field(field).ty)
+                                != Comparison::Equal
+                        {
+                            return Err(part.error(Why::Retyped));
+                        }
+                        let bytes = restored_default(new, field, old, tombstone).ok_or(part.error(Why::NoDefault))?;
+                        Field { source: Source::Default(bytes), node: None }
                     };
                     fields.push(field).expect("one source per new field");
                 }
-                let dropped = self.check_drops(old, old_decl, af, &used)?;
+                let dropped = self.check_drops(old, new, pair, a, b, &used)?;
                 Ok(Kind::Record {
                     old_head: av,
                     head: if bv { Some(new.version()) } else { None },

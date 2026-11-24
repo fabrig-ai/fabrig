@@ -118,6 +118,94 @@ fn read_skips_a_source_only_field_while_keep_compares_its_default() {
 }
 
 #[test]
+fn tombstone_supplies_a_missing_field_unless_it_has_its_own_default() {
+    let old = "record R { a: u8 dropped b: u16 = 9 }";
+    for (new, wire) in [("record R { a: u8 b: u16 }", [1, 0, 9]), ("record R { a: u8 b: u16 = 4 }", [1, 0, 4])] {
+        check(&plan(old, new), &[1], &wire, false);
+        for mode in [Mode::Read, Mode::Keep] {
+            let forward = between(mode, old, new).expect("the missing field has a default");
+            check(&forward, &[1], &wire, false);
+        }
+        let back = between(Mode::Read, new, old).expect("Read drops the restored field");
+        check(&back, &wire, &[1], false);
+    }
+}
+
+#[test]
+fn tombstone_supplies_the_compared_default_unless_the_field_has_its_own() {
+    let new = "record R { a: u8 dropped b: u16 = 9 }";
+    for (old, accepted, refused) in
+        [("record R { a: u8 b: u16 }", [1, 0, 9], [1, 0, 8]), ("record R { a: u8 b: u16 = 4 }", [1, 0, 4], [1, 0, 9])]
+    {
+        let keep = between(Mode::Keep, old, new).expect("Keep checks the dropped field");
+        assert!(keep.refuses());
+        check(&keep, &accepted, &[1], false);
+        check_refusal(&keep, &refused, &[], (Refused::Field, "R", "b"));
+        let read = plan(old, new);
+        check(&read, &accepted, &[1], false);
+        check(&read, &refused, &[1], false);
+        let back = between(Mode::Read, new, old).expect("Read restores the compared default");
+        check(&back, &[1], &accepted, false);
+    }
+}
+
+#[test]
+fn tombstone_does_not_require_a_droppable_field_to_equal_the_default() {
+    let old = "record R { a: u8 droppable b: u16 }";
+    let new = "record R { a: u8 dropped b: u16 = 9 }";
+    let read = plan(old, new);
+    let keep = between(Mode::Keep, old, new).expect("Keep drops the marked field without a check");
+    assert!(!keep.refuses());
+    for wire in [[1, 0, 0], [1, 0, 9], [1, 255, 255]] {
+        check(&keep, &wire, &[1], false);
+        check(&read, &wire, &[1], false);
+    }
+    let back = between(Mode::Read, new, old).expect("Read restores the tombstone default");
+    check(&back, &[1], &[1, 0, 9], false);
+
+    let bare = between(Mode::Keep, old, "record R { a: u8 }").expect("a mark alone permits a drop");
+    assert!(!bare.refuses());
+    check(&bare, &[1, 0, 8], &[1], false);
+}
+
+#[test]
+fn tombstone_matches_former_names_on_either_side() {
+    for (without, with) in [
+        ("record R { a: u8 dropped old: u16 = 9 }", "record R { a: u8 b was old: u16 }"),
+        ("record R { a: u8 dropped b was old: u16 = 9 }", "record R { a: u8 old: u16 }"),
+    ] {
+        let read_back = plan(without, with);
+        let keep = between(Mode::Keep, with, without).expect("the tombstone names the dropped field");
+        check(&keep, &[1, 0, 9], &[1], false);
+        check(&read_back, &[1], &[1, 0, 9], false);
+    }
+}
+
+#[test]
+fn tombstone_of_another_type_refuses_the_plan_and_names_the_live_field() {
+    for (live, dead) in [
+        ("record R { a: u8 droppable b was old: u16 = 4 }", "record R { a: u8 dropped old: u32 = 9 }"),
+        ("record R { a: u8 b: list 1 option u8 }", "record R { a: u8 dropped b: list 2 option u8 = [] }"),
+    ] {
+        let live = schema(live, 1);
+        let dead = schema(dead, 2);
+        for (old, new, in_old) in [(&live, &dead, true), (&dead, &live, false)] {
+            let ar = root(old, None);
+            let br = root(new, None);
+            let error = Plan::derive(old, ar, &[], new, br, &[]).expect_err("tombstone type differs");
+            assert_eq!(error.why, Why::Retyped);
+            assert_eq!(error.old, in_old);
+            assert_eq!(live.spelled(error.decl), b"R");
+            assert_eq!(live.spelled(error.part.expect("live field")), b"b");
+            for mode in [Mode::Read, Mode::Keep] {
+                let between = Plan::between(mode, old, ar, &[], new, br, &[]).expect_err("tombstone type differs");
+                assert_eq!(between, error);
+            }
+        }
+    }
+}
+
+#[test]
 fn a_source_only_field_without_default_is_planned_but_always_refuses_in_keep() {
     let old = "record R { f: u8 }";
     let new = "record R {}";
