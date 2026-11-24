@@ -256,7 +256,7 @@ impl Component {
             let held =
                 self.schema.version(version).expect("agreed version").kind(wire::Kind::Restarting.number()).is_some();
             let sent = if held {
-                let record = wire::Restarting { wait_ms: wait.as_millis() };
+                let record = wire::Restarting { wait_ms: crate::translate::wait_ms_to_record(wait) };
                 self.send(now, connection, Some(crate::translate::Down::Restarting(record)), Reply::Drop, out);
                 Some(wait)
             } else {

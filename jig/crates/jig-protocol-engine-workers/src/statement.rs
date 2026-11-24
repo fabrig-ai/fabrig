@@ -1,4 +1,5 @@
 //! The statement handed up whole and its checks (protocol/channel/wires.md, 3 and 5).
+use crate::generated::worker_wire as mapped;
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{self as wire, Agreed, Credential, Spoken};
 use skein_channel::{Role, Schema, Term};
@@ -44,17 +45,11 @@ pub fn judge(spoken: &List<Spoken>, room: u32, schema: &Schema, statement: &Stat
 }
 
 impl Statement {
-    #[expect(clippy::disallowed_methods, reason = "the credential codec validates wire names as UTF-8")]
     pub(crate) fn credential(credential: &Credential) -> Self {
         let mut wires = List::with_capacity(credential.wires.len());
         for wire in &credential.wires {
-            wires
-                .push(Stated {
-                    name: core::str::from_utf8(wire.name.as_ref()).expect("credential text is UTF-8").into(),
-                    lowest: wire.lowest,
-                    layouts: wire.layouts.clone(),
-                })
-                .expect("one slot per stated wire");
+            let stated = mapped::wire_to_domain(wire.clone()).expect("credential text is UTF-8");
+            wires.push(stated).expect("one slot per stated wire");
         }
         Self { wires, output: credential.output, terms: List::with_capacity(0) }
     }

@@ -807,7 +807,7 @@ impl Component {
         if kind == wire::Kind::Restarting.number() {
             match wire::Restarting::decode(&limits, &mut skein_lib::Reader::new(body)) {
                 Ok(record) => {
-                    let wait = Duration::from_millis(record.wait_ms);
+                    let wait = translate::wait_ms_to_domain(record.wait_ms);
                     let Some(connection) = self.phase.connection() else { return };
                     connection.restart_wait = Some(wait);
                     self.admitted();

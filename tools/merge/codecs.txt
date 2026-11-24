@@ -9,6 +9,7 @@ jig/crates/jig-protocol-charter/src/generated/charter.rs smith/crates/smith-char
 jig/crates/jig-protocol-engine-clients-codec/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema
 jig/crates/jig-protocol-engine-clients/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema jig/crates/jig-protocol-engine-clients/schema/cursor.maps
 jig/crates/jig-protocol-engine-clients/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema jig/crates/jig-protocol-engine-clients/schema/public.maps
+jig/crates/jig-protocol-engine-workers/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema jig/crates/jig-protocol-engine-workers/schema/worker_wire.maps
 jig/crates/jig-protocol-store-core/src/generated/core.rs jig/crates/jig-protocol-store/schema/core-v6.schema
 jig/crates/jig-protocol-store-families/src/generated/accounts.rs jig/crates/jig-protocol-store/schema/accounts-v2.schema
 jig/crates/jig-protocol-store-families/src/generated/component.rs jig/crates/jig-protocol-store/schema/component-v3.schema
@@ -27,6 +28,7 @@ jig/crates/jig-protocol-store-records/src/generated/tasks.rs jig/crates/jig-prot
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
 jig/crates/jig-protocol-store/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v1.schema jig/crates/jig-protocol-store/schema/openings.maps
+jig/crates/jig-protocol-worker-link/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema jig/crates/jig-protocol-worker-link/schema/worker_wire.maps
 jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema
 jig/examples/ops/client-protocol-wire/src/generated/ops_client.rs jig/examples/ops/client-protocol-wire/schema/ops-client-v1.schema
 jig/testing/jig-client-test-protocol-wire-codec/src/generated/test_client.rs jig/testing/jig-client-test-protocol-wire/schema/test-client-v2.schema

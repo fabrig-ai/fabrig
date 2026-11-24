@@ -223,7 +223,16 @@ pub const FAMILIES: &[Family] = &[
         codec_root: "crates/jig-protocol-worker-wire",
         generated: &["src/generated/worker_wire.rs"],
         bounds: None,
-        translations: &[],
+        translations: &[
+            Translation {
+                maps: include_str!("../crates/jig-protocol-engine-workers/schema/worker_wire.maps"),
+                module: "crates/jig-protocol-engine-workers/src/generated/worker_wire.rs",
+            },
+            Translation {
+                maps: include_str!("../crates/jig-protocol-worker-link/schema/worker_wire.maps"),
+                module: "crates/jig-protocol-worker-link/src/generated/worker_wire.rs",
+            },
+        ],
     },
     Family {
         name: "accounts moved",

@@ -1,4 +1,4 @@
-//! Records, bounds and translation drift (skein's data/codec/golden.md, 1).
+//! Records, bounds and translations drift (skein's data/codec/golden.md, 1).
 use jig_protocol_worker_wire::v22 as codec;
 use skein_codegen::{bounds_text, generate, translate, values};
 
@@ -10,13 +10,27 @@ mod codec_drift;
 fn worker_wire_schema_matches_generated_records() {
     let source = jig_protocol_worker_wire::SCHEMA;
 
-    let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
+    let crates = skein_scratch::paths::tree().join("crates");
     let schema = &values(source).schema;
     let output = generate(schema);
-    let path = root.join("src/generated/worker_wire.rs");
+    let path = crates.join("jig-protocol-worker-wire/src/generated/worker_wire.rs");
     let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-worker-wire-world --test suite -E 'test(drift::)'";
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     codec_drift::check_text(&path, &output.records, write, again);
+    for (end, maps) in [
+        (
+            "jig-protocol-engine-workers",
+            include_str!("../../../../crates/jig-protocol-engine-workers/schema/worker_wire.maps"),
+        ),
+        (
+            "jig-protocol-worker-link",
+            include_str!("../../../../crates/jig-protocol-worker-link/schema/worker_wire.maps"),
+        ),
+    ] {
+        let output = translate(schema, maps).unwrap_or_else(|error| panic!("{end}: {error}"));
+        let path = crates.join(end).join("src/generated/worker_wire.rs");
+        codec_drift::check_text(&path, &output, write, again);
+    }
     let path = skein_scratch::paths::package().join("bounds/worker_wire.bounds");
     let bounds = bounds_text(codec::DECLARATIONS, codec::CEILINGS.values().as_slice());
     codec_drift::check_text(&path, &bounds, write, again);
