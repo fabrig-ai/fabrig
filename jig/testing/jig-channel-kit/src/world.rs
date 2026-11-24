@@ -14,6 +14,7 @@ use skein_lib::Duration;
 use skein_world::domain::Verdict;
 use std::{cell::RefCell, rc::Rc};
 
+mod receipts;
 pub mod store;
 pub(crate) use store::{Capture, Store};
 
@@ -187,7 +188,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         Proc::Engine(_) | Proc::Agent { .. } | Proc::Peer(_) | Proc::Auth(_) | Proc::Client(_) => None,
     });
     let refusal = procs.iter().find_map(|proc| if let Proc::Probe(peer) = proc { peer.refused } else { None });
-    let turns = turns(store);
+    let turns: Vec<_> = store.turns().collect();
     let assignments: Vec<_> = worker
         .into_iter()
         .flat_map(|wire| wire.frames.iter())
@@ -275,19 +276,10 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
     }
 }
 
-pub(crate) fn turns(store: &Store) -> Vec<&core::TurnRecord> {
-    store
-        .rows
-        .values()
-        .filter_map(|row| match row {
-            root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) => Some(turn),
-            root::Record::Core(_) | root::Record::Connector { .. } => None,
-        })
-        .collect()
-}
 pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::stories::Story) -> bool {
-    store.rows.values().any(|row| matches!(row,
-        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer)))
+    let key = root::Key::Core(core::Key::Core(core::CoreKey::Terminal { task, attempt }));
+    matches!(store.rows.get(&key),
+        Some(root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))))
         if answer.task == task && answer.attempt == attempt && if matches!(scenario, crate::stories::Story::InvalidCharter) {
             answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Invalid)
         } else if matches!(scenario, crate::stories::Story::InvalidTranscript) && attempt == 2 {
@@ -299,7 +291,7 @@ pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::
         } else if matches!(scenario, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) && attempt == 1 {
             matches!(answer.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended { worker: 1, why: jig_domain_tasks::SuspendWhy::Stopped, .. }))
         } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
-    ))
+    )
 }
 pub(crate) fn pending_turn(store: &Store) -> bool {
     store.pending.iter().any(|pending| {

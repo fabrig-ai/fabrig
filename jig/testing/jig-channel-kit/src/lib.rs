@@ -23,4 +23,8 @@ pub mod list_read;
 pub mod usage_read;
 
 #[cfg(test)]
+#[global_allocator]
+static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
+
+#[cfg(test)]
 mod cursor_fixture;

@@ -289,29 +289,32 @@ pub(crate) fn act(point: Point, now: Time, procs: &mut [Proc], views: &mut Views
 pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut State) -> Result<(), String> {
     let worker = crate::world::check_worker_wire(procs)?;
     state.observe_assignments(&worker.frames)?;
-    for row in store.rows.values() {
-        if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Part(part))) = row
-            && part.key.attempt == 1
-            && part.turn == 2
-            && !state.evidence.kept.iter().any(|known| known.key == part.key)
-        {
+    for part in store.parts() {
+        if part.key.attempt == 1 && part.turn == 2 && !state.evidence.kept.iter().any(|known| known.key == part.key) {
             state.evidence.kept.push(part.clone());
         }
     }
-    state.evidence.suspended |= store.rows.values().any(|row| matches!(row,
-        jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(end)))
-        if end.attempt == 1 && matches!(end.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended {worker: 1, why: jig_domain_tasks::SuspendWhy::Stopped, ..}))));
+    state.evidence.suspended |= store.terminals().any(|end| {
+        end.attempt == 1
+            && matches!(
+                end.end,
+                jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended {
+                    worker: 1,
+                    why: jig_domain_tasks::SuspendWhy::Stopped,
+                    ..
+                })
+            )
+    });
     if state.assignments_seen >= 2 {
-        state.evidence.same_worker |= store.rows.values().any(|row| {
-            matches!(row,
-            jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))
-            if proof.attempt == 2 && proof.worker == Some(1))
-        });
+        state.evidence.same_worker |=
+            store.core_rows(core::CoreKey::RunProof(0), core::CoreKey::RunProof(u64::MAX)).any(
+                |row| matches!(row, core::CoreRecord::RunProof(proof) if proof.attempt == 2 && proof.worker == Some(1)),
+            );
     }
-    for turn in crate::world::turns(store) {
+    for turn in store.turns() {
         if turn.attempt == 2 && turn.turn == 1 && !state.saw_resumed_turn {
             state.saw_resumed_turn = true;
-            state.evidence.retired_at_turn = !store.rows.values().any(|row| matches!(row, jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Part(part))) if part.key.attempt == 1));
+            state.evidence.retired_at_turn = !store.parts().any(|part| part.key.attempt == 1);
             let record = smith_transcript::Turn::decode(
                 &smith_transcript::CEILINGS,
                 &mut skein_lib::Reader::new(&turn.transcript),
@@ -399,7 +402,7 @@ fn observe_wire(now: Time, procs: &[Proc], store: &Store, state: &mut State) -> 
                 {
                     return Err("acknowledged part is kept unchanged".into());
                 }
-            } else if !crate::world::turns(store).iter().any(|turn| {
+            } else if !store.turns().any(|turn| {
                 turn.task == kept.task
                     && (turn.attempt > kept.attempt || turn.attempt == kept.attempt && turn.turn >= part.turn)
             }) {

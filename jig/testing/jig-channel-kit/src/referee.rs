@@ -1,7 +1,7 @@
 //! Channel-wide safety and liveness (protocol/channel/testing.md, 1).
 use crate::{
     processes::Proc,
-    world::{Store, answer_parties, answer_store, check_diagnostics, terminal, turns, worker_wire},
+    world::{Store, answer_parties, answer_store, check_diagnostics, terminal, worker_wire},
 };
 use jig_domain_core as core;
 use jig_fake_parties as parties;
@@ -111,8 +111,8 @@ impl skein_world::Referee<Proc> for Referee {
                 self.views.borrow_mut().providers_after = choices;
             }
         }
-        let turns = turns(&store);
-        if turns.len() > self.expected_turns as usize {
+        let turn_count = store.turns().count();
+        if turn_count > self.expected_turns as usize {
             return Err(String::from("bounded committed turns for the script"));
         }
         let engine = procs
@@ -138,10 +138,7 @@ impl skein_world::Referee<Proc> for Referee {
                 return Err(format!(
                     "acknowledgement follows a durable successful terminal: {task}/{attempt} at {now:?}; replies {:?}; turns {:?}; diagnostics {}",
                     self.party.replies,
-                    crate::world::turns(&store)
-                        .iter()
-                        .map(|turn| (turn.attempt, turn.turn, turn.read))
-                        .collect::<Vec<_>>(),
+                    store.turns().map(|turn| (turn.attempt, turn.turn, turn.read)).collect::<Vec<_>>(),
                     check_diagnostics(procs)?
                 ));
             }
@@ -177,7 +174,7 @@ impl skein_world::Referee<Proc> for Referee {
             worker.acknowledgements.len() == self.expected_answers
         };
         if self.party.quiescent()
-            && turns.len() == self.expected_turns as usize
+            && turn_count == self.expected_turns as usize
             && ended
             && replied
             && self.rules.complete()
@@ -245,7 +242,7 @@ impl skein_world::Referee<Proc> for Referee {
                 self.story,
                 self.cut_ready.get(),
                 self.party.replies,
-                turns(&self.store.borrow()).len(),
+                self.store.borrow().turns().count(),
                 self.rules,
                 self.views.borrow().restart.evidence
             ) + &self.formatted
@@ -992,7 +989,7 @@ impl Referee {
         }
         if matches!(self.story, crate::stories::Story::Shutdown)
             && !self.injected
-            && !turns(&self.store.borrow()).is_empty()
+            && self.store.borrow().turns().next().is_some()
             && procs.iter().any(
                 |proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).count() >= 2),
             )
@@ -1292,7 +1289,7 @@ fn transcript_recovered(worker: &crate::processes::Wire, store: &Store) -> Resul
         .iter()
         .find(|message| message.words.as_ref() == b"Continue now")
         .ok_or("the refused resume retains the pending person's message")?;
-    if !turns(store).iter().any(|turn| turn.attempt == 3 && turn.read == Some(message.name)) {
+    if !store.turns().any(|turn| turn.attempt == 3 && turn.read == Some(message.name)) {
         return Err(String::from("the fresh agent takes the pending person's message"));
     }
     if !terminal(store, 1, 2, crate::stories::Story::InvalidTranscript) {

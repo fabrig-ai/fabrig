@@ -25,14 +25,16 @@ fn fresh_peer_bounds(sizes: &wire::sizes::Sizes) -> (skein_channel::Schema, skei
 #[test]
 fn prepared_peer_bounds_follow_sizes_and_keep_copies_independent() {
     let sizes = fixtures::store_limits().workers.sizes;
-    assert_eq!(fixtures::peer_bounds_for(&sizes), fresh_peer_bounds(&sizes));
+    let expected = fresh_peer_bounds(&sizes);
+    assert_eq!(fixtures::peer_bounds_for(&sizes), expected);
     let (mut schema, _) = fixtures::peer_bounds_for(&sizes);
     schema.magic = *b"else";
     assert_ne!(schema, fixtures::peer_bounds_for(&sizes).0);
-    assert_eq!(fixtures::peer_bounds_for(&sizes), fresh_peer_bounds(&sizes));
+    assert_eq!(fixtures::peer_bounds_for(&sizes), expected);
     let changed = wire::sizes::Sizes { turn: sizes.turn + 1, ..sizes };
-    assert_ne!(fresh_peer_bounds(&changed), fresh_peer_bounds(&sizes));
-    assert!(fixtures::peer_bounds_for(&changed) == fresh_peer_bounds(&changed), "changed sizes build fresh bounds");
+    let changed_expected = fresh_peer_bounds(&changed);
+    assert_ne!(changed_expected, expected);
+    assert!(fixtures::peer_bounds_for(&changed) == changed_expected, "changed sizes build fresh bounds");
 }
 
 #[test]

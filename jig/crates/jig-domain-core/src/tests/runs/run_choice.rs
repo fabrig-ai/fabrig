@@ -132,6 +132,19 @@ fn ready(none: bool) -> (Core, Limits) {
     (core, limits)
 }
 
+#[test]
+fn a_precomputed_policy_keeps_its_model_and_matching_host() {
+    let (mut core, limits) = ready(false);
+    granted(&mut core, &limits, 2);
+    let mut policy = core.chosen_policy(TASK);
+    let main = policy.alternatives[1].clone();
+    policy.alternatives = Box::new([policy.model.clone(), policy.alternatives[0].clone()]);
+    policy.model = main;
+    let choice = core.run_choice_for_policy(TASK, Some(policy.clone())).expect("precomputed policy is usable");
+    assert_eq!(choice.policy, policy, "the account and host probe keeps the supplied policy");
+    assert_eq!(choice.placement.channel, SECOND, "only the second host serves its main model");
+}
+
 const RESUME_UNTIL: Wall = Wall::from_nanos(100);
 
 fn suspended_on_second(core: &mut Core, limits: &Limits) {

@@ -95,7 +95,7 @@ impl Reply {
                 if text.call.is_some() {
                     return Err(String::from("assertion failed: text.call.is_none()"));
                 }
-                if !crate::world::turns(store).is_empty() {
+                if store.turns().next().is_some() {
                     return Err(String::from("each prefix precedes the durable turn"));
                 }
                 self.prefixes.push(text.text.bytes().into());
