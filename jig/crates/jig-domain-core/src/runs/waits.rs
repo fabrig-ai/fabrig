@@ -13,7 +13,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token, Wall};
 
-pub(crate) const JIG_KINDS: [WaitKind; 8] = [
+pub(crate) const STARTUP_KINDS: [WaitKind; 8] = [
     WaitKind::Party,
     WaitKind::Question,
     WaitKind::Dependency,
@@ -31,7 +31,7 @@ impl Core {
         if let Some(at) = self.counters.deployment.wait_floor(kind) {
             return Some(at);
         }
-        if JIG_KINDS.contains(&kind) { self.start_floor_time() } else { None }
+        if STARTUP_KINDS.contains(&kind) { self.start_floor_time() } else { None }
     }
 
     /// Keep a kind's first floor and dirty the deployment header for this decision.

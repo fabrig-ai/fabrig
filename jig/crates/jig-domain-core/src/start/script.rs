@@ -41,7 +41,7 @@ impl Core {
                 self.counters.finish_restore();
                 // The first start commit (Wires at the latest) saves the header.
                 // Do not dirty it here: a loaded header is not a first-start seed.
-                for kind in crate::runs::waits::JIG_KINDS {
+                for kind in crate::runs::waits::STARTUP_KINDS {
                     let _kept = self.counters.deployment.set_wait_floor(kind, self.start.at);
                 }
                 if self.counters.dirty() && self.kinds.is_empty() {
