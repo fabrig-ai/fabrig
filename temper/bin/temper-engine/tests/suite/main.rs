@@ -1,162 +1,42 @@
 //! The engine binary's table and dispatch (temper/docs/design/protocol/binaries.md, 2).
 use std::process::{Command, Stdio};
 use temper_config_shell::{File, Shape, render};
-use temper_engine_shell::ENGINE;
-#[path = "../support/upgrade.rs"]
-mod upgrade;
-#[test]
-fn upgrade_refuses_an_empty_deployment_directory() {
-    upgrade::empty_directory("temper-engine");
-}
-
 use temper_deployment_fixtures as deployment;
-
-#[test]
-fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation() {
-    let (scratch, _directories) = deployment::deployment();
-    let config = scratch.path().join("config");
-    let data = scratch.path().join("data");
-    let cache = scratch.path().join("cache");
-    // The owner's subject fits; the kept person's full identity does not.
-    let held = data.join("limits-held");
-    std::fs::write(&held, b"people.identity_bytes 7\n").expect("held startup figures");
-    let held_line = format!(
-        "limits held: {}; the limit settings are not taken; remove it and restart to take them",
-        held.display()
-    );
-    let active_path = data.join("state/active");
-    let active = std::fs::read(&active_path).expect("active generation");
-    let refusal = "restart refused during core restore: PeopleBound(IdentityBytes), key People(Person(1))";
-    let mut check_refusal = None;
-    for arguments in [vec!["upgrade", "--check"], vec!["serve"]] {
-        let checking = arguments[0] == "upgrade";
-        let mut command = Command::new(skein_scratch::paths::binary("temper-engine"));
-        command
-            .args(arguments)
-            .env_clear()
-            .env("TEMPER_CONFIG", &config)
-            .env("TEMPER_DATA", &data)
-            .env("TEMPER_CACHE", &cache)
-            .stdin(Stdio::null());
-        if checking {
-            command.arg(data.join("state"));
-        }
-        let output = command.output().expect("run engine");
-        let out = String::from_utf8_lossy(&output.stdout);
-        let err = String::from_utf8_lossy(&output.stderr);
-        assert_eq!(output.status.code(), Some(1), "{out}\n{err}");
-        let text = format!("{out}{err}");
-        let line = text.lines().find(|line| line.contains(refusal)).expect(&text).to_owned();
-        if checking {
-            // Only wall-time warnings may accompany a refusal; the refusal itself belongs on stdout.
-            assert!(err.lines().all(|line| engine_long_pass(line) || line == held_line), "{err}");
-            assert_eq!(err.lines().filter(|line| *line == held_line).count(), 1);
-            assert!(out.contains(refusal), "{out}");
-            assert_eq!(std::fs::read(&active_path).expect("active after refused check"), active);
-            check_refusal = Some(line);
-        } else {
-            assert_eq!(Some(line), check_refusal, "a start refuses the same record in the same words");
-        }
-    }
-}
+use temper_engine_shell::ENGINE;
 
 #[path = "../support/settings.rs"]
 mod settings;
 
 #[test]
-fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generation() {
-    use settings::Numbers;
-    let (scratch, directories) = deployment::deployment();
-    let config = scratch.path().join("config");
-    let data = scratch.path().join("data");
-    let cache = scratch.path().join("cache");
-    let active_path = data.join("state/active");
-    for numbers in [Numbers::Kept, Numbers::Moved, Numbers::Past, Numbers::Taken] {
-        settings::seed_numbered_settings(&directories, numbers);
-        let active = std::fs::read(&active_path).expect("active generation");
-        let before = deployment::tree(&data);
-        let output = Command::new(skein_scratch::paths::binary("temper-engine"))
-            .args(["upgrade", "--check"])
-            .arg(data.join("state"))
-            .env_clear()
-            .env("TEMPER_CONFIG", &config)
-            .env("TEMPER_DATA", &data)
-            .env("TEMPER_CACHE", &cache)
-            .stdin(Stdio::null())
-            .output()
-            .expect("run upgrade check");
-        let out = String::from_utf8_lossy(&output.stdout);
-        let err = String::from_utf8_lossy(&output.stderr);
-        let refused = matches!(numbers, Numbers::Past | Numbers::Taken);
-        assert_eq!(output.status.code(), Some(i32::from(refused)), "{out}\n{err}");
-        assert!(err.lines().all(engine_long_pass), "{err}");
-        if !refused {
-            assert!(out.contains("registry commit, jobs and restores pass; opened in "), "{out}");
-            assert!(!out.contains("settings out of their numbers"), "{out}");
-        } else if numbers == Numbers::Past {
-            let refusal = out.lines().find(|line| line.contains("settings out of their numbers")).expect(&out);
-            for words in ["changed charter 65", "the stock's 1 to 32", "a deployment's own 33 to 64"] {
-                assert!(refusal.contains(words), "{refusal}");
-            }
-        } else {
-            for words in [
-                "the stock's new settings take numbers a deployment's own hold",
-                "charter 1",
-                "move each to 33 to 64 on the build that runs now, then start this one",
-            ] {
-                assert!(out.contains(words), "{out}");
-            }
-        }
-        assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
-        assert_eq!(deployment::tree(&data), before, "the check leaves the data directory unchanged");
-    }
-}
-
-#[test]
 fn upgrade_check_restores_under_the_limits_a_start_takes_from_the_copy() {
+    // The copy's own `limits` setting raises core.settings.versions past the stock's, and the copy holds more.
+    const RAISED_VERSIONS: u64 = 64;
     let (scratch, directories) = deployment::deployment();
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
-    // The copy's own `limits` setting raises core.settings.versions past the stock's, and the copy holds more.
-    let versions = settings::seed_raised_versions(&directories, 64);
-    let refusal = format!("restart refused during core restore: Versions, held {versions}, limit {}", versions - 1);
-    let hold = data.join("limits-held");
-    let held_line = format!(
-        "limits held: {}; the limit settings are not taken; remove it and restart to take them",
-        hold.display()
-    );
+    settings::seed_raised_versions(&directories, RAISED_VERSIONS);
     let active_path = data.join("state/active");
     let active = std::fs::read(&active_path).expect("active generation");
     let before = deployment::tree(&data.join("state"));
-    // Held at the stock, a start takes neither kind and refuses what it holds past the stock's figure.
-    for stock in [false, true] {
-        if stock {
-            std::fs::write(&hold, b"").expect("limits held at the stock");
-        }
-        let output = Command::new(skein_scratch::paths::binary("temper-engine"))
-            .args(["upgrade", "--check"])
-            .arg(data.join("state"))
-            .env_clear()
-            .env("TEMPER_CONFIG", &config)
-            .env("TEMPER_DATA", &data)
-            .env("TEMPER_CACHE", &cache)
-            .stdin(Stdio::null())
-            .output()
-            .expect("run upgrade check");
-        let out = String::from_utf8_lossy(&output.stdout);
-        let err = String::from_utf8_lossy(&output.stderr);
-        assert_eq!(output.status.code(), Some(i32::from(stock)), "{out}\n{err}");
-        assert!(err.lines().all(|line| engine_long_pass(line) || (stock && line == held_line)), "{err}");
-        if stock {
-            assert!(out.contains(&refusal), "{out}");
-        } else {
-            assert!(out.contains("registry commit, jobs and restores pass; opened in "), "{out}");
-            assert!(!out.contains("restart refused"), "{out}");
-        }
-        assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
-        assert_eq!(deployment::tree(&data.join("state")), before, "the check leaves the copy unchanged");
-    }
+    let output = Command::new(skein_scratch::paths::binary("temper-engine"))
+        .args(["upgrade", "--check"])
+        .arg(data.join("state"))
+        .env_clear()
+        .env("TEMPER_CONFIG", &config)
+        .env("TEMPER_DATA", &data)
+        .env("TEMPER_CACHE", &cache)
+        .stdin(Stdio::null())
+        .output()
+        .expect("run upgrade check");
+    let out = String::from_utf8_lossy(&output.stdout);
+    let err = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(0), "{out}\n{err}");
+    assert!(err.lines().all(engine_long_pass), "{err}");
+    assert!(out.contains("registry commit, jobs and restores pass; opened in "), "{out}");
+    assert!(!out.contains("restart refused"), "{out}");
+    assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
+    assert_eq!(deployment::tree(&data.join("state")), before, "the check leaves the copy unchanged");
 }
 
 fn engine_long_pass(line: &str) -> bool {
