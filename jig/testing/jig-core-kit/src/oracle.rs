@@ -552,7 +552,7 @@ fn durable_waits(row: &mut core::documents::Task) -> (bool, bool) {
     if row.waits_on == WaitsOn::News && volatile(WaitKind::News) {
         row.waits_on = WaitsOn::Nothing;
     }
-    // Each branch contributes one volatile episode, even if its line is cut.
+    // Count one volatile episode for the matched phase, even if its line is cut.
     row.wait_count = row.wait_count.saturating_sub(1);
     (row.wait.as_ref().is_some_and(|wait| volatile(wait.kind)), row.nearest.is_some_and(|bound| volatile(bound.kind)))
 }

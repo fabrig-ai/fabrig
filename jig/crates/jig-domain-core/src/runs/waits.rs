@@ -257,7 +257,7 @@ fn summary(
         return WaitsOn::Nothing;
     }
     if let tasks::Phase::Active(_) = row.phase {
-        // The legacy keep names the lowest question number, not the earliest wall reading.
+        // Name the lowest question number, not the earliest wall reading.
         let mut question = match row.requester {
             tasks::Party::Task(_) => None,
             tasks::Party::Person(_) | tasks::Party::Deployment { .. } => tasks::own_question(row),
