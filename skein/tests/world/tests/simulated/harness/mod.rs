@@ -9,6 +9,8 @@ use skein_world_tests::hosted::{Act, RootMachine, Script};
 
 mod keeps;
 mod peers {
+    mod lending;
+    mod peer;
     mod tests;
 }
 
@@ -86,10 +88,11 @@ pub(super) fn run<'a, 'p, 'l>(
 
 pub(super) const LISTENING: &str = "listening ";
 
-pub(super) fn server(inherited: &Inherited, status: u16) -> Script {
+pub(super) fn listen(inherited: &Inherited) -> Act {
     let output = inherited.pipes.iter().position(|(at, _)| *at == 2).expect("inherited stderr");
-    Script::child(
-        inherited,
-        &[Act::ListenAndPrint { output, prefix: LISTENING, suffix: "" }, Act::AnswerRequests(status)],
-    )
+    Act::ListenAndPrint { output, prefix: LISTENING, suffix: "" }
+}
+
+pub(super) fn server(inherited: &Inherited, status: u16) -> Script {
+    Script::child(inherited, &[listen(inherited), Act::AnswerRequests(status)])
 }

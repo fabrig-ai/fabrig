@@ -4399,11 +4399,9 @@ dependencies = [
  "flate2",
  "skein-browser",
  "skein-fail-stop",
- "skein-fake-peers",
  "skein-fake-person",
  "skein-fake-person-browser",
  "skein-http",
- "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-ui",
@@ -4411,7 +4409,6 @@ dependencies = [
  "skein-ui-example-server",
  "skein-ui-example-view",
  "skein-ui-web",
- "skein-world",
 ]
 
 [[package]]
@@ -4433,6 +4430,7 @@ version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
  "skein-fake-machine",
+ "skein-fake-peers",
  "skein-fake-person-browser",
  "skein-heap",
  "skein-http",

@@ -20,7 +20,7 @@ enum Cancel {
 enum Phase {
     Announce { output: Fd, prefix: &'static str, suffix: &'static str },
     Listening,
-    Serve(u16),
+    Serve { status: u16, body: &'static [u8] },
     Stop(Cancel),
     Closed,
 }
@@ -49,9 +49,13 @@ impl Server {
         server
     }
 
-    pub fn serve(&mut self, script: &mut Script, status: u16) {
+    pub fn address(&self) -> Option<SocketAddr> {
+        self.addr
+    }
+
+    pub fn serve(&mut self, script: &mut Script, status: u16, body: &'static [u8]) {
         assert!(matches!(self.phase, Phase::Listening), "the script announced its listening address");
-        self.phase = Phase::Serve(status);
+        self.phase = Phase::Serve { status, body };
         script
             .submissions
             .push(Submit { op: SIGNAL, kind: Op::ReadSignal { fd: script.signal.expect("server signal source") } });
@@ -146,11 +150,14 @@ impl Server {
                 if let Some(end) = self.head.windows(4).position(|bytes| bytes == b"\r\n\r\n") {
                     self.head.truncate(end + 4);
                     script.request_heads.push(std::mem::take(&mut self.head).into_boxed_slice());
-                    let Phase::Serve(status) = self.phase else { panic!("answer while serving") };
-                    let bytes = format!("HTTP/1.1 {status} Scripted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-                        .into_bytes()
-                        .into_boxed_slice();
-                    Some(Op::Send { fd, bytes, from: 0 })
+                    let Phase::Serve { status, body } = self.phase else { panic!("answer while serving") };
+                    let mut bytes = format!(
+                        "HTTP/1.1 {status} Scripted\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    )
+                    .into_bytes();
+                    bytes.extend_from_slice(body);
+                    Some(Op::Send { fd, bytes: bytes.into_boxed_slice(), from: 0 })
                 } else {
                     assert!(self.head.len() <= HEAD_LIMIT, "the fixture receives a bounded HTTP request head");
                     Some(Self::read(fd))

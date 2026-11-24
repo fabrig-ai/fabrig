@@ -6,7 +6,10 @@ use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Reason, Sign
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_world::{Host, Inherited, Machine};
 
+mod exchange;
 mod server;
+
+pub use exchange::Address;
 
 /// One sequential kernel operation in a parent or child script.
 #[derive(Clone, Copy, Debug)]
@@ -57,6 +60,10 @@ pub enum Act {
     ListenAndPrint { output: usize, prefix: &'static str, suffix: &'static str },
     /// Answers HTTP requests until a termination signal; requires `ListenAndPrint` first.
     AnswerRequests(u16),
+    /// Connects to a launch address, sends the request and keeps the reply through EOF.
+    Exchange { address: Address, request: &'static [u8] },
+    /// Answers as `AnswerRequests` does, with a fixed response body.
+    AnswerRequestsWithBody { status: u16, body: &'static [u8] },
 }
 
 /// A script runs kernel operations and closes all its descriptors at the end.
@@ -78,6 +85,7 @@ pub struct Script {
     submissions: Queue<Submit>,
     pub received: Vec<u8>,
     pub request_heads: Vec<Box<[u8]>>,
+    exchanges: Option<Box<exchange::Exchanges>>,
     server: Option<Box<server::Server>>,
     pub modes: Vec<skein_shell::Modes>,
     pub results: Vec<Result<Done, skein_io::kernel::Error>>,
@@ -111,6 +119,7 @@ impl Script {
             submissions: Queue::with_capacity(8),
             received: Vec::new(),
             request_heads: Vec::new(),
+            exchanges: None,
             server: None,
             modes: Vec::new(),
             results: Vec::new(),
@@ -142,6 +151,30 @@ impl Script {
         script
     }
 
+    /// A child that reads its own launch arguments or environment.
+    #[must_use]
+    pub fn spawned(spawn: &Spawn, inherited: &Inherited, acts: &[Act]) -> Self {
+        let mut script = Self::child(inherited, acts);
+        script.args.clone_from(&spawn.args);
+        script.exchanges = Some(Box::new(exchange::Exchanges::new(spawn)));
+        script
+    }
+
+    #[must_use]
+    pub fn env(&self) -> &[Box<[u8]>] {
+        self.exchanges.as_deref().map_or(&[], |exchanges| &exchanges.env)
+    }
+
+    #[must_use]
+    pub fn replies(&self) -> &[Vec<u8>] {
+        self.exchanges.as_deref().map_or(&[], |exchanges| &exchanges.replies)
+    }
+
+    #[must_use]
+    pub fn listening_address(&self) -> Option<std::net::SocketAddr> {
+        self.server.as_deref().and_then(server::Server::address)
+    }
+
     /// A hosted parent uses its last startup root to launch its own child.
     #[must_use]
     pub fn hosted_parent(inherited: &Inherited, acts: &[Act]) -> Self {
@@ -162,6 +195,17 @@ impl Script {
         self.submissions.push(Submit { op: Token::new(self.next), kind });
         self.next += 1;
         self.waiting = true;
+    }
+
+    fn answer_requests(&mut self, status: u16, body: &'static [u8]) {
+        let mut server = self.server.take().expect("listen before serving");
+        server.serve(self, status, body);
+        self.server = Some(server);
+    }
+
+    fn start_exchange(&mut self, address: Address, request: &'static [u8]) -> Op {
+        let address = address.read(self);
+        self.exchanges.as_mut().expect("an exchange uses the child's launch record").start(address, request)
     }
 
     fn start(&mut self, act: Act, now: Time) {
@@ -253,12 +297,9 @@ impl Script {
                 self.server = Some(Box::new(server::Server::announce(self, self.fds[output], prefix, suffix)));
                 return;
             }
-            Act::AnswerRequests(status) => {
-                let mut server = self.server.take().expect("listen before serving");
-                server.serve(self, status);
-                self.server = Some(server);
-                return;
-            }
+            Act::AnswerRequests(status) => return self.answer_requests(status, b""),
+            Act::AnswerRequestsWithBody { status, body } => return self.answer_requests(status, body),
+            Act::Exchange { address, request } => self.start_exchange(address, request),
         };
         self.submit(kind);
     }
@@ -285,6 +326,14 @@ impl Host for Script {
         }
         while let Some(complete) = self.completions.pop() {
             self.waiting = false;
+            if let Some(exchanges) = self.exchanges.as_deref_mut()
+                && exchanges.active()
+            {
+                if let Some(op) = exchanges.advance(complete) {
+                    self.submit(op);
+                }
+                continue;
+            }
             match complete.result {
                 Ok(Done::Spawned { pidfd, .. }) => {
                     self.pidfd = Some(pidfd);

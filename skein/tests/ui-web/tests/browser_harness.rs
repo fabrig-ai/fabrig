@@ -95,62 +95,6 @@ fn a_framed_page_s_refusal_is_awaited_as_trouble() {
     ]));
     assert_eq!(skein_ui_web_tests::fixture_harness_with(&bundle, vec![origin]).run(&mut [&mut person]), Outcome::Done);
 }
-fn ready_person() -> Script {
-    Script::new(Box::new([harness::Step::Person(Step::See {
-        find: Find::exactly_named(Role::Heading { level: 1 }, b"Ready"),
-        within: skein_ui_web_tests::SECOND,
-    })]))
-}
-
-#[test]
-fn a_lent_peer_listens_before_the_server_requests_it() {
-    let mut peer = skein_ui_web_tests::harness_peer::Peer::new();
-    let mut person = ready_person();
-    let outcome = skein_ui_web_tests::lending_harness(&["{neighbor}"], vec![])
-        .run_lending(&mut [&mut person], &mut [harness::Lent { name: b"neighbor", peer: &mut peer }]);
-    assert_eq!(outcome, Outcome::Done);
-    assert_eq!(peer.observations, [b"GET / HTTP/1.1\r\nHost: fixture\r\nConnection: close\r\n\r\n".to_vec()]);
-}
-
-#[test]
-fn a_lent_peer_returns_empty_with_its_handle_usable() {
-    use skein_world::Host;
-    let mut peer = skein_ui_web_tests::harness_peer::Peer::new();
-    let handle = peer.handle.clone();
-    let mut person = ready_person();
-    let outcome = skein_ui_web_tests::lending_harness(&["{neighbor}"], vec![])
-        .run_lending(&mut [&mut person], &mut [harness::Lent { name: b"neighbor", peer: &mut peer }]);
-    assert_eq!(outcome, Outcome::Done);
-    assert!(peer.is_empty());
-    assert_eq!(handle.get(), 1);
-    assert_eq!(peer.observations.len(), 1);
-}
-
-#[test]
-fn colliding_peer_tokens_reach_their_own_hosts() {
-    use skein_world::Host;
-    let mut first = skein_ui_web_tests::harness_peer::Peer::new();
-    let mut second = skein_ui_web_tests::harness_peer::Peer::new();
-    let mut person = ready_person();
-    let outcome = skein_ui_web_tests::lending_harness(&["{first}", "{second}"], vec![]).run_lending(
-        &mut [&mut person],
-        &mut [harness::Lent { name: b"first", peer: &mut first }, harness::Lent { name: b"second", peer: &mut second }],
-    );
-    assert_eq!(outcome, Outcome::Done);
-    assert_eq!((first.observations.len(), second.observations.len()), (1, 1));
-    assert!(first.is_empty() && second.is_empty());
-}
-
-#[test]
-fn repeated_peer_arguments_each_reach_the_server() {
-    let mut peer = skein_ui_web_tests::harness_peer::Peer::new();
-    let mut person = ready_person();
-    let outcome = skein_ui_web_tests::lending_harness(&["{neighbor}", "{neighbor}"], vec![])
-        .run_lending(&mut [&mut person], &mut [harness::Lent { name: b"neighbor", peer: &mut peer }]);
-    assert_eq!(outcome, Outcome::Done);
-    assert_eq!(peer.handle.get(), 2);
-}
-
 fn keep(selector: &[u8], attribute: Option<&[u8]>, name: &[u8]) -> harness::Step {
     harness::Step::Keep { selector: selector.into(), attribute: attribute.map(Box::from), name: name.into() }
 }
@@ -269,30 +213,6 @@ fn a_second_run_while_the_command_runs_fails() {
         panic!("overlapping commands fail")
     };
     assert!(report.contains("harness_fixture: another Run before it settled"), "{report}");
-}
-#[test]
-fn command_arguments_receive_peer_and_server_addresses() {
-    let mut peer = skein_ui_web_tests::harness_peer::Peer::new();
-    let mut person = command_story(command(&["args", "{neighbor}", "{address}"], false));
-    assert_eq!(
-        command_harness(harness::Sent::Page)
-            .run_lending(&mut [&mut person], &mut [harness::Lent { name: b"neighbor", peer: &mut peer }]),
-        Outcome::Done
-    );
-    assert_eq!(peer.observations.len(), 1);
-}
-#[test]
-fn command_environment_values_receive_peer_and_server_addresses() {
-    let mut peer = skein_ui_web_tests::harness_peer::Peer::new();
-    let mut cmd = command(&["env"], false);
-    cmd.env = vec![("FIXTURE_PEER".into(), "{neighbor}".into()), ("FIXTURE_SERVER".into(), "{address}".into())];
-    let mut person = command_story(cmd);
-    assert_eq!(
-        command_harness(harness::Sent::Page)
-            .run_lending(&mut [&mut person], &mut [harness::Lent { name: b"neighbor", peer: &mut peer }]),
-        Outcome::Done
-    );
-    assert_eq!(peer.observations.len(), 1);
 }
 #[test]
 fn a_link_keep_and_a_selector_keep_append_to_one_sequence() {

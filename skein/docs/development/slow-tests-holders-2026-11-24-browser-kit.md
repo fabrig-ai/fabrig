@@ -49,8 +49,19 @@ name.
 
 ### 2.3 Lent peers and substituted addresses
 
+The new holders are in `skein-world-tests::simulated`,
+`harness::peers::lending`. Each server startup exchange sends the same
+request over loopback before the server opens its own listener. The
+command cases read the launch record and exchange with each listener.
+
 | Slow test (`browser_harness`) | Held by |
 |---|---|
+| `a_lent_peer_listens_before_the_server_requests_it` | Same name in `harness::peers::lending`: startup exchange, exact request, `Ready` and `Done`. Also `harness::peers::tests::a_lent_peer_becomes_ready_after_its_kernel_listen_is_processed` holds readiness at the listen completion. |
+| `a_lent_peer_returns_empty_with_its_handle_usable` | Same name in `harness::peers::lending`: empty returned peer, cloned handle still reading one, one observation. |
+| `colliding_peer_tokens_reach_their_own_hosts` | Same name in `harness::peers::lending`: equal local tokens, distinct addresses in argument order, one observation each, both peers empty. |
+| `repeated_peer_arguments_each_reach_the_server` | Same name in `harness::peers::lending`: two startup exchanges and handle count two. Also `skein-fake-person-browser`'s `harness::lines::tests::repeated_peer_and_server_placeholders_preserve_other_bytes` holds literal replacement. |
+| `command_arguments_receive_peer_and_server_addresses` | Same name in `harness::peers::lending`: connects using both arguments, reads both answers, exits zero and leaves one peer observation. |
+| `command_environment_values_receive_peer_and_server_addresses` | Same name in `harness::peers::lending`: connects using both environment entries, reads both answers, exits zero and leaves one peer observation; exact two entries and no `HOME`. |
 
 ## 3. The example's patches, refused add and fan-out, to the host
 

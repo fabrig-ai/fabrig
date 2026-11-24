@@ -16,9 +16,6 @@ skein-ui-web.workspace = true
 skein-ui-bundle.workspace = true
 skein-ui-example-view.workspace = true
 skein-lib.workspace = true
-skein-io.workspace = true
-skein-world.workspace = true
-skein-fake-peers.workspace = true
 skein-http.workspace = true
 skein-scratch.workspace = true
 
