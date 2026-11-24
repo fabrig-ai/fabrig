@@ -16,7 +16,7 @@ pub(crate) fn serves(settings: &Settings, family: Option<u16>, version: u32) -> 
 }
 pub(crate) fn not_served(settings: &Settings, owner: w::Owner) -> w::NotServed {
     let mut served = List::with_capacity(settings.served.len());
-    for Served { family, first, last } in &settings.served {
+    for Served { family, first, last, .. } in &settings.served {
         let owner = match family {
             None => w::Owner::Jig,
             Some(number) => w::Owner::Family(w::Family { number: *number }),

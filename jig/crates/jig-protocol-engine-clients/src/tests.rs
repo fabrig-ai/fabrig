@@ -63,6 +63,19 @@ mod settings_change;
 mod finishes;
 
 #[test]
+fn settings_keep_the_declared_client_layouts_in_order() {
+    let application = crate::Served { family: Some(9), first: 2, last: 2, layout: [9; 32] };
+    let mut settings = fixtures::settings();
+    settings.served = crate::host::served(application);
+    let exchange = fixtures::Exchange::configured(fixtures::env(), settings);
+    let [jig, owner] = exchange.component.settings.served.as_slice() else {
+        panic!("one jig entry and one application entry")
+    };
+    assert_eq!((jig.family, jig.layout), (None, jig_client_protocol_wire::LAYOUT));
+    assert_eq!((owner.family, owner.layout), (application.family, application.layout));
+}
+
+#[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary test keeps the large wire-limit table on the heap")]
 fn valid_refuses_each_unrepresentable_limit() {
     let limits = fixtures::env().limits;

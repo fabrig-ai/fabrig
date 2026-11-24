@@ -9,9 +9,9 @@ const FIRST: &[u8] = b"first.place";
 pub fn encode(record: Record) -> Bytes {
     match record {
         Record::Jig(record) => wire::encode(&match record {
-            ui::Record::Place { version, party, address } => wire::Record::Place { version, party, address },
-            ui::Record::Draft { version, party, task, words, touched } => {
-                wire::Record::Draft { version, party, task, words, touched }
+            ui::Record::Place { party, address, .. } => wire::Record::Place { party, address },
+            ui::Record::Draft { party, task, words, touched, .. } => {
+                wire::Record::Draft { party, task, words, touched }
             }
         }),
         Record::Client(record) => (record.key, record.bytes),
@@ -42,9 +42,9 @@ pub fn decode(record: skein_ui_web::store::Record) -> Option<Record> {
         }));
     }
     Some(Record::Jig(match wire::decode(&record.key, &record.value)? {
-        wire::Record::Place { version, party, address } => ui::Record::Place { version, party, address },
-        wire::Record::Draft { version, party, task, words, touched } => {
-            ui::Record::Draft { version, party, task, words, touched }
+        wire::Record::Place { party, address } => ui::Record::Place { version: ui::STORE_VERSION, party, address },
+        wire::Record::Draft { party, task, words, touched } => {
+            ui::Record::Draft { version: ui::STORE_VERSION, party, task, words, touched }
         }
     }))
 }

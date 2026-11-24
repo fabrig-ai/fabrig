@@ -9,6 +9,7 @@ mod authorize;
 mod batch;
 pub mod boundary;
 mod component;
+mod hello;
 pub mod limits;
 mod retired;
 mod sign_in;

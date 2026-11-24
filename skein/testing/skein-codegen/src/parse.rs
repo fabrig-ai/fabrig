@@ -181,6 +181,7 @@ pub(crate) fn with_tables(source: &str) -> Result<(Schema, schema::Schema), Erro
         family: spelling(&parsed, parsed.family()),
         version: parsed.version(),
         declarations: (0..parsed.declarations()).map(|at| declaration(&parsed, DeclIx::new(at))).collect(),
+        layout: parsed.fingerprints().family().digest(),
     };
     check::check(&schema)?;
     Ok((schema, parsed))

@@ -99,7 +99,14 @@ impl Engine {
             served.push(w::Served { owner, first: version, last: version }).expect("two owners");
         }
         let hello = w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
-        streamed(&jig_client_test_records::opened(hello, self.me.clone()))
+        streamed(&jig_client_test_records::opened_with_layouts(
+            hello,
+            self.me.clone(),
+            &[jig_client_test_records::family_layout(
+                temper_client_protocol_wire::FORGE,
+                temper_client_protocol_wire::CLIENT_LAYOUT,
+            )],
+        ))
     }
     fn member(member: &w::Member, answer: &impl Fn(&w::Owned, bool) -> w::Owned, events: &mut Vec<Event>) -> Box<[u8]> {
         match member {

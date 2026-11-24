@@ -1830,6 +1830,7 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
             event: jig_client::Event::Up {
                 up: jig_client::Up::FamilyServed {
                     family: wire::FORGE,
+                    served: true,
                     versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
                 },
             },

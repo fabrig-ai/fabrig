@@ -8,6 +8,10 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 2;
+pub const LAYOUT: [u8; 32] = [
+    0xc2, 0xee, 0x94, 0x55, 0xb9, 0x66, 0xef, 0xfb, 0x70, 0x58, 0x44, 0xb6, 0x4f, 0xb9, 0x14, 0x38, 0xa3, 0xe3, 0x7f,
+    0x7e, 0xce, 0x40, 0xc7, 0x47, 0xb9, 0x0d, 0x99, 0xc3, 0x55, 0x1a, 0x0a, 0xfd,
+];
 
 // Limits: the owner's values, checked once against ceilings.
 #[repr(C)]
@@ -180,6 +184,7 @@ pub mod paths {
     pub const OWNER_CURSOR: Path = Path::new("Owner.cursor");
     pub const OWNER_TAIL: Path = Path::new("Owner (tail)");
     pub const FORM_TAG: Path = Path::new("Form (tag)");
+    pub const HELD_LAYOUT: Path = Path::new("Held.layout");
     pub const HELD_FORM: Path = Path::new("Held.form");
     pub const HELD_VERSION: Path = Path::new("Held (version)");
     pub const HELD_TAIL: Path = Path::new("Held (tail)");
@@ -2279,18 +2284,20 @@ impl Record for Form {
 // Type: Held.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Held {
+    pub layout: [u8; 32],
     pub form: Form,
 }
 
 // Record: Held.
 impl Held {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(32),
         skein_codec::bounds::Node::Named("Form"),
-        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 142;
+    pub const ENCODED_AT_ZERO: u64 = 174;
 }
 
 impl Record for Held {
@@ -2316,6 +2323,7 @@ impl Record for Held {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::HELD_VERSION)?;
+        field::write(field::Fixed::<32>, &self.layout, limits, out, paths::HELD_LAYOUT)?;
         field::write(field::Nested, &self.form, limits, out, paths::HELD_FORM)?;
         Ok(())
     }
@@ -2323,6 +2331,7 @@ impl Record for Held {
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         field::version(reader, VERSION, paths::HELD_VERSION)?;
         Ok(Self {
+            layout: field::read(field::Fixed::<32>, limits, reader, paths::HELD_LAYOUT)?,
             form: field::read(field::Nested, limits, reader, paths::HELD_FORM)?,
         })
     }

@@ -177,12 +177,14 @@ fn launchpad_opened() -> temper_client_shell_tui::host::Report {
     let owners = limits.native.client.client.domain.owners;
     let mut served = skein_lib::List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served.push(w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION }).expect("Jig owner");
+    let mut layouts = Vec::new();
     for owner in owners {
+        layouts.push(jig_client_test_records::family_layout(owner.family, owner.layout));
         let family = w::Owner::Family(w::Family { number: owner.family });
         served.push(w::Served { owner: family, first: owner.version, last: owner.version }).expect("family owner");
     }
     let hello = w::Hello { stream: [7; 16], served, heartbeat: skein_lib::Duration::from_secs(30) };
-    let event = jig_client_test_records::opened(hello, jig_client_test_records::frame_record());
+    let event = jig_client_test_records::opened_with_layouts(hello, jig_client_test_records::frame_record(), &layouts);
     let message = jig_client::Streamed::Record(event.encode(&w::CEILINGS).expect("empty launchpad stream"));
     temper_client_shell_tui::host::Report::Heard(jig_client::Event::Streamed { message })
 }

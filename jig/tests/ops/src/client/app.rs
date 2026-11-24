@@ -337,10 +337,15 @@ impl App for Ops {
 }
 fn client_limits() -> jig_client::Limits {
     const OWNERS: [jig_client::Spoken; 2] = [
-        jig_client::Spoken { family: number(Connector::Observability), version: jig_ops_client_protocol_wire::VERSION },
+        jig_client::Spoken {
+            family: number(Connector::Observability),
+            version: jig_ops_client_protocol_wire::VERSION,
+            layout: jig_ops_client_protocol_wire::LAYOUT,
+        },
         jig_client::Spoken {
             family: number(Connector::Infrastructure),
             version: jig_ops_client_protocol_wire::VERSION,
+            layout: jig_ops_client_protocol_wire::LAYOUT,
         },
     ];
     let mut client = jig_client_kit::test::limits().client;

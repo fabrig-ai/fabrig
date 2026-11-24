@@ -105,7 +105,8 @@ impl Party {
         value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("Me delivery");
         let document =
             w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
-        let opened = w::Opened { hello, me: document };
+        let layouts = jig_client_kit::test::list([w::Layout { owner: w::Owner::Jig, layout: w::LAYOUT }]);
+        let opened = w::Opened { hello, layouts, me: document };
         party.step(client::Event::Streamed {
             message: client::Streamed::Record(encoded(&w::StreamEvent::Opened(opened))),
         });

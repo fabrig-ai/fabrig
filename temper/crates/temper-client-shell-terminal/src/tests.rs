@@ -51,11 +51,7 @@ fn a_table_record_saved_then_kept_comes_back_the_same() {
         let (name, record) = ("table", fixtures::table_record());
         let mut link = link::Link::new(&limits).expect("bounded store codec");
         let mut out = Queue::uncapped();
-        link.step(
-            Time::ZERO,
-            link::Event::Save { record: link::Saved { version: 2, record: record.clone() } },
-            &mut out,
-        );
+        link.step(Time::ZERO, link::Event::Save { record: record.clone() }, &mut out);
         let Some(link::Request::Save { record: link::Record { key, bytes } }) = out.pop() else {
             panic!("{name}: save writes");
         };
@@ -66,7 +62,7 @@ fn a_table_record_saved_then_kept_comes_back_the_same() {
         let Some(link::Request::Kept { record: saved }) = out.pop() else {
             panic!("{name}: record restored");
         };
-        assert_eq!(Some(saved.record), Some(record), "{name}: unchanged record");
+        assert_eq!(saved, record, "{name}: unchanged record");
         assert!(out.is_empty(), "{name}: only one restored record");
     }
 }

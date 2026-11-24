@@ -212,7 +212,7 @@ fn proposed_settings_and_running_choices_survive_the_small_store() {
             on: c::DecideOn::Proposal { proposal, decision: c::Decision::Accepted, running: Some(c::Running::Moves) },
         },
     ] {
-        let saved = fixtures::saved_table(ask.clone());
+        let saved = fixtures::table_record(ask.clone());
         let mut h = fixtures::Harness::new(&fixtures::limits());
         h.start_store(fixtures::one_store_read(fixtures::store_read(saved.clone())));
         assert!(h.restored(&saved));

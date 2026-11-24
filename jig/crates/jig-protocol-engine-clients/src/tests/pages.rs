@@ -165,7 +165,7 @@ fn an_activity_page_carries_each_turn_s_bytes() {
     let source = fixtures::activity_page();
     assert_eq!(
         activity(&source, &limits),
-        Ok(w::ReadValue::Activity(jig_client_test_records::carried_activity_page()))
+        Ok(w::ReadValue::Activity(jig_client_test_records::carried_activity_page(&crate::cursor_v2::LAYOUT)))
     );
     for withheld in [false, true] {
         let source = fixtures::private_activity(withheld);

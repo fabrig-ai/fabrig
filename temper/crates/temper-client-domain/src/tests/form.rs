@@ -169,7 +169,7 @@ fn out_of_date_disables_adopt_and_keeps_the_pending_request() {
         &fixtures::env(&limits),
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None },
+                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None, served: false },
             },
         },
         &mut out,
@@ -319,7 +319,7 @@ fn a_family_the_engine_does_not_serve_marks_the_form_out_of_date() {
         &fixtures::env(&limits),
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None },
+                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None, served: false },
             },
         },
         &mut out,
@@ -370,8 +370,8 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
     link.step(skein_lib::Time::ZERO, link::Event::Reply { exchange, message: version_answer() }, &mut sent);
     while let Some(request) = sent.pop() {
         let up = match request {
-            link::Request::Hello { family: Some(family), versions } => {
-                jig_client::Up::FamilyServed { family, versions }
+            link::Request::Hello { family: Some(family), versions, served } => {
+                jig_client::Up::FamilyServed { family, versions, served }
             }
             link::Request::Answer { attempt, envelope, answer, why } => {
                 jig_client::Up::Answer { attempt, envelope, answer, why }

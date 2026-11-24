@@ -27,6 +27,8 @@ pub use public::{PublicIndexBounds, public_bounds, public_limits};
 
 /// The independently versioned public wire (client/domain/contract/README.md, section 10).
 pub const PUBLIC_VERSION: u16 = public_v1::VERSION;
+/// The public wire's family fingerprint.
+pub use public_v1::LAYOUT as PUBLIC_LAYOUT;
 /// The public projects answer kind.
 pub const PUBLIC_PROJECTS: u16 = 1;
 /// The public board answer kind.
@@ -39,6 +41,8 @@ pub const VERSION: u32 = {
     let [high, low] = v44::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
+/// The client wire's family fingerprint.
+pub use v44::LAYOUT;
 
 #[cfg(test)]
 mod tests;

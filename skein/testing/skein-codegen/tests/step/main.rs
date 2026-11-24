@@ -10,6 +10,8 @@ mod parse;
 mod values;
 
 #[cfg(test)]
+mod layout;
+#[cfg(test)]
 mod maps;
 mod patch_bridges;
 mod patch_check;

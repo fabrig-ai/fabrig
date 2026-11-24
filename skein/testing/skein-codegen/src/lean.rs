@@ -13,6 +13,18 @@ fn line(out: &mut String, text: &str) {
     writeln!(out, "{text}").expect("generated source");
 }
 
+fn layout(out: &mut String, digest: [u8; 32]) {
+    line(out, "pub const LAYOUT: [u8; 32] = [");
+    for chunk in digest.chunks(19) {
+        out.push_str("   ");
+        for byte in chunk {
+            write!(out, " 0x{byte:02x},").expect("generated layout byte");
+        }
+        out.push('\n');
+    }
+    line(out, "];\n");
+}
+
 fn expectation(out: &mut String, lines: usize) {
     if lines > 100 {
         line(out, "    #[expect(clippy::too_many_lines, reason = \"one operation per schema field or limit\")]");
@@ -487,7 +499,8 @@ pub(crate) fn generate(schema: &Schema) -> Output {
         &mut out,
         "use skein_lib::List;\nuse skein_codec::field;\npub use skein_codec::Record;\npub type Path = skein_codec::Path<Limits>;\npub type Problem = skein_codec::Problem<Limits>;\n",
     );
-    line(&mut out, &format!("pub const VERSION: u16 = {};\n", literal(schema.version)));
+    line(&mut out, &format!("pub const VERSION: u16 = {};", literal(schema.version)));
+    layout(&mut out, schema.layout);
     limits(&context, &mut out);
     paths(schema, &mut out);
     let mut named = BTreeMap::new();

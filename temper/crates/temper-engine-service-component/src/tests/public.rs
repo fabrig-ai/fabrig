@@ -25,9 +25,10 @@ fn startup_names_the_public_kinds_and_private_parts() {
     let expected = forge_public_kinds();
     assert_eq!(forge, &expected);
     assert_eq!(
-        expected.map(|kind| (kind.owner, kind.kind, kind.first, kind.last, kind.task)),
-        [(2, 1, 4, 4, true), (2, 2, 4, 4, false), (2, 3, 4, 4, true)]
+        expected.map(|kind| (kind.owner, kind.kind, kind.version, kind.task)),
+        [(2, 1, 4, true), (2, 2, 4, false), (2, 3, 4, true)]
     );
+    assert_eq!(expected.map(|kind| kind.layout), [temper_client_protocol_wire::PUBLIC_LAYOUT; 3]);
     assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 8716]);
 }
 #[test]

@@ -276,8 +276,9 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
     failure of the transport (`client/versions.md`, section 1).
   - *One jig pin:* an application takes `jig-client` and the engine's
     components from one revision of jig. Every served range is one
-    version, and a change to jig's operations moves its wire's version
-    with its layout (`client/versions.md`, section 1).
+    version, frozen; a change to jig's operations moves its wire's
+    layout, which the stream's hello names and the client judges
+    (`client/versions.md`, section 1).
   - *How jig itself is released and pinned* is open (`../README.md`,
     section 14).
 - **Configuration** has no version: unknown fields refuse the start

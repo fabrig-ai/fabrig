@@ -73,12 +73,13 @@
   work is the presentation's (the reference UI's: ../pages.md, section 8).
   A `Send` before `me` has named the party is answered unconfirmed at
   once, and nothing of it is kept (`requests.md`).
-- **Versioned** with jig's store version, so a client updated since reads
-  what an older one kept. A record of a version it does not read is
-  dropped, and the application told (`../../../protocol/client/small-store.md`, section
-  1). A family's request is kept in its owner's version: one whose
-  owner the build does not declare, or whose version is not the one
-  declared (`watches.md`, 2), is such a record. So is one past the records the
+- **Named by its layout,** that of jig's wire it was written at, so a
+  client updated since reads what an older one kept at its own layout.
+  A record at a layout it does not speak is dropped, and the application
+  told (`../../../protocol/client/small-store.md`, section 1). A family's request
+  is kept in its owner's version and layout: one whose owner the build
+  does not declare, or whose version or layout is not the one declared
+  (`watches.md`, 2), is such a record. So is one past the records the
   table holds (`README.md`, section 11). The client tells only how many, `Dropped {
   count }`, once at start, under no asker: nothing of a record it
   does not read is read, its key's asker included. The client root

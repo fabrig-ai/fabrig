@@ -25,6 +25,7 @@ pub fn settings() -> Settings {
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("one range");
     let mut providers = List::with_capacity(1);

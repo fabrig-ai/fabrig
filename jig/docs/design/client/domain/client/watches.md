@@ -97,7 +97,8 @@
     The next hello, with `me`, brings the link back, and with it the
     confirmed party's parked requests;
   - *out of date:* the engine serves no version of jig's that the client
-    speaks; or it sent a record of jig's this build can't read
+    speaks, or another layout of jig's wire than the client's
+    (below); or it sent a record of jig's this build can't read
     (`unreadable`, below). It sends nothing, and keeps every request.
 
   Beside its state, the link names the party confirmed, each declared
@@ -133,8 +134,8 @@
   nothing again: no stream, no watch, `me`'s included, and no request
   sent, each kept. It holds for the client's life, since no later hello
   comes to lift it; a reload or a restart is a new client. A link out of
-  date by the hello's ranges has it false. So an application can say which it is: a client of another
-  version, refused by name, or one that can't read what it was sent.
+  date by the hello's ranges or layouts has it false. So an application can say which it is: a client of another
+  version or layout, refused by name, or one that can't read what it was sent.
   Each tells its person to reload or update; neither leaves the person
   offline with no word.
 - **Judged from the stream alone,** whatever the application watches. A
@@ -142,23 +143,30 @@
   a backoff, and does not by itself make the client offline.
 - **Behind is per handle** (1): a presentation that says when what it
   shows may be old reads it from its handles.
-- **Versions, per owner.** The stream's hello states the ranges the
-  engine serves, jig's and each application owner's
-  (`../../../protocol/client/versions.md`, section 1). The client speaks the one
-  version of each owner its build holds: jig's, its wire's own; and each
+- **Versions and layouts, per owner.** The stream's hello states the ranges the
+  engine serves, jig's and each application owner's, and its `Opened`
+  the layout of each (`../../../protocol/client/versions.md`, section 1). The client speaks the one
+  version and layout of each owner its build holds: jig's, its wire's own; and each
   family owner's, which the application declares as it makes the
   client, with its limits (`README.md`, section 11): each owner whose families it
-  sends, by its number, with its wire's version (../root.md, section 15).
+  sends, by its number, with its wire's version and layout (../root.md, section 15).
   Each family's request, read and subject names a declared owner, in
   its declared version; any other is the application's mistake, and
   loud, as a key conflict is (`requests.md`).
   - *Judged at each hello, whole.* A declared owner is not served when
-    the hello names no range of it, or one that leaves out its version.
-    The judgement holds until the next hello, so `client.link()` names
+    the hello names no range of it, or one that leaves out its version,
+    or its `Opened` names another layout of it, or none. jig's layout
+    judged so makes the link out of date. The judgement holds until the
+    next hello, so `client.link()` names
     an owner not served from the hello on, before the application has
     asked anything of it. The client keeps, for each declared owner, its
     judgement and the range the hello named of it; of an owner it does
     not declare, nothing.
+  - *A read waits for the judgement:* none leaves, alone or in a batch,
+    until a hello since the stream last opened has judged its owner
+    served, as a watch's opening waits for the stream's name; so a read
+    asked while the link is starting or offline leaves with the next
+    hello, or is answered as its owner was judged.
   - *An answer version not served,* naming the owner and the ranges
     served, says the same of one message.
   - *Outside a range of a family's owner,* that owner's requests stay
@@ -167,8 +175,8 @@
     again at that hello; each as version not served. Outside jig's, the
     link is out of date, and its reads are answered so too.
   - *Served again* by a later hello, the client sends what it kept,
-    under its keys. Updated, it sends what it kept in a version its new
-    build speaks, and drops what it kept in another (`small-store.md`, section 1).
+    under its keys. Updated, it sends what it kept at a layout its new
+    build speaks, and drops what it kept at another (`small-store.md`, section 1).
     `jig-client` and the engine come from one pin of jig in an
     application; how jig is released and pinned is `../../../README.md`'s,
     section 14.

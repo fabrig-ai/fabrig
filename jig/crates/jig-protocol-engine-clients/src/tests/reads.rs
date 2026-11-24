@@ -81,7 +81,7 @@ fn a_cursor_round_trips_to_the_same_position() {
         },
     );
     for (label, position) in f::cursors().into_iter().chain([party]) {
-        let encoded = crate::translate::cursor::encode(&position, 1024).expect(label);
+        let encoded = crate::translate::cursor::encode(&position, w::CEILINGS.cursor_value).expect(label);
         assert_eq!(crate::translate::cursor::decode(&encoded), Some(position.clone()), "{label}");
         let size = u32::try_from(encoded.len()).expect("small cursor");
         assert_eq!(crate::translate::cursor::encode(&position, size), Some(encoded.clone()), "{label}");
@@ -101,42 +101,47 @@ fn a_cursor_round_trips_to_the_same_position() {
 }
 #[test]
 fn a_cursor_that_does_not_decode_is_answered_unknown() {
+    use crate::{cursor_v2::LAYOUT, translate::cursor::CURSOR_VERSION};
     for (label, bytes) in [
-        ("unknown format", &[0, 3][..]),
-        ("unknown variant", &[0, 2, 2][..]),
-        ("truncated scope", &[0, 2, 0, 1, 10][..]),
+        ("unknown format", Box::from([0, 3].as_slice())),
+        ("unknown variant", cursor_with_head(CURSOR_VERSION, &LAYOUT, &[2])),
+        ("truncated scope", cursor_with_head(CURSOR_VERSION, &LAYOUT, &[0, 1, 10])),
     ] {
-        let mut exchange = f::read_exchange();
-        let after = w::Cursor { value: bytes.into() };
-        let value = w::Read::Spend(w::ReadSpend { project: 3, after: Some(after) });
-        let owner = exchange.send(crate::Message::Read(f::owned_read(
-            w::Owner::Jig,
-            jig_client_protocol_wire::VERSION,
-            f::encoded_read(&value),
-        )));
-        exchange.authenticate();
-        assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown), "{label}");
-        assert!(exchange.out.is_empty(), "{label}");
-        assert!(exchange.component.pending.exchanges.is_empty(), "{label}");
+        assert_spend_cursor_unknown(bytes, label);
     }
 }
 
 #[test]
-fn a_cursor_from_another_version_is_answered_unknown() {
-    let cursor = reads::Cursor::Store { scope: reads::Scope::Spend { project: 3 }, after: None };
-    let encoded = crate::translate::cursor::encode(&cursor, 1024).unwrap();
-    let mut bytes = skein_lib::Writer::new(encoded.len());
-    bytes.put(&1_u16.to_be_bytes()).unwrap();
-    let mut reader = skein_lib::Reader::new(&encoded);
-    reader.u16().unwrap();
-    bytes.put(reader.bytes(reader.remaining()).unwrap()).unwrap();
-    let after = w::Cursor { value: bytes.finish() };
-    let read = w::Read::Spend(w::ReadSpend { project: 3, after: Some(after) });
+fn a_cursor_of_another_version_or_layout_is_answered_unknown() {
+    use crate::{cursor_v2::LAYOUT, translate::cursor};
+    let value = reads::Cursor::Store { scope: reads::Scope::Spend { project: SPEND_PROJECT }, after: None };
+    let bytes = cursor::encode(&value, w::CEILINGS.cursor_value).expect("spend cursor");
+    let form = bytes.get(CURSOR_HEAD_BYTES..).expect("cursor form");
+    for (label, version, layout) in [("version", 1, &LAYOUT), ("layout", cursor::CURSOR_VERSION, &[0; LAYOUT.len()])] {
+        assert_spend_cursor_unknown(cursor_with_head(version, layout, form), label);
+    }
+}
+
+const SPEND_PROJECT: u32 = 3;
+const CURSOR_HEAD_BYTES: usize = size_of::<u16>() + crate::cursor_v2::LAYOUT.len();
+
+fn cursor_with_head(version: u16, layout: &[u8; 32], form: &[u8]) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(CURSOR_HEAD_BYTES.checked_add(form.len()).expect("short cursor"));
+    out.put(&version.to_be_bytes()).expect("version fits");
+    out.put(layout).expect("layout fits");
+    out.put(form).expect("form fits");
+    out.finish()
+}
+
+fn assert_spend_cursor_unknown(bytes: Box<[u8]>, label: &str) {
+    let after = w::Cursor { value: bytes };
+    let read = w::Read::Spend(w::ReadSpend { project: SPEND_PROJECT, after: Some(after) });
     let mut exchange = f::read_exchange();
     let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, w::VERSION, f::encoded_read(&read))));
     exchange.authenticate();
-    assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown));
-    assert!(exchange.out.is_empty());
+    assert!(exchange.out.is_empty(), "{label}: no core read");
+    assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown), "{label}");
+    assert!(exchange.component.pending.exchanges.is_empty(), "{label}");
 }
 
 #[test]
@@ -354,20 +359,15 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
             reads::Cursor::Store { scope: scope.clone(), after: None },
             reads::Cursor::Live { scope, after, store_after: None },
         ] {
-            assert_eq!(cursor::encode(&value, 1024), None);
+            assert_eq!(cursor::encode(&value, w::CEILINGS.cursor_value), None);
         }
     }
-    let oversized = reads::Cursor::Store {
-        scope: reads::Scope::ScopedNotes {
-            scope: jig_domain_notes::Scope::Deployment,
-            description: Some(Box::new([0; 1024])),
-        },
-        after: None,
-    };
-    let bytes = cursor::encode(&oversized, 2048).expect("field within schema ceiling");
-    assert!(bytes.len() > 1024);
+    let oversized = deployment_notes_cursor(Box::new([0; LARGEST_DESCRIPTION + 1]));
+    assert_eq!(cursor::encode(&oversized, w::CEILINGS.cursor_value), None);
+    let bytes = cursor::encode(&oversized, CURSOR_BYTES + 1).expect("field within schema ceiling");
+    assert_eq!(bytes.len(), skein_lib::length::usize_of(CURSOR_BYTES + 1));
     assert_eq!(cursor::decode(&bytes), None);
-    let tree = cursor::encode_tree(&after, 7, 3, 1024).expect("tree cursor");
+    let tree = cursor::encode_tree(&after, 7, 3, w::CEILINGS.cursor_value).expect("tree cursor");
     assert_eq!(cursor::decode(&tree), None);
     assert_eq!(cursor::decode_window(&tree), None);
     let bare = crate::cursor_v2::DocumentCursor::Number(crate::cursor_v2::Number { value: 7 });
@@ -378,6 +378,28 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
     trailing.put(&[0]).expect("extra byte");
     assert_eq!(cursor::decode_window(&trailing.finish()), None);
     assert_eq!(cursor::decode(&[1, 1, 10, 7, 0, 0, 0, 0, 0, 0, 0, 0]), None, "previous owner format");
+}
+
+// The old 1,024-byte bound minus 12 bytes: version (2), four tags (4),
+// description presence and length (5), and absent store position (1).
+const LARGEST_DESCRIPTION: usize = 1012;
+const CURSOR_BYTES: u32 = 1056; // 1,024 old bytes plus the 32-byte layout.
+
+fn deployment_notes_cursor(description: Box<[u8]>) -> reads::Cursor {
+    reads::Cursor::Store {
+        scope: reads::Scope::ScopedNotes { scope: jig_domain_notes::Scope::Deployment, description: Some(description) },
+        after: None,
+    }
+}
+
+#[test]
+fn a_form_that_filled_the_old_cursor_still_fits() {
+    use crate::translate::cursor;
+    let value = deployment_notes_cursor(Box::new([0; LARGEST_DESCRIPTION]));
+    let bytes = cursor::encode(&value, w::CEILINGS.cursor_value).expect("cursor fits the new ceiling");
+    assert_eq!(bytes.len(), skein_lib::length::usize_of(CURSOR_BYTES));
+    assert_eq!(cursor::decode(&bytes), Some(value));
+    w::Cursor { value: bytes }.encode(&w::CEILINGS).expect("wire cursor fits too");
 }
 
 fn tasks_read(description: Option<Box<[u8]>>, after: Option<w::Cursor>) -> w::Read {

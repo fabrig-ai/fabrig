@@ -163,7 +163,7 @@ pub fn expected_single_turn() -> c::ArchivedTurn {
     }
 }
 pub fn reading_turn(limits: &Limits) -> (Harness, Token) {
-    let mut harness = Harness::new(limits);
+    let mut harness = Harness::with_hello(limits);
     let exchange = harness.read(Readable::Jig(turn_read()));
     (harness, exchange)
 }
