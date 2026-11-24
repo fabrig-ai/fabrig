@@ -14,7 +14,8 @@ pub(super) fn scopes_to_record(value: t::Scopes) -> u8 {
     value.0
 }
 
-pub(super) fn requests_to_record(value: a::Requests) -> u16 {
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+pub(crate) fn requests_to_record(value: &a::Requests) -> u16 {
     value.0
 }
 
@@ -22,7 +23,8 @@ pub(super) fn requests_to_domain(value: u16) -> a::Requests {
     a::Requests(value)
 }
 
-pub(super) fn proposals_to_record(value: a::Proposals) -> u8 {
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+pub(crate) fn proposals_to_record(value: &a::Proposals) -> u8 {
     value.0
 }
 

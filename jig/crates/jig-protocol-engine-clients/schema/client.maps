@@ -2,12 +2,37 @@ records jig_client_protocol_wire::v44
 use a = jig_domain_authority
 use d = jig_domain_core_vocabulary::documents
 use acts = jig_domain_core_vocabulary::acts
+use accounts = jig_domain_accounts
+use c = jig_domain_core_vocabulary
+use cv = crate::translate::convert
+use f = jig_domain_fleet
+use n = jig_domain_notes
+use waits = jig_domain_core_vocabulary::waits
 use p = jig_domain_people
 use r = jig_domain_core_vocabulary::reads
 use s = skein_codec::convert
 use t = jig_domain_tasks
 use v = jig_domain_views
 by hand crate::translate::client
+context (&[crate::Model], &jig_client_protocol_wire::Limits)
+refuses crate::translate::client::activity_to_record
+refuses crate::translate::client::authority_document_to_record
+refuses crate::translate::client::chip_to_record
+refuses crate::translate::client::chip_ending_to_record
+refuses crate::translate::client::history_amendment_to_record
+refuses crate::translate::client::result_document_to_record
+refuses crate::translate::client::retained_action_to_record
+refuses crate::translate::client::run_text_to_record
+refuses crate::translate::client::specification_document_to_record
+refuses crate::translate::client::task_line_to_record
+refuses crate::translate::client::waited_for_to_record
+with context crate::translate::client::authority_document_to_record
+with context crate::translate::client::chip_to_record
+with context crate::translate::client::chip_ending_to_record
+with context crate::translate::client::history_amendment_to_record
+with context crate::translate::client::result_document_to_record
+with context crate::translate::client::retained_action_to_record
+with context crate::translate::client::task_line_to_record
 
 direction to record
 
@@ -280,3 +305,223 @@ enum QueryOrder = d::QueryOrder to domain
 record PartAsk = d::PartAsk to domain
 record TaskQuery by hand
 record ReadTasks by hand
+
+# Read refusals, documents and their rows.
+enum ReadNone by hand
+enum ReadAnswer by hand
+record PeriodTimes = t::PeriodTimes { began via s::wall, next via s::wall }
+record FundingRecord = t::FundingRecord
+record SpendPage by hand
+enum MessageProposalKind = t::ProposalKind
+enum NoticeState by hand
+enum NewsClass = t::NewsClass
+enum WordResult by hand
+record SettingsAccepted
+record SettingsStale
+enum SettingsOutcome = t::SettingsOutcome
+enum MessageKind by hand
+record Word by hand
+record RunWhyMessage
+record RunWhyRetry
+enum RunWhy = t::Why
+enum InvalidReason by hand
+enum SuspendWhy = t::SuspendWhy
+enum RunEnd by hand
+enum RunFresh = t::Fresh
+record ActivityDecidedProposal = t::DecidedProposal
+enum SessionEnd = t::SessionEnd
+enum Activity by hand
+record ActivityLine = t::ActivityLine { at via s::wall }
+enum TurnBytes by hand
+record ArchivedTurn by hand
+enum TaskContractDocument by hand
+record TaskLinkLive stands for value
+record TaskLinkRetained
+record TaskLinkStored
+enum TaskLink = d::TaskLink { live tuple, retained { at via s::wall } }
+record ResultDetails by hand
+enum ActKind = acts::Act { move_task = Move }
+record CreateProcedure = acts::CreateProcedure
+record KindImplication = a::Implication
+record AuthorityDocument by hand
+enum Bounds by hand
+record ImpactCounts by hand
+record Impact = acts::Impact
+enum ReleaseEffect = acts::ReleaseEffect
+record EffectRelease stands for what
+record EffectMove
+enum Effect = acts::Effect { release tuple, cancel tuple, move_task = Move }
+record ResultDocument by hand
+enum ObjectKey by hand
+record DecodedActivityLine by hand
+record ActivityPage by hand
+enum HistoryChange = t::Change
+enum ParameterDocument by hand
+record SpecificationDocument by hand
+record ProposedTask by hand
+record RetainedAmendment = d::AmendmentChange
+record SettingNumber stands for number
+record ApplicationSetting
+record ProjectPolicySetting
+enum Setting = p::Setting both ways {
+  charter tuple, template tuple, policy tuple, model tuple, worker tuple, provider tuple
+}
+enum RevisionItemEdit = r::RevisionEdit
+record RevisionItemHead = r::RevisionItemHead
+enum RetainedAction by hand
+record HistoryHolderTask stands for value
+record HistoryHolderPerson stands for value
+record HistoryHolderPolicy
+enum HistoryHolder = t::ProposalHolder { task tuple, person tuple }
+record ProposalHistoryStatePending = d::ProposalWaiting { since via s::wall }
+record ProposalHistoryStateAccepted
+record ProposalHistoryStateRejected
+enum ProposalHistoryState = d::ProposalHistoryState { pending tuple }
+record ProposalHistory = d::ProposalHistory
+record AmendmentState = d::AmendmentState
+record HistoryAmendment by hand
+record HistoryLine = d::HistoryLine { at via s::wall }
+record AttemptLine = d::AttemptLine { claimed via s::wall, started via s::wall, ended via s::wall }
+record HoldLine = d::HoldLine { at via s::wall }
+enum HistoryRow by hand
+record HistoryPage by hand
+record Count by hand
+record WhomPerson stands for value
+record WhomRole
+enum Whom = p::Whom { person tuple }
+enum WaitedFor by hand
+record WaitsOnParty
+record WaitsOnQuestion
+record WaitsOnDependencies
+enum WaitsOn = d::WaitsOn
+record ConversationRead = d::ConversationRead
+record PhaseCounts = d::PhaseCounts
+enum PartFailure = d::PartFailure
+enum RowPart by hand
+record TaskSourceStateUntil { until via s::wall }
+enum TaskSourcePlace = accounts::Place
+enum TaskSourceUnread = accounts::Unread
+record TaskSourceStateUnloaded
+enum TaskSourceState = d::TaskSourceState
+record TaskWaitSource stands for state
+record TaskWaitInvalid by hand
+record TaskWaitUntooled
+enum TaskWaitWhy = d::TaskWaitWhy { source tuple, invalid tuple }
+record TaskWaitAccount
+enum HostKind = f::HostKind
+record AgentShortfallModel
+record AgentShortfallWindow
+record AgentShortfallOutput
+record AgentShortfallTurns
+record AgentShortfallTime
+record AgentShortfallWaiting
+record AgentShortfallChecks
+enum AgentShortfall = f::AgentShortfall
+record HelloRefusalAgent
+record HelloRefusalWorkers
+record HelloRefusalPosition
+record HelloRefusalStopBound
+enum HelloRefusal = f::HelloRefusal
+record ShortfallFigures = f::Figures
+record TaskWaitHello
+record TaskWaitBounds
+enum TaskWaitRefused = d::TaskWaitRefused { hello { at via s::wall } }
+record TaskRunWaitRefused stands for value
+record TaskWaitWorker
+enum TaskRunWait = d::TaskRunWait { refused tuple, worker { until via s::wall } }
+enum WaitKind = waits::WaitKind
+record WaitResourceName = t::Name { path slice }
+record Thing = waits::Thing
+enum WaitObject by hand
+enum AtBound = waits::AtBound
+record UnboundedBehind stands for task
+enum Unbounded = waits::Unbounded { behind tuple }
+record WaitAtBound
+record WaitNoBound stands for reason
+enum WaitBound = waits::Bound { at { at via s::wall }, none tuple }
+record Wait by hand
+record Nearest = waits::Nearest { at via s::wall }
+record TaskLine by hand
+record NoteAuthorParty
+record NoteAuthorTask
+enum NoteAuthor = n::Author
+record Note by hand
+record NotePage by hand
+record EndedDelegate = d::EndedDelegate { at via s::wall }
+record EndedPage by hand
+record InboxObjectQuestion
+record InboxObjectProposal
+record InboxObjectEscalation
+record InboxObjectTurn
+record InboxObjectResult
+enum InboxObject = d::InboxObject { turn = Reply }
+record InboxCursorNumber
+record InboxCursorInbox
+enum InboxCursor = d::Cursor { inbox { at via s::wall } }
+record InboxSelection = d::InboxSelection
+record InboxEntry = d::InboxEntry { reply boxed, at via s::wall }
+record InboxPage by hand
+record PoolLedger = d::Ledger { began via s::wall, next via s::wall }
+record MeParty by hand
+record Needs = p::Needs
+record Template by hand
+record MePrices = crate::Prices
+enum ModelSource = c::settings::ModelSource both ways
+record MeModel by hand
+record MeDefault by hand
+record ProviderOffer = d::ProviderOffer
+enum Readiness = d::Readiness
+record Me by hand
+record LiveDelegate = d::LiveDelegate
+enum TaskResult by hand
+record SubscriptionKindTask
+record SubscriptionKindTimer
+record SubscriptionKindTopic
+enum SubscriptionKind = t::SubscriptionKind { timer { at via s::wall } }
+record Subscription = t::Subscription
+record Subscriptions by hand
+record TaskSettings = d::TaskSettings
+record Talk = t::Talk { opened via s::wall, last via s::wall }
+record Session by hand
+record UnreadWords by hand
+record Task by hand
+record Tasks by hand
+enum EndedGroup by hand
+record TaskPage by hand
+record CurrentCall = v::Call { began via s::wall }
+enum LiveCall by hand
+record ProvisionalTurnName = v::TurnName { number = turn }
+record WritingCall by hand
+record RunText by hand
+record RunState = d::Run
+record SettingsReview by hand
+enum ProposalAction by hand
+record ProposalWaiting = d::ProposalWaiting { since via s::wall }
+record FundingOffer = d::FundingOffer
+record Proposal by hand
+record Escalation by hand
+record Question by hand
+record ShownResult = d::ShownResult
+record PersonTask by hand
+enum RecurringOverlap = t::RecurringOverlap
+record Recurring by hand
+enum ProjectResourceRole = d::ResourceRole
+record ProjectResource = d::ProjectResource
+record ProjectPolicyRole = d::PolicyRole { requests via cv::requests, decides via cv::proposals }
+record ProjectPolicy by hand
+record ProjectMember = d::Member
+record ProjectSpend = d::SpendLine
+record Project by hand
+enum GoalHolding by hand
+record PersonProposalGoal by hand
+enum PersonProposalState by hand
+record PersonProposal by hand
+record ProposalDecisionCreated by hand
+record ProposalDecision = c::ProposalDecisionRecord { at via s::wall }
+record EscalationDecisionReject
+enum EscalationDecision = p::EscalationDecision
+record EscalationDecisionRecord = c::EscalationDecisionRecord { at via s::wall }
+enum EndedValue by hand
+record Ended by hand
+record TreeRow by hand
+record TreeFold = d::FoldedCount

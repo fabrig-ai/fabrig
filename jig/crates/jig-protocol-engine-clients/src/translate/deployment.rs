@@ -1,5 +1,6 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{chips, owner, pieces, refusals, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as accounts;
@@ -9,10 +10,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Writer};
 pub(super) fn host_kind(value: fleet::HostKind) -> w::HostKind {
-    match value {
-        fleet::HostKind::Worker => w::HostKind::Worker,
-        fleet::HostKind::Engine => w::HostKind::Engine,
-    }
+    mapped::host_kind_to_record(&value)
 }
 fn attempt(value: fleet::AttemptState) -> w::AttemptState {
     match value {
@@ -28,36 +26,8 @@ fn attempt(value: fleet::AttemptState) -> w::AttemptState {
         fleet::AttemptState::Closed => w::AttemptState::Closed,
     }
 }
-pub(super) fn shortfall(value: fleet::AgentShortfall) -> w::AgentShortfall {
-    match value {
-        fleet::AgentShortfall::Model { charter, model } => {
-            w::AgentShortfall::Model(w::AgentShortfallModel { charter, model })
-        }
-        fleet::AgentShortfall::Window { charter, model } => {
-            w::AgentShortfall::Window(w::AgentShortfallWindow { charter, model })
-        }
-        fleet::AgentShortfall::Output { charter, model } => {
-            w::AgentShortfall::Output(w::AgentShortfallOutput { charter, model })
-        }
-        fleet::AgentShortfall::Turns { charter } => w::AgentShortfall::Turns(w::AgentShortfallTurns { charter }),
-        fleet::AgentShortfall::Spend => w::AgentShortfall::Spend,
-        fleet::AgentShortfall::Time { charter } => w::AgentShortfall::Time(w::AgentShortfallTime { charter }),
-        fleet::AgentShortfall::Waiting { charter } => w::AgentShortfall::Waiting(w::AgentShortfallWaiting { charter }),
-        fleet::AgentShortfall::Checks { charter } => w::AgentShortfall::Checks(w::AgentShortfallChecks { charter }),
-        fleet::AgentShortfall::Message => w::AgentShortfall::Message,
-        fleet::AgentShortfall::Inbox => w::AgentShortfall::Inbox,
-        fleet::AgentShortfall::Unacknowledged => w::AgentShortfall::Unacknowledged,
-    }
-}
 pub(super) fn hello(value: fleet::HelloRefusal) -> w::HelloRefusal {
-    match value {
-        fleet::HelloRefusal::Agent { why } => w::HelloRefusal::Agent(w::HelloRefusalAgent { why: shortfall(why) }),
-        fleet::HelloRefusal::JobKinds => w::HelloRefusal::JobKinds,
-        fleet::HelloRefusal::ReservedChannel => w::HelloRefusal::ReservedChannel,
-        fleet::HelloRefusal::Workers { limit } => w::HelloRefusal::Workers(w::HelloRefusalWorkers { limit }),
-        fleet::HelloRefusal::Position { worker } => w::HelloRefusal::Position(w::HelloRefusalPosition { worker }),
-        fleet::HelloRefusal::StopBound { grace } => w::HelloRefusal::StopBound(w::HelloRefusalStopBound { grace }),
-    }
+    mapped::hello_refusal_to_record(&value)
 }
 pub(crate) fn account_place(value: accounts::Place) -> w::AccountPlace {
     match value {

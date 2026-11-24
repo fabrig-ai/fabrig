@@ -1,32 +1,50 @@
 //! Page-carried immutable activity and opaque turns (protocol/client/wire.md, 1).
 use super::{chips, objects::question_answer, w};
+use crate::generated::client as mapped;
 use jig_domain_core_vocabulary::reads;
 use jig_domain_tasks as t;
 use skein_lib::bytes;
 
 pub fn line(value: &t::ActivityLine) -> Result<w::ActivityLine, w::Problem> {
-    let line = match &value.line {
-        t::Line::Words { .. } | t::Line::Heard(_) | t::Line::Notified { .. } => {
-            return question_answer::answer(value);
-        }
+    mapped::activity_line_to_record(value)
+}
+
+pub(crate) fn activity_to_record(value: &t::Line) -> Result<w::Activity, w::Problem> {
+    Ok(match value {
+        t::Line::Words { message, by, kind, words } => w::Activity::Words(w::ActivityWords {
+            message: *message,
+            by: super::owner::requester(*by),
+            kind: question_answer::message_kind(kind)?,
+            words: question_answer::crossing_words(kind, words),
+        }),
+        t::Line::Heard(value) => w::Activity::Heard(w::ActivityHeard { value: question_answer::word(value)? }),
+        t::Line::Notified { recipient, word } => w::Activity::Notified(w::ActivityNotified {
+            recipient: super::owner::requester(*recipient),
+            word: question_answer::word(word)?,
+        }),
         t::Line::RunBegan { attempt, why: value, resumed, fresh: cause } => {
             w::Activity::RunBegan(w::ActivityRunBegan {
                 attempt: *attempt,
-                why: why(*value),
+                why: mapped::run_why_to_record(value),
                 resumed: *resumed,
-                fresh: fresh(*cause),
+                fresh: match cause {
+                    Some(cause) => Some(mapped::run_fresh_to_record(cause)),
+                    None => None,
+                },
             })
         }
-        t::Line::RunEnded { attempt, end: value, spent } => {
-            w::Activity::RunEnded(w::ActivityRunEnded { attempt: *attempt, end: end(*value), spent: *spent })
-        }
+        t::Line::RunEnded { attempt, end: value, spent } => w::Activity::RunEnded(w::ActivityRunEnded {
+            attempt: *attempt,
+            end: run_end_to_record(value),
+            spent: *spent,
+        }),
         t::Line::Turn { reply, attempt, turn, read } => {
             w::Activity::Turn(w::ActivityTurn { reply: *reply, attempt: *attempt, turn: *turn, read: *read })
         }
         t::Line::Decided { revision, proposal } => w::Activity::Decided(w::ActivityDecided {
             revision: *revision,
             proposal: match proposal {
-                Some(value) => Some(w::ActivityDecidedProposal { number: value.number, made: value.made }),
+                Some(value) => Some(mapped::activity_decided_proposal_to_record(value)),
                 None => None,
             },
         }),
@@ -38,9 +56,10 @@ pub fn line(value: &t::ActivityLine) -> Result<w::ActivityLine, w::Problem> {
         }
         t::Line::TalkOpened { party } => w::Activity::TalkOpened(w::TalkOpened { party: *party }),
         t::Line::TalkEnded { party, lapsed } => w::Activity::TalkEnded(w::TalkEnded { party: *party, lapsed: *lapsed }),
-        t::Line::SessionEnded { attempt, end } => {
-            w::Activity::SessionEnded(w::ActivitySessionEnded { attempt: *attempt, end: session_end(*end) })
-        }
+        t::Line::SessionEnded { attempt, end } => w::Activity::SessionEnded(w::ActivitySessionEnded {
+            attempt: *attempt,
+            end: mapped::session_end_to_record(end),
+        }),
         t::Line::Kept { attempt, pending, question } => {
             let mut rows =
                 skein_lib::List::with_capacity(u32::try_from(pending.len()).expect("bounded pending dependencies"));
@@ -50,35 +69,11 @@ pub fn line(value: &t::ActivityLine) -> Result<w::ActivityLine, w::Problem> {
             w::Activity::Kept(w::ActivityKept { attempt: *attempt, pending: rows, question: *question })
         }
         t::Line::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone { position: *position }),
-    };
-    Ok(w::ActivityLine { task: value.task, position: value.position, at: value.at.as_nanos(), line })
+    })
 }
-fn session_end(value: t::SessionEnd) -> w::SessionEnd {
-    match value {
-        t::SessionEnd::Quiet => w::SessionEnd::Quiet,
-        t::SessionEnd::Bound => w::SessionEnd::Bound,
-        t::SessionEnd::Unoffered => w::SessionEnd::Unoffered,
-        t::SessionEnd::Fresh => w::SessionEnd::Fresh,
-        t::SessionEnd::Closed => w::SessionEnd::Closed,
-        t::SessionEnd::Talk => w::SessionEnd::Talk,
-        t::SessionEnd::Left => w::SessionEnd::Left,
-        t::SessionEnd::Rules => w::SessionEnd::Rules,
-    }
-}
-
-fn why(value: t::Why) -> w::RunWhy {
-    match value {
-        t::Why::Made => w::RunWhy::Made,
-        t::Why::Ready => w::RunWhy::Ready,
-        t::Why::Message { message } => w::RunWhy::Message(w::RunWhyMessage { message }),
-        t::Why::Released => w::RunWhy::Released,
-        t::Why::Retry { tries } => w::RunWhy::Retry(w::RunWhyRetry { tries: chips::tries(tries) }),
-        t::Why::Narrowed => w::RunWhy::Narrowed,
-        t::Why::Changed => w::RunWhy::Changed,
-    }
-}
-pub(super) fn end(value: t::EndKind) -> w::RunEnd {
-    match value {
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+pub(crate) fn run_end_to_record(value: &t::EndKind) -> w::RunEnd {
+    match *value {
         t::EndKind::Parked => w::RunEnd::Parked,
         t::EndKind::Finished => w::RunEnd::Finished,
         t::EndKind::Cancelled => w::RunEnd::Cancelled,
@@ -87,13 +82,9 @@ pub(super) fn end(value: t::EndKind) -> w::RunEnd {
             invalid_reason: invalid_reason(class, invalid_result),
         }),
         t::EndKind::Refused => w::RunEnd::Refused,
-        t::EndKind::Suspended { worker, why } => w::RunEnd::Suspended(w::RunEndSuspended {
-            worker,
-            why: match why {
-                t::SuspendWhy::Stopped => w::SuspendWhy::Stopped,
-                t::SuspendWhy::Restarted => w::SuspendWhy::Restarted,
-            },
-        }),
+        t::EndKind::Suspended { worker, why } => {
+            w::RunEnd::Suspended(w::RunEndSuspended { worker, why: mapped::suspend_why_to_record(&why) })
+        }
     }
 }
 
@@ -216,17 +207,4 @@ pub fn archive(
         at: record.at.as_nanos(),
         turn: w::TurnBytes::Carried(w::TurnCarried { bytes }),
     })
-}
-
-fn fresh(value: Option<t::Fresh>) -> Option<w::RunFresh> {
-    match value {
-        None => None,
-        Some(value) => Some(match value {
-            t::Fresh::Moved => w::RunFresh::Moved,
-            t::Fresh::Closed => w::RunFresh::Closed,
-            t::Fresh::Cut => w::RunFresh::Cut,
-            t::Fresh::Limit => w::RunFresh::Limit,
-            t::Fresh::Session => w::RunFresh::Session,
-        }),
-    }
 }

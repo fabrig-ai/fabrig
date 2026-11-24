@@ -9,7 +9,7 @@ pub(crate) mod asks;
 mod catalogue;
 pub mod chips;
 pub(crate) mod client;
-mod convert;
+pub(crate) mod convert;
 pub(crate) mod cursor;
 pub mod deployment;
 pub mod history;

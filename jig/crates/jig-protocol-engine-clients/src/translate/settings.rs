@@ -32,37 +32,11 @@ pub fn items(items: Box<[u8]>, models: &[crate::Model], limits: &w::Limits) -> R
 
 #[must_use]
 pub fn setting(value: &w::Setting) -> s::Setting {
-    match value {
-        w::Setting::Charter(v) => s::Setting::Charter(v.number),
-        w::Setting::Template(v) => s::Setting::Template(v.number),
-        w::Setting::Policy(v) => s::Setting::Policy(v.number),
-        w::Setting::Model(v) => s::Setting::Model(v.number),
-        w::Setting::Worker(v) => s::Setting::Worker(v.number),
-        w::Setting::Provider(v) => s::Setting::Provider(v.number),
-        w::Setting::Rules => s::Setting::Rules,
-        w::Setting::Limits => s::Setting::Limits,
-        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project },
-        w::Setting::Application(v) => s::Setting::Application { kind: v.kind, scope: v.scope, number: v.number },
-    }
+    mapped::setting_to_domain(value.clone())
 }
 #[must_use]
 pub fn name(value: s::Setting) -> w::Setting {
-    match value {
-        jig_domain_people::Setting::ProjectPolicy { project } => {
-            w::Setting::ProjectPolicy(w::ProjectPolicySetting { project })
-        }
-        s::Setting::Charter(number) => w::Setting::Charter(w::SettingNumber { number }),
-        s::Setting::Template(number) => w::Setting::Template(w::SettingNumber { number }),
-        s::Setting::Policy(number) => w::Setting::Policy(w::SettingNumber { number }),
-        s::Setting::Model(n) => w::Setting::Model(w::SettingNumber { number: n }),
-        s::Setting::Worker(n) => w::Setting::Worker(w::SettingNumber { number: n }),
-        s::Setting::Provider(n) => w::Setting::Provider(w::SettingNumber { number: n }),
-        s::Setting::Rules => w::Setting::Rules,
-        s::Setting::Limits => w::Setting::Limits,
-        s::Setting::Application { kind, scope, number } => {
-            w::Setting::Application(w::ApplicationSetting { kind, scope, number })
-        }
-    }
+    mapped::setting_to_record(&value)
 }
 #[must_use]
 pub fn head(value: &s::Head) -> w::RevisionHead {
@@ -243,8 +217,8 @@ fn policy(
                 number: v.number,
                 authority: authority(&v.authority, models, limits)?,
                 period_spend: v.period_spend,
-                requests: crate::translate::convert::requests_to_record(v.requests),
-                decides: crate::translate::convert::proposals_to_record(v.decides),
+                requests: crate::translate::convert::requests_to_record(&v.requests),
+                decides: crate::translate::convert::proposals_to_record(&v.decides),
             })
             .expect("role count");
     }
@@ -270,9 +244,7 @@ fn policy(
 fn rules(value: &a::Rules, models: &[crate::Model], limits: &w::Limits) -> Result<w::Rules, w::Problem> {
     let mut implies = List::with_capacity(super::count(value.implies.entries().len())?);
     for v in value.implies.entries() {
-        implies
-            .push(w::KindImplication { connector: v.connector, kind: v.kind, implies: v.implies })
-            .expect("implication count");
+        implies.push(mapped::kind_implication_to_record(v)).expect("implication count");
     }
     Ok(w::Rules {
         ceiling: authority(&value.ceiling, models, limits)?,
@@ -388,16 +360,7 @@ pub fn revisions(v: &reads::RevisionsPage) -> w::RevisionsPage {
     for row in &v.rows {
         let mut items = List::with_capacity(row.items.len());
         for item in &row.items {
-            items
-                .push(w::RevisionItemHead {
-                    setting: name(item.setting),
-                    edit: match item.edit {
-                        reads::RevisionEdit::Set => w::RevisionItemEdit::Set,
-                        reads::RevisionEdit::Removed => w::RevisionItemEdit::Removed,
-                        reads::RevisionEdit::Reset => w::RevisionItemEdit::Reset,
-                    },
-                })
-                .expect("preview count");
+            items.push(mapped::revision_item_head_to_record(item)).expect("preview count");
         }
         rows.push(w::RevisionRow { head: head(&row.head), items, more: row.more }).expect("page count");
     }
@@ -407,18 +370,9 @@ pub fn revisions(v: &reads::RevisionsPage) -> w::RevisionsPage {
 pub(crate) fn item_heads(items: &List<reads::RevisionItemHead>) -> List<w::RevisionItemHead> {
     let mut result = List::with_capacity(items.len());
     for item in items {
-        result
-            .push(w::RevisionItemHead { setting: name(item.setting), edit: item_edit(item.edit) })
-            .expect("bounded heads");
+        result.push(mapped::revision_item_head_to_record(item)).expect("bounded heads");
     }
     result
-}
-fn item_edit(edit: reads::RevisionEdit) -> w::RevisionItemEdit {
-    match edit {
-        reads::RevisionEdit::Set => w::RevisionItemEdit::Set,
-        reads::RevisionEdit::Removed => w::RevisionItemEdit::Removed,
-        reads::RevisionEdit::Reset => w::RevisionItemEdit::Reset,
-    }
 }
 fn review_value(
     v: Option<&s::Value>,
@@ -450,7 +404,7 @@ pub(crate) fn review(
     for item in &v.items {
         let row = w::ReviewItem {
             setting: name(item.setting),
-            edit: item_edit(item.edit),
+            edit: mapped::revision_item_edit_to_record(&item.edit),
             now: review_value(item.now.as_ref(), v.value_bytes, models, limits)?,
             origin: match item.origin {
                 Some((changed, revision)) => {
@@ -557,11 +511,7 @@ fn catalogue(value: &s::CatalogueModel) -> Result<w::CatalogueEntry, w::Problem>
         picker: value.picker,
         withdrawn: value.withdrawn,
         estimated: value.estimated,
-        source: match value.source {
-            s::ModelSource::Stock => w::ModelSource::Stock,
-            s::ModelSource::List => w::ModelSource::List,
-            s::ModelSource::Person => w::ModelSource::Person,
-        },
+        source: mapped::model_source_to_record(&value.source),
     })
 }
 

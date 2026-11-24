@@ -34,7 +34,7 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         p::Refusal::Ended { how } => w::Refusal::Ended(w::RefusalEnded { how: ending(how, limits)? }),
         p::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken { by }),
         p::Refusal::Judged { at, setting, why } => {
-            w::Refusal::Judged(w::RefusalJudged { at, setting: encode_setting(setting), why })
+            w::Refusal::Judged(w::RefusalJudged { at, setting: super::settings::name(setting), why })
         }
         p::Refusal::Stale { newest } => w::Refusal::Stale(w::RefusalStale { newest }),
         p::Refusal::Full { revision, tasks, more } => w::Refusal::Full(w::RefusalFull {
@@ -252,24 +252,6 @@ fn names(values: &[u64], bound: u32, path: w::Path) -> Result<skein_lib::List<u6
     Ok(rows)
 }
 
-fn encode_setting(value: p::Setting) -> w::Setting {
-    match value {
-        jig_domain_people::Setting::ProjectPolicy { project } => {
-            w::Setting::ProjectPolicy(w::ProjectPolicySetting { project })
-        }
-        p::Setting::Charter(number) => w::Setting::Charter(w::SettingNumber { number }),
-        p::Setting::Template(number) => w::Setting::Template(w::SettingNumber { number }),
-        p::Setting::Policy(number) => w::Setting::Policy(w::SettingNumber { number }),
-        p::Setting::Model(number) => w::Setting::Model(w::SettingNumber { number }),
-        p::Setting::Worker(number) => w::Setting::Worker(w::SettingNumber { number }),
-        p::Setting::Provider(number) => w::Setting::Provider(w::SettingNumber { number }),
-        p::Setting::Rules => w::Setting::Rules,
-        p::Setting::Limits => w::Setting::Limits,
-        p::Setting::Application { kind, scope, number } => {
-            w::Setting::Application(w::ApplicationSetting { kind, scope, number })
-        }
-    }
-}
 fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
     match value {
         p::SettingFault::Shape => w::SettingFault::Shape,
@@ -316,7 +298,7 @@ fn encode_malformed_settings(
     detail: Option<p::SettingDetail>,
 ) -> w::Malformed {
     w::Malformed::Settings(w::MalformedSettings {
-        setting: encode_setting(setting),
+        setting: super::settings::name(setting),
         fault: encode_setting_fault(fault),
         detail: match detail {
             Some(value) => Some(encode_setting_detail(value)),

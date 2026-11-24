@@ -1,5 +1,6 @@
 //! Bounded owner page pieces (protocol/client/wire.md, 1).
 use super::super::{owner, pieces, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
@@ -105,26 +106,7 @@ pub(super) fn note_pieces(
     pieces(&encoded, bound, path)
 }
 pub(super) fn funding(value: &t::FundingRecord) -> w::FundingRecord {
-    w::FundingRecord {
-        period: match value.period {
-            Some(value) => Some(w::PeriodTimes {
-                began: value.began.as_nanos(),
-                next: match value.next {
-                    Some(value) => Some(value.as_nanos()),
-                    None => None,
-                },
-            }),
-            None => None,
-        },
-        funder: owner::funder(value.funder),
-        parent: match value.parent {
-            Some(value) => Some(owner::funder(value)),
-            None => None,
-        },
-        numbers: owner::numbers(value.numbers),
-        made: value.made,
-        closed: value.closed,
-    }
+    mapped::funding_record_to_record(value)
 }
 pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits) -> Result<w::Note, w::Problem> {
     let scope = match &value.scope {
@@ -140,10 +122,6 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
             pattern: owner::pattern(&scope.segments, &scope.last),
         }),
     };
-    let writer = match value.writer {
-        jig_domain_notes::Author::Party { party } => w::NoteAuthor::Party(w::NoteAuthorParty { party }),
-        jig_domain_notes::Author::Task { task, attempt } => w::NoteAuthor::Task(w::NoteAuthorTask { task, attempt }),
-    };
     if value.tasks.capacity() > limits.note_tasks.min(w::CEILINGS.note_tasks) {
         return Err(w::Problem { path: w::paths::NOTE_TASKS, reason: skein_codec::Reason::Bound });
     }
@@ -157,7 +135,7 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
         scope,
         description: owner::text(&value.description),
         body: owner::text(&value.body),
-        writer,
+        writer: mapped::note_author_to_record(&value.writer),
         tasks,
         changed: match value.changed {
             Some(value) => Some(value.as_nanos()),

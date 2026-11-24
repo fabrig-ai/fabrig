@@ -47,18 +47,7 @@ fn map_problem(problem: w::Problem) -> Untranslatable {
     Untranslatable { path: problem.path }
 }
 fn setting(value: w::Setting) -> s::Setting {
-    match value {
-        w::Setting::Charter(value) => s::Setting::Charter(value.number),
-        w::Setting::Template(value) => s::Setting::Template(value.number),
-        w::Setting::Policy(value) => s::Setting::Policy(value.number),
-        w::Setting::Rules => s::Setting::Rules,
-        w::Setting::Limits => s::Setting::Limits,
-        w::Setting::Model(value) => s::Setting::Model(value.number),
-        w::Setting::Worker(value) => s::Setting::Worker(value.number),
-        w::Setting::Provider(value) => s::Setting::Provider(value.number),
-        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project },
-        w::Setting::Application(v) => s::Setting::Application { kind: v.kind, scope: v.scope, number: v.number },
-    }
+    mapped::setting_to_domain(value)
 }
 fn setting_value(
     value: w::SettingValue,
@@ -427,11 +416,7 @@ fn catalogue(value: w::CatalogueEntry) -> s::CatalogueModel {
         picker: value.picker,
         withdrawn: value.withdrawn,
         estimated: value.estimated,
-        source: match value.source {
-            w::ModelSource::Stock => s::ModelSource::Stock,
-            w::ModelSource::List => s::ModelSource::List,
-            w::ModelSource::Person => s::ModelSource::Person,
-        },
+        source: mapped::model_source_to_domain(value.source),
     }
 }
 

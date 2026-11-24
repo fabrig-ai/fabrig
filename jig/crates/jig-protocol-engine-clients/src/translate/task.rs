@@ -8,23 +8,7 @@ use jig_domain_core_vocabulary::acts;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::List;
 pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::Problem> {
-    Ok(match value {
-        d::TaskLink::Live(value) => w::TaskLink::Live(w::TaskLinkLive { value: chips::chip(value, limits)? }),
-        d::TaskLink::Retained { chip, at } => w::TaskLink::Retained(w::TaskLinkRetained {
-            chip: chips::chip(chip, limits)?,
-            at: match *at {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-        }),
-        d::TaskLink::Stored { number, status } => w::TaskLink::Stored(w::TaskLinkStored {
-            number: *number,
-            status: match status {
-                Some(status) => Some(mapped::task_status_to_record(status)),
-                None => None,
-            },
-        }),
-    })
+    mapped::task_link_to_record(value, &(&[], limits))
 }
 #[must_use]
 pub fn proposal(value: &d::ProposalRef) -> w::ProposalKey {
@@ -32,35 +16,7 @@ pub fn proposal(value: &d::ProposalRef) -> w::ProposalKey {
 }
 #[must_use]
 pub fn act(value: acts::Act) -> w::ActKind {
-    match value {
-        acts::Act::Reorder => w::ActKind::Reorder,
-        acts::Act::Talk => w::ActKind::Talk,
-        acts::Act::Leave => w::ActKind::Leave,
-        acts::Act::Message => w::ActKind::Message,
-        acts::Act::Answer => w::ActKind::Answer,
-        acts::Act::Take => w::ActKind::Take,
-        acts::Act::HandBack => w::ActKind::HandBack,
-        acts::Act::Accept => w::ActKind::Accept,
-        acts::Act::Withdraw => w::ActKind::Withdraw,
-        acts::Act::Reject => w::ActKind::Reject,
-        acts::Act::PassUp => w::ActKind::PassUp,
-        acts::Act::Release => w::ActKind::Release,
-        acts::Act::LeaveHeld => w::ActKind::LeaveHeld,
-        acts::Act::Amend => w::ActKind::Amend,
-        acts::Act::Stop => w::ActKind::Stop,
-        acts::Act::Cancel => w::ActKind::Cancel,
-        acts::Act::Move => w::ActKind::MoveTask,
-        acts::Act::Seen => w::ActKind::Seen,
-        acts::Act::EditNote => w::ActKind::EditNote,
-        acts::Act::DeleteNote => w::ActKind::DeleteNote,
-        acts::Act::Adopt => w::ActKind::Adopt,
-        acts::Act::RemoveProject => w::ActKind::RemoveProject,
-        acts::Act::Rename => w::ActKind::Rename,
-        acts::Act::ChangePolicy => w::ActKind::ChangePolicy,
-        acts::Act::SetRoles => w::ActKind::SetRoles,
-        acts::Act::MakeService => w::ActKind::MakeService,
-        acts::Act::SetPool => w::ActKind::SetPool,
-    }
+    mapped::act_kind_to_record(&value)
 }
 #[must_use]
 pub fn recipient(value: &acts::Recipient) -> w::Recipient {
@@ -84,8 +40,7 @@ pub(super) fn bounds(
         } => {
             let mut rows = List::with_capacity(procedures.capacity());
             for item in procedures {
-                rows.push(w::CreateProcedure { connector: item.connector, code: item.code })
-                    .expect("supplied goal procedures");
+                rows.push(mapped::create_procedure_to_record(item)).expect("supplied goal procedures");
             }
             w::Bounds::Create(w::BoundsCreate {
                 authority: owner::authority(models, authority, limits)?,
@@ -117,9 +72,7 @@ pub(super) fn bounds(
             )?;
             let mut pairs = List::with_capacity(implications.capacity());
             for item in implications {
-                pairs
-                    .push(w::KindImplication { connector: item.connector, kind: item.kind, implies: item.implies })
-                    .expect("supplied implications");
+                pairs.push(mapped::kind_implication_to_record(item)).expect("supplied implications");
             }
             w::Bounds::Amend(w::BoundsAmend {
                 budget_left: *budget_left,
@@ -307,9 +260,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
             None => None,
         },
         talk: match value.talk {
-            Some(talk) => {
-                Some(w::Talk { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() })
-            }
+            Some(talk) => Some(mapped::talk_to_record(&talk)),
             None => None,
         },
         session: match value.session {
@@ -327,7 +278,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
         last_activity: value.last_activity.as_nanos(),
         made: value.made.as_nanos(),
         tasks_left: value.tasks_left,
-        waits_on: super::queries::waits(value.waits_on.clone())?,
+        waits_on: super::queries::waits(&value.waits_on)?,
         wait: super::waits::first(value.wait.as_ref())?,
         nearest: super::waits::nearest(value.nearest),
         waits: super::waits::list(&value.waits)?,
@@ -423,9 +374,7 @@ fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u
 fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut delegate_rows = List::with_capacity(value.capacity());
     for item in value {
-        delegate_rows
-            .push(w::LiveDelegate { chip: chips::chip(&item.chip, limits)?, takeover_budget: item.takeover_budget })
-            .expect("supplied delegates");
+        delegate_rows.push(mapped::live_delegate_to_record(item, &(&[], limits))?).expect("supplied delegates");
     }
     delegates_pieces(
         &delegate_rows,
@@ -437,43 +386,12 @@ fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u
 
 #[must_use]
 pub fn effect(value: &acts::Effect) -> w::Effect {
-    match value {
-        acts::Effect::Release(value) => w::Effect::Release(w::EffectRelease {
-            what: match value {
-                acts::ReleaseEffect::Judged => w::ReleaseEffect::Judged,
-                acts::ReleaseEffect::RunAgain => w::ReleaseEffect::RunAgain,
-                acts::ReleaseEffect::Uncertain => w::ReleaseEffect::Uncertain,
-            },
-        }),
-        acts::Effect::Move { reservation } => w::Effect::MoveTask(w::EffectMove { reservation: *reservation }),
-        acts::Effect::Cancel(value) => w::Effect::Cancel(w::Impact {
-            tasks: w::ImpactCounts {
-                ended: 0,
-                waiting: value.tasks.waiting,
-                running: value
-                    .tasks
-                    .idle
-                    .checked_add(value.tasks.starting)
-                    .expect("task bound")
-                    .checked_add(value.tasks.running)
-                    .expect("task bound")
-                    .checked_add(value.tasks.backing_off)
-                    .expect("task bound"),
-                closing: value.tasks.closing,
-                held: value.tasks.held,
-                done: value.tasks.done,
-                failed: value.tasks.failed,
-                cancelled: value.tasks.cancelled,
-            },
-            live_runs: value.live_runs,
-            proposals: value.proposals,
-        }),
-    }
+    mapped::effect_to_record(value)
 }
 
 fn settings(value: Option<d::TaskSettings>) -> Option<w::TaskSettings> {
     match value {
-        Some(value) => Some(w::TaskSettings { task: value.task, run: value.run, newest: value.newest }),
+        Some(value) => Some(mapped::task_settings_to_record(&value)),
         None => None,
     }
 }

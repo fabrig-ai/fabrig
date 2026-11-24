@@ -28,24 +28,7 @@ pub fn budget(value: &d::BudgetLine) -> w::Budget {
 }
 #[must_use]
 pub fn ledger(value: &d::Ledger) -> w::PoolLedger {
-    w::PoolLedger {
-        source: funder(value.source),
-        parent: match value.parent {
-            Some(item) => Some(funder(item)),
-            None => None,
-        },
-        numbers: numbers(value.numbers),
-        left: value.left,
-        closed: value.closed,
-        began: match value.began {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-        next: match value.next {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    }
+    mapped::pool_ledger_to_record(value)
 }
 #[must_use]
 pub fn executor(value: t::Executor) -> w::Executor {
@@ -123,10 +106,6 @@ pub(crate) fn frame_named(
     for item in &value.projects {
         projects.push(project(item, models, names, limits)?).expect("supplied projects");
     }
-    let updates = match value.updates {
-        d::Count::Known(value) => w::Count { value, limited: false },
-        d::Count::AtLeast(value) => w::Count { value, limited: true },
-    };
     Ok(w::Me {
         providers: super::catalogue::offers(&value.providers, limits.me_providers, limits)?,
         providers_cut: value.providers_cut,
@@ -141,14 +120,9 @@ pub(crate) fn frame_named(
             name: text(&value.name),
         },
         projects: me_projects_pieces(&projects, limits.me_projects, w::paths::ME_PROJECTS, limits)?,
-        needs: w::Needs {
-            questions: value.need_counts.questions,
-            proposals: value.need_counts.proposals,
-            escalations: value.need_counts.escalations,
-            person_tasks: value.need_counts.person_tasks,
-        },
+        needs: mapped::needs_to_record(&value.need_counts),
         needs_total: value.needs,
-        updates,
+        updates: super::live::count(value.updates),
         results_seen: value.results_seen,
         cut: value.cut,
         retention: value.retention,
@@ -319,21 +293,11 @@ pub fn subscriptions(value: &List<t::Subscription>) -> w::Subscriptions {
 
 #[must_use]
 pub fn subscription_kind(value: t::SubscriptionKind) -> w::SubscriptionKind {
-    match value {
-        t::SubscriptionKind::Task { target, held, result } => {
-            w::SubscriptionKind::Task(w::SubscriptionKindTask { target, held, result })
-        }
-        t::SubscriptionKind::Timer { at, period } => {
-            w::SubscriptionKind::Timer(w::SubscriptionKindTimer { at: at.as_nanos(), period })
-        }
-        t::SubscriptionKind::Topic { connector, topic } => {
-            w::SubscriptionKind::Topic(w::SubscriptionKindTopic { connector, topic })
-        }
-    }
+    mapped::subscription_kind_to_record(&value)
 }
 #[must_use]
 pub fn subscription(value: t::Subscription) -> w::Subscription {
-    w::Subscription { number: value.number, kind: subscription_kind(value.kind) }
+    mapped::subscription_to_record(&value)
 }
 pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
