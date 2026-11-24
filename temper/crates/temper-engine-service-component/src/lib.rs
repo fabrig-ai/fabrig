@@ -341,6 +341,11 @@ pub enum Note {
         channel: skein_lib::Token,
         unsent: jig_protocol_engine_workers::Unsent,
     },
+    WorkerUnread {
+        worker: Box<[u8]>,
+        kind: jig_protocol_worker_wire::Kind,
+        text: Box<[u8]>,
+    },
     /// An opening ended, suppressed by name and reason until hello (protocol/cluster.md, 3).
     WorkerOpeningEnded {
         worker: Option<Box<[u8]>>,

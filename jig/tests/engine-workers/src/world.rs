@@ -96,6 +96,7 @@ impl World {
                 Request::Unpaused { .. }
                 | Request::Told { .. }
                 | Request::Unsent { .. }
+                | Request::Unread { .. }
                 | Request::Hello { .. }
                 | Request::Up { .. }
                 | Request::Lost { .. }

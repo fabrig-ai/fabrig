@@ -69,6 +69,11 @@ pub enum Output {
         channel: Token,
         unsent: crate::Unsent,
     },
+    Unread {
+        worker: Box<[u8]>,
+        kind: jig_protocol_worker_wire::Kind,
+        problem: jig_protocol_worker_wire::layouts::Unconverted,
+    },
     Ended {
         worker: Option<Box<[u8]>>,
         channel: Option<Token>,
@@ -351,6 +356,11 @@ impl Workers {
                 let worker =
                     skein_lib::bytes::copy_of(self.component.worker_name(worker).expect("authenticated worker name"));
                 return Some(Output::Unsent { worker, channel, unsent });
+            }
+            Request::Unread { worker, kind, problem } => {
+                let worker =
+                    skein_lib::bytes::copy_of(self.component.worker_name(worker).expect("authenticated worker name"));
+                return Some(Output::Unread { worker, kind, problem });
             }
             Request::Ended { worker, channel, why, .. } => {
                 let worker = match worker {

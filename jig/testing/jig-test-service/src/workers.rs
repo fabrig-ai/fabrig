@@ -132,56 +132,20 @@ impl Workers {
                 Some(kit::host::Output::Lost { channel }) => {
                     events.push(root::Event::Link { channel, link: root::link::Event::Lost });
                 }
-                Some(kit::host::Output::Unsent { channel, unsent, .. }) => match unsent.bound {
-                    kit::Bound::Room(_) | kit::Bound::Channel(_) => {}
-                    kit::Bound::Translation { .. } => match unsent.kind {
-                        jig_protocol_worker_wire::Kind::Assignment | jig_protocol_worker_wire::Kind::Job => {}
-                        jig_protocol_worker_wire::Kind::Hello
-                        | jig_protocol_worker_wire::Kind::Part
-                        | jig_protocol_worker_wire::Kind::PartKept
-                        | jig_protocol_worker_wire::Kind::PartBusy
-                        | jig_protocol_worker_wire::Kind::Turn
-                        | jig_protocol_worker_wire::Kind::Call
-                        | jig_protocol_worker_wire::Kind::Answer
-                        | jig_protocol_worker_wire::Kind::Fact
-                        | jig_protocol_worker_wire::Kind::Unauthorized
-                        | jig_protocol_worker_wire::Kind::Usage
-                        | jig_protocol_worker_wire::Kind::UsageRead
-                        | jig_protocol_worker_wire::Kind::ReadUsage
-                        | jig_protocol_worker_wire::Kind::Limited
-                        | jig_protocol_worker_wire::Kind::AccountRefused
-                        | jig_protocol_worker_wire::Kind::Message
-                        | jig_protocol_worker_wire::Kind::Relayed
-                        | jig_protocol_worker_wire::Kind::TurnKept
-                        | jig_protocol_worker_wire::Kind::TurnBusy
-                        | jig_protocol_worker_wire::Kind::Acknowledge
-                        | jig_protocol_worker_wire::Kind::Cancel
-                        | jig_protocol_worker_wire::Kind::Grant
-                        | jig_protocol_worker_wire::Kind::Sources
-                        | jig_protocol_worker_wire::Kind::Check
-                        | jig_protocol_worker_wire::Kind::ReadList
-                        | jig_protocol_worker_wire::Kind::ListRead
-                        | jig_protocol_worker_wire::Kind::Draining
-                        | jig_protocol_worker_wire::Kind::SignOut
-                        | jig_protocol_worker_wire::Kind::Logins
-                        | jig_protocol_worker_wire::Kind::SignedOut
-                        | jig_protocol_worker_wire::Kind::JobAnswer
-                        | jig_protocol_worker_wire::Kind::Ask
-                        | jig_protocol_worker_wire::Kind::Figures
-                        | jig_protocol_worker_wire::Kind::Pause
-                        | jig_protocol_worker_wire::Kind::Paused
-                        | jig_protocol_worker_wire::Kind::Restarting
-                        | jig_protocol_worker_wire::Kind::Asked => events.push(root::Event::Core(
-                            jig_domain_core::Event::Fleet(jig_domain_fleet::Event::Mismatch { channel }),
-                        )),
-                    },
-                },
+                Some(kit::host::Output::Unsent { channel, unsent, .. }) => {
+                    if unsent.mismatches() {
+                        events.push(root::Event::Core(jig_domain_core::Event::Fleet(
+                            jig_domain_fleet::Event::Mismatch { channel },
+                        )));
+                    }
+                }
                 Some(
                     kit::host::Output::FiguresTaken { .. }
                     | kit::host::Output::Unpaused { .. }
                     | kit::host::Output::Told { .. }
                     | kit::host::Output::Opened { .. }
                     | kit::host::Output::Refused { .. }
+                    | kit::host::Output::Unread { .. }
                     | kit::host::Output::Ended { .. },
                 )
                 | None => {}

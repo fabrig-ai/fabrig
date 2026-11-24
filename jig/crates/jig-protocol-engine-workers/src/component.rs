@@ -7,8 +7,8 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::Record;
-use jig_protocol_worker_wire::{self as wire, Reason};
-use skein_channel::{Closed, Event as ChannelEvent, Request as ChannelRequest};
+use jig_protocol_worker_wire::{self as wire, Reason, convert};
+use skein_channel::{Closed, Event as ChannelEvent, Frame, Request as ChannelRequest};
 use skein_lib::{Decimal, Duration, List, Map, Queue, Reader, Time, Token, bytes};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unusable {
@@ -357,7 +357,7 @@ impl Component {
             Reply::ReadList { .. } | Reply::Drop => b"record",
         };
         let words = reason.words(what);
-        self.refused_record(channel, reply, &words, out);
+        self.refused_record(channel, reply, &words, false, out);
         self.dropped_down = self.dropped_down.saturating_add(1);
     }
     fn completed(&mut self, out: &mut Queue<Request>) {
@@ -365,28 +365,6 @@ impl Component {
             self.life = Life::Closed;
             out.push(Request::Closed);
         }
-    }
-    fn assignment_refused(&self, channel: Token, run: Token, attempt: Token, words: &[u8], out: &mut Queue<Request>) {
-        use jig_domain_host as host;
-        let why = bytes::utf8_prefix(words, skein_lib::length::usize_of(self.limits.sizes.detail));
-        out.push(Request::Up {
-            channel,
-            up: host::LinkUp::Answer {
-                run,
-                attempt,
-                answer: host::RunAnswer {
-                    read: None,
-                    refused: Box::new([]),
-                    turns: 0,
-                    spent: 0,
-                    ending: host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
-                        cause: host::StartCause::Other,
-                        why: Box::from(why),
-                    })),
-                },
-            },
-            parts: Box::new([]),
-        });
     }
     fn target(&self, channel: Token) -> Option<Token> {
         for (connection, state) in &self.connections {
@@ -396,51 +374,90 @@ impl Component {
         }
         None
     }
-    fn refused_record(&self, channel: Token, reply: Reply, words: &[u8], out: &mut Queue<Request>) {
-        match reply {
-            Reply::Assignment { run, attempt } => self.assignment_refused(channel, run, attempt, words, out),
-            Reply::Job { run, attempt } => {
-                let why = bytes::utf8_prefix(words, skein_lib::length::usize_of(self.limits.sizes.detail));
-                out.push(Request::Up {
-                    channel,
-                    up: jig_domain_host::LinkUp::JobAnswer {
-                        run,
-                        attempt,
-                        answer: jig_domain_host::JobEnding::Refused(jig_domain_host::JobRefusal::Invalid(
-                            jig_domain_host::JobInvalid::Start { why: Box::from(why) },
-                        )),
+    fn refused_record(&self, channel: Token, reply: Reply, words: &[u8], untranslated: bool, out: &mut Queue<Request>) {
+        use jig_domain_host as host;
+        let up = match reply {
+            Reply::Assignment { run, attempt } => {
+                let reason = if untranslated {
+                    host::Refusal::Untranslated(Box::from(words))
+                } else {
+                    host::Refusal::Invalid(host::Invalid::Start {
+                        cause: host::StartCause::Other,
+                        why: self.detail(words),
+                    })
+                };
+                host::LinkUp::Answer {
+                    run,
+                    attempt,
+                    answer: host::RunAnswer {
+                        read: None,
+                        refused: Box::new([]),
+                        turns: 0,
+                        spent: 0,
+                        ending: host::Ending::Refused(reason),
                     },
-                    parts: Box::new([]),
-                });
+                }
             }
-            Reply::ReadList { read } => out.push(Request::Up {
-                channel,
-                up: jig_domain_host::LinkUp::ListRead {
-                    read,
-                    outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
-                },
-                parts: Box::new([]),
-            }),
-            Reply::Drop => {}
-        }
+            Reply::Job { run, attempt } => {
+                let reason = if untranslated {
+                    host::JobRefusal::Untranslated(Box::from(words))
+                } else {
+                    host::JobRefusal::Invalid(host::JobInvalid::Start { why: self.detail(words) })
+                };
+                host::LinkUp::JobAnswer { run, attempt, answer: host::JobEnding::Refused(reason) }
+            }
+            Reply::ReadList { read } => host::LinkUp::ListRead {
+                read,
+                outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
+            },
+            Reply::Drop => return,
+        };
+        out.push(Request::Up { channel, up, parts: Box::new([]) });
+    }
+    fn detail(&self, words: &[u8]) -> Box<[u8]> {
+        Box::from(bytes::utf8_prefix(words, skein_lib::length::usize_of(self.limits.sizes.detail)))
     }
     fn unsent(&mut self, now: Time, state: &mut Connection, sending: Sending, bound: Bound, out: &mut Queue<Request>) {
+        let untranslated = match &bound {
+            Bound::Translation(_) => true,
+            Bound::Room(_) | Bound::Channel(_) => false,
+        };
+        let words = match sending.reply {
+            Reply::Assignment { .. } => unsent_words(b"assignment", sending.bytes, &bound),
+            Reply::Job { .. } => unsent_words(b"job", sending.bytes, &bound),
+            Reply::ReadList { .. } | Reply::Drop => Box::new([]),
+        };
         out.push(Request::Unsent {
             worker: state.worker.expect("a record sent on an authenticated channel"),
             channel: state.channel,
             unsent: Unsent { kind: sending.kind, bytes: sending.bytes, bound },
         });
-        let name: &[u8] = match sending.reply {
-            Reply::Job { .. } => b"job",
-            Reply::Assignment { .. } | Reply::ReadList { .. } | Reply::Drop => b"assignment",
-        };
-        let words = unsent_words(name, sending.bytes, bound);
-        self.refused_record(state.channel, sending.reply, &words, out);
+        self.refused_record(state.channel, sending.reply, &words, untranslated, out);
         match sending.reply {
             Reply::Drop => self.dropped_down = self.dropped_down.saturating_add(1),
             Reply::Assignment { .. } | Reply::Job { .. } | Reply::ReadList { .. } => {}
         }
         state.ping = Some(now.saturating_add(self.limits.ping));
+    }
+    /// Fit the frame to the peer's layout before measuring what the channel will send.
+    fn converted_frame(
+        &mut self,
+        now: Time,
+        state: &mut Connection,
+        frame: Frame,
+        kind: wire::Kind,
+        reply: Reply,
+        out: &mut Queue<Request>,
+    ) -> Option<Frame> {
+        let Some(peer) = &mut state.peer else { return Some(frame) };
+        let bytes = frame.wire_len();
+        match convert::send(peer, frame, &self.codec) {
+            Ok(frame) => Some(frame),
+            Err(problem) => {
+                self.unsent(now, state, Sending { kind, bytes, reply }, Bound::Translation(problem), out);
+                None
+            }
+        }
     }
     fn send(
         &mut self,
@@ -510,6 +527,10 @@ impl Component {
                     return;
                 }
             };
+            let Some(frame) = self.converted_frame(now, &mut state, frame, kind, reply, out) else {
+                self.keep(connection, state);
+                return;
+            };
             Some(frame)
         } else {
             None
@@ -571,6 +592,13 @@ impl Component {
         let mut frame = skein_channel::frame_writer(wire::Kind::Figures.number(), length).expect("bounded figures");
         frame.put(&body.finish()).expect("measured figures");
         let frame = frame.finish().expect("measured figures");
+        let Some(frame) = self.converted_frame(now, state, frame, wire::Kind::Figures, Reply::Drop, out) else {
+            if state.phase == Phase::Terms {
+                self.refuse(now, connection, state, 3, Box::new([]), out);
+                return false;
+            }
+            return true;
+        };
         if frame.wire_len() > self.limits.room {
             let sending = Sending { kind: wire::Kind::Figures, bytes: frame.wire_len(), reply: Reply::Drop };
             self.unsent(now, state, sending, Bound::Room(self.limits.room), out);
@@ -586,7 +614,7 @@ impl Component {
         connection: Token,
         state: &mut Connection,
         kind: wire::Kind,
-        frame: skein_channel::Frame,
+        frame: Frame,
         out: &mut Queue<Request>,
     ) {
         self.sending = Some(Sending { kind, bytes: frame.wire_len(), reply: Reply::Drop });
@@ -809,6 +837,34 @@ impl Component {
         state.down(ChannelRequest::Close, connection, out);
     }
     fn body(
+        &mut self,
+        now: Time,
+        connection: Token,
+        state: &mut Connection,
+        kind: u16,
+        body: &[u8],
+        out: &mut Queue<Request>,
+    ) {
+        if let Some(peer) = &mut state.peer
+            && !peer.same()
+            && (state.phase == Phase::Hello || state.phase == Phase::Open)
+        {
+            let frame = match convert::receive(peer, kind, body, &self.codec) {
+                Ok(frame) => frame,
+                Err(problem) => {
+                    let worker = state.worker.expect("a body from an authenticated channel");
+                    let kind = convert::received_kind(peer, kind).expect("the admitted table maps this worker kind");
+                    out.push(Request::Unread { worker, kind, problem });
+                    self.refuse(now, connection, state, 3, Box::new([]), out);
+                    return;
+                }
+            };
+            self.decoded_body(now, connection, state, frame.kind(), frame.bytes().get(8..).expect("frame header"), out);
+        } else {
+            self.decoded_body(now, connection, state, kind, body, out);
+        }
+    }
+    fn decoded_body(
         &mut self,
         now: Time,
         connection: Token,
@@ -1069,16 +1125,16 @@ fn terminate(connection: Token, state: &mut Connection, out: &mut Queue<Request>
 }
 
 /// ASCII diagnostics for an unsent start (jig/docs/design/protocol/channel/records.md, 2, and jig/docs/design/protocol/channel/liveness.md, 1).
-fn unsent_words(name: &[u8], bytes: u32, bound: Bound) -> Box<[u8]> {
+fn unsent_words(name: &[u8], bytes: u32, bound: &Bound) -> Box<[u8]> {
     let count = Decimal::of(u64::from(bytes));
     let room = match bound {
-        Bound::Room(room) => room,
+        Bound::Room(room) => *room,
         Bound::Channel(_) => 0,
-        Bound::Translation { .. } => unreachable!("translation has its mismatch reason"),
+        Bound::Translation(problem) => return problem.kept(),
     };
     let room = Decimal::of(u64::from(room));
     let (middle, value, end): (&[u8], &[u8], &[u8]) = match bound {
-        Bound::Translation { .. } => unreachable!("translation has its mismatch reason"),
+        Bound::Translation(_) => unreachable!("translation already has its refusal words"),
         Bound::Room(_) => (b" bytes past the link's room of ", room.as_bytes(), b" bytes"),
         Bound::Channel(why) => {
             let reason: &[u8] = match why {

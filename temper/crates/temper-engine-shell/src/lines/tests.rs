@@ -1723,3 +1723,48 @@ fn full_table_notes_are_single_bounded_serve_lines() {
     assert!(line.len() <= 1024);
     assert_eq!(line.lines().count(), 1);
 }
+
+#[test]
+fn layout_refusal_lines_name_the_kind_worker_and_plan_problem() {
+    use jig_protocol_engine_workers::{Bound, Unsent};
+    use jig_protocol_worker_wire::{
+        Kind,
+        layouts::{Cause, Unconverted},
+    };
+    use temper_engine_service::Note;
+
+    let worker: Box<[u8]> = b"worker-a".as_slice().into();
+    let grant = Unconverted {
+        wire: "temper-worker-wire".into(),
+        declaration: "Identity".into(),
+        part: "email".into(),
+        cause: Cause::Field,
+    };
+    let run = jig_domain_host::Refusal::Untranslated(grant.kept());
+    assert_eq!(
+        note_line("temper", refused_run_note(run)),
+        "temper serve: task 3 run 7 attempt 2 refused: the worker's layout cannot keep temper-worker-wire Identity.email: field\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper",
+            Note::WorkerUnsent {
+                worker: worker.clone(),
+                channel: skein_lib::Token::new(1),
+                unsent: Unsent { kind: Kind::Grant, bytes: 69, bound: Bound::Translation(grant) },
+            }
+        ),
+        "temper serve: cannot send grant to worker worker-a: the worker's layout cannot keep temper-worker-wire Identity.email: field\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper",
+            Note::WorkerUnread {
+                worker,
+                kind: Kind::Turn,
+                text: b"smith-transcript TurnKind.worker_only: variant".as_slice().into(),
+            }
+        ),
+        "temper serve: cannot read turn from worker worker-a: smith-transcript TurnKind.worker_only: variant\n"
+    );
+}

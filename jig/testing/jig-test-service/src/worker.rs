@@ -413,8 +413,7 @@ impl Worker {
                 link::Request::Figures { .. }
                 | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
-                | link::Request::Restarting { .. }
-                | link::Request::Untranslated { .. } => {}
+                | link::Request::Restarting { .. } => {}
             }
         }
         self.values.expire(now);

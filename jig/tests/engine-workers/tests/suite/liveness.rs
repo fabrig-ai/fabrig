@@ -263,7 +263,7 @@ fn a_start_past_the_room_is_answered_and_the_link_lives() {
             .iter()
             .filter_map(|r| {
                 if let Request::Unsent { worker, channel, unsent } = r {
-                    Some((*worker, *channel, *unsent))
+                    Some((*worker, *channel, unsent.clone()))
                 } else {
                     None
                 }

@@ -1375,18 +1375,40 @@ fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
 #[test]
 fn each_unsent_record_reaches_the_operator_once() {
     use jig_protocol_engine_workers::{Bound, Unsent, host::Output};
+    use jig_protocol_worker_wire::{
+        Kind,
+        layouts::{Cause, Unconverted},
+    };
     let mut service = fixtures::started();
     let workers = &mut service.engine.as_mut().unwrap().workers;
     let mut events = skein_lib::Queue::uncapped();
     let worker: Box<[u8]> = b"worker-a".as_slice().into();
     let channel = Token::new(7);
-    let unsent =
-        Unsent { kind: jig_protocol_worker_wire::Kind::Assignment, bytes: 1_300_000, bound: Bound::Room(1_048_576) };
-    workers.route(Output::Unsent { worker: worker.clone(), channel, unsent }, &mut events);
-    assert_eq!(workers.notes.len(), 1, "one unsent record produces one operator note");
-    assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerUnsent { worker, channel, unsent }));
-    assert!(workers.notes.is_empty());
-    assert!(events.is_empty(), "an operator note is outside the domain");
+    let problem = Unconverted {
+        wire: "temper-worker-wire".into(),
+        declaration: "Identity".into(),
+        part: "email".into(),
+        cause: Cause::Field,
+    };
+    for (kind, bound, mismatch) in [
+        (Kind::Assignment, Bound::Room(1_048_576), false),
+        (Kind::Assignment, Bound::Translation(problem.clone()), false),
+        (Kind::Grant, Bound::Translation(problem), true),
+    ] {
+        let unsent = Unsent { kind, bytes: 1_300_000, bound };
+        workers.route(Output::Unsent { worker: worker.clone(), channel, unsent: unsent.clone() }, &mut events);
+        assert_eq!(workers.notes.len(), 1, "one unsent record produces one operator note");
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerUnsent { worker: worker.clone(), channel, unsent }));
+        if mismatch {
+            let Some(root::Event::Worker(root::WorkerInput::Link { channel: found, link: root::Link::Mismatch })) =
+                events.pop()
+            else {
+                panic!("running refusal mismatches the channel")
+            };
+            assert_eq!(found, channel);
+        }
+        assert_eq!(events.len(), 0, "only a running record's layout refusal mismatches the channel");
+    }
 }
 
 fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Output {

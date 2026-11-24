@@ -175,7 +175,6 @@ impl Fetch {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::Untranslated { kind, halt } => self.notes.push(Note::Untranslated { kind, halt }),
                 link::Request::Ready
                 | link::Request::Restarting { .. }
                 | link::Request::RelayCancelled { .. }

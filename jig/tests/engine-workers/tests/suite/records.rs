@@ -55,6 +55,7 @@ mod records {
             },
             Request::Lost { .. } => Record::Lost,
             Request::Unsent { .. }
+            | Request::Unread { .. }
             | Request::Take { .. }
             | Request::TurnAway { .. }
             | Request::Lower { .. }

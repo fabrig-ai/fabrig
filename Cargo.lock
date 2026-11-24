@@ -8689,7 +8689,6 @@ dependencies = [
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-channel",
- "skein-codec",
  "skein-io",
  "skein-json",
  "skein-lib",

@@ -135,6 +135,7 @@ impl Channel {
                     other @ (engine::Request::Lower { .. }
                     | engine::Request::Refused { .. }
                     | engine::Request::Unsent { .. }
+                    | engine::Request::Unread { .. }
                     | engine::Request::TurnAway { .. }
                     | engine::Request::Close { .. }
                     | engine::Request::Abort { .. }
@@ -175,7 +176,6 @@ impl Channel {
                         self.down.push(down);
                     }
                     other @ (worker::Request::Lower { .. }
-                    | worker::Request::Untranslated { .. }
                     | worker::Request::Refused { .. }
                     | worker::Request::RelayCancelled { .. }
                     | worker::Request::ResendPart { .. }

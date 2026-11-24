@@ -764,52 +764,13 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
         temper_engine_service::Note::WorkerUnsent { worker, channel, unsent } => {
             use jig_protocol_engine_workers::Bound;
-            use jig_protocol_worker_wire::Kind;
-            let record = match unsent.kind {
-                Kind::Hello => "hello",
-                Kind::Turn => "turn",
-                Kind::Part => "part",
-                Kind::PartKept => "part-kept",
-                Kind::PartBusy => "part-busy",
-                Kind::Call => "call",
-                Kind::Answer => "answer",
-                Kind::Fact => "fact",
-                Kind::Unauthorized => "unauthorized",
-                Kind::Usage => "usage",
-                Kind::UsageRead => "usage-read",
-                Kind::ReadUsage => "read-usage",
-                Kind::Limited => "limited",
-                Kind::AccountRefused => "account-refused",
-                Kind::Assignment => "assignment",
-                Kind::Message => "message",
-                Kind::Relayed => "relayed",
-                Kind::TurnKept => "turn-kept",
-                Kind::TurnBusy => "turn-busy",
-                Kind::Acknowledge => "acknowledge",
-                Kind::Cancel => "cancel",
-                Kind::Grant => "grant",
-                Kind::Sources => "sources",
-                Kind::Check => "check",
-                Kind::ReadList => "read-list",
-                Kind::ListRead => "list-read",
-                Kind::Draining => "draining",
-                Kind::SignOut => "sign-out",
-                Kind::Logins => "logins",
-                Kind::SignedOut => "signed-out",
-                Kind::Job => "job",
-                Kind::JobAnswer => "job-answer",
-                Kind::Figures => "figures",
-                Kind::Ask => "ask",
-                Kind::Pause => "pause",
-                Kind::Paused => "paused",
-                Kind::Restarting => "restarting",
-                Kind::Asked => "asked",
-            };
+            let record = worker_record(unsent.kind);
             let bound = match unsent.bound {
-                Bound::Translation { version, halt } => {
+                Bound::Translation(problem) => {
                     return format!(
-                        "{binary} serve: cannot send {record} to worker {} at jig-worker-wire {version}: {halt:?}\n",
-                        worker_name(Some(&worker))
+                        "{binary} serve: cannot send {record} to worker {}: {}\n",
+                        worker_name(Some(&worker)),
+                        String::from_utf8_lossy(&problem.kept()),
                     );
                 }
                 Bound::Room(room) => format!("past the room of {room} bytes"),
@@ -831,6 +792,10 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 unsent.bytes
             )
         }
+        temper_engine_service::Note::WorkerUnread { worker, kind, text } => run_detail_line(
+            format!("{binary} serve: cannot read {} from worker {}: ", worker_record(kind), worker_name(Some(&worker))),
+            &text,
+        ),
         temper_engine_service::Note::WorkerOpeningEnded { worker, why } => {
             format!(
                 "{binary} serve: worker opening ended worker={}: {}\n",
@@ -905,10 +870,16 @@ fn start_wait_line(binary: &str, words: &[u8]) -> String {
 fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalDiagnostic) -> String {
     let temper_engine_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
     let (class, detail) = match &reason {
-        jig_domain_host::Refusal::Version(mismatch) | jig_domain_host::Refusal::Untranslated(mismatch) => {
+        jig_domain_host::Refusal::Version(mismatch) => {
             return run_detail_line(
                 format!("{binary} serve: task {task} run {run} attempt {attempt} refused: "),
                 &mismatch.reason(),
+            );
+        }
+        jig_domain_host::Refusal::Untranslated(words) => {
+            return format!(
+                "{binary} serve: task {task} run {run} attempt {attempt} refused: {}\n",
+                String::from_utf8_lossy(words),
             );
         }
         jig_domain_host::Refusal::Busy => (String::from("Busy"), b"".as_slice()),
@@ -959,9 +930,9 @@ fn job_ending(ending: &temper_engine_service::JobDiagnosticEnding) -> (String, &
         JobDiagnosticEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
             (String::from("refused Invalid(Start)"), why)
         }
+        JobDiagnosticEnding::Refused(JobRefusal::Untranslated(words)) => (String::from("refused"), words),
         JobDiagnosticEnding::Refused(
-            reason @ (JobRefusal::Untranslated(_)
-            | JobRefusal::Busy
+            reason @ (JobRefusal::Busy
             | JobRefusal::Invalid(
                 JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
             )),
@@ -1094,6 +1065,50 @@ fn loss_refusal(code: u16) -> String {
         3 => temper_engine_service::Refusal::Malformed,
         code => temper_engine_service::Refusal::Peer(code),
     })
+}
+
+fn worker_record(kind: jig_protocol_worker_wire::Kind) -> &'static str {
+    use jig_protocol_worker_wire::Kind;
+    match kind {
+        Kind::Hello => "hello",
+        Kind::Turn => "turn",
+        Kind::Part => "part",
+        Kind::PartKept => "part-kept",
+        Kind::PartBusy => "part-busy",
+        Kind::Call => "call",
+        Kind::Answer => "answer",
+        Kind::Fact => "fact",
+        Kind::Unauthorized => "unauthorized",
+        Kind::Usage => "usage",
+        Kind::UsageRead => "usage-read",
+        Kind::ReadUsage => "read-usage",
+        Kind::Limited => "limited",
+        Kind::AccountRefused => "account-refused",
+        Kind::Assignment => "assignment",
+        Kind::Message => "message",
+        Kind::Relayed => "relayed",
+        Kind::TurnKept => "turn-kept",
+        Kind::TurnBusy => "turn-busy",
+        Kind::Acknowledge => "acknowledge",
+        Kind::Cancel => "cancel",
+        Kind::Grant => "grant",
+        Kind::Sources => "sources",
+        Kind::Check => "check",
+        Kind::ReadList => "read-list",
+        Kind::ListRead => "list-read",
+        Kind::Draining => "draining",
+        Kind::SignOut => "sign-out",
+        Kind::Logins => "logins",
+        Kind::SignedOut => "signed-out",
+        Kind::Job => "job",
+        Kind::JobAnswer => "job-answer",
+        Kind::Figures => "figures",
+        Kind::Ask => "ask",
+        Kind::Pause => "pause",
+        Kind::Paused => "paused",
+        Kind::Restarting => "restarting",
+        Kind::Asked => "asked",
+    }
 }
 
 fn worker_name(worker: Option<&[u8]>) -> String {

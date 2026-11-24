@@ -107,6 +107,7 @@ impl Opening {
                     | Request::Lost { .. }
                     | Request::Up { .. }
                     | Request::Unsent { .. }
+                    | Request::Unread { .. }
                     | Request::Closed
                     | Request::Lower { .. } => {}
                 }

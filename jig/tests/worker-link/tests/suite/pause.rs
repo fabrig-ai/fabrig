@@ -56,7 +56,7 @@ fn paused_states_are_sent_only_where_the_engines_terms_list_the_kind() {
         let records = world.records();
         let noticed = records[0].iter().filter(|record| record.kind == wire::Kind::Paused.number()).count();
         assert_eq!(noticed, if has_pause { 4 } else { 0 });
-        assert!(!world.root().iter().any(|r| matches!(r, Request::Lost | Request::Untranslated { .. })));
+        assert!(!world.root().iter().any(|r| matches!(r, Request::Lost)));
         world.down(jig_protocol_worker_link::Event::Up { up: host::LinkUp::Draining, parts: Box::new([]) });
         world.run();
         assert_eq!(world.records()[0].last().map(|record| record.kind), Some(wire::Kind::Draining.number()));

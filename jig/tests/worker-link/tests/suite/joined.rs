@@ -386,7 +386,7 @@ fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
         .iter()
         .filter_map(|r| {
             if let engine::Request::Unsent { worker, channel, unsent } = r {
-                Some((*worker, *channel, *unsent))
+                Some((*worker, *channel, unsent.clone()))
             } else {
                 None
             }

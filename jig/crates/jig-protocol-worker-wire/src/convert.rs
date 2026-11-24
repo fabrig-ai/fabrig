@@ -47,6 +47,12 @@ pub fn receive(peer: &mut Peer, kind: u16, body: &[u8], limits: &v22::Limits) ->
     up::frame(peer, kind, engine_kind, out.as_slice(), limits)
 }
 
+/// The engine kind corresponding to an admitted worker kind, for diagnostics.
+#[must_use]
+pub fn received_kind(peer: &Peer, kind: u16) -> Option<Kind> {
+    peer.reads(kind).ok()
+}
+
 fn outgoing(number: u16) -> Option<Kind> {
     for rule in KINDS {
         if rule.kind == number && rule.direction == Direction::FromResponder {

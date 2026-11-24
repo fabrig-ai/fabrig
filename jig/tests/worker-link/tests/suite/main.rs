@@ -11,6 +11,7 @@ mod dialling;
 mod grace;
 mod jobs;
 mod joined;
+mod layouts;
 mod link;
 mod liveness;
 mod memory;
@@ -24,6 +25,7 @@ mod retime;
 mod sources;
 
 mod fuzzy {
+    mod layouts;
     mod restarting;
     mod worker_side;
 }

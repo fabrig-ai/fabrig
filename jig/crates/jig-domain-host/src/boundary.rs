@@ -551,7 +551,7 @@ pub struct Work {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
     /// The engine could not translate this assignment for this channel.
-    Untranslated(Mismatch),
+    Untranslated(Box<[u8]>),
     /// A payload carries a wire version this worker cannot read.
     Version(Mismatch),
     /// Every slot is taken (by a run hosted, or one whose answer the engine
@@ -856,7 +856,7 @@ pub enum JobFailure {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum JobRefusal {
     /// The engine could not translate this job for this channel.
-    Untranslated(Mismatch),
+    Untranslated(Box<[u8]>),
     /// As a run's `Refusal::Busy`.
     Busy,
     Invalid(JobInvalid),

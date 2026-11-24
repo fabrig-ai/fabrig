@@ -37,10 +37,6 @@ pub enum Request {
     Figures {
         figures: jig_protocol_worker_wire::Figures,
     },
-    Untranslated {
-        kind: u16,
-        halt: skein_codec::patch::Halt,
-    },
     Ready,
     /// A peer's refusal, before loss and redial.
     Refused {

@@ -143,6 +143,7 @@ impl Joint {
                     | kit::Request::Lost { .. }
                     | kit::Request::Unpaused { .. }
                     | kit::Request::Told { .. }
+                    | kit::Request::Unread { .. }
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }
@@ -316,7 +317,7 @@ fn check_start(
             assert!(joint.assignments.is_empty());
             assert_eq!(bytes, 0, "a past-the-room frame is never sent");
             assert_eq!(joint.unsent.len(), 1, "{profile:?} {part:?}+{extra}: one unsent");
-            let unsent = *joint.unsent.get(0).unwrap();
+            let unsent = joint.unsent.get(0).unwrap();
             assert_eq!(unsent.kind, Kind::Assignment);
             assert_eq!(unsent.bound, kit::Bound::Room(room));
             assert!(unsent.bytes > room);
