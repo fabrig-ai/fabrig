@@ -110,6 +110,7 @@ pub(crate) struct Caller {
     link: Option<Box<[u8]>>,
     pub commands: std::collections::VecDeque<Command>,
     pub answers: Vec<Answer>,
+    pub browsed: Vec<browse::Browsed>,
     // The referee consumes answers before the next host turn, not during this one.
     answer_ready: Option<()>,
     pub closed: bool,
@@ -221,6 +222,7 @@ impl Caller {
             link: None,
             commands: std::collections::VecDeque::new(),
             answers: Vec::new(),
+            browsed: Vec::new(),
             answer_ready: None,
             closed: false,
             started: false,
@@ -291,9 +293,10 @@ impl Host for Caller {
             if let Some(browser) = &mut self.browser {
                 let next = browser.complete(complete);
                 if browser.done {
-                    self.output = browser.seen.body.clone();
+                    let seen = self.browser.take().expect("finished visit").seen;
+                    self.output.clone_from(&seen.body);
+                    self.browsed.push(seen);
                     self.exit = Some(Exit::Code(0));
-                    self.browser = None;
                 }
                 if let Some(kind) = next {
                     self.submit(kind);

@@ -12,4 +12,14 @@ fn a_delivered_edit_authenticates_every_git_request_with_its_installation() {
     github::run(Scenario::Delivered);
 }
 
+#[test]
+fn a_manifest_app_lists_only_accepted_repositories_and_refuses_the_stray() {
+    github::manifest_picker();
+}
+
+#[test]
+fn a_delivered_edit_pushes_one_local_commit_with_its_installation() {
+    github::manifest_push();
+}
+
 mod records;

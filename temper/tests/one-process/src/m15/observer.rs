@@ -114,6 +114,7 @@ struct Observer {
     pages: usize,
     last_page: Option<Vec<skein_ui::Node>>,
     checkpoints: usize,
+    manifest: bool,
 }
 #[derive(Default, Debug)]
 pub struct Counts {
@@ -134,6 +135,23 @@ pub(crate) fn enabled() -> bool {
 }
 pub(crate) fn start() {
     OBSERVER.with(|observer| *observer.borrow_mut() = Some(Observer::default()));
+}
+pub(crate) fn start_manifest() {
+    // The fake's first manifest conversion uses its first fixed test key.
+    let pem = skein_fake_forge_github::keys::pem(skein_fake_forge_github::keys::KEYS[0]).expect("fake manifest PEM");
+    let mut observer = Observer { manifest: true, ..Observer::default() };
+    observer.key(&pem);
+    OBSERVER.with(|cell| *cell.borrow_mut() = Some(observer));
+}
+
+fn token_shape(mut bytes: &[u8]) -> bool {
+    while let Some(at) = skein_lib::bytes::find(bytes, b"ghs_") {
+        if bytes.get(at + 4..at + 40).is_some_and(|suffix| suffix.iter().all(u8::is_ascii_alphanumeric)) {
+            return true;
+        }
+        bytes = &bytes[at + 4..];
+    }
+    false
 }
 fn encoded(bytes: &[u8]) -> Box<[u8]> {
     let length = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture secret length"))
@@ -210,7 +228,7 @@ impl Observer {
             });
             finding
         };
-        if inspect(path, first).is_some() {
+        if inspect(path, first).is_some() || (self.manifest && first == 0 && token_shape(path)) {
             return Err(format!("issued secret in {surface} filename"));
         }
         if inspect(bytes, first).is_some() {
@@ -219,6 +237,9 @@ impl Observer {
                 inspect(bytes, 0).unwrap_or("issued secret"),
                 String::from_utf8_lossy(path)
             ));
+        }
+        if self.manifest && first == 0 && token_shape(bytes) {
+            return Err(format!("installation token shape in {surface}"));
         }
 
         Ok(())
@@ -630,6 +651,15 @@ fn scan_directory(
     Ok(())
 }
 pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Result<Counts, String> {
+    finish_roots(disk, &[b"state", b"worker", b"client"])
+}
+
+/// A manifest browser downloads no handover; the setup root is public too.
+pub(crate) fn finish_manifest(disk: &mut skein_fake_machine::Machine) -> Result<Counts, String> {
+    finish_roots(disk, &[b"state", b"worker", b"client", b"setup"])
+}
+
+fn finish_roots(disk: &mut skein_fake_machine::Machine, roots: &[&[u8]]) -> Result<Counts, String> {
     OBSERVER.with(|cell| {
         let mut observer = cell.borrow_mut().take().expect("active observer");
         observer.scan()?;
@@ -641,7 +671,7 @@ pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Result<Counts, S
             wire_replies: observer.artifacts.iter().filter(|artifact| artifact.surface == "wire reply body").count(),
             ..Counts::default()
         };
-        for (index, name) in [b"state".as_slice(), b"worker", b"client"].into_iter().enumerate() {
+        for (index, name) in roots.iter().enumerate() {
             let root = disk.reopen_root(u32::try_from(index).expect("scenario root"));
             let finding = scan_directory(&mut observer, disk, root, name, &mut counts);
             disk.close(root);
