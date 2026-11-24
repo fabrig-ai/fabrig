@@ -46,7 +46,10 @@ pub const FAMILIES: &[Family] = &[
         codec_root: "crates/jig-protocol-engine-clients-codec",
         generated: &["src/generated/cursor.rs"],
         bounds: compiled_bounds!(jig_protocol_engine_clients::cursor_v2),
-        translations: &[],
+        translations: &[Translation {
+            maps: include_str!("../crates/jig-protocol-engine-clients/schema/cursor.maps"),
+            module: "crates/jig-protocol-engine-clients/src/generated/cursor.rs",
+        }],
     },
     Family {
         name: "client",
@@ -64,7 +67,10 @@ pub const FAMILIES: &[Family] = &[
         codec_root: "crates/jig-client-view-codec",
         generated: &["src/generated/records.rs"],
         bounds: compiled_bounds!(jig_client_view_codec::records_v1),
-        translations: &[],
+        translations: &[Translation {
+            maps: include_str!("../crates/jig-client-view/schema/records.maps"),
+            module: "crates/jig-client-view/src/generated/records.rs",
+        }],
     },
     Family {
         name: "ops client",
@@ -232,7 +238,10 @@ pub const FAMILIES: &[Family] = &[
         codec_root: "crates/jig-client-protocol-wire",
         generated: &["src/generated/public.rs"],
         bounds: compiled_bounds!(jig_client_protocol_wire::public_v1),
-        translations: &[],
+        translations: &[Translation {
+            maps: include_str!("../crates/jig-protocol-engine-clients/schema/public.maps"),
+            module: "crates/jig-protocol-engine-clients/src/generated/public.rs",
+        }],
     },
 ];
 
