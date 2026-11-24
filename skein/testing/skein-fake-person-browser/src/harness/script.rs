@@ -4,6 +4,7 @@ use crate::BrowserFace;
 use skein_fake_person::{Next, Person};
 use skein_lib::{Duration, Time};
 use std::collections::VecDeque;
+use std::fmt;
 mod growth;
 mod keep_box;
 mod tabs;
@@ -151,6 +152,18 @@ fn nests_has(mut selector: &[u8]) -> bool {
     false
 }
 
+/// A keep selector refused at construction because it nests `:has()`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct NestedHas {
+    /// The refused selector, byte for byte.
+    pub selector: Box<[u8]>,
+}
+impl fmt::Display for NestedHas {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "keep selector {} nests :has()", String::from_utf8_lossy(&self.selector))
+    }
+}
+
 /// A browser story with keep selectors checked at construction (skein/docs/design/ui/web/testing.md, 2).
 pub struct Script {
     steps: VecDeque<Step>,
@@ -173,17 +186,25 @@ pub struct Script {
     text: Option<(skein_fake_person::Find, Box<[u8]>, bool)>,
 }
 impl Script {
-    /// Make a script, refusing nested `:has()` in keep selectors.
+    /// Make a script, panicking if a keep selector nests `:has()`.
     #[must_use]
     pub fn new(steps: Box<[Step]>) -> Self {
-        for step in &steps {
+        match Self::try_new(steps) {
+            Ok(script) => script,
+            Err(refusal) => panic!("{refusal}"),
+        }
+    }
+
+    /// Make a script, returning the first keep selector that nests `:has()`.
+    pub fn try_new(mut steps: Box<[Step]>) -> Result<Self, NestedHas> {
+        for step in &mut steps {
             if let Step::Keep { selector, .. } = step
                 && nests_has(selector)
             {
-                panic!("keep selector {} nests :has()", String::from_utf8_lossy(selector));
+                return Err(NestedHas { selector: std::mem::take(selector) });
             }
         }
-        Self {
+        Ok(Self {
             steps: steps.into_vec().into(),
             person: None,
             person_until: None,
@@ -202,7 +223,7 @@ impl Script {
             awaited: None,
             request: None,
             status: None,
-        }
+        })
     }
     fn tabs_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
         let Some(mut tabs) = self.tabs.take() else { return false };

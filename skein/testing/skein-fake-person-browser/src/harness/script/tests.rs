@@ -1,6 +1,6 @@
 use super::{Play, Script, Step};
-use crate::BrowserFace;
 use crate::tests::{face, found, seen};
+use crate::{BrowserFace, NestedHas};
 use skein_browser::boundary::{Event, Key, Request};
 use skein_fake_person::{Find, Next, Step as PersonStep};
 use skein_lib::{Duration, Time, Token};
@@ -239,21 +239,27 @@ fn keeping(selector: &[u8]) -> (Script, BrowserFace<'static>) {
     (script, face)
 }
 #[test]
-#[should_panic(expected = "keep selector details:has(> summary:not(:has(> [role=group] + span))) nests :has()")]
 fn a_keep_cannot_nest_has_through_not() {
-    let _ = Script::new(Box::new([keep(b"details:has(> summary:not(:has(> [role=group] + span)))")]));
+    let selector = b"details:has(> summary:not(:has(> [role=group] + span)))".as_slice();
+    assert_eq!(Script::try_new(Box::new([keep(selector)])).err(), Some(NestedHas { selector: selector.into() }));
 }
 
 #[test]
-#[should_panic(expected = "keep selector a:has(b:is(c:has(d))) nests :has()")]
 fn a_keep_cannot_nest_has_through_is() {
-    let _ = Script::new(Box::new([keep(b"a:has(b:is(c:has(d)))")]));
+    let selector = b"a:has(b:is(c:has(d)))".as_slice();
+    assert_eq!(Script::try_new(Box::new([keep(selector)])).err(), Some(NestedHas { selector: selector.into() }));
 }
 
 #[test]
-#[should_panic(expected = "keep selector a:HaS(b:where(c:HAS(d))) nests :has()")]
 fn a_keep_cannot_nest_has_in_mixed_case() {
-    let _ = Script::new(Box::new([keep(b"a:HaS(b:where(c:HAS(d)))")]));
+    let selector = b"a:HaS(b:where(c:HAS(d)))".as_slice();
+    assert_eq!(Script::try_new(Box::new([keep(selector)])).err(), Some(NestedHas { selector: selector.into() }));
+}
+
+#[test]
+fn a_nested_has_refusal_displays_the_selector() {
+    let refusal = NestedHas { selector: b"a:HaS(b:where(c:HAS(d)))".as_slice().into() };
+    assert_eq!(refusal.to_string(), "keep selector a:HaS(b:where(c:HAS(d))) nests :has()");
 }
 
 #[test]
@@ -265,6 +271,7 @@ fn a_keep_requests_unnested_selectors_unchanged() {
         br#"x:has([title="\":has(y)"])"#,
         b"x:has(/* :has(y) */ z)",
     ] {
+        assert!(Script::try_new(Box::new([keep(selector)])).is_ok());
         let _ = keeping(selector);
     }
 }
