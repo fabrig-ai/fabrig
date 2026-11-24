@@ -1031,7 +1031,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// The deadline that admission and wait records use, including time spent suspended.
 #[must_use]
 pub fn deadline(record: &TaskRecord, wall: Wall) -> Option<Wall> {
-    let deadline = record.authority.budget.deadline?;
+    moved_deadline(record, record.authority.budget.deadline, wall)
+}
+
+pub(crate) fn moved_deadline(record: &TaskRecord, deadline: Option<Wall>, wall: Wall) -> Option<Wall> {
+    let deadline = deadline?;
     let age = match record.suspension {
         Some(suspension) => wall.as_nanos().saturating_sub(suspension.since.as_nanos()),
         None => 0,

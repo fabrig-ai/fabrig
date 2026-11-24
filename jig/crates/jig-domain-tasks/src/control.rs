@@ -663,7 +663,14 @@ fn check_amend_fields(
     };
     let before = old.settings();
     let release = if releasing {
-        Some(check_release(domain, staged, env, by, Release { task: number, again: None, message: None })?)
+        Some(check_release_with_authority(
+            domain,
+            staged,
+            env,
+            by,
+            Release { task: number, again: None, message: None },
+            amendment.authority.as_ref(),
+        )?)
     } else {
         None
     };
@@ -1048,6 +1055,17 @@ pub(crate) fn check_release(
     by: Party,
     operation: Release,
 ) -> Result<ReleasePlan, Refusal> {
+    check_release_with_authority(domain, staged, env, by, operation, None)
+}
+
+fn check_release_with_authority(
+    domain: &Domain,
+    staged: &Staged,
+    env: &Env<Limits>,
+    by: Party,
+    operation: Release,
+    authority: Option<&Authority>,
+) -> Result<ReleasePlan, Refusal> {
     let Release { task: number, again, message } = operation;
     let task = staged.record(domain, number).ok_or(Refusal::Unknown)?;
     if task.revision == u64::MAX {
@@ -1089,12 +1107,22 @@ pub(crate) fn check_release(
     };
     let next = match &task.phase {
         Phase::Held { was: Was::Waiting, .. } => Phase::Waiting,
-        // A wait at its bound can begin again without starting another activation.
-        Phase::Held {
-            was: Was::Active(Active::Idle),
-            why: crate::Hold::Waited | crate::Hold::Deadline,
-            source: Some(source),
-        } if let crate::HoldSource::Wait { .. } = source.as_ref() => Phase::Active(Active::Idle),
+        Phase::Held { was: Was::Active(Active::Idle), why: crate::Hold::Waited, source: Some(source) }
+            if let crate::HoldSource::Wait { .. } = source.as_ref() =>
+        {
+            Phase::Active(Active::Idle)
+        }
+        // If the deadline still has passed, the bound alarm holds the fresh wait
+        // again with its words. Otherwise the release makes the task due.
+        Phase::Held { was: Was::Active(Active::Idle), why: crate::Hold::Deadline, source: Some(source) }
+            if let crate::HoldSource::Wait { .. } = source.as_ref() =>
+        {
+            let authority = authority.unwrap_or(task.authority);
+            match crate::domain::moved_deadline(task.base, authority.budget.deadline, env.wall) {
+                Some(at) if at <= env.wall => Phase::Active(Active::Idle),
+                Some(_) | None => Phase::Active(Active::Due),
+            }
+        }
         Phase::Held {
             was: Was::Active(Active::Idle | Active::Due | Active::Preparing | Active::BackingOff { .. }),
             ..

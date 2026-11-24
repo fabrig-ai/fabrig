@@ -263,7 +263,7 @@ fn a_retired_escalation_does_not_reactivate_its_holder() {
 }
 
 #[test]
-fn a_deadline_wake_does_not_reuse_a_handled_message_reason() {
+fn release_after_a_deadline_amendment_does_not_reuse_a_handled_message_reason() {
     let mut world = World::new(475, LIMITS);
     let mut goal = task(1, &[]);
     goal.tracked = Some(1);
@@ -308,9 +308,16 @@ fn a_deadline_wake_does_not_reuse_a_handled_message_reason() {
         operation: jig_domain_tasks::Release { task: 1, again: None, message: None },
     });
     assert_eq!(reply, Reply::Done);
-    assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
-    assert_eq!(world.activations(1), activations);
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
+    assert_eq!(world.activations(1), activations + 1);
     assert_eq!(run_reason(&world, 3), None);
+    world.claim(1, 3);
+    assert_eq!(run_reason(&world, 3), Some(Why::Released));
+    goal_turn(&mut world, 3, 1, None);
+    let reply_to = world.to();
+    world.send(Event::RecordWords { reply_to, task: 1, messages: Box::new([24]) });
+    assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
     world.elapse(skein_lib::Duration::from_nanos(899));
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
     let inbox = &world.record(1).inbox;
@@ -318,8 +325,8 @@ fn a_deadline_wake_does_not_reuse_a_handled_message_reason() {
     let mut timers = inbox.iter().filter(|word| word.kind == MessageKind::Timer { subscription: 10 });
     let message = timers.next().expect("the timer's wake").number;
     assert!(timers.next().is_none());
-    world.claim(1, 3);
-    assert_eq!(run_reason(&world, 3), Some(Why::Message { message }));
+    world.claim(1, 4);
+    assert_eq!(run_reason(&world, 4), Some(Why::Message { message }));
 }
 
 fn run_reason(world: &World, attempt: u64) -> Option<jig_domain_tasks::Why> {

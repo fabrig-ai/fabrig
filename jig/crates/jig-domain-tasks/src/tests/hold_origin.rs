@@ -1,6 +1,6 @@
 //! Public task entrances preserve immutable connector reference facts.
 
-use super::revisions::{Harness, LIMITS, task, to};
+use super::revisions::{Harness, LIMITS, amendment, task, to};
 use crate::{Active, Cause, Domain, End, Event, Hold, HoldSource, Key, Name, Party, Phase, Release, Request, Stored};
 use alloc::boxed::Box;
 use skein_lib::Wall;
@@ -146,6 +146,8 @@ const WAITER: u64 = 7;
 const INPUT: u64 = 6;
 const HOLDER: u64 = 9;
 const ESCALATION: u64 = 1;
+const DEADLINE: Wall = Wall::from_nanos(1_000_000_000);
+const LATER: Wall = Wall::from_nanos(2_000_000_000);
 const WORDS_AT_BOUND: usize = 512; // jig/docs/design/domain/tasks/lifecycle-holds.md, 1
 const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z: subscriptions 3 and 5.";
 
@@ -160,7 +162,11 @@ fn wait_holds_raise_escalation_and_restore_before_release() {
             (Was::Active(Active::Idle), Phase::Active(Active::Idle), &[][..], WORDS),
         ] {
             let mut h = Harness::new();
-            h.make([task(INPUT, &[]), task(WAITER, dependencies)].into());
+            let mut waiter = task(WAITER, dependencies);
+            if why == Hold::Deadline {
+                waiter.authority.budget.deadline = Some(DEADLINE);
+            }
+            h.make([task(INPUT, &[]), waiter].into());
             if was == Was::Active(Active::Idle) {
                 claim(&mut h, WAITER);
                 h.send(Event::Activation {
@@ -172,6 +178,7 @@ fn wait_holds_raise_escalation_and_restore_before_release() {
                     cause: Cause::Unpriced,
                 });
             }
+            h.env.wall = DEADLINE;
             let source = Box::new(HoldSource::Wait { words: words.into() });
             h.send(Event::HoldFrom { task: WAITER, why, source: source.clone() });
             let held = Phase::Held { was, why, source: Some(source) };
@@ -189,6 +196,38 @@ fn wait_holds_raise_escalation_and_restore_before_release() {
             assert_eq!(h.domain.task(WAITER).unwrap().phase, released);
         }
     }
+}
+
+#[test]
+fn an_amendment_that_moves_and_releases_a_deadline_makes_the_idle_task_due() {
+    let mut h = Harness::new();
+    let mut waiter = task(WAITER, &[]);
+    waiter.authority.budget.deadline = Some(DEADLINE);
+    h.make([waiter].into());
+    claim(&mut h, WAITER);
+    h.send(Event::Activation {
+        reply_to: to(),
+        task: WAITER,
+        attempt: 1,
+        end: End::Parked,
+        saved: None,
+        cause: Cause::Unpriced,
+    });
+    h.env.wall = DEADLINE;
+    h.send(Event::HoldFrom {
+        task: WAITER,
+        why: Hold::Deadline,
+        source: Box::new(HoldSource::Wait { words: WORDS.into() }),
+    });
+    h.route(WAITER, crate::EscalationHolder::Person(HOLDER), ESCALATION);
+    let row = h.domain.task(WAITER).unwrap();
+    let mut authority = row.authority.clone();
+    authority.budget.deadline = Some(LATER);
+    h.amend(WAITER, crate::Amendment { authority: Some(authority), release: Some(row.revisions.hold), ..amendment() });
+    let released = h.domain.task(WAITER).unwrap();
+    assert_eq!(released.authority.budget.deadline, Some(LATER));
+    assert_eq!(released.phase, Phase::Active(Active::Due));
+    assert_eq!(released.due_reason, crate::Why::Released);
 }
 
 #[test]
