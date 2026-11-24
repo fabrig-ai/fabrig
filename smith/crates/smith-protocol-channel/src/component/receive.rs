@@ -82,11 +82,8 @@ impl Component {
                 Event::Ended => self.ending.end(Closed::Stream, to_service),
                 Event::Unsent { token, why: _ } => self.unsent(token, to_service),
                 Event::OutputFailed => to_service.push(Heard::WriteFailed),
-                Event::Ping
-                | Event::Unsupported { .. }
-                | Event::Refused { .. }
-                | Event::Sent { .. }
-                | Event::Drained => {}
+                Event::Drained => self.drained = true,
+                Event::Ping | Event::Unsupported { .. } | Event::Refused { .. } | Event::Sent { .. } => {}
             }
         }
     }
@@ -246,8 +243,8 @@ impl Component {
     fn host_answer(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let answer = smith_channel::HostAnswer::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         let key = CallKey::from_wire(&answer.name);
-        match self.calls.remove(&key).ok_or(Broken)? {
-            CallRoute::Host { relay, send: _ } => {
+        match self.remove_call(&key).ok_or(Broken)? {
+            CallRoute::Host { relay, .. } => {
                 let reply = calls::host_reply(&answer.reply).ok_or(Broken)?;
                 to_service.push(Heard::Event { event: Box::new(smith_domain::Event::HostReturned { relay, reply }) });
             }
@@ -304,8 +301,8 @@ impl Component {
             }
         }
         if let Some(key) = found {
-            match self.calls.remove(&key) {
-                Some(CallRoute::Host { relay, send: _ }) => to_service.push(Heard::Event {
+            match self.remove_call(&key) {
+                Some(CallRoute::Host { relay, .. }) => to_service.push(Heard::Event {
                     event: Box::new(smith_domain::Event::HostReturned {
                         relay,
                         reply: run::HostReply::Unanswered(run::Unanswered::Lost),
@@ -417,7 +414,7 @@ mod tests {
             .calls
             .insert(
                 CallKey { activation: 1, completion: 1, position: 0 },
-                CallRoute::Host { relay, send: Token::new(10) },
+                CallRoute::Host { relay, send: Token::new(10), withdrawn: false },
             )
             .expect("call room");
         channel

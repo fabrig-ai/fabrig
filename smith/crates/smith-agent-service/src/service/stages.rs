@@ -44,6 +44,7 @@ pub(super) fn next_deadline(service: &Stages, frame: Option<&Frame>) -> Option<T
     );
     next = earliest(next, service.files.next_deadline());
     next = earliest(next, service.live.deadline());
+    next = earliest(next, super::silence::deadline(frame));
     earliest(next, super::orphan::deadline(service))
 }
 
@@ -55,6 +56,7 @@ pub(super) fn next_policy_deadline(service: &Stages, frame: Option<&Frame>) -> O
     next = earliest(next, program::policy_deadline(service));
     next = earliest(next, service.machine.next_deadline());
     next = earliest(next, service.live.deadline());
+    next = earliest(next, super::silence::deadline(frame));
     earliest(next, super::orphan::deadline(service))
 }
 

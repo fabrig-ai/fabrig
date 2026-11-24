@@ -166,6 +166,7 @@ impl Agent {
             let why = match service::failure(&self.service).expect("an unanswered agent keeps its first failure") {
                 service::Failure::ChannelEnded => "the channel ended before the answer",
                 service::Failure::WriteFailed => "the channel's output failed",
+                service::Failure::HostSilent => "the host was silent past its deadline",
                 service::Failure::Credential => "a host credential could not be installed",
                 service::Failure::Send => "a required host record could not be sent",
             };

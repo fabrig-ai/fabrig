@@ -282,7 +282,7 @@ fn working_permit(run: &mut Run, child: bool, now: Time) -> CompletionPermit {
     if let Some(exhausted) = run.charter.budget.exhausted(run.spent) {
         return CompletionPermit::Denied(exhausted);
     }
-    if (!child || run.tell_parts) && completion_held(run) {
+    if completion_needs_credit(run, child) {
         return CompletionPermit::Held;
     }
     if let Some(reason) = final_turn_failure(run) {
@@ -324,7 +324,35 @@ pub(super) fn final_remaining(run: &Run, now: Time) -> Result<(), Exhausted> {
     }
 }
 
-fn completion_held(run: &Run) -> bool {
+/// Whether a held completion's admission is waiting for durable host credit.
+#[must_use]
+pub fn completion_waits_for_host(domain: &Domain, conversation: Token) -> bool {
+    let Some(conversation) = domain.conversations.get(Id::from_token(conversation)) else { return false };
+    match conversation.phase {
+        Phase::Running { .. } => {}
+        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closing | Phase::Closed => return false,
+    }
+    let run = domain.runs.get(conversation.run).expect("conversation retains run");
+    let child = conversation.asker.is_some();
+    if run.draining && (run.grace.is_some() || !child) || child && run.wind_down.is_some() {
+        return false;
+    }
+    match run.state {
+        State::Working { .. } => completion_needs_credit(run, child),
+        State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Winding { .. }
+        | State::Awaiting { .. }
+        | State::Preparing { .. }
+        | State::Stopping { .. }
+        | State::Closed => false,
+    }
+}
+
+fn completion_needs_credit(run: &Run, child: bool) -> bool {
+    if child && !run.tell_parts {
+        return false;
+    }
     let pending = run
         .turns
         .checked_sub(run.acknowledged)

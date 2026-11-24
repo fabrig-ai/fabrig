@@ -43,6 +43,10 @@ impl Flow {
         self.done
     }
 
+    pub(crate) fn waits_for_host(&self) -> bool {
+        !self.pending.is_empty()
+    }
+
     pub(crate) const fn disconnected(&self) -> bool {
         self.disconnected
     }

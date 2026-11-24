@@ -39,7 +39,11 @@ pub(super) fn host_lost(service: &mut Stages, failure: Failure) {
     }
     let live = match service.teardown {
         Teardown::Live { .. } => true,
-        Teardown::Answered { .. } | Teardown::Closing { .. } if failure == Failure::WriteFailed => false,
+        Teardown::Answered { .. } | Teardown::Closing { .. }
+            if failure == Failure::WriteFailed || failure == Failure::HostSilent =>
+        {
+            false
+        }
         Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => return,
     };
     service.mark_failed(failure);

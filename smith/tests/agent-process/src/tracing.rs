@@ -11,6 +11,7 @@ pub(super) struct Tracing {
     pub(super) agent: skein_world::PipeHost<smith_agent_shell::Agent>,
     pub(super) pressure: Option<super::world::orders::Pressure>,
     pub(super) command_spawned: bool,
+    pub(super) channel: Option<super::world::silence::Watch>,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
 }
@@ -20,6 +21,7 @@ impl Tracing {
         mut configuration: agent::Config,
         inherited: &skein_world::Inherited,
         capture: smith_protocol_events::sinks::Capture,
+        watch_channel: bool,
     ) -> Self {
         configure_events(&mut configuration, capture);
         let queue = configuration.limits.queue;
@@ -51,6 +53,7 @@ impl Tracing {
             agent: bridge.host(agent),
             pressure: None,
             command_spawned: false,
+            channel: watch_channel.then(|| super::world::silence::Watch::new(pipe(0), pipe(1))),
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
         }
@@ -66,6 +69,9 @@ impl Host for Tracing {
             if let Some(pressure) = &mut self.pressure {
                 pressure.observe(&submission);
             }
+            if let Some(channel) = &mut self.channel {
+                channel.submitted(&submission);
+            }
             self.submissions.push(submission);
         }
     }
@@ -77,7 +83,13 @@ impl Host for Tracing {
         {
             self.agent.completions().push(complete);
         }
+        if let Some(channel) = &mut self.channel {
+            channel.clock(now);
+        }
         while let Some(complete) = self.completions.pop() {
+            if let Some(channel) = &mut self.channel {
+                channel.completed(&complete);
+            }
             if matches!(&complete.kind, kernel::Op::Spawn { spawn } if spawn.program.as_ref() == b"/bin/sh")
                 && matches!(&complete.result, Ok(kernel::Done::Spawned { .. }))
             {

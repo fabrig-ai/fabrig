@@ -12,6 +12,7 @@ mod parts;
 mod peer;
 mod setup;
 mod signals;
+pub(crate) mod silence;
 
 pub use coding::{CODING_LINES, CODING_OUTPUT, large_coding_write};
 use peer::child_charter;
@@ -46,6 +47,7 @@ pub(crate) struct Parent {
     signalled: u32,
     hang_up: bool,
     hold_channel: bool,
+    silence: Option<silence::Host>,
     pub(crate) errors: Vec<u8>,
     closing: u32,
     next: u64,
@@ -66,7 +68,7 @@ pub(crate) struct Parent {
 impl Parent {
     pub(crate) fn new(root: Fd, charter: &[u8], value: &smith_channel::GrantValue, options: ParentOptions<'_>) -> Self {
         let ParentOptions { hang_up, window, message, live, setup, parts_after } = options;
-        let Setup { tracing, capture: _, provider, output, mode, order_requests: _ } = setup;
+        let Setup { tracing, capture: _, provider, output, mode, order_requests: _, watch_channel: _ } = setup;
         let environment = matches!(mode, Mode::Environment);
         let mut peer = if matches!(tracing, Some((TraceCase::StoppedReasoning, _))) {
             crate::host_with_limits(crate::reasoning_configuration().limits.channel)
@@ -109,6 +111,7 @@ impl Parent {
             signalled: 0,
             hang_up,
             hold_channel: false,
+            silence: None,
             errors: Vec::new(),
             closing: 0,
             next: 0,
@@ -262,9 +265,10 @@ impl Parent {
                     let bytes = &buf[..usize::try_from(count).expect("read count")];
                     if error {
                         self.errors.extend_from_slice(bytes);
-                    } else {
+                    } else if self.status.is_none() || !self.silence.as_ref().is_some_and(|host| host.stopped) {
                         self.peer.feed(bytes).expect("valid channel");
                     }
+                    // A silent reader drains to EOF only after the exit, discarding the truncated tail.
                 }
             }
             Op::PipeWrite { bytes, from, .. } => {
@@ -340,9 +344,14 @@ impl Host for Parent {
         while let Some(complete) = self.completions.pop() {
             self.completed(now, complete);
         }
-        crate::program_world::answer_host(self);
-        coding::answer_delivery(self);
-        self.acknowledge(now);
+        if let Some(host) = &mut self.silence {
+            host.step(now, &mut self.peer, self.status.is_some());
+        }
+        if !self.silence.as_ref().is_some_and(silence::Host::withholds) {
+            crate::program_world::answer_host(self);
+            coding::answer_delivery(self);
+            self.acknowledge(now);
+        }
         for _ in self.signalled..self.signal {
             self.signalled = self.signalled.checked_add(1).expect("finite requested signals");
             self.submit(Op::Signal {
@@ -353,6 +362,7 @@ impl Host for Parent {
             });
         }
         if self.reading.is_none()
+            && (self.status.is_some() || !self.silence.as_ref().is_some_and(|host| host.stopped))
             && let Some(fd) = self.output
         {
             if self.loss.is_some() {
@@ -399,7 +409,9 @@ impl Host for Parent {
             || self.program_message
             || self.cancel_pending
             || (self.signal > self.signalled)
-            || (self.output.is_some() && self.reading.is_none())
+            || (self.output.is_some()
+                && self.reading.is_none()
+                && (self.status.is_some() || !self.silence.as_ref().is_some_and(|host| host.stopped)))
             || (self.error.is_some() && !self.error_reading)
             || (self.pending.is_some() && !self.writing)
     }
@@ -407,7 +419,10 @@ impl Host for Parent {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        self.parts.as_ref().and_then(parts::Host::deadline)
+        skein_lib::earliest(
+            self.parts.as_ref().and_then(parts::Host::deadline),
+            self.silence.as_ref().and_then(silence::Host::deadline),
+        )
     }
     fn is_empty(&self) -> bool {
         self.status.is_some()
@@ -552,7 +567,12 @@ fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
     let setup = Setup::read(spawn);
     let configuration = agent_configuration(setup);
     if setup.tracing.is_some() {
-        Proc::Tracing(Box::new(crate::tracing::Tracing::new(configuration, inherited, setup.capture)))
+        Proc::Tracing(Box::new(crate::tracing::Tracing::new(
+            configuration,
+            inherited,
+            setup.capture,
+            setup.watch_channel,
+        )))
     } else {
         let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
         let (errors, capture) = crate::AgentErrors::pipe(fd);
@@ -674,6 +694,7 @@ fn read_records(machine: &mut Machine) -> (Vec<smith_events::Record>, Box<[u8]>)
 #[derive(Debug)]
 struct Terminal {
     hang_up: bool,
+    by: Time,
 }
 impl skein_world::Expectation<Proc> for Terminal {
     fn check(&self, _now: Time, procs: &[Proc]) -> Result<bool, String> {
@@ -689,7 +710,7 @@ impl skein_world::Expectation<Proc> for Terminal {
         })
     }
     fn deadline(&self) -> Time {
-        Time::from_nanos(Duration::from_secs(120).as_nanos())
+        self.by
     }
 }
 #[derive(Clone, Copy)]
@@ -842,7 +863,10 @@ impl skein_world::Referee<Proc> for Referee {
         let entrance_refused = self.workspace_refusal.is_some()
             || (matches!(self.credential_story, CredentialStory::Supplied) && !parent.admitted())
             || matches!(self.tracing, Some((TraceCase::Refused, _)));
-        if matches!(self.hang_up, HangUp::Never) && parent.status.is_some() {
+        if matches!(self.hang_up, HangUp::Never)
+            && parent.status.is_some()
+            && !parent.silence.as_ref().is_some_and(silence::Host::expects_failure)
+        {
             if entrance_refused {
                 if parent.admitted() {
                     return Err(String::from("an entrance refusal has no admission"));
@@ -966,6 +990,7 @@ pub struct World {
     after_answer: u32,
     hang_up: HangUp,
     hold_channel: bool,
+    silence: Option<silence::Plan>,
     memory: Memory,
     full_completion: bool,
     outcome: Option<Outcome<Proc, Machine>>,
@@ -1026,6 +1051,7 @@ impl World {
             after_answer: 0,
             hang_up: HangUp::Never,
             hold_channel: false,
+            silence: None,
             memory: Memory::Unchecked,
             full_completion: false,
             outcome: None,
@@ -1356,7 +1382,20 @@ impl World {
             .max(self.release.as_ref().map_or(0, |release| release.queries))
     }
     fn expects_unsent(&self) -> bool {
-        !matches!(self.hang_up, HangUp::Never) || self.refreshing.is_some()
+        !matches!(self.hang_up, HangUp::Never) || self.refreshing.is_some() || self.silence_expected()
+    }
+
+    fn settlement_deadline(&self) -> Time {
+        let Some(plan) = self.silence else { return Time::ZERO.saturating_add(Duration::from_secs(120)) };
+        let link = self.link();
+        let wait = match plan {
+            silence::Plan::StopAfter(_) | silence::Plan::Withhold => link.no_progress,
+            silence::Plan::WakeAfter(delay) => delay,
+        };
+        Time::ZERO
+            .saturating_add(wait)
+            .saturating_add(link.no_progress)
+            .saturating_add(smith_agent_profile::orphan_exit(&link).expect("derived orphan exit"))
     }
 
     fn referee(&self) -> Referee {
@@ -1387,7 +1426,10 @@ impl World {
                 CredentialStory::Ordinary
             },
             orders: self.order.map(orders::Referee::new),
-            expected: skein_world::Expectations::new(self.seed, vec![Terminal { hang_up: self.expects_unsent() }]),
+            expected: skein_world::Expectations::new(
+                self.seed,
+                vec![Terminal { hang_up: self.expects_unsent(), by: self.settlement_deadline() }],
+            ),
         }
     }
 
@@ -1395,6 +1437,10 @@ impl World {
     pub fn settle(&mut self) -> bool {
         let mut config = skein_sim::Config::calm();
         config.wall = skein_tls_kit::pki::VALID;
+        if matches!(self.silence, Some(silence::Plan::StopAfter(_))) {
+            // A small native pipe makes the backpressure independent of socket buffering.
+            config.buffer = 64;
+        }
         let mut machine = skein_fake_machine::Machine::new();
         let root = machine.lay(&[]);
         let referee = self.referee();
@@ -1460,6 +1506,7 @@ impl World {
                 parent.peer.play(crate::program_world::start_with_window(&self.charter, &self.grant_value(), turns));
             }
             parent.hold_channel = self.hold_channel;
+            parent.silence = self.silence.map(silence::Host::new);
             parent.refreshing.clone_from(&self.refreshing);
             Proc::Parent(Box::new(parent))
         });
