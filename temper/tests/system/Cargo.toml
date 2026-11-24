@@ -11,6 +11,7 @@ publish.workspace = true
 jig-conformance.workspace = true
 jig-inspect.workspace = true
 temper-worker-inspect.workspace = true
+temper-engine-inspect.workspace = true
 temper-workload.workspace = true
 temper-landing-fixtures.workspace = true
 temper-engine-domain-forge-tiers.workspace = true

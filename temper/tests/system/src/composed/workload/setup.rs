@@ -205,7 +205,10 @@ pub(super) fn goal(world: &World, goal: &Goal, milestone: u64) -> people::Ask {
     member.label = 2;
     member.symbols = Box::new([people::Symbol { connector: 1, symbol: 1 }]);
     member.authority.spend = 150;
-    member.authority.delegation.tasks = 16;
+    // temper/docs/design/domain/forge/branches.md, 2: reserve twelve tasks
+    // for (two repairs + the change) * (three landing attempts + one),
+    // beside the original work and closer. Both COMPOSED changes may be red.
+    member.authority.delegation.tasks = 24;
     member.authority.delegation.depth = 4;
     member.budget = people::Budget::Named;
     member.llm = Some(people::LlmChoice {

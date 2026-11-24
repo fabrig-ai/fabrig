@@ -8,6 +8,8 @@ impl World {
         jig_inspect::tasks(self.root.tasks(), &mut jig);
         let mut worker = temper_worker_inspect::inspection();
         temper_worker_inspect::inspect(&self.worker, &self.worker_env.limits, &self.disk, &mut worker);
-        self.checks.quiet_with(&self.root, self.env.now, self.iteration, &[&jig, &worker])
+        self.checks.quiet_with(&self.root, self.env.now, self.iteration, &[&jig, &worker])?;
+        self.workload_bounds();
+        Ok(())
     }
 }

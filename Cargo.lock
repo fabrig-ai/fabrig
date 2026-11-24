@@ -8497,6 +8497,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-world",
  "temper-engine-forge-world",
+ "temper-engine-inspect",
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",

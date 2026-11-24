@@ -65,7 +65,7 @@ pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script
         for change in &goal.changes {
             let failed = format!("Failed test: {} ", change.name);
             if words.contains(&failed) {
-                let mut script = producer(change, 0, true);
+                let mut script = producer(change, 0, true, false);
                 script.cue = failed.into_bytes().into();
                 return script;
             }
@@ -76,7 +76,7 @@ pub(super) fn assigned(world: &World, assignment: &engine::Assignment) -> Script
                     super::Party::First => 1,
                     super::Party::Second => 2,
                 };
-                return producer(change, person, repair);
+                return producer(change, person, repair, world.workload_parks(assignment.task));
             }
         }
     }
@@ -94,7 +94,7 @@ fn person_task(person: u64, words: &str) -> skein_fake_llm_domain::api::Turn {
     )
 }
 
-fn producer(change: &Change, person: u64, repair: bool) -> Script {
+fn producer(change: &Change, person: u64, repair: bool, park: bool) -> Script {
     let mut turns = Vec::new();
     if change.asks && !repair {
         turns.push(person_task(person, &format!("@ask:{}@ Write the specified files? I recommend yes.", change.name)));
@@ -108,6 +108,10 @@ fn producer(change: &Change, person: u64, repair: bool) -> Script {
     turns.push(turn(b"write", &json!({"path":super::setup::marker(change),"content":if change.red_once && !repair { format!("{}\n", change.name) } else { String::new() }})));
     let fields = json!({"title":change.name,"body":format!("Deliver {}", change.name)});
     turns.push(turn(b"deliver", &json!({"fields":fields})));
+    if park {
+        turns.push(person_task(person, &format!("@park:{}@ Finish the delivered change?", change.name)));
+        turns.push(call(b"wait", b"{}"));
+    }
     turns.push(turn(b"finish", &json!({"outcome":{"form":"change","fields":fields}})));
     Script { cue: change_cue(change).into_bytes().into(), turns: turns.into() }
 }

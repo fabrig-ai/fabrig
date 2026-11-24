@@ -6,12 +6,17 @@ use skein_world::{
     streams::{Stream, Streams},
 };
 use std::collections::{BTreeMap, BTreeSet};
-use temper_faults::{forge as forge_faults, restarts, stale};
+use temper_engine_domain_world::acts::Watch;
+use temper_faults::{bounds, forge as forge_faults, parks, people, restarts, stale};
+use temper_worker_inspect::faults::DISK_FULL;
 use temper_workload::draw::Workload;
+use temper_workload::parties::{self, Act, Action};
 
+mod actions;
 mod blame;
 mod forge;
 mod runs;
+mod worker;
 
 #[derive(Debug)]
 struct Plan {
@@ -44,6 +49,14 @@ pub(in crate::composed) struct Faults {
     repairs: BTreeSet<u64>,
     holds: BTreeSet<String>,
     wrong: BTreeSet<u64>,
+    bounds: Vec<Kind>,
+    actions: Vec<Action>,
+    watch: Watch,
+    disk: worker::Disk,
+    park: Option<(String, u64, u64)>,
+    parked: bool,
+    read_latency: skein_lib::Duration,
+    read_replies: Vec<(Time, crate::composed::engine::Event)>,
 }
 
 impl Faults {
@@ -52,6 +65,7 @@ impl Faults {
         let mut forge_rng = streams.rng(Stream::Faults, "forge");
         let mut llm_rng = streams.rng(Stream::Faults, "llm");
         let mut restart_rng = streams.rng(Stream::Faults, restarts::PART);
+        let mut worker_rng = streams.rng(Stream::Faults, "worker");
         // Draw the fixed positions even for unconfigured kinds. Removing a
         // family cannot shift another family's choice within the forge part.
         let supported = [
@@ -63,14 +77,19 @@ impl Faults {
             stale::MOVED_BASE,
             skein_llm_kit::faults::RATE_WINDOW,
             restarts::ENGINE_CRASH_MID_TURN,
+            DISK_FULL,
+            parks::DELIVERED_THEN_PARKED,
         ];
-        assert!(kinds.iter().all(|kind| supported.contains(kind)), "supported composed faults");
+        let mut allowed = supported.to_vec();
+        allowed.extend([people::HOLDS_A_MEMBER, people::RELEASES_A_MEMBER, bounds::FORGE_READ_ADMISSIONS]);
+        assert!(kinds.iter().all(|kind| allowed.contains(kind)), "supported composed faults");
         let plans = supported
             .iter()
             .map(|kind| {
                 let rng = match kind.family {
                     "provider" => &mut llm_rng,
                     "restarts" => &mut restart_rng,
+                    "worker" | "runs that park, resume and move" => &mut worker_rng,
                     _ => &mut forge_rng,
                 };
                 let eligible: Vec<_> = workload
@@ -99,7 +118,23 @@ impl Faults {
             })
             .filter(|plan| kinds.contains(&plan.kind))
             .collect();
+        let acts: Vec<_> = [Act::HoldMember, Act::ReleaseMember]
+            .into_iter()
+            .filter(|act| kinds.contains(&temper_engine_domain_world::acts::kind(*act)))
+            .collect();
+        let actions = parties::draw(&streams, workload, &acts);
+        let disk = worker::Disk::draw(&mut worker_rng);
         Self {
+            bounds: kinds.iter().copied().filter(|kind| kind.family == bounds::FAMILY).collect(),
+            watch: Watch::new(actions.clone()),
+            actions,
+            disk,
+            park: None,
+            parked: false,
+            read_latency: skein_lib::Duration::from_millis(
+                streams.rng(Stream::Scheduling, "system").between(1000, 1500),
+            ),
+            read_replies: Vec::new(),
             seed,
             plans,
             steps: BTreeMap::new(),
@@ -162,6 +197,10 @@ impl World {
     pub(in crate::composed) fn workload_faults_stopped(&self) -> bool {
         self.workload_faults.as_ref().is_none_or(|f| {
             f.plans.iter().all(|p| p.fired)
+                && f.read_replies.is_empty()
+                && f.actions.is_empty()
+                && f.disk.stopped()
+                && (f.park.is_none() || f.parked)
                 && f.closed.is_none()
                 && f.provider.is_none()
                 && f.opening.is_none()
@@ -172,8 +211,38 @@ impl World {
         })
     }
 
+    pub(in crate::composed) fn workload_forge_reply(
+        &mut self,
+        op: &skein_forge::api::Op,
+        reply: crate::composed::engine::Event,
+    ) {
+        if let Some(f) = &mut self.workload_faults
+            && f.bounds.contains(&bounds::FORGE_READ_ADMISSIONS)
+            && !f.ledger.entries().iter().any(|entry| entry.kind == bounds::FORGE_READ_ADMISSIONS)
+            && matches!(op, skein_forge::api::Op::Read(_))
+        {
+            f.read_replies.push((self.env.now.saturating_add(f.read_latency), reply));
+        } else {
+            self.root_events.push_back(reply);
+        }
+    }
+
+    pub(in crate::composed) fn workload_bounds(&mut self) {
+        let Some(f) = &mut self.workload_faults else { return };
+        if f.bounds.is_empty() {
+            return;
+        }
+        let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+        temper_engine_inspect::inspect(&self.root, &mut inspection);
+        f.ledger.saturation(&f.bounds, &[&inspection], self.env.now).expect("quiet-point bounds");
+        if let Some(at) = f.ledger.entries().iter().filter_map(|entry| entry.until).max() {
+            f.stopped(at);
+        }
+    }
+
     /// Judge runs and gates once, after the ordinary workload's checks.
     pub fn judge_workload_faults(&mut self) {
+        self.assert_workload_park();
         let f = self.workload_faults.as_mut().expect("faulted workload");
         super::super::accounts::judge_account_runs(&mut f.ledger, &mut f.runs).expect("account run blame");
         let findings = temper_blame::judge(&mut f.ledger, &f.reactions, f.seed);
@@ -196,6 +265,15 @@ impl World {
 
     pub(in crate::composed) fn workload_fault_tick(&mut self) {
         let Some(mut f) = self.workload_faults.take() else { return };
+        let mut waiting = Vec::new();
+        for (at, reply) in f.read_replies.drain(..) {
+            if at <= self.env.now {
+                self.root_events.push_back(reply);
+            } else {
+                waiting.push((at, reply));
+            }
+        }
+        f.read_replies = waiting;
         for goal in &self.workload().goals {
             if self.workload_names().task(&goal.name).is_some_and(|task| {
                 self.root
@@ -210,6 +288,8 @@ impl World {
         self.observe_workload_runs(&mut f);
         self.workload_forge_tick(&mut f);
         self.workload_provider_tick(&mut f);
+        self.workload_worker_tick(&mut f);
+        self.workload_actions_tick(&mut f);
         let restart_task = f
             .plans
             .iter()
@@ -235,6 +315,9 @@ impl World {
                 self.process.agent().prompts().len()
             );
             self.cut_link();
+            // These replies address the old forge client's tokens, not the
+            // reopened client's independently numbered calls.
+            f.read_replies.clear();
             self.stop_engine();
             let injection = f.ledger.inject(
                 restarts::ENGINE_CRASH_MID_TURN,

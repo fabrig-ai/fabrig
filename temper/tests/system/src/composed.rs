@@ -31,7 +31,7 @@ use temper_engine_domain_world::walking;
 use temper_engine_forge_world::translate as api;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::Tree;
-use temper_worker_checkout_world::{forge::Forge, translate as git};
+use temper_worker_checkout_world::forge::Forge;
 use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
 
@@ -1296,9 +1296,12 @@ impl World {
                 skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
-        self.root_events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
-            skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
-        ))));
+        self.workload_forge_reply(
+            op,
+            engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
+                skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
+            ))),
+        );
         let _moves = self.forge.moves();
         self.workload_forge_answer(op);
     }
@@ -1747,8 +1750,7 @@ impl World {
                 let op = forge_operation(op);
                 self.observe_merge_fetch(&op);
                 self.observe_close_io(&op);
-                let done =
-                    git::perform_within(&mut self.forge, &mut self.disk, op, self.worker_env.limits.checkout.conflicts);
+                let done = self.workload_io(owner, op);
                 self.worker_events.push_back(worker::Event::Done { owner, done });
                 let _moves = self.forge.moves();
             }

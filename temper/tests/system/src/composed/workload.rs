@@ -57,7 +57,16 @@ impl World {
         let workload = Workload::draw(&streams, &COMPOSED);
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
         let config = setup::config(scheduling, &workload);
-        let world = Self::configured_values(scheduling, scripts::idle(), true, config, setup::limits);
+        let mut limits: fn(&mut engine::Limits) = setup::limits;
+        if kinds.contains(&temper_faults::bounds::FORGE_READ_ADMISSIONS) {
+            limits = |limits| {
+                setup::limits(limits);
+                // Two admitted reads make COMPOSED reach this table while the
+                // other readers queue; the stock write table does not fill.
+                limits.forge.client.pending = 2;
+            };
+        }
+        let world = Self::configured_values(scheduling, scripts::idle(), true, config, limits);
         let mut world = Self::with_two_accounts(world);
         world.account_case.take().expect("two people");
         world.party = setup::party(1);
@@ -219,6 +228,7 @@ impl World {
         self.link_workload_changes();
         self.prepare_workload_questions();
         self.answer_workload_questions();
+        self.workload_answer_park();
         self.latch_workload();
         self.workload_comparison_tick();
     }
@@ -275,6 +285,7 @@ impl World {
                 "{name} starts after {after} lands"
             );
         }
+        self.workload_choose_park(assignment);
         let script = scripts::assigned(self, assignment);
         let mut process = if self.assignment.as_ref().is_some_and(|previous| previous.task == assignment.task) {
             if self.process.answered.is_some() {

@@ -19,7 +19,7 @@ impl World {
                 authority.delegation.kinds = kinds.into();
                 amendments.push((goal.party, task, row.revisions.spec, authority));
             }
-            for change in goal.changes.iter().filter(|change| change.asks) {
+            for change in &goal.changes {
                 let Some(task) = story
                     .names
                     .task(&change.name)
@@ -29,7 +29,10 @@ impl World {
                     continue;
                 };
                 let Some(row) = self.root.tasks().task(task) else { continue };
-                if story.widened.contains(&task) || row.authority.delegation.tasks != 0 {
+                if (!change.asks && !self.workload_parks(task))
+                    || story.widened.contains(&task)
+                    || row.authority.delegation.tasks != 0
+                {
                     continue;
                 }
                 let mut authority = person_authority(row);
