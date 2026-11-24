@@ -408,7 +408,9 @@ The harness checks, in every world and in the simulator:
   signal, may leave output unread: closing a child kills its group, and
   an abort closes a pipe at once, leaving what it had not read (../design/runtime/io/sockets.md and ../design/runtime/io/processes.md
   ). A child that exited with its own status has its output read
-  to the end.
+  to the end, but for an output pipe the world abandons by name before
+  its end, standing for an owner that is gone: that pipe alone may leave
+  output unread, and every other check still holds.
 - **The teardown invariant:** a world that ends by itself ends with no
   deadline firing after the last word other than io's own: its close and
   retry deadlines, and the stall deadlines owners state for files (../design/runtime/io/files.md
