@@ -37,6 +37,13 @@ are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
   (`temper/docs/design/testing/tiers.md`, 1.8), and no macOS runner runs
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
+- **Not yet:** 8: *The Darwin check* runs nowhere before landing:
+  `rust-toolchain.toml` installs only the `wasm32-unknown-unknown`
+  target, so clippy for `aarch64-apple-darwin` fails on our Linux
+  machines for want of the target's `std` and `core` (E0463), and no
+  gate step runs it. Darwin's adapters, among them startup's file reads
+  and `make_root`'s walk over the shared decisions, are first compiled
+  on the macOS runner.
 - **Not yet:** 8, 11: `drive` takes its kernel and clock directly, and its
   own tests run in the real loop, not yet over a scripted face of them.
   [in flight: change 13904]
