@@ -1,22 +1,7 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Limits, List, Reader, c, raw, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
-
-pub(crate) fn parameter_document_fields(
-    value: &w::ParameterDocument,
-    limits: &Limits,
-) -> Result<c::ParameterDocument, w::Problem> {
-    Ok(match value {
-        w::ParameterDocument::Number(row) => c::ParameterDocument::Number { name: row.name, value: row.value },
-        w::ParameterDocument::Bytes(row) => c::ParameterDocument::Bytes {
-            name: row.name,
-            value: crate::translate::facts::document_text(&row.value, limits)?,
-        },
-        w::ParameterDocument::Resource(row) => {
-            c::ParameterDocument::Resource { name: row.name, connector: row.connector, resource: row.resource }
-        }
-    })
-}
 
 pub(crate) fn document_specification_fields(
     value: &w::DocumentSpecification,
@@ -27,7 +12,7 @@ pub(crate) fn document_specification_fields(
     }
     let mut list0 = List::with_capacity(value.parameters.len());
     for item in &value.parameters {
-        list0.push(parameter_document_fields(item, limits)?).expect("reserved supplied list");
+        list0.push(client::parameter_document_to_domain(item.clone(), limits)?).expect("reserved supplied list");
     }
     if value.inputs.len() > limits.client().rows {
         return Err(too_large());
@@ -48,10 +33,7 @@ pub(crate) fn specification_document_fields(
     value: &w::SpecificationDocument,
     limits: &Limits,
 ) -> Result<c::SpecificationDocument, w::Problem> {
-    Ok(c::SpecificationDocument {
-        specification: document_specification_fields(&value.specification, limits)?,
-        cut: value.cut,
-    })
+    client::specification_document_to_domain(value.clone(), limits)
 }
 
 pub(crate) fn field_rule_fields(value: &w::FieldRule, limits: &Limits) -> Result<c::FieldRule, w::Problem> {

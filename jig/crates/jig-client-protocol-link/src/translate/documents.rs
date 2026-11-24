@@ -76,7 +76,7 @@ pub fn task(record: w::Task, limits: &Limits) -> Result<c::Task, Undecodable> {
     {
         return Err(Undecodable::TooLarge);
     }
-    match task_fields(&record, limits) {
+    match task_from_record(record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

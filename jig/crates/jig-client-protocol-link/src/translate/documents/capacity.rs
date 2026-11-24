@@ -1,5 +1,6 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Wall, c, w};
+use crate::generated::client;
 
 pub(crate) fn capacity_fields(value: &w::Capacity) -> c::Capacity {
     c::Capacity { used: value.used, limit: value.limit }
@@ -9,31 +10,8 @@ pub(crate) fn project_capacity_fields(value: &w::ProjectCapacity) -> c::ProjectC
     c::ProjectCapacity { project: value.project, tasks: capacity_fields(&value.tasks), proposals: value.proposals }
 }
 
-pub(crate) fn agent_shortfall_fields(value: &w::AgentShortfall) -> c::AgentShortfall {
-    match value {
-        w::AgentShortfall::Model(row) => c::AgentShortfall::Model { charter: row.charter, model: row.model },
-        w::AgentShortfall::Window(row) => c::AgentShortfall::Window { charter: row.charter, model: row.model },
-        w::AgentShortfall::Output(row) => c::AgentShortfall::Output { charter: row.charter, model: row.model },
-        w::AgentShortfall::Turns(row) => c::AgentShortfall::Turns { charter: row.charter },
-        w::AgentShortfall::Spend => c::AgentShortfall::Spend,
-        w::AgentShortfall::Time(row) => c::AgentShortfall::Time { charter: row.charter },
-        w::AgentShortfall::Waiting(row) => c::AgentShortfall::Waiting { charter: row.charter },
-        w::AgentShortfall::Checks(row) => c::AgentShortfall::Checks { charter: row.charter },
-        w::AgentShortfall::Message => c::AgentShortfall::Message,
-        w::AgentShortfall::Inbox => c::AgentShortfall::Inbox,
-        w::AgentShortfall::Unacknowledged => c::AgentShortfall::Unacknowledged,
-    }
-}
-
 pub(crate) fn hello_refusal_fields(value: &w::HelloRefusal) -> c::HelloRefusal {
-    match value {
-        w::HelloRefusal::Agent(row) => c::HelloRefusal::Agent { why: agent_shortfall_fields(&row.why) },
-        w::HelloRefusal::JobKinds => c::HelloRefusal::JobKinds,
-        w::HelloRefusal::ReservedChannel => c::HelloRefusal::ReservedChannel,
-        w::HelloRefusal::Workers(row) => c::HelloRefusal::Workers { limit: row.limit },
-        w::HelloRefusal::Position(row) => c::HelloRefusal::Position { worker: row.worker },
-        w::HelloRefusal::StopBound(row) => c::HelloRefusal::StopBound { grace: row.grace },
-    }
+    client::hello_refusal_to_domain(value.clone())
 }
 
 pub(crate) fn hello_refusal_line_fields(value: &w::HelloRefusalLine) -> c::HelloRefusalLine {

@@ -63,10 +63,6 @@ pub(crate) fn person_wait(value: &w::PersonWait) -> c::PersonWait {
     client::person_wait_to_domain(value.clone())
 }
 
-pub(crate) fn escalation_holder(value: &w::EscalationHolder) -> c::EscalationHolder {
-    client::escalation_holder_to_domain(value.clone())
-}
-
 pub(crate) fn requester(value: &w::Requester) -> c::Requester {
     client::requester_to_domain(value.clone())
 }

@@ -1,5 +1,6 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Limits, List, Reader, Wall, c, task_link_fields, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
@@ -7,10 +8,7 @@ pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
 }
 
 pub(crate) fn host_kind_fields(value: &w::HostKind) -> c::HostKind {
-    match value {
-        w::HostKind::Worker => c::HostKind::Worker,
-        w::HostKind::Engine => c::HostKind::Engine,
-    }
+    client::host_kind_to_domain(value.clone())
 }
 
 pub(crate) fn attempt_state_fields(value: &w::AttemptState) -> c::AttemptState {

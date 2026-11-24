@@ -1,22 +1,10 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{
-    Box, Limits, List, Reader, Wall, activity_line_fields, c, chip_ending_fields, chip_fields, cursor_fields,
-    escalation_decision_record_fields, hold_line_fields, object_key_fields, person_proposal_fields, person_task_fields,
-    proposal_decision_fields, proposal_history_fields, question_fields, result_fields, task_fields, too_large, w,
+    Box, Limits, List, Reader, c, cursor_fields, person_task_fields, question_fields, result_fields, task_from_record,
+    too_large, w,
 };
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
-
-pub(crate) fn ended_delegate_fields(value: &w::EndedDelegate, limits: &Limits) -> Result<c::EndedDelegate, w::Problem> {
-    let opt0 = match &value.at {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    Ok(c::EndedDelegate {
-        chip: chip_fields(&value.chip, limits)?,
-        ended: chip_ending_fields(&value.ended, limits)?,
-        at: opt0,
-    })
-}
 
 pub(crate) fn ended_delegate_piece(
     bytes: &[u8],
@@ -29,7 +17,7 @@ pub(crate) fn ended_delegate_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::EndedDelegate::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = ended_delegate_fields(&row, limits)?;
+        let row = client::ended_delegate_to_domain(row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -54,37 +42,37 @@ pub(crate) fn ended_page_fields(value: &w::EndedPage, limits: &Limits) -> Result
     })
 }
 
-pub(crate) fn ended_value_fields(value: &w::EndedValue, limits: &Limits) -> Result<c::EndedValue, w::Problem> {
+pub(crate) fn ended_value_fields(value: w::EndedValue, limits: &Limits) -> Result<c::EndedValue, w::Problem> {
     Ok(match value {
         w::EndedValue::Task(row) => c::EndedValue::Task {
-            document: Box::new(task_fields(&row.document, limits)?),
+            document: Box::new(task_from_record(row.document, limits)?),
             result: Box::new(result_fields(&row.result, limits)?),
         },
-        w::EndedValue::Proposal(row) => c::EndedValue::Proposal(proposal_history_fields(&row.value, limits)?),
+        w::EndedValue::Proposal(row) => c::EndedValue::Proposal(client::proposal_history_to_domain(row.value, limits)?),
         w::EndedValue::PersonProposal(row) => {
-            let opt0 = match &row.decision {
-                Some(item) => Some(proposal_decision_fields(item)),
+            let opt0 = match row.decision {
+                Some(item) => Some(client::proposal_decision_to_domain(item)),
                 None => None,
             };
             c::EndedValue::PersonProposal {
-                proposal: Box::new(person_proposal_fields(&row.proposal, limits)?),
+                proposal: Box::new(client::person_proposal_to_domain(row.proposal, limits)?),
                 decision: opt0,
             }
         }
         w::EndedValue::Escalation(row) => {
-            let opt0 = match &row.hold {
-                Some(item) => Some(hold_line_fields(item, limits)?),
+            let opt0 = match row.hold {
+                Some(item) => Some(client::hold_line_to_domain(item, limits)?),
                 None => None,
             };
             c::EndedValue::Escalation {
-                task: Box::new(task_fields(&row.task, limits)?),
-                decision: escalation_decision_record_fields(&row.decision, limits)?,
+                task: Box::new(task_from_record(row.task, limits)?),
+                decision: client::escalation_decision_record_to_domain(row.decision, limits)?,
                 hold: opt0,
             }
         }
         w::EndedValue::Question(row) => {
-            let opt0 = match &row.answer {
-                Some(item) => Some(activity_line_fields(item, limits)?),
+            let opt0 = match row.answer {
+                Some(item) => Some(client::activity_line_to_domain(item, limits)?),
                 None => None,
             };
             let opt1 = match &row.ending {
@@ -97,22 +85,5 @@ pub(crate) fn ended_value_fields(value: &w::EndedValue, limits: &Limits) -> Resu
             document: Box::new(person_task_fields(&row.document, limits)?),
             result: Box::new(result_fields(&row.result, limits)?),
         },
-    })
-}
-
-pub(crate) fn ended_fields(value: &w::Ended, limits: &Limits) -> Result<c::Ended, w::Problem> {
-    let opt0 = match &value.at {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    let opt1 = match &value.by {
-        Some(item) => Some(crate::translate::facts::requester(item)),
-        None => None,
-    };
-    Ok(c::Ended {
-        key: object_key_fields(&value.key),
-        value: ended_value_fields(&value.value, limits)?,
-        at: opt0,
-        by: opt1,
     })
 }

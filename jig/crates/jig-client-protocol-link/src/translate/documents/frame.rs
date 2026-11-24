@@ -1,37 +1,13 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Limits, Wall, c, too_large, w};
+use crate::generated::client;
 
 pub(crate) fn frame_party_fields(value: &w::MeParty, limits: &Limits) -> Result<c::MeParty, w::Problem> {
-    Ok(c::MeParty {
-        number: value.number,
-        kind: crate::translate::answers::party_kind(&value.kind),
-        login: crate::translate::facts::document_text(&value.login, limits)?,
-        name: crate::translate::facts::document_text(&value.name, limits)?,
-    })
+    client::me_party_to_domain(value.clone(), limits)
 }
 
 pub(crate) fn pool_ledger_fields(value: &w::PoolLedger) -> c::PoolLedger {
-    let opt0 = match &value.parent {
-        Some(item) => Some(crate::translate::facts::funder(item)),
-        None => None,
-    };
-    let opt1 = match &value.began {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    let opt2 = match &value.next {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    c::PoolLedger {
-        source: crate::translate::facts::funder(&value.source),
-        parent: opt0,
-        numbers: crate::translate::facts::numbers(&value.numbers),
-        left: value.left,
-        closed: value.closed,
-        began: opt1,
-        next: opt2,
-    }
+    client::pool_ledger_to_domain(value.clone())
 }
 
 pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Result<c::MeProject, w::Problem> {
@@ -63,16 +39,11 @@ pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Resu
 }
 
 pub(crate) fn needs_fields(value: &w::Needs) -> c::Needs {
-    c::Needs {
-        questions: value.questions,
-        proposals: value.proposals,
-        escalations: value.escalations,
-        person_tasks: value.person_tasks,
-    }
+    client::needs_to_domain(value.clone())
 }
 
 pub(crate) fn count_fields(value: &w::Count) -> c::Count {
-    c::Count { value: value.value, limited: value.limited }
+    client::count_to_domain(value.clone())
 }
 
 pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::Problem> {

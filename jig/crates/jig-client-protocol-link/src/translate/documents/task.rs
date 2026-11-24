@@ -1,26 +1,10 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{
     Box, Limits, List, Wall, authority_document_fields, c, chip_fields, chip_piece, live_delegate_piece, offered_piece,
-    piece_problem, specification_document_fields, spend_line_fields, subscriptions_fields,
-    task_contract_document_fields, task_link_piece, task_resource_piece, task_result_fields, text, too_large, w,
+    piece_problem, specification_document_fields, subscriptions_fields, task_contract_document_fields, task_link_piece,
+    task_resource_piece, text, too_large, w,
 };
-pub(crate) fn impact_counts_fields(value: &w::ImpactCounts) -> c::ImpactCounts {
-    c::ImpactCounts {
-        ended: value.ended,
-        waiting: value.waiting,
-        running: value.running,
-        held: value.held,
-        closing: value.closing,
-        done: value.done,
-        failed: value.failed,
-        cancelled: value.cancelled,
-    }
-}
-
-pub(crate) fn impact_fields(value: &w::Impact) -> c::Impact {
-    c::Impact { tasks: impact_counts_fields(&value.tasks), live_runs: value.live_runs, proposals: value.proposals }
-}
-
+use crate::generated::client;
 pub(crate) fn application_part_piece(bytes: &[u8]) -> Result<List<c::ApplicationPart>, w::Problem> {
     if !bytes.is_empty() {
         return Err(piece_problem(skein_codec::Reason::Malformed));
@@ -114,14 +98,14 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
     }
     let mut list2 = List::with_capacity(value.spend.len());
     for item in &value.spend {
-        list2.push(spend_line_fields(item)).expect("reserved supplied list");
+        list2.push(client::spend_line_to_domain(item.clone())).expect("reserved supplied list");
     }
     Ok(c::TaskContext {
         parts: application_part_piece(&value.parts)?,
         closing: opt1,
         spend: list2,
         runtime: runtime_fields(&value.runtime, limits)?,
-        impact: impact_fields(&value.impact),
+        impact: client::impact_to_domain(value.impact.clone()),
         writer_slots: writer_slot_piece(&value.writer_slots)?,
     })
 }
@@ -146,8 +130,13 @@ fn unread(value: &List<w::UnreadWords>, limits: &Limits) -> Result<List<c::Unrea
     Ok(result)
 }
 
-#[expect(clippy::too_many_lines, reason = "one bounded task document translation preserves its optional facts")]
+#[cfg(test)]
 pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w::Problem> {
+    task_from_record(value.clone(), limits)
+}
+
+#[expect(clippy::too_many_lines, reason = "one bounded task document translation preserves its optional facts")]
+pub(crate) fn task_from_record(value: w::Task, limits: &Limits) -> Result<c::Task, w::Problem> {
     let opt0 = match &value.goal {
         Some(item) => Some(*item),
         None => None,
@@ -186,8 +175,8 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
     for item in &value.proposals {
         list7.push(crate::translate::answers::proposal_key(item)).expect("reserved supplied list");
     }
-    let opt8 = match &value.result {
-        Some(item) => Some(task_result_fields(item, limits)?),
+    let opt8 = match value.result {
+        Some(item) => Some(client::task_result_to_domain(item, limits)?),
         None => None,
     };
     let opt9 = match &value.context {
@@ -197,30 +186,19 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
     Ok(c::Task {
         tasks_left: value.tasks_left,
         concluded: match &value.concluded {
-            Some(value) => Some(crate::generated::client::concluded_to_domain(value.clone())),
+            Some(value) => Some(client::concluded_to_domain(value.clone())),
             None => None,
         },
         talk: match &value.talk {
-            Some(talk) => Some(c::Talk {
-                party: talk.party,
-                opened: Wall::from_nanos(talk.opened),
-                last: Wall::from_nanos(talk.last),
-            }),
+            Some(talk) => Some(client::talk_to_domain(talk.clone())),
             None => None,
         },
         session: match &value.session {
-            Some(session) => Some(c::Session { first: session.first, last: Wall::from_nanos(session.last) }),
+            Some(session) => Some(client::session_to_domain(session.clone())),
             None => None,
         },
         settings: match &value.settings {
-            Some(settings) => Some(c::TaskSettings {
-                task: settings.task,
-                run: match &settings.run {
-                    Some(run) => Some(*run),
-                    None => None,
-                },
-                newest: settings.newest,
-            }),
+            Some(settings) => Some(client::task_settings_to_domain(settings.clone())),
             None => None,
         },
         dependency_facts: crate::translate::facts::dependencies(&value.dependency_facts),
@@ -230,9 +208,9 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         last_activity: Wall::from_nanos(value.last_activity),
         made: Wall::from_nanos(value.made),
         waits_on: crate::translate::queries::waits(&value.waits_on),
-        wait: crate::translate::waits::first(value.wait.as_ref(), limits)?,
-        nearest: crate::translate::waits::nearest(value.nearest.as_ref()),
-        waits: crate::translate::waits::list(&value.waits, limits)?,
+        wait: crate::translate::waits::first(value.wait, limits)?,
+        nearest: crate::translate::waits::nearest(value.nearest),
+        waits: crate::translate::waits::list(value.waits, limits)?,
         wait_count: value.wait_count,
         chip: chip_fields(&value.chip, limits)?,
         goal: opt0,

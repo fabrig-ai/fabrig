@@ -1,5 +1,6 @@
 //! Watch subjects and terminal reasons (protocol/client/README.md, 5).
 use super::{documents, live, objects, pages};
+use crate::generated::client;
 use crate::{Limits, Undecodable};
 use alloc::boxed::Box;
 use jig_client_domain::Watchable;
@@ -23,9 +24,7 @@ pub fn subject(value: &c::Subject) -> w::Subject {
         }
         c::Subject::Run { task, turn, offset } => {
             let turn = match turn {
-                Some(turn) => {
-                    Some(w::ProvisionalTurnName { attempt: turn.attempt, number: turn.number, retry: turn.retry })
-                }
+                Some(turn) => Some(client::provisional_turn_name_to_record(turn)),
                 None => None,
             };
             w::Subject::Run(w::SubjectRun { task: *task, turn, offset: *offset })
@@ -161,14 +160,8 @@ fn tree(record: w::Tree, limits: &Limits) -> Result<c::Tree, Undecodable> {
         Err(problem) => return Err(super::classify(problem)),
     };
     let mut folded = List::with_capacity(record.folded.len());
-    for value in &record.folded {
-        folded
-            .push(c::TreeFold {
-                parent: value.parent,
-                phases: documents::phase_counts_fields(&value.phases),
-                held_below: value.held_below,
-            })
-            .expect("bounded folds");
+    for value in record.folded.into_boxed() {
+        folded.push(client::tree_fold_to_domain(value)).expect("bounded folds");
     }
     let next = match &record.next {
         Some(value) => Some(match documents::cursor_fields(value, limits) {

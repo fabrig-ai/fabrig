@@ -8,45 +8,19 @@ use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Wall, Writer, bytes, length::len_u64};
 #[must_use]
 pub fn wire_setting_number(value: &c::SettingNumber) -> w::SettingNumber {
-    w::SettingNumber { number: value.number }
+    client::setting_number_to_record(value)
 }
 #[must_use]
 pub fn restore_setting_number(value: &w::SettingNumber) -> c::SettingNumber {
-    c::SettingNumber { number: value.number }
+    client::setting_number_to_domain(value.clone())
 }
 #[must_use]
 pub fn wire_setting(value: &c::Setting) -> w::Setting {
-    match value {
-        c::Setting::Charter(item) => w::Setting::Charter(wire_setting_number(item)),
-        c::Setting::Template(item) => w::Setting::Template(wire_setting_number(item)),
-        c::Setting::Policy(item) => w::Setting::Policy(wire_setting_number(item)),
-        c::Setting::Model(item) => w::Setting::Model(wire_setting_number(item)),
-        c::Setting::Worker(item) => w::Setting::Worker(wire_setting_number(item)),
-        c::Setting::Provider(item) => w::Setting::Provider(wire_setting_number(item)),
-        c::Setting::Rules => w::Setting::Rules,
-        c::Setting::Limits => w::Setting::Limits,
-        c::Setting::ProjectPolicy { project } => {
-            w::Setting::ProjectPolicy(w::ProjectPolicySetting { project: *project })
-        }
-        c::Setting::Application { kind, scope, number } => {
-            w::Setting::Application(w::ApplicationSetting { kind: *kind, scope: *scope, number: *number })
-        }
-    }
+    client::setting_to_record(value)
 }
 #[must_use]
 pub fn restore_setting(value: &w::Setting) -> c::Setting {
-    match value {
-        w::Setting::Charter(item) => c::Setting::Charter(restore_setting_number(item)),
-        w::Setting::Template(item) => c::Setting::Template(restore_setting_number(item)),
-        w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item)),
-        w::Setting::Model(item) => c::Setting::Model(restore_setting_number(item)),
-        w::Setting::Worker(item) => c::Setting::Worker(restore_setting_number(item)),
-        w::Setting::Provider(item) => c::Setting::Provider(restore_setting_number(item)),
-        w::Setting::Rules => c::Setting::Rules,
-        w::Setting::Limits => c::Setting::Limits,
-        w::Setting::ProjectPolicy(v) => c::Setting::ProjectPolicy { project: v.project },
-        w::Setting::Application(v) => c::Setting::Application { kind: v.kind, scope: v.scope, number: v.number },
-    }
+    client::setting_to_domain(value.clone())
 }
 #[must_use]
 pub fn wire_setting_model(value: &c::SettingModel) -> w::SettingModel {
@@ -364,7 +338,7 @@ pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result
         w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(&v.bytes)),
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(restore_charter(item)?)),
         w::SettingValue::Template(item) => {
-            c::SettingValue::Template(Box::new(super::documents::me::template(item, limits)?))
+            c::SettingValue::Template(Box::new(client::template_to_domain((**item).clone(), limits)?))
         }
         w::SettingValue::Policy(item) => c::SettingValue::Policy(Box::new(restore_setting_policy(item, limits)?)),
         w::SettingValue::Rules(item) => c::SettingValue::Rules(Box::new(restore_rules(item, limits)?)),
@@ -626,15 +600,11 @@ pub fn restore_revision_answer(value: &w::RevisionAnswer, limits: &Limits) -> Re
 }
 #[must_use]
 pub fn restore_revision_item_edit(value: &w::RevisionItemEdit) -> c::RevisionItemEdit {
-    match value {
-        w::RevisionItemEdit::Set => c::RevisionItemEdit::Set,
-        w::RevisionItemEdit::Removed => c::RevisionItemEdit::Removed,
-        w::RevisionItemEdit::Reset => c::RevisionItemEdit::Reset,
-    }
+    client::revision_item_edit_to_domain(value.clone())
 }
 #[must_use]
 pub fn restore_revision_item_head(value: &w::RevisionItemHead) -> c::RevisionItemHead {
-    c::RevisionItemHead { setting: restore_setting(&value.setting), edit: restore_revision_item_edit(&value.edit) }
+    client::revision_item_head_to_domain(value.clone())
 }
 #[must_use]
 pub fn restore_revision_row(value: &w::RevisionRow) -> c::RevisionRow {

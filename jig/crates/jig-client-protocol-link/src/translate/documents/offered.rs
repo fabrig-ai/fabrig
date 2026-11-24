@@ -1,45 +1,18 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Box, Limits, List, Reader, Wall, authority_document_fields, c, effect_fields, grant_piece, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn act_kind_fields(value: &w::ActKind) -> c::ActKind {
-    match value {
-        w::ActKind::Reorder => c::ActKind::Reorder,
-        w::ActKind::Talk => c::ActKind::Talk,
-        w::ActKind::Leave => c::ActKind::Leave,
-        w::ActKind::Message => c::ActKind::Message,
-        w::ActKind::Answer => c::ActKind::Answer,
-        w::ActKind::Take => c::ActKind::Take,
-        w::ActKind::HandBack => c::ActKind::HandBack,
-        w::ActKind::Accept => c::ActKind::Accept,
-        w::ActKind::Withdraw => c::ActKind::Withdraw,
-        w::ActKind::Reject => c::ActKind::Reject,
-        w::ActKind::PassUp => c::ActKind::PassUp,
-        w::ActKind::Release => c::ActKind::Release,
-        w::ActKind::LeaveHeld => c::ActKind::LeaveHeld,
-        w::ActKind::Amend => c::ActKind::Amend,
-        w::ActKind::Stop => c::ActKind::Stop,
-        w::ActKind::Cancel => c::ActKind::Cancel,
-        w::ActKind::MoveTask => c::ActKind::Move,
-        w::ActKind::Seen => c::ActKind::Seen,
-        w::ActKind::EditNote => c::ActKind::EditNote,
-        w::ActKind::DeleteNote => c::ActKind::DeleteNote,
-        w::ActKind::Adopt => c::ActKind::Adopt,
-        w::ActKind::RemoveProject => c::ActKind::RemoveProject,
-        w::ActKind::Rename => c::ActKind::Rename,
-        w::ActKind::ChangePolicy => c::ActKind::ChangePolicy,
-        w::ActKind::SetRoles => c::ActKind::SetRoles,
-        w::ActKind::MakeService => c::ActKind::MakeService,
-        w::ActKind::SetPool => c::ActKind::SetPool,
-    }
+    client::act_kind_to_domain(value.clone())
 }
 
 pub(crate) fn goal_procedure_fields(value: &w::CreateProcedure) -> c::CreateProcedure {
-    c::CreateProcedure { connector: value.connector, code: value.code }
+    client::create_procedure_to_domain(value.clone())
 }
 
 pub(crate) fn kind_implication_fields(value: &w::KindImplication) -> c::KindImplication {
-    c::KindImplication { connector: value.connector, kind: value.kind, implies: value.implies }
+    client::kind_implication_to_domain(value.clone())
 }
 
 pub(crate) fn bounds_fields(value: &w::Bounds, limits: &Limits) -> Result<c::Bounds, w::Problem> {

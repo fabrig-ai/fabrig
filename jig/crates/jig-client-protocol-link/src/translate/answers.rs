@@ -178,10 +178,6 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
     })
 }
 
-pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
-    client::party_kind_to_domain(value.clone())
-}
-
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
         w::Outcome::WorkerPauseAsked(value) => c::Outcome::WorkerPauseAsked { worker: value.worker },
@@ -223,14 +219,6 @@ pub(crate) fn admission_limit(value: &w::AdmissionLimit) -> c::AdmissionLimit {
 
 pub(crate) fn limit(value: &w::Limit) -> c::Limit {
     client::limit_to_domain(value.clone())
-}
-
-pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
-    client::hold_failure_to_domain(value.clone())
-}
-
-pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
-    client::hold_category_to_domain(value.clone())
 }
 
 pub(crate) fn moved(value: &w::Moved, limits: &Limits) -> Result<c::Moved, w::Problem> {

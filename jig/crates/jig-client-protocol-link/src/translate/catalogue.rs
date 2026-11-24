@@ -1,6 +1,7 @@
 //! Catalogue decoding owns no account selection (client/domain/contract/documents.md, 1, and client/domain/contract/watches.md, 1.1).
 use super::accounts::{charge, checked_manage_usage, piece_count};
 use super::{Limits, List, Reader, c, piece_problem, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::length::len_u64;
 
@@ -75,11 +76,7 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
         rows.push(c::PayerReadiness {
             provider: value.provider,
             payer,
-            readiness: match &value.readiness {
-                w::Readiness::Usable => c::Readiness::Usable,
-                w::Readiness::Unavailable => c::Readiness::Unavailable,
-                w::Readiness::Unknown => c::Readiness::Unknown,
-            },
+            readiness: client::readiness_to_domain(value.readiness),
             settled: value.settled,
         })
         .or(Err(too_large()))?;

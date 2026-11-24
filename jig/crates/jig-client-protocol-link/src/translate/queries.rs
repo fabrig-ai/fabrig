@@ -12,35 +12,13 @@ pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
     client::task_flags_to_domain(value.clone())
 }
 pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
-    match value {
-        w::WaitsOn::Party(v) => c::WaitsOn::Party {
-            whom: match &v.whom {
-                w::Whom::Person(v) => c::Whom::Person(v.value),
-                w::Whom::Role(v) => c::Whom::Role { project: v.project, role: v.role },
-            },
-            entries: v.entries,
-            task: v.task,
-            kind: waited_for(&v.kind),
-        },
-        w::WaitsOn::Dependencies(value) => {
-            c::WaitsOn::Dependencies { pending: value.pending.clone(), count: value.count }
-        }
-        w::WaitsOn::Delegates => c::WaitsOn::Delegates,
-        w::WaitsOn::Question(value) => c::WaitsOn::Question { number: value.number },
-        w::WaitsOn::News => c::WaitsOn::News,
-        w::WaitsOn::Nothing => c::WaitsOn::Nothing,
-    }
+    client::waits_on_to_domain(value.clone())
 }
-pub(super) fn waited_for(kind: &w::WaitedFor) -> c::WaitedFor {
-    match kind {
-        w::WaitedFor::Question => c::WaitedFor::Question,
-        w::WaitedFor::Proposal => c::WaitedFor::Proposal,
-        w::WaitedFor::Escalation => c::WaitedFor::Escalation,
-        w::WaitedFor::PersonTask => c::WaitedFor::PersonTask,
-    }
+pub fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
+    line_from_record(value.clone(), limits)
 }
 
-pub fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
+pub(crate) fn line_from_record(value: w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
     Ok(c::TaskLine {
         parts: row_parts(&value.parts)?,
         chip: documents::chip_fields(&value.chip, limits)?,
@@ -57,15 +35,15 @@ pub fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Prob
         },
         budget: facts::budget(&value.budget),
         waits_on: waits(&value.waits_on),
-        wait: super::waits::first(value.wait.as_ref(), limits)?,
-        nearest: super::waits::nearest(value.nearest.as_ref()),
+        wait: super::waits::first(value.wait, limits)?,
+        nearest: super::waits::nearest(value.nearest),
         phases: documents::phase_counts_fields(&value.phases),
         delegates_done: value.delegates_done,
         delegates_total: value.delegates_total,
         held_below: value.held_below,
         conversation: match &value.conversation {
             None => None,
-            Some(v) => Some(c::ConversationRead { seen: v.seen, unread: documents::count_fields(&v.unread) }),
+            Some(v) => Some(client::conversation_read_to_domain(v.clone())),
         },
     })
 }
@@ -86,11 +64,7 @@ fn row_parts(value: &skein_lib::List<w::RowPart>) -> Result<skein_lib::List<c::R
             }
             w::RowPart::NotServed(why) => c::RowPart::NotServed(not_served(why)),
             w::RowPart::Unknown => c::RowPart::Unknown,
-            w::RowPart::Failed(why) => c::RowPart::Failed(match &why.why {
-                w::PartFailure::Busy => c::PartFailure::Busy,
-                w::PartFailure::TooLarge => c::PartFailure::TooLarge,
-                w::PartFailure::Unreadable => c::PartFailure::Unreadable,
-            }),
+            w::RowPart::Failed(why) => c::RowPart::Failed(client::part_failure_to_domain(why.why.clone())),
         };
         parts.push(part).expect("same part count");
     }

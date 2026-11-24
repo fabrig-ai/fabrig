@@ -77,5 +77,5 @@ pub(crate) fn authority_document_fields(
     value: &w::AuthorityDocument,
     limits: &Limits,
 ) -> Result<c::AuthorityDocument, w::Problem> {
-    Ok(c::AuthorityDocument { authority: authority_fields(&value.authority, limits)?, cut: value.cut })
+    client::authority_document_to_domain(value.clone(), limits)
 }

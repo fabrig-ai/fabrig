@@ -85,11 +85,7 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
                     None => None,
                 },
                 number: value.number,
-                source: match &value.source {
-                    w::ModelSource::Stock => c::ModelSource::Stock,
-                    w::ModelSource::List => c::ModelSource::List,
-                    w::ModelSource::Person => c::ModelSource::Person,
-                },
+                source: client::model_source_to_domain(value.source.clone()),
                 estimated: value.estimated,
                 name: name(&value.name, limits.receiving().me_model_name)?,
                 provider: value.provider,
@@ -100,13 +96,7 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
                 shown,
                 accounts: value.accounts.clone(),
                 picker: value.picker,
-                prices: c::ModelPrices {
-                    input: prices.input,
-                    cached: prices.cached,
-                    cache_write: prices.cache_write,
-                    output: prices.output,
-                    unit: prices.unit,
-                },
+                prices: client::me_prices_to_domain(prices.clone()),
                 description,
             })
             .expect("same capacity");
@@ -132,12 +122,7 @@ fn checked_name(value: Box<[u8]>, limit: u32) -> Result<c::Text, w::Problem> {
 pub(crate) fn defaults(values: &List<w::MeDefault>, limits: &Limits) -> Result<List<c::MeDefault>, w::Problem> {
     let mut defaults = List::with_capacity(values.len());
     for value in values {
-        defaults
-            .push(c::MeDefault {
-                template: value.template,
-                choice: choice(Some(&value.choice), limits)?.expect("present choice"),
-            })
-            .expect("same capacity");
+        defaults.push(client::me_default_to_domain(value.clone(), limits)?).expect("same capacity");
     }
     Ok(defaults)
 }

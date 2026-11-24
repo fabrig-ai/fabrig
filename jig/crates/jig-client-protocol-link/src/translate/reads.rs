@@ -109,16 +109,7 @@ pub fn owned(value: Readable, limits: &w::Limits) -> Result<w::Owned, w::Problem
 }
 #[must_use]
 pub fn none(value: &w::ReadNone) -> c::ReadNone {
-    match value {
-        w::ReadNone::TooLarge(value) => c::ReadNone::TooLarge { bytes: value.bytes },
-        w::ReadNone::TooLinked(value) => c::ReadNone::TooLinked { joins: value.joins },
-        w::ReadNone::Malformed => c::ReadNone::Malformed,
-        w::ReadNone::Unknown => c::ReadNone::Unknown,
-        w::ReadNone::Refused => c::ReadNone::Refused,
-        w::ReadNone::Gone => c::ReadNone::Gone,
-        w::ReadNone::Busy => c::ReadNone::Busy,
-        w::ReadNone::SignedOut => c::ReadNone::SignedOut,
-    }
+    client::read_none_to_domain(value.clone())
 }
 
 /// Decodes a whole discriminated document against the original client limits.
