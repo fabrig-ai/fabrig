@@ -374,7 +374,8 @@ pub fn reading_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client
 #[must_use]
 pub fn roomy_reading_limits() -> Limits {
     let mut limits = reading_limits();
-    limits.client.domain.document_bytes = 2 * READING_BYTES;
+    // The task header can carry hold words on both the task and its chip.
+    limits.client.domain.document_bytes = 2 * READING_BYTES + 1_024;
     limits
 }
 /// Two activity rows per page, with room for all of the history's request keys.

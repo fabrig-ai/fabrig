@@ -3,8 +3,9 @@
 
 use crate::Limits;
 
-/// Inbox words, role-routed proposals and the five scalar references: a
-/// person-held proposal, escalation, person task address and offer, and stall update.
+/// Inbox words, role-routed proposals and four scalar references
+/// (jig/docs/design/protocol/limits.md). An escalation waits only while
+/// held, when the person task's address and offer are not answerable.
 pub fn waiting_capacity(limits: &Limits) -> Option<u32> {
     u32::try_from(waiting_requirement(limits)).ok()
 }
@@ -15,8 +16,8 @@ pub fn waiting_requirement(limits: &Limits) -> u64 {
     words
         .checked_add(u64::from(limits.authority.roles))
         .expect("three u32 counts fit u64")
-        .checked_add(5)
-        .expect("three u32 counts and five scalar references fit u64")
+        .checked_add(4)
+        .expect("three u32 counts and four scalar references fit u64")
 }
 
 pub fn question_capacity(limits: &Limits) -> Option<u32> {

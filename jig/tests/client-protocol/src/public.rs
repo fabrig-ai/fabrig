@@ -100,8 +100,8 @@ impl Probe {
         self.client = http::Client::new(&fixtures::connections_limits().http);
         let path = jig_client_protocol_http::PublicPath {
             owner: 0,
-            version: 1,
-            kind: 2,
+            version: jig_client_protocol_wire::PUBLIC_VERSION,
+            kind: jig_client_protocol_wire::PUBLIC_BOARD,
             ids: jig_client_kit::test::list([project]),
         };
         let call =

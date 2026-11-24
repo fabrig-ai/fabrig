@@ -96,7 +96,9 @@ fn missing(wait: &Wait, records: &[Record], held_at_holder: bool, live_delegates
                 .map(|target| format!("{} record for task {target}", name(expected)));
         }
         "in a resource's queue" if !has(WaitKind::Resource) => "resource record",
-        "on its requester" if !has(WaitKind::Question) => "question record",
+        "on its requester" if !has(WaitKind::Question) && !party(|kind| matches!(kind, EntryKind::Question { .. })) => {
+            "question record"
+        }
         "on a person's answer" if !party(|kind| matches!(kind, EntryKind::PersonTask)) => {
             "party record for the person task"
         }

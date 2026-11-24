@@ -1245,9 +1245,9 @@ fn passed() -> World {
 fn an_offered_question_relays_without_taking_inbox_room() {
     let world = passed();
     assert!(world.relays.contains(&(COVERING_TASK, ATTEMPT, PASSED_ENTRY)));
-    let word = world.run_context(COVERING_TASK).inbox.iter().find(|word| word.number == PASSED_ENTRY).cloned();
+    let offered = world.run_context(COVERING_TASK).inbox.iter().find(|word| word.number == PASSED_ENTRY).cloned();
     assert_eq!(
-        word.map(|word| (word.from, word.kind, word.words)),
+        offered.map(|word| (word.from, word.kind, word.words)),
         Some((Party::Task(ASKER), MessageKind::PassedQuestion { question: QUESTION }, PASS_WORDS.into(),))
     );
     let holder = world.record(COVERING_TASK);

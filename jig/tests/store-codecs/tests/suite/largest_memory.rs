@@ -87,7 +87,6 @@ fn largest_roots_stay_within_decoded_bounds() {
         jig_protocol_store::people_v17,
         roots [
             Segment,
-            Number64,
             ResourceScope,
             Executor,
             PermissionRole,
@@ -98,6 +97,9 @@ fn largest_roots_stay_within_decoded_bounds() {
             Row,
         ]
     );
+    // QuestionAnswerer now reaches Number64 as an ordinary record, so it
+    // is not a schema root. Keep checking its standalone decoder's bound.
+    people_number64();
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(8).expect("store family").current,
@@ -134,4 +136,28 @@ fn largest_roots_stay_within_decoded_bounds() {
             ChangeRecord,
         ]
     );
+}
+
+fn people_number64() {
+    use jig_protocol_store::people_v17 as codec;
+    let schema = &skein_codegen::values(jig_protocol_store::STORE_FAMILIES[5].current).schema;
+    let limits = codec::CEILINGS;
+    let variants = skein_codegen::largest_variants(schema, "Number64", limits.values().as_slice())
+        .expect("largest embedded Number64");
+    let [bytes] = variants.as_slice() else { panic!("one Number64 encoding") };
+    let length = u64::try_from(bytes.len()).expect("length fits");
+    assert_eq!(codec::Number64::encoded_bound(&limits), Some(length));
+    assert!(length <= CAP);
+    let bound = codec::Number64::decoded_bound(&limits).expect("decoded bound");
+    let mut reader = skein_lib::Reader::new(bytes);
+    let meter = skein_heap::Meter::new();
+    meter.start();
+    let value = codec::Number64::decode(&limits, &mut reader);
+    let measured = meter.end();
+    let value = value.expect("embedded Number64 decodes");
+    assert!(reader.is_empty());
+    assert!(measured.peak() <= bound);
+    assert_eq!(u64::from(value.measure(&limits).expect("measured")), length);
+    assert_eq!(value.encode(&limits).expect("round trip").as_ref(), bytes.as_slice());
+    assert_eq!(meter.held(), 0);
 }

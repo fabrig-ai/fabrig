@@ -1288,12 +1288,13 @@ fn replenished_work() -> World {
 #[test]
 fn named_model_failures_retry_and_hold_with_only_the_calls_words() {
     use jig_domain_host as host;
-    for (kind, evidence, status, class, words) in [
+    for (kind, evidence, status, class, class_word, words) in [
         (
             host::ModelFailureKind::Unavailable,
             host::ModelEvidence::Unsent,
             Some(403),
             tasks::Class::Infrastructure,
+            "infrastructure",
             b"anthropic claude-opus-5-5: unavailable, status 403, unsent".as_slice(),
         ),
         (
@@ -1301,6 +1302,7 @@ fn named_model_failures_retry_and_hold_with_only_the_calls_words() {
             host::ModelEvidence::Response,
             Some(400),
             tasks::Class::Run,
+            "run",
             b"anthropic claude-opus-5-5: invalid, status 400, response".as_slice(),
         ),
     ] {
@@ -1367,7 +1369,14 @@ fn named_model_failures_retry_and_hold_with_only_the_calls_words() {
         let core::documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
         let hold = document.hold.as_ref().expect("model failure hold");
         assert_eq!(hold.reason, tasks::Hold::Failures(class));
-        assert_eq!(hold.words.as_ref().expect("call words").bytes.as_ref(), words);
+        // A hold explains the class, its start and its way out, but only
+        // the structured model failure supplies its source (lifecycle-holds.md, 3).
+        let words = std::str::from_utf8(words).expect("fixture words");
+        let expected = format!(
+            "It ran out of tries for {class_word} failures: {words}. Held since 1970-01-01T00:00Z. \
+             Release it to try again; amend it first if its instructions failed it."
+        );
+        assert_eq!(hold.words.as_ref().expect("call words").bytes.as_ref(), expected.as_bytes());
         world.close();
     }
 }

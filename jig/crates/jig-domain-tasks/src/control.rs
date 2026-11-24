@@ -615,7 +615,15 @@ fn check_amend_fields(
             Some(llm) => old.llm.as_ref() != Some(llm) || crate::llm::replaces_account(old.kept_account, llm),
             None => false,
         };
-    let address_changed = amendment.addressed.is_some();
+    let address_changed = match amendment.addressed {
+        Some(change) => {
+            old.executor != crate::Executor::Person(change.address) || old.taken_by.is_some() || old.person_offered
+        }
+        None => false,
+    };
+    if !address_changed {
+        amendment.addressed = None;
+    }
     let person_changed = match old.executor {
         crate::Executor::Person(_) => spec_changed || dependencies_changed || address_changed,
         crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,

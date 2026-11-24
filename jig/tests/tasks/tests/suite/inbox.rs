@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    Accepted, Active, End, Event, MessageKind, NewsClass, Party, Phase, Refusal, Subscription, SubscriptionKind,
-    WakeRule, Word,
+    Accepted, Active, End, Event, Hold, HoldSource, MessageKind, NewsClass, Party, Phase, Refusal, Subscription,
+    SubscriptionKind, WakeRule, Was, Why, Word,
 };
 use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{ReplyTo, Token, Wall};
@@ -282,18 +282,24 @@ fn a_deadline_wake_does_not_reuse_a_handled_message_reason() {
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
     say(&mut world, 23);
     consume_goal_wake(&mut world, 2, 23);
+    let activations = world.activations(1);
     world.elapse(skein_lib::Duration::from_nanos(101));
-    assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
     assert!(world.record(1).inbox.is_empty());
-    // The core's deadline admission holds before preparation or claim
-    // (jig/docs/design/domain/authority-budgets.md, 1, and jig/docs/design/domain/authority-checks.md, 1.3).
-    world.send(Event::Hold { task: 1, why: jig_domain_tasks::Hold::Deadline });
-    assert!(matches!(world.record(1).phase, Phase::Held { why: jig_domain_tasks::Hold::Deadline, .. }));
+    // The tasks world drives only child timers; the core's bound alarm
+    // sends this hold without a deadline activation (jig/docs/design/domain/tasks/lifecycle-holds.md, 1).
+    let source = Box::new(HoldSource::Wait { words: b"Deadline passed while waiting for news.".as_slice().into() });
+    world.send(Event::HoldFrom { task: 1, why: Hold::Deadline, source: source.clone() });
+    let held = Phase::Held { was: Was::Active(Active::Idle), why: Hold::Deadline, source: Some(source) };
+    assert_eq!(world.record(1).phase, held);
     assert_eq!(world.record(1).attempt, 2);
+    assert_eq!(world.activations(1), activations);
     assert_eq!(run_reason(&world, 3), None);
     world.restart();
-    assert!(matches!(world.record(1).phase, Phase::Held { why: jig_domain_tasks::Hold::Deadline, .. }));
+    assert_eq!(world.record(1).phase, held);
+    assert_eq!(world.activations(1), activations);
     assert!(!world.activations.contains(&1));
+    assert_eq!(run_reason(&world, 2), Some(Why::Message { message: 23 }));
     assert_eq!(run_reason(&world, 3), None);
     extend_goal_deadline(&mut world);
     let reply = jig_tasks_world::response(&mut world, |reply_to| Event::Release {
@@ -302,24 +308,31 @@ fn a_deadline_wake_does_not_reuse_a_handled_message_reason() {
         operation: jig_domain_tasks::Release { task: 1, again: None, message: None },
     });
     assert_eq!(reply, Reply::Done);
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
+    assert_eq!(world.activations(1), activations);
+    assert_eq!(run_reason(&world, 3), None);
+    world.elapse(skein_lib::Duration::from_nanos(899));
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
+    let inbox = &world.record(1).inbox;
+    assert!(inbox.iter().all(|word| word.number != 23));
+    let mut timers = inbox.iter().filter(|word| word.kind == MessageKind::Timer { subscription: 10 });
+    let message = timers.next().expect("the timer's wake").number;
+    assert!(timers.next().is_none());
     world.claim(1, 3);
-    assert_eq!(run_reason(&world, 3), Some(jig_domain_tasks::Why::Released));
+    assert_eq!(run_reason(&world, 3), Some(Why::Message { message }));
 }
 
 fn run_reason(world: &World, attempt: u64) -> Option<jig_domain_tasks::Why> {
-    world.records.values().find_map(|record| match record {
-        jig_domain_tasks::Stored::Activity(line) if line.task == 1 => match line.line {
-            jig_domain_tasks::Line::RunBegan { attempt: number, why, .. } if number == attempt => Some(why),
-            _ => None,
-        },
-        _ => None,
+    world.records.values().find_map(|record| {
+        let jig_domain_tasks::Stored::Activity(line) = record else { return None };
+        let jig_domain_tasks::Line::RunBegan { attempt: number, why, .. } = line.line else { return None };
+        (line.task == 1 && number == attempt).then_some(why)
     })
 }
 
 fn extend_goal_deadline(world: &mut World) {
     let mut authority = world.record(1).authority.clone();
-    authority.budget.deadline = Some(Wall::from_nanos(500));
+    authority.budget.deadline = Some(Wall::from_nanos(1_500));
     let funder = world.record(1).funder;
     let reply = jig_tasks_world::response(world, |reply_to| Event::Amend {
         reply_to,

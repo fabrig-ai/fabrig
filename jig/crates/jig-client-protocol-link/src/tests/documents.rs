@@ -157,12 +157,13 @@ fn document_decodes_borrow_the_kept_bounds() {
         };
         let limits = Limits::new(client, fixtures::limits().exchanges()).unwrap();
         let bounds = limits.receiving();
-        assert_eq!(bounds.document_text_bytes, long_text.clamp(512, w::CEILINGS.document_text_bytes));
+        // A hold's explanation fits even when ordinary document text is small.
+        assert_eq!(bounds.document_text_bytes, long_text.clamp(1_024, w::CEILINGS.document_text_bytes));
         assert_eq!(bounds.specification_words, long_text.min(w::CEILINGS.specification_words));
         assert_eq!(bounds.edit_note_body, long_text.min(w::CEILINGS.edit_note_body));
         assert_eq!(bounds.call_input, limits.client().text);
         assert_eq!(bounds.message_words, long_text.min(w::CEILINGS.message_words));
-        let len = 512.max(long_text.min(w::CEILINGS.document_text_bytes));
+        let len = 1_024.max(long_text.min(w::CEILINGS.document_text_bytes));
         let mut bytes = skein_lib::List::with_capacity(len);
         for _ in 0..len {
             bytes.push(b'x').unwrap();
@@ -174,7 +175,7 @@ fn document_decodes_borrow_the_kept_bounds() {
         party.name = record;
         frame.party = party;
         let decoded = documents::frame(frame, &limits);
-        if long_text < 512 {
+        if long_text < 1_024 {
             assert!(decoded.is_err());
         } else {
             assert_eq!(decoded.unwrap().party.name.bytes.bytes(), bytes.as_ref());

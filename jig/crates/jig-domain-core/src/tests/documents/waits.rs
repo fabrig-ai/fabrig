@@ -691,6 +691,9 @@ fn a_goal_names_a_descendants_escalation_but_its_own_nearer_bound() {
     parent.waiting_on = Box::new([2]);
     parent.authority.budget.deadline = Some(SOON);
     let mut child = core.tasks.task(2).unwrap().clone();
+    child.phase =
+        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None };
+    child.revisions.hold = 1;
     child.escalation = tasks::Escalation::Waiting { holder: Holder::Person(1), revision: 1, entry: 7, since: SINCE };
     restore(&mut core, &limits, Box::new([child]));
     let document = document_matching_line(&core, &limits, &parent);

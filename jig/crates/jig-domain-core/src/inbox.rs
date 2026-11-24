@@ -331,8 +331,10 @@ impl Core {
                 | tasks::ProposalState::Withdrawn => {}
             }
         }
-        match row.escalation {
-            tasks::Escalation::Waiting { holder, revision, since, .. } => match holder {
+        if let tasks::Phase::Held { .. } = row.phase
+            && let tasks::Escalation::Waiting { holder, revision, since, .. } = row.escalation
+        {
+            match holder {
                 tasks::EscalationHolder::Person(person) => {
                     add(
                         &mut entries,
@@ -352,10 +354,7 @@ impl Core {
                     );
                 }
                 tasks::EscalationHolder::Task(_) => {}
-            },
-            tasks::Escalation::Unheld { .. }
-            | tasks::Escalation::Routing { .. }
-            | tasks::Escalation::Rejected { .. } => {}
+            }
         }
         if let Some(wait) = row.person_wait
             && let Some(notice) = wait.notice

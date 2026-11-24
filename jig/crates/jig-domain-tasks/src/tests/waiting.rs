@@ -1,6 +1,7 @@
 use super::revisions::{Harness, task};
 use crate::{
-    Escalation, EscalationHolder, MessageKind, Party, Proposal, ProposalAction, ProposalHolder, ProposalState, Word,
+    Escalation, EscalationHolder, Event, Hold, MessageKind, Party, Proposal, ProposalAction, ProposalHolder,
+    ProposalState, Word,
 };
 use alloc::boxed::Box;
 use skein_lib::Wall;
@@ -31,6 +32,7 @@ fn next_waiting_merges_words_and_decisions_in_number_order() {
         as_holder: false,
         state: ProposalState::Pending { holder: ProposalHolder::Task(1), since: Wall::EPOCH },
     }));
+    h.send(Event::Hold { task: 3, why: Hold::Budget });
     crate::domain::task_mut(&mut h.domain, 3).expect("held").record.escalation =
         Escalation::Waiting { revision: 1, holder: EscalationHolder::Task(1), entry: 7, since: Wall::EPOCH };
     let mut after = None;
