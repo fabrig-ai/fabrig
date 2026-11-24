@@ -388,11 +388,10 @@ fn cluster_turn_description(root: &Path) -> support::cluster::Cluster {
     cluster
 }
 
-#[test]
-fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
-    use temper_service::startup;
-    let mut cluster = cluster_turn_description(Path::new("/fixture/cluster-turn-documents"));
-    let rendered = cluster.render_files("engine");
+fn cluster_turn_with_spend(
+    cluster: &mut support::cluster::Cluster,
+    rendered: &support::cluster::Rendered,
+) -> temper_playground::documents::Configuration {
     let engine = rendered.engine_configuration();
     let providers = temper_agent_fixtures::providers::values(&engine["world_providers"]);
     let agent = temper_agent_fixtures::with_figures(
@@ -403,7 +402,73 @@ fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
     );
     let composed = cluster_turn_setup::compose_engine(engine, &agent);
     cluster.bind("story.change_spend", &composed.change_spend().to_string());
-    let figures = composed.configuration;
+    composed.configuration
+}
+
+#[test]
+fn deployment_binaries_render_every_member_of_both_clusters() {
+    use support::cluster::Cluster;
+    use temper_service::startup::Shape::{EngineAlone, WorkerAlone};
+
+    let cluster = Cluster::documents(
+        Path::new("/fixture/deployment-cluster"),
+        &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
+    );
+    let turn_root = Path::new("/fixture/deployment-cluster-turn");
+    let mut turn = cluster_turn_description(turn_root);
+    turn.git_on_path("engine", turn_root);
+    let rendered = turn.render_files("engine");
+    cluster_turn_with_spend(&mut turn, &rendered);
+
+    let directory = Path::new("/fixture/deployment-bin");
+    let common = [
+        ("forge", PathBuf::from("/fixture/temper-box"), None),
+        ("llm", PathBuf::from("/fixture/temper-box"), None),
+        ("engine", directory.join("temper-engine"), Some(EngineAlone)),
+        ("w1", directory.join("temper-worker"), Some(WorkerAlone)),
+    ];
+    for (mut description, extra) in
+        [(cluster, Some(("w2", directory.join("temper-worker"), Some(WorkerAlone)))), (turn, None)]
+    {
+        description.deployment_binaries_from(directory);
+        for (binding, file) in [
+            ("{artifact.temper-engine}", "temper-engine"),
+            ("{artifact.temper-worker}", "temper-worker"),
+            ("{artifact.temper-agent}", "temper-agent"),
+        ] {
+            assert_eq!(Path::new(&description.render(binding)), directory.join(file), "{binding}");
+        }
+        for (process, program, shape) in common.iter().chain(extra.iter()) {
+            let command = description.render_command(process);
+            assert_eq!(&command.program, program, "{process} executable");
+            let rendered = description.render_files(process);
+            assert_eq!(rendered.start.is_some(), shape.is_some(), "{process} start document presence");
+            if let Some(shape) = shape {
+                let start = rendered.start.expect("rendered start document");
+                admit_cluster_start(process, &start.document, &cluster_directories(&description.dir(process)), *shape);
+            }
+        }
+    }
+}
+
+#[test]
+#[should_panic(expected = "duplicate binding story.address")]
+fn a_story_cannot_bind_the_same_name_twice() {
+    let mut cluster =
+        support::cluster::Cluster::description_from(Path::new("/fixture/duplicate"), &cluster_turn_setup::fixture());
+    cluster.bind("story.address", "127.0.0.1:1");
+    cluster.bind("story.address", "127.0.0.1:2");
+}
+
+#[test]
+fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
+    use temper_service::startup::{
+        self,
+        Shape::{EngineAlone, WorkerAlone},
+    };
+    let mut cluster = cluster_turn_description(Path::new("/fixture/cluster-turn-documents"));
+    let rendered = cluster.render_files("engine");
+    let figures = cluster_turn_with_spend(&mut cluster, &rendered);
     let forge = rendered_json(&cluster, "forge", "forge.json");
     temper_fake::forge::Document::decode(&serde_json::to_vec(&forge).expect("forge JSON")).expect("forge document");
     let llm = rendered_json(&cluster, "llm", "llm.json");
@@ -435,16 +500,10 @@ fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
     ))
     .expect("agent JSON");
     let agent = support::prepare_agent(bytes.into()).agent;
-    for process in ["engine", "w1"] {
-        let root = cluster.dir(process);
-        let directories = temper_real_loop_world::cluster::directories_in([
-            &root.join("config"),
-            &root.join("data"),
-            &root.join("cache"),
-        ]);
-        let directories = temper_box_shell::directories::jig_directories(&directories);
+    for (process, shape) in [("engine", EngineAlone), ("w1", WorkerAlone)] {
+        let directories = cluster_directories(&cluster.dir(process));
         let bytes = cluster.render_files(process).start.expect("rendered process").document;
-        if process == "engine" {
+        if shape == EngineAlone {
             startup::store_limits_with_limits(
                 &bytes,
                 &directories,
@@ -454,15 +513,7 @@ fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
             )
             .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
         }
-        match startup::shape(&bytes, &directories).expect("separate shape") {
-            startup::Shape::EngineAlone => {
-                startup::named(&bytes, &directories).expect("checked engine alone");
-            }
-            startup::Shape::WorkerAlone => {
-                startup::worker_part(&bytes, &directories, None, &[]).expect("checked worker alone");
-            }
-            startup::Shape::Standalone => panic!("separate deployment processes"),
-        }
+        admit_cluster_start(process, &bytes, &directories, shape);
     }
     let core = jig_protocol_config::core(&engine, [0; 16], 1);
     let needs = jig_domain_core::settings::fleet_needs::configured(&core, &engine.limits.core);
@@ -471,6 +522,35 @@ fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
         None,
         "the sole worker admits the stock"
     );
+}
+
+fn cluster_directories(root: &Path) -> jig_protocol_config::Directories {
+    let directories = temper_real_loop_world::cluster::directories_in([
+        &root.join("config"),
+        &root.join("data"),
+        &root.join("cache"),
+    ]);
+    temper_box_shell::directories::jig_directories(&directories)
+}
+
+fn admit_cluster_start(
+    process: &str,
+    bytes: &[u8],
+    directories: &jig_protocol_config::Directories,
+    expected: temper_service::startup::Shape,
+) {
+    use temper_service::startup::{self, Shape};
+    let shape = startup::shape(bytes, directories).expect("separate shape");
+    assert_eq!(shape, expected, "{process} start shape");
+    match shape {
+        Shape::EngineAlone => {
+            startup::named(bytes, directories).expect("checked engine alone");
+        }
+        Shape::WorkerAlone => {
+            startup::worker_part(bytes, directories, None, &[]).expect("checked worker alone");
+        }
+        Shape::Standalone => panic!("separate deployment processes"),
+    }
 }
 
 #[test]
