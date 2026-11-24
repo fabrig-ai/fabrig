@@ -23,10 +23,10 @@ pub(crate) use jig_protocol_store_kit::{
     ALICE, CHILD, CORE_LIMITS, DEPLOYMENT, ENDED, FIRST_MANIFEST_COUNTS, GOAL, GRANDCHILD, INSTALLATION, KEY_LIMIT,
     LIVE, NOTES_LIMITS, OTHER_DEPLOYMENT, PROJECT, TASKS_LIMITS, accounts_key, activity_line, answer_line, attempt_row,
     call, cold_task, configured_model_names, core_key, core_rows, delegate, deployment_record, ended_delegate,
-    ended_of, ended_task, escalation_decision, fixture_turn, header_record, history, history_with_proposal, hold_row,
-    key, ledger_period, live_task, note_entry, notes_entry, notes_entry_in, notes_key, notes_line, notified_line,
-    number, pattern, pattern_key, people_key, people_policy, person, person_proposal, proposal_decision, question_line,
-    read, result_index, run_proof, task_record, tasks_key, terminal, turn, update, window_turn, with_hold, with_links,
+    ended_of, ended_task, escalation_decision, header_record, history, history_with_proposal, hold_row, key,
+    ledger_period, live_task, note_entry, notes_entry, notes_entry_in, notes_key, notes_line, notified_line, number,
+    pattern, pattern_key, people_key, people_policy, person, person_proposal, proposal_decision, question_line, read,
+    result_index, run_proof, task_record, tasks_key, terminal, turn, update, window_turn, with_hold, with_links,
     with_proposal_rows, with_question_lines, within,
 };
 
@@ -37,6 +37,14 @@ pub use store::{
     header, header_put, installation_put, opened, opened_with_budget, opened_with_transcripts, over, plant, reopen,
     run, save, script, sign_in_secret, stores, written,
 };
+
+pub fn registered_store_limits() -> crate::Limits {
+    let mut limits = store_limits();
+    limits.store.budget = 2_097_152;
+    // The first commit includes the map and frame registries, plus the root's writes.
+    limits.store.ops = 144;
+    limits
+}
 
 /// A shell's prepared binary texts, with any kept fixture texts the test supplies.
 #[expect(clippy::disallowed_methods, reason = "simulate a shell holding immutable schemas for each fixture")]

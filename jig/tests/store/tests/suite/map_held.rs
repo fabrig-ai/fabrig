@@ -1,18 +1,21 @@
 //! Seed retained transcript places for tests of the file writer (protocol/store/logs.md, 5).
 use jig_protocol_store::core_v6::Record as _;
-use jig_protocol_store::{Limits, Write, codec, format, keys};
+use jig_protocol_store::{Limits, OwnerSets, Write, codec, format, keys};
 use jig_store_world::{World, root};
 use skein_fake_machine::Item;
 
 pub(super) fn world(seed: u64, limits: &Limits, tasks: &[u64]) -> World {
+    world_with_sets(seed, limits, tasks, OwnerSets::NONE)
+}
+
+pub(super) fn world_with_sets(seed: u64, limits: &Limits, tasks: &[u64], sets: OwnerSets) -> World {
     let own = |key| keys::encode_own(&key, limits.store.key).expect("component key");
     let wires = jig_protocol_store::component_v3::Wires { wires: skein_lib::List::with_capacity(0) };
     let encoded = wires.encode(&jig_protocol_store::component_v3::CEILINGS).expect("measured wires");
+    let mut format = format::current(root::APPLICATION.version, root::DEPLOYMENT);
+    format.levels = jig_protocol_store::levels(&sets);
     let mut rows = vec![
-        (
-            own(keys::Own::Format),
-            format::current(root::APPLICATION.version, root::DEPLOYMENT).encode().expect("format"),
-        ),
+        (own(keys::Own::Format), format.encode().expect("format")),
         (own(keys::Own::Floor), crate::frame_reads::floor()),
         (
             keys::installation(limits.store.key).expect("installation key"),
@@ -41,6 +44,7 @@ pub(super) fn world(seed: u64, limits: &Limits, tasks: &[u64]) -> World {
     }
     let frame = super::upgrades::commits::source_commit(&rows, 1);
     let mut world = World::unopened_observed(seed, *limits, None);
+    world.owner_sets(sets);
     world.lay(&[
         Item::directory(b"transcripts").mode(0o700),
         Item::directory(b"generations").mode(0o700),

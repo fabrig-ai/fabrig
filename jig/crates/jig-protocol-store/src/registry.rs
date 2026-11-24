@@ -102,6 +102,40 @@ struct Type {
     keeping: List<u16>,
     plans: Map<u16, Plan>,
 }
+/// Transcript records use two registry types with no map key ranges.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Frame {
+    Body,
+    Turn,
+}
+impl Frame {
+    pub(crate) fn owner(owner: Owner) -> Option<Self> {
+        match owner {
+            Owner::Jig => Some(Self::Body),
+            Owner::Smith => Some(Self::Turn),
+            Owner::Skein | Owner::Application => None,
+        }
+    }
+}
+#[derive(Debug)]
+struct FrameTypes {
+    body: Option<u32>,
+    turn: Option<u32>,
+}
+impl FrameTypes {
+    fn get(&self, frame: Frame) -> Option<u32> {
+        match frame {
+            Frame::Body => self.body,
+            Frame::Turn => self.turn,
+        }
+    }
+    fn set(&mut self, frame: Frame, index: u32) {
+        match frame {
+            Frame::Body => self.body = Some(index),
+            Frame::Turn => self.turn = Some(index),
+        }
+    }
+}
 enum ReadAs {
     Stored,
     Reheaded,
@@ -131,6 +165,7 @@ struct Range {
 pub(crate) struct Layouts {
     active: bool,
     types: List<Type>,
+    frame_types: FrameTypes,
     ranges: Map<Box<[u8]>, Range>,
     rows: Map<RowKey, Row>,
     orders: Map<OrderKey, Order>,
@@ -149,6 +184,7 @@ impl Layouts {
         Self {
             active: false,
             types: List::uncapped(),
+            frame_types: FrameTypes { body: None, turn: None },
             ranges: Map::uncapped(),
             rows: Map::uncapped(),
             orders: Map::uncapped(),
@@ -214,6 +250,57 @@ impl Layouts {
             }
             ReadAs::Converted => work.buffer.as_slice(),
         }
+    }
+    fn frame(&self, frame: Frame) -> Option<&Type> {
+        self.types.get(self.frame_types.get(frame)?)
+    }
+    pub(crate) fn has_frame(&self, frame: Frame) -> bool {
+        self.frame(frame).is_some()
+    }
+    pub(crate) fn write_frame(&self, frame: Frame, value: &mut [u8]) -> Option<()> {
+        if let Some(ty) = self.frame(frame) {
+            if head(value)? != ty.version {
+                return None;
+            }
+            rehead(value, ty.binary);
+        }
+        Some(())
+    }
+    /// A prefix can be decoded without a full conversion only at a keeping id.
+    pub(crate) fn frame_version(&self, frame: Frame, id: u16) -> Result<Option<u16>, ()> {
+        if !self.active {
+            return Ok(Some(id));
+        }
+        let Some(ty) = self.frame(frame) else { return Ok(Some(id)) };
+        if id == ty.binary || ty.keeping.as_slice().contains(&id) {
+            Ok(Some(ty.version))
+        } else if ty.plans.contains_key(&id) {
+            Ok(None)
+        } else {
+            Err(())
+        }
+    }
+    pub(crate) fn read_frame<'a>(&self, frame: Frame, value: &'a mut [u8], work: &'a mut ReadWork) -> Option<&'a [u8]> {
+        if !self.has_frame(frame) {
+            return Some(value);
+        }
+        let id = head(value)?;
+        if let Some(version) = self.frame_version(frame, id).ok()? {
+            rehead(value, version);
+            return Some(value);
+        }
+        self.convert_frame(frame, id, value, work)
+    }
+    pub(crate) fn convert_frame<'a>(
+        &self,
+        frame: Frame,
+        id: u16,
+        value: &[u8],
+        work: &'a mut ReadWork,
+    ) -> Option<&'a [u8]> {
+        let plan = self.frame(frame)?.plans.get(&id)?;
+        work.convert(plan, value).ok()?;
+        Some(work.buffer.as_slice())
     }
     pub(crate) fn activate(&mut self) {
         self.active = true;
@@ -366,7 +453,7 @@ fn variant(name: Option<&str>) -> Option<&[u8]> {
         None => None,
     }
 }
-fn rehead(value: &mut [u8], id: u16) {
+pub(crate) fn rehead(value: &mut [u8], id: u16) {
     if let Some(head) = value.get_mut(..2) {
         for (byte, next) in head.iter_mut().zip(id.to_be_bytes()) {
             *byte = next;
@@ -387,6 +474,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     if !seeded && !registered {
         *store.registry = Layouts::new();
         *store.layout_work = ReadWork::new();
+        *store.frame_work = ReadWork::new();
         return Ok(false);
     }
     if let Err(why) = crate::upgrade::admission::checked(store) {
@@ -396,7 +484,8 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();
-    let later = check::plans(store, &mut layouts, &mut binary, &mut work)?;
+    let mut frames = Workspace::new();
+    let later = check::plans(store, &mut layouts, &mut binary, &mut work, &mut frames)?;
     let mut work = ReadWork::fit(work, store.limits.store.value);
     later.run(store, &layouts, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
@@ -408,6 +497,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     layouts.active = seeded && !changed;
     work.buffer = Buffer::with_capacity(0);
     *store.layout_work = work;
+    *store.frame_work = ReadWork::fit(frames, store.limits.store.page.bytes);
     *store.registry = layouts;
     Ok(writing)
 }

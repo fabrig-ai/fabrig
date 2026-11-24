@@ -910,9 +910,7 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
 }
 
 fn jig_store(disk: &Disk, set: crate::OwnerSet) -> Store {
-    let mut limits = fixtures::store_limits();
-    limits.store.budget = 2_097_152;
-    limits.store.ops = 128;
+    let mut limits = fixtures::registered_store_limits();
     limits.commits.writes = 7;
     let mut store = disk.store_with_limits(&limits);
     store.owner_sets(crate::OwnerSets { sets: Box::leak(Box::new([crate::SKEIN_SET, crate::SMITH_SET, set])) });

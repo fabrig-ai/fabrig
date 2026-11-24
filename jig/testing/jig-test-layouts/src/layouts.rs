@@ -24,3 +24,13 @@ pub const BACK_LATER: &str = "family fixture-layouts 2\nenum Choice { kept, adde
 pub const BACK_NEWEST: &str = "family fixture-layouts 2\nenum Choice { kept, added }\nversioned record Growing { n: u16, choice: Choice, extra: u32 = 0, droppable hint: text 64 = \"\", tail: u8 = 0 }\nversioned record Stable { ok: bool }\n";
 
 pub const SETTLED: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { n was old: u16, choice: Choice, added: u8 = 7 }\nversioned record Stable { ok: bool }\n";
+
+// The body and the turn have independent registry value types. The kept
+// body has a narrower spend and no read; the kept turn has replay bytes.
+pub const FRAME_BODY_KEPT: &str = "family fixture-frame 5\nversioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u32 spent: u32 at: u64 transcript: bytes 8388608 holds fixture-turn Turn }\n";
+pub const FRAME_BODY: &str = "family fixture-frame 6\nversioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u32 spent: u64 read: option u64 = none at: u64 transcript: bytes 8388608 holds fixture-turn Turn }\n";
+pub const FRAME_TURN_KEPT: &str = "family fixture-turn 1\nversioned record Turn { said: text 64 replay: bytes 64 }\n";
+pub const FRAME_TURN: &str = "family fixture-turn 2\nversioned record Turn { said: text 64 tokens: u32 = 0 }\n";
+pub const FRAME_TURN_NEXT: &str =
+    "family fixture-turn 2\nversioned record Turn { said: text 64 tokens: u32 = 0 extra: u32 = 7 }\n";
+pub const FRAME_TURN_RETYPED: &str = "family fixture-turn 2\nversioned record Turn { said: u64 tokens: u32 = 0 }\n";

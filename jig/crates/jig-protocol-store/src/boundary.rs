@@ -854,12 +854,8 @@ pub enum Event {
     Corrupt {
         owner: Token,
     },
-    /// The shell sets this record's key in `of`'s Context, runs its generated
-    /// written function over `patcher.parts()`, and answers `Request::Site`
-    /// (protocol/store/opening-owners.md 1). Application keys are relative to their tag; every
-    /// other owner's keys are the map's whole keys. While serving, a frame's
-    /// key is its task's places key followed by its eight-byte big-endian
-    /// file offset (protocol/store/transcripts.md 6).
+    /// Kept for callers' exhaustiveness; serving reads do not emit sites
+    /// (protocol/store/transcripts.md, 6).
     Site {
         owner: Token,
         of: crate::Owner,

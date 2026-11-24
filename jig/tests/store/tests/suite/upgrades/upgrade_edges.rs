@@ -127,11 +127,15 @@ fn mixed_frames() -> (World, u64) {
     let old = patches::fixture_turn(1, SAID, REPLAY, 0);
     let current = patches::fixture_turn(2, SAID, &[], 0);
     let charge = direct_frame_bytes(&current);
-    (committed(patches::FRAME_SETS, &[&old, &current]), charge)
+    let mut world = committed(patches::FRAME_LEGACY, &[&old, &current]);
+    world.crash(SEED);
+    world.owner_sets(patches::FRAME_SETS);
+    world.open_switched().expect("seed the frames registry");
+    (world, charge)
 }
 
 #[test]
-fn machine_pages_charge_framing_before_accepting_any_turn() {
+fn converted_pages_charge_framing_before_accepting_any_turn() {
     let (mut world, charge) = mixed_frames();
     // Forward/window encounter a patched turn first; backward encounters a
     // current turn. Both need the same complete current-body frame charge.

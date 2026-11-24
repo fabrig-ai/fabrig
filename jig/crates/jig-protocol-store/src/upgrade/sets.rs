@@ -33,7 +33,7 @@ pub struct KeptFamily {
     pub name: &'static str,
     pub map: KeptMap,
     pub keys: &'static [Keys],
-    /// The frames' family's texts and patches (protocol/store/transcripts.md, 6).
+    /// The frames' family's registry value type (protocol/store/transcripts.md, 6).
     pub frames: Option<Frames>,
     /// The binary's schema text.
     pub current: &'static str,
@@ -42,12 +42,12 @@ pub struct KeptFamily {
     pub retired: &'static [Retired],
 }
 
-/// A frames' family's history, read by its machine alone (protocol/store/transcripts.md, 6).
+/// A frames' family's value type and pre-registry seed texts (protocol/store/transcripts.md, 6).
 #[derive(Clone, Copy, Debug)]
 pub struct Frames {
     pub root: &'static str,
+    pub number: u16,
     pub texts: &'static [&'static str],
-    pub patches: &'static [&'static str],
 }
 
 /// A value type whose ranges must hold nothing (protocol/store/layouts.md, 2).

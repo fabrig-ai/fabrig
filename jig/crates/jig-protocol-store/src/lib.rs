@@ -146,6 +146,7 @@ pub struct Store {
     read_failure: Option<restore::Failure>,
     registry: Box<registry::Layouts>,
     layout_work: Box<registry::ReadWork>,
+    frame_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
     names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
@@ -305,6 +306,7 @@ impl Store {
             read_failure: None,
             registry: Box::new(registry::Layouts::new()),
             layout_work: Box::new(registry::ReadWork::new()),
+            frame_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
             opening_keys: skein_lib::Map::uncapped(),
             stores,
@@ -611,8 +613,8 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         Request::Open { owner, root, installation, purpose } => {
             directory::open(store, owner, root, installation, purpose, above, below);
         }
-        Request::Site { owner, patcher, result } => {
-            transcripts::read::site(store, owner, patcher, result, above, below);
+        Request::Site { owner, patcher: _, result: _ } => {
+            above.push(Event::Unread { owner });
         }
         Request::Job { owner, answer } => upgrade::phase::job(store, env, owner, answer, above, below),
         Request::Commit { number, writes } => view::commit(store, env, number, writes, above, below),

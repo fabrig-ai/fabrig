@@ -80,11 +80,6 @@ pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner>
     holds(sets, prepared, current)?;
     Ok(())
 }
-#[cfg(test)]
-pub(crate) fn frames(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner> {
-    check_frames(sets, prepared, &[])
-}
-
 /// The two transcript roots are owners' data, checked even at equal levels.
 fn check_frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
     let mut smith = None;
@@ -107,60 +102,93 @@ fn check_frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Re
     for set in sets.sets {
         for family in set.families {
             let Some(frames) = &family.frames else { continue };
-            let name = frames.root;
-            if frames.texts.is_empty() {
-                continue;
-            }
             let refusal = set.owner;
-            // Metadata alone resolves a root's spelling back over renames.
-            let empty = crate::transcripts::patches::Room { bytes: 0, nodes: 0 };
-            let capacity = crate::transcripts::patches::frame_capacity(frames, empty).ok_or(refusal)?;
-            let machine = crate::transcripts::patches::kept_patcher(frames, capacity, prepared).ok_or(refusal)?;
-            let kept = machine.schemas().as_slice();
-            let last = kept.last().ok_or(refusal)?.version();
-            let text = family.current.as_bytes();
-            let mut parsed = None;
-            let binary = match schemas::find(kept, text) {
-                Some(schema) => schema,
-                None => schemas::frame(prepared, current, text, &mut parsed).ok_or(refusal)?,
-            };
-            if last != binary.version() {
+            if family.map != crate::KeptMap::Store {
                 return Err(refusal);
             }
-            for schema in kept {
+            for ty in family.types {
+                if ty.number == frames.number {
+                    return Err(refusal);
+                }
+            }
+            for retired in family.retired {
+                if retired.number == frames.number {
+                    return Err(refusal);
+                }
+            }
+            let mut parsed = None;
+            let binary = schemas::frame(prepared, current, family.current.as_bytes(), &mut parsed).ok_or(refusal)?;
+            if binary.spelled(binary.family()) != family.name.as_bytes() {
+                return Err(refusal);
+            }
+            let root = binary.find(frames.root.as_bytes()).ok_or(refusal)?;
+            check_frame_root(binary, root, set.owner, smith)?;
+            let mut previous = None;
+            for text in frames.texts {
+                let mut parsed = None;
+                let schema = schemas::frame(prepared, current, text.as_bytes(), &mut parsed).ok_or(refusal)?;
+                let version = schema.version();
+                if let Some(before) = previous
+                    && Some(version) != u16::checked_add(before, 1)
+                {
+                    return Err(refusal);
+                }
                 if schema.spelled(schema.family()) != family.name.as_bytes() {
                     return Err(refusal);
                 }
-                let Ok(root) =
-                    crate::transcripts::patches::held_root(&machine, schema.version(), last, name.as_bytes())
-                else {
-                    return Err(refusal);
-                };
-                let (first, count) = match schema.declaration(root).shape {
-                    skein_codec::schema::Shape::Record { versioned: true, first, count } => (first, count),
-                    skein_codec::schema::Shape::Record { versioned: false, .. }
-                    | skein_codec::schema::Shape::Enum { .. } => return Err(refusal),
-                };
-                if set.owner != Owner::Jig {
-                    continue;
-                }
-                let mut held = false;
-                for offset in 0..count {
-                    let field = skein_codec::schema::FieldIx::new(first.index().checked_add(offset).expect("field"));
-                    if let Some(other) = held_family(schema, schema.field(field).ty) {
-                        if smith != Some(other) || held {
-                            return Err(refusal);
-                        }
-                        held = true;
-                    }
-                }
-                if !held {
-                    return Err(refusal);
-                }
+                let root = seed_root(schema, binary, frames.root).ok_or(refusal)?;
+                check_frame_root(schema, root, set.owner, smith)?;
+                previous = Some(version);
+            }
+            if let Some(last) = previous
+                && last != binary.version()
+            {
+                return Err(refusal);
             }
         }
     }
     Ok(())
+}
+
+/// Find the seed's declaration, including a former spelling of the binary's root.
+pub(crate) fn seed_root(schema: &Schema, binary: &Schema, name: &str) -> Option<skein_codec::schema::DeclIx> {
+    if let Some(root) = schema.find(name.as_bytes()) {
+        return Some(root);
+    }
+    let current = binary.find(name.as_bytes())?;
+    for former in binary.was(skein_codec::schema::Named::Declaration(current)) {
+        if let Some(root) = schema.find(binary.spelled(*former)) {
+            return Some(root);
+        }
+    }
+    None
+}
+
+fn check_frame_root(
+    schema: &Schema,
+    root: skein_codec::schema::DeclIx,
+    owner: Owner,
+    smith: Option<&[u8]>,
+) -> Result<(), Owner> {
+    use skein_codec::schema::{FieldIx, Shape};
+    let (first, count) = match schema.declaration(root).shape {
+        Shape::Record { versioned: true, first, count } => (first, count),
+        Shape::Record { versioned: false, .. } | Shape::Enum { .. } => return Err(owner),
+    };
+    if owner != Owner::Jig {
+        return Ok(());
+    }
+    let mut held = false;
+    for offset in 0..count {
+        let field = FieldIx::new(first.index().checked_add(offset).expect("field"));
+        if let Some(other) = held_family(schema, schema.field(field).ty) {
+            if smith != Some(other) || held {
+                return Err(owner);
+            }
+            held = true;
+        }
+    }
+    if held { Ok(()) } else { Err(owner) }
 }
 
 fn held_family(schema: &Schema, mut ty: skein_codec::schema::TypeIx) -> Option<&[u8]> {

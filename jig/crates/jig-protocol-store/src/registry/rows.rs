@@ -1,6 +1,6 @@
 //! Registry rows and their commit operations (protocol/store/layouts.md, 3 and 5).
-use super::{Digest, Layouts, Order, Range, Row, RowKey, Text, Type, texts};
-use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
+use super::{Digest, Frame, Layouts, Order, Range, Row, RowKey, Text, Type, texts};
+use crate::{Frames, KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
 use alloc::boxed::Box;
 use skein_codec::Record as _;
 use skein_lib::{List, Map, Reader};
@@ -9,15 +9,17 @@ use skein_lib::{List, Map, Reader};
 pub(super) fn open(store: &mut Store, layouts: &mut Layouts, empty: bool) -> Result<bool, OpenRefusal> {
     load(store, layouts)?;
     let mut registered = false;
+    let mut frames = false;
     for set in store.owner_sets.sets {
         for family in set.families {
             registered |= !family.types.is_empty() || !family.retired.is_empty();
+            frames |= family.frames.is_some();
         }
     }
     if layouts.rows.is_empty() && !empty && registered {
         return Err(OpenRefusal::OlderBuild { why: crate::Older::Unregistered });
     }
-    Ok(registered)
+    Ok(registered || frames)
 }
 
 fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
@@ -97,11 +99,23 @@ fn made(
 ) -> Option<wire::Layout> {
     let text = binary.text(family.name)?;
     let held = binary.held(layouts, text)?;
-    let layout = binary.layout(layouts, text, ty.root.as_bytes(), super::variant(ty.variant), &held)?;
+    layout_row(layouts, binary, text, ty.root.as_bytes(), ty.variant, held)
+}
+
+fn layout_row(
+    layouts: &Layouts,
+    binary: &mut texts::Binary,
+    text: Digest,
+    root: &[u8],
+    variant: Option<&str>,
+    held: List<Digest>,
+) -> Option<wire::Layout> {
+    let variant = super::variant(variant);
+    let layout = binary.layout(layouts, text, root, variant, &held)?;
     let value = wire::Layout {
-        root: Box::from(ty.root.as_bytes()),
-        variant: match super::variant(ty.variant) {
-            Some(v) => Some(Box::from(v)),
+        root: Box::from(root),
+        variant: match variant {
+            Some(name) => Some(Box::from(name)),
             None => None,
         },
         layout,
@@ -111,6 +125,36 @@ fn made(
     value.measure(&wire::CEILINGS).ok()?;
     Some(value)
 }
+
+/// Pre-registry frame heads spell their versions. Seed these ids even if
+/// two versions have the same fingerprint: both heads may occur on disk.
+pub(super) fn seed_frames(
+    layouts: &mut Layouts,
+    binary: &mut texts::Binary,
+    family: &KeptFamily,
+    frames: &Frames,
+) -> Option<bool> {
+    if in_type(layouts, family.name, frames.number).next().is_some() {
+        return Some(false);
+    }
+    let current = binary.text(family.name)?;
+    texts::parse(layouts, current)?;
+    let mut changed = false;
+    for &seed in frames.texts {
+        let text = texts::keep(layouts, seed.as_bytes(), false)?;
+        texts::parse(layouts, text)?;
+        let schema = layouts.texts.get(&text)?.schema()?;
+        let current = layouts.texts.get(&current)?.schema()?;
+        let root = crate::upgrade::admission::seed_root(schema, current, frames.root)?;
+        let value =
+            layout_row(layouts, binary, text, schema.spelled(schema.declaration(root).name), None, List::uncapped())?;
+        let version = schema.version();
+        insert(layouts, family.name, frames.number, version, value);
+        changed = true;
+    }
+    Some(changed)
+}
+
 pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts::Binary) -> Result<bool, OpenRefusal> {
     layouts.owners = store.owner_sets;
     let mut changed = false;
@@ -119,43 +163,8 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
             for ty in family.types {
                 let refusal = OpenRefusal::Set { owner: set.owner };
                 let value = made(layouts, binary, family, ty).ok_or(refusal.clone())?;
-                let version =
-                    layouts.texts.get(&value.text).ok_or(refusal.clone())?.schema().ok_or(refusal.clone())?.version();
-                let fingerprint = value.layout;
-                changed |= order(layouts, family.name, ty.number, fingerprint);
-                let mut found = None;
-                let mut greatest = None;
-                let first = (Box::from(family.name), ty.number, u16::MIN);
-                let last = (Box::from(family.name), ty.number, u16::MAX);
-                for ((_, _, id), row) in layouts.rows.range(first..=last) {
-                    greatest = Some(*id);
-                    if row.value.layout == value.layout {
-                        found = Some(*id);
-                    }
-                }
-                let id = match found {
-                    Some(id) => id,
-                    None => {
-                        let id = match greatest {
-                            Some(id) => id.checked_add(1).ok_or(refusal.clone())?,
-                            None => version,
-                        };
-                        layouts
-                            .rows
-                            .insert(
-                                (Box::from(family.name), ty.number, id),
-                                Row { value, stored: false, retire: false },
-                            )
-                            .expect("uncapped registration");
-                        changed = true;
-                        id
-                    }
-                };
-                let index = layouts.types.len();
-                layouts
-                    .types
-                    .push(Type { version, binary: id, keeping: List::uncapped(), plans: Map::uncapped() })
-                    .expect("uncapped types");
+                let (index, added) = register_type(layouts, family.name, ty.number, value).ok_or(refusal.clone())?;
+                changed |= added;
                 for range in ty.keys {
                     let from = super::whole(set.owner, range.from, store.limits.store.key).ok_or(refusal.clone())?;
                     let to = super::whole(set.owner, range.to, store.limits.store.key).ok_or(refusal.clone())?;
@@ -164,8 +173,72 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
             }
         }
     }
+    for set in store.owner_sets.sets {
+        for family in set.families {
+            let Some(frames) = &family.frames else { continue };
+            let refusal = OpenRefusal::Set { owner: set.owner };
+            let slot = Frame::owner(set.owner).ok_or(refusal.clone())?;
+            changed |= seed_frames(layouts, binary, family, frames).ok_or(refusal.clone())?;
+            let text = binary.text(family.name).ok_or(refusal.clone())?;
+            texts::parse(layouts, text).ok_or(refusal.clone())?;
+            // The turn is opaque to the body plan; it moves by its own id.
+            let value = layout_row(layouts, binary, text, frames.root.as_bytes(), None, List::uncapped())
+                .ok_or(refusal.clone())?;
+            let (index, added) = register_type(layouts, family.name, frames.number, value).ok_or(refusal)?;
+            layouts.frame_types.set(slot, index);
+            changed |= added;
+        }
+    }
     Ok(changed)
 }
+
+fn in_type<'a>(
+    layouts: &'a Layouts,
+    family: &str,
+    number: u16,
+) -> alloc::collections::btree_map::Range<'a, RowKey, Row> {
+    let first = (Box::from(family), number, u16::MIN);
+    let last = (Box::from(family), number, u16::MAX);
+    layouts.rows.range(first..=last)
+}
+
+fn insert(layouts: &mut Layouts, family: &str, number: u16, id: u16, value: wire::Layout) {
+    layouts
+        .rows
+        .insert((Box::from(family), number, id), Row { value, stored: false, retire: false })
+        .expect("uncapped registration");
+}
+
+fn register_type(layouts: &mut Layouts, family: &str, number: u16, value: wire::Layout) -> Option<(u32, bool)> {
+    let version = layouts.texts.get(&value.text)?.schema()?.version();
+    let ordered = order(layouts, family, number, value.layout);
+    let mut found = None;
+    let mut greatest = None;
+    for ((_, _, id), row) in in_type(layouts, family, number) {
+        greatest = Some(*id);
+        if row.value.layout == value.layout {
+            found = Some(*id);
+        }
+    }
+    let id = match found {
+        Some(id) => id,
+        None => {
+            let id = match greatest {
+                Some(id) => id.checked_add(1)?,
+                None => version,
+            };
+            insert(layouts, family, number, id, value);
+            id
+        }
+    };
+    let index = layouts.types.len();
+    layouts
+        .types
+        .push(Type { version, binary: id, keeping: List::uncapped(), plans: Map::uncapped() })
+        .expect("uncapped types");
+    Some((index, ordered || found.is_none()))
+}
+
 // Missing orders are seeded from the stored ids, before registration can insert a new row.
 fn order(layouts: &mut Layouts, family: &str, number: u16, fingerprint: Digest) -> bool {
     let key = (Box::from(family), number);
@@ -177,9 +250,7 @@ fn order(layouts: &mut Layouts, family: &str, number: u16, fingerprint: Digest) 
         return false;
     }
     let mut value = wire::Order { layouts: List::with_capacity(wire::CEILINGS.order_layouts) };
-    let first = (Box::from(family), number, u16::MIN);
-    let last = (Box::from(family), number, u16::MAX);
-    for (_, row) in layouts.rows.range(first..=last) {
+    for (_, row) in in_type(layouts, family, number) {
         remember(&mut value, row.value.layout);
     }
     remember(&mut value, fingerprint);

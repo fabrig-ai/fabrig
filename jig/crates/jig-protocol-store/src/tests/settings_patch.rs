@@ -79,10 +79,7 @@ fn model() -> s::Record {
 }
 
 fn store(disk: &fixtures::disk::Disk) -> crate::Store {
-    let mut limits = fixtures::store_limits();
-    limits.store.budget = 2_097_152;
-    limits.store.ops = 128;
-    let mut store = disk.store_with_limits(&limits);
+    let mut store = disk.store_with_limits(&fixtures::registered_store_limits());
     store.owner_sets(crate::OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] });
     store
 }

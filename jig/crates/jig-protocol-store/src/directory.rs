@@ -971,6 +971,13 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
     if store.phase == Phase::Stopped {
         return;
     }
+    if let Io::Transcripts(arrived) = &io
+        && arrived.event.owner() == crate::rehearsal::frames::OWNER
+    {
+        let Io::Transcripts(arrived) = io else { unreachable!("rehearsal filesystem lane") };
+        crate::rehearsal::frames::file(store, arrived, above, below);
+        return;
+    }
     if patching(store).is_some() {
         phase::up(store, env, io, above, below);
         return;
@@ -1087,6 +1094,10 @@ pub(crate) fn events_up(
                 }
             }
             skein_kv::Event::Refused { owner, refusal } => {
+                if owner == crate::rehearsal::frames::OWNER {
+                    crate::rehearsal::frames::log(store, None, above);
+                    continue;
+                }
                 if owner == crate::transcripts::read::LOG_OWNER && crate::transcripts::read::log_waiting(store) {
                     crate::transcripts::read::log_arrived(store, None, above, below);
                     continue;
@@ -1105,19 +1116,9 @@ pub(crate) fn events_up(
             skein_kv::Event::OpenFailed { .. } => refuse(store, above),
             skein_kv::Event::Recovered { .. } | skein_kv::Event::RecoveryFailed { .. } => stopped(store),
             skein_kv::Event::LogRead { owner, records, next } => {
-                if owner == crate::transcripts::read::LOG_OWNER {
-                    crate::transcripts::read::log_arrived(store, Some(records), above, below);
-                } else {
-                    crate::view::read(store, records, next, above);
-                }
+                log_read(store, owner, Some(records), next, above, below);
             }
-            skein_kv::Event::LogUnread { owner, .. } => {
-                if owner == crate::transcripts::read::LOG_OWNER {
-                    crate::transcripts::read::log_arrived(store, None, above, below);
-                } else {
-                    crate::view::unread(store, above);
-                }
-            }
+            skein_kv::Event::LogUnread { owner, .. } => log_read(store, owner, None, None, above, below),
             skein_kv::Event::Got { .. }
             | skein_kv::Event::Loaded { .. }
             | skein_kv::Event::Held { .. }
@@ -1128,6 +1129,25 @@ pub(crate) fn events_up(
         }
     }
 }
+fn log_read(
+    store: &mut Store,
+    owner: Token,
+    records: Option<Box<[skein_kv::LogRecord]>>,
+    next: Option<u64>,
+    above: &mut Queue<Event>,
+    below: &mut Below,
+) {
+    if owner == crate::rehearsal::frames::OWNER {
+        crate::rehearsal::frames::log(store, records, above);
+    } else if owner == crate::transcripts::read::LOG_OWNER {
+        crate::transcripts::read::log_arrived(store, records, above, below);
+    } else if let Some(records) = records {
+        crate::view::read(store, records, next, above);
+    } else {
+        crate::view::unread(store, above);
+    }
+}
+
 /// Work the directory can advance without another file terminal.
 pub(crate) fn ready(store: &Store) -> bool {
     store.phase != Phase::Stopped
@@ -1140,6 +1160,10 @@ pub(crate) fn ready(store: &Store) -> bool {
             || skein_kv::is_ready(&store.stores.secrets, &store.limits.secrets))
 }
 pub(crate) fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    crate::rehearsal::frames::fire(store, above, below);
+    if store.phase == Phase::Stopped {
+        return;
+    }
     for secret in [false, true] {
         let kv_env = self::env(store, env, secret);
         let mut events = Queue::uncapped();

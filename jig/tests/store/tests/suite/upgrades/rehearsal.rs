@@ -335,7 +335,7 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     assert!(matches!(events.as_slice(), [Event::Back { owner: OWNER, to: 1 }]), "{events:?}");
     assert_eq!(world.active(), b"1\n");
     world.crash(SEED);
-    world.owner_sets(patches::FRAME_BASE);
+    world.owner_sets(patches::FRAME_LEGACY_BASE);
     world.open().expect("previous generation opens");
     for (name, bytes) in before.iter().filter(|(path, _)| path.starts_with(b"generations/1/store/logs/")) {
         if name == path {
@@ -350,11 +350,8 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
     }
     let turns =
         world.transcript(jig_protocol_store::TranscriptRead::Page { task: root::LIVE, backwards: false, after: None });
-    // Going back preserves the stored bytes; the equal-level binary still
-    // patches each frame at read, without changing the previous log.
-    let tokens =
-        u32::try_from(crate::frame_reads::FRAME_KEY_BYTES + patches::FRAME_REPLAY.len()).expect("fixture tokens");
-    let expected = patches::fixture_turn(2, patches::FRAME_SAID, &[], tokens);
+    // The previous binary reads its stored generated versions direct.
+    let expected = patches::fixture_turn(1, patches::FRAME_SAID, patches::FRAME_REPLAY, 0);
     assert_eq!(turns, [root::turn(root::LIVE, 1, 1, &expected), root::turn(root::LIVE, 1, 2, &expected)]);
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
 }
@@ -452,5 +449,41 @@ fn back_durable_replace_cuts_open_one_whole_generation() {
             world.open().expect("upgraded generation whole");
             Records::story().check_public(&mut world, &cut);
         }
+    }
+}
+
+#[test]
+fn rehearsal_names_a_malformed_held_turn_at_its_stored_offset() {
+    use jig_store_world::frame_reads;
+    use jig_test_patches_jig::frames;
+    for file in [false, true] {
+        let tasks = if file { &[frames::TASK][..] } else { &[] };
+        let mut world = crate::map_held::world_with_sets(SEED, &patches::limits(), tasks, patches::FRAME_LEGACY);
+        let good = frame_reads::turn(1, b"said", b"replay", 0);
+        let mut bad = good.to_vec();
+        bad.pop();
+        let first = root::turn(frames::TASK, 1, 1, &good);
+        let offset = if file {
+            u64::try_from(frames::frame(6, &good).len()).expect("fixture frame")
+        } else {
+            super::frames::log_frame_bytes(&first)
+        };
+        world.commit(root::record_turn_commit(2, first)).expect("good turn");
+        world.commit(root::turn_commit(3, frames::TASK, 2, &bad)).expect("malformed opaque turn");
+        world.crash(SEED);
+        world.owner_sets(frame_reads::SETS);
+        let before = world.contents();
+        let events = world.rehearse();
+        let [
+            Event::Rehearsing { .. },
+            Event::Undecodable { owner: OWNER, family, version: 1, at: Undecoded::Frame { offset: found, .. } },
+        ] = events.as_slice()
+        else {
+            panic!("rehearsal must stop before planning: {events:?}")
+        };
+        assert_eq!(family.as_ref(), "fixture-turn");
+        assert_eq!(*found, offset);
+        assert_eq!(world.contents(), before);
+        close(&mut world);
     }
 }

@@ -123,7 +123,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" },
                 Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" },
             ],
-            frames: Some(crate::Frames { root: "TurnRecord", texts: &[core], patches: &[] }),
+            frames: Some(crate::Frames { root: "TurnRecord", number: 9, texts: &[core] }),
         }
     },
     KeptFamily {

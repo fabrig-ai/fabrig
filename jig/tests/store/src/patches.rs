@@ -372,7 +372,7 @@ pub fn counts(world: &mut World) -> Vec<(Vec<u8>, u64, u64)> {
     manifest.counts.iter().map(|count| (count.family.to_vec(), count.before, count.after)).collect()
 }
 
-/// Frame patches are used only at read; opens compare equal owner levels.
+/// Frames are planned at read edges; opens compare equal owner levels.
 pub const FRAME_SETS: OwnerSets = OwnerSets {
     sets: &[
         OwnerSet {
@@ -382,15 +382,15 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
             level: Some(2),
             families: &[KeptFamily {
                 retired: &[],
-                current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
+                current: jig_test_layouts::layouts::FRAME_BODY,
                 types: &[],
                 name: "fixture-frame",
                 map: KeptMap::Store,
                 keys: &[],
                 frames: Some(jig_protocol_store::Frames {
                     root: jig_test_patches_jig::FRAME_ROOT,
-                    texts: jig::kept::fixture_frame::TEXTS,
-                    patches: jig::PATCHES,
+                    texts: &[jig_test_layouts::layouts::FRAME_BODY_KEPT, jig_test_layouts::layouts::FRAME_BODY],
+                    number: 0,
                 }),
             }],
         },
@@ -401,20 +401,28 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
             level: Some(1),
             families: &[KeptFamily {
                 retired: &[],
-                current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS.last().expect("kept text"),
+                current: jig_test_layouts::layouts::FRAME_TURN,
                 types: &[],
                 name: "fixture-turn",
                 map: KeptMap::Store,
                 keys: &[],
                 frames: Some(jig_protocol_store::Frames {
                     root: jig_test_patches_smith::ROOT,
-                    texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,
-                    patches: jig_test_patches_smith::patches::PATCHES,
+                    texts: &[jig_test_layouts::layouts::FRAME_TURN_KEPT, jig_test_layouts::layouts::FRAME_TURN],
+                    number: 0,
                 }),
             }],
         },
     ],
 };
+/// Same levels, but frames' heads are still written as versions.
+pub const FRAME_LEGACY: OwnerSets = OwnerSets {
+    sets: &[
+        OwnerSet { families: &[KeptFamily { frames: None, ..FRAME_SETS.sets[0].families[0] }], ..FRAME_SETS.sets[0] },
+        OwnerSet { families: &[KeptFamily { frames: None, ..FRAME_SETS.sets[1].families[0] }], ..FRAME_SETS.sets[1] },
+    ],
+};
+pub const FRAME_LEGACY_BASE: OwnerSets = OwnerSets { sets: &[FRAME_LEGACY.sets[0], FRAME_LEGACY.sets[1], APPLICATION] };
 /// The frame fixture declares its job only on the upgrading open.
 pub const FRAME_BASE: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], APPLICATION] };
 pub const FRAME_JOBS: OwnerSets = OwnerSets { sets: &[FRAME_SETS.sets[0], FRAME_SETS.sets[1], SETS.sets[0]] };
@@ -459,7 +467,7 @@ pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Bo
 #[must_use]
 pub fn frame_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
     let mut world = World::unopened_observed(seed, frame_limits(), None);
-    world.owner_sets(FRAME_BASE);
+    world.owner_sets(FRAME_LEGACY_BASE);
     world.open_switched().expect("frame fixture open");
     let bytes = fixture_turn(1, FRAME_SAID, FRAME_REPLAY, 0);
     let mut number = 0;

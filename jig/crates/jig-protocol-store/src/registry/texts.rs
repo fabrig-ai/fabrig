@@ -46,31 +46,8 @@ impl Binary {
         let mut names = Map::uncapped();
         for set in sets.sets {
             for family in set.families {
-                let text = family.current;
                 let refusal = OpenRefusal::Set { owner: set.owner };
-                if text.len() > skein_lib::usize_of(crate::registry_v1::CEILINGS.text_text) {
-                    return Err(refusal);
-                }
-                let digest = digest(text.as_bytes());
-                if let Some(held) = layouts.texts.get_mut(&digest) {
-                    held.current = true;
-                } else {
-                    let Some(schema) = Cached::read(layouts.prepared_schemas, text.as_bytes(), digest) else {
-                        return Err(refusal);
-                    };
-                    layouts
-                        .texts
-                        .insert(
-                            digest,
-                            Text {
-                                bytes: Box::from(text.as_bytes()),
-                                schema: Some(schema),
-                                stored: false,
-                                current: true,
-                            },
-                        )
-                        .expect("uncapped texts");
-                }
+                let digest = keep(layouts, family.current.as_bytes(), true).ok_or(refusal)?;
                 names.insert(family.name, digest).expect("uncapped names");
             }
         }
@@ -177,6 +154,23 @@ fn holds(schema: &Schema, mut ty: TypeIx) -> Option<&str> {
     }
     None
 }
+pub(super) fn keep(layouts: &mut Layouts, bytes: &[u8], current: bool) -> Option<Digest> {
+    if bytes.len() > skein_lib::usize_of(crate::registry_v1::CEILINGS.text_text) {
+        return None;
+    }
+    let digest = digest(bytes);
+    if let Some(held) = layouts.texts.get_mut(&digest) {
+        held.current |= current;
+    } else {
+        let schema = Cached::read(layouts.prepared_schemas, bytes, digest)?;
+        layouts
+            .texts
+            .insert(digest, Text { bytes: Box::from(bytes), schema: Some(schema), stored: false, current })
+            .expect("uncapped texts");
+    }
+    Some(digest)
+}
+
 pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
     let text = layouts.texts.get_mut(&digest)?;
     if text.schema.is_none() {

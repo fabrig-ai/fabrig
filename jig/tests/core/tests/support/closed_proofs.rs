@@ -16,7 +16,7 @@ const TURN: KeptFamily = KeptFamily {
     frames: Some(jig_protocol_store::Frames {
         root: fixture::ROOT,
         texts: &[fixture::patches::kept::fixture_turn::TEXTS[0]],
-        patches: &[],
+        number: 0,
     }),
 };
 const FIXTURE: OwnerSet =

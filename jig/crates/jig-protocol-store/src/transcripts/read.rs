@@ -1,10 +1,10 @@
 //! Reads bounded by durable places, walking complete frames (protocol/store/transcripts.md, 3).
 use super::{File, Stage, frame};
-use crate::{Arrived, Below, Event, Phase, Store, TranscriptRead, codec, keys, reads};
+use crate::registry::{self, Frame};
+use crate::{Arrived, Below, Event, Phase, Store, TranscriptRead, keys, reads};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as domain, TurnRecord};
 use jig_domain_tasks as tasks;
-use skein_codec::Record as _;
 use skein_io::file;
 use skein_lib::{List, Queue, Reader, Token, Writer, length::len_u64};
 mod party;
@@ -37,7 +37,6 @@ enum Step {
     Header { offset: u64, length: u32, bytes: Writer },
     Sized { offset: u64, length: u32, turn: TurnRecord, size: u32, bytes: Writer },
     Frame { offset: u64, length: u32, bytes: Writer },
-    Site { offset: u64, length: u32, patch: frame::Patch, of: crate::Owner },
 }
 struct Decoded {
     offset: u64,
@@ -377,18 +376,12 @@ pub(crate) fn arrived(store: &mut Store, arrived: Arrived, above: &mut Queue<Eve
     let Some(owner) = store.transcripts.reading else { return };
     let mut read = store.transcripts.reads.remove(&owner).expect("active reader");
     let result = match arrival(arrived.event) {
-        Some(event) => advance(store, &mut read, event, above, below),
+        Some(event) => advance(store, &mut read, event, below),
         None => Err(()),
     };
     settle(store, owner, read, result, above);
 }
-fn advance(
-    store: &mut Store,
-    read: &mut Read,
-    event: Arrival,
-    above: &mut Queue<Event>,
-    below: &mut Below,
-) -> Result<bool, ()> {
+fn advance(store: &mut Store, read: &mut Read, event: Arrival, below: &mut Below) -> Result<bool, ()> {
     let step = core::mem::replace(&mut read.step, Step::Waiting);
     match step {
         Step::Opening => {
@@ -461,26 +454,10 @@ fn advance(
                 read.step = Step::Frame { offset, length, bytes };
                 return Ok(false);
             }
-            match frame::Decode::begin(&bytes.finish(), &mut store.transcripts.machines, &store.codec_limits)
-                .or(Err(()))?
-            {
-                frame::Decode::Done { turn, size } => {
-                    let charged_frame =
-                        store.transcripts.machines.body.is_some() || store.transcripts.machines.turn.is_some();
-                    if charged_frame && let Some(party) = &mut read.party {
-                        party.frame_bytes = Some(size);
-                    }
-                    accept(
-                        store,
-                        read,
-                        Decoded { offset, length, turn, size, charge_frame: charged_frame, cut: None },
-                        below,
-                    )
-                }
-                frame::Decode::Patching(patch) => patching(store, read, offset, length, patch, above, below),
-            }
+            let (turn, size) = frame::read(store, &mut bytes.finish()).or(Err(()))?;
+            complete(store, read, offset, length, turn, size, below)
         }
-        Step::Waiting | Step::Log { .. } | Step::Site { .. } => Err(()),
+        Step::Waiting | Step::Log { .. } => Err(()),
     }
 }
 fn window(read: &Read) -> bool {
@@ -505,11 +482,7 @@ fn length(
         return Ok(false);
     }
     let length = Reader::new(&bytes.finish()).u32().ok_or(())?;
-    let max = crate::core_v6::TurnRecord::encoded_bound(&store.codec_limits.core)
-        .ok_or(())?
-        .checked_add(u64::from(frame::WRAPPER_BYTES))
-        .ok_or(())?;
-    if length < frame::WRAPPER_BYTES || u64::from(length) > max {
+    if length < frame::WRAPPER_BYTES || length > store.limits.store.page.bytes {
         return Err(());
     }
     let start = if read.backwards { read.position.checked_sub(u64::from(length)).ok_or(())? } else { read.position };
@@ -518,7 +491,7 @@ fn length(
     }
     if read.activity.is_some() || party::single(read) || (window(read) && u64::from(length) > read.budget) {
         if length < 48 {
-            if store.transcripts.machines.body.is_some() {
+            if store.registry.has_frame(Frame::Body) {
                 read.step =
                     Step::Frame { offset: start, length, bytes: Writer::new(skein_lib::length::usize_of(length)) };
                 demand(store, read, start, length, below)?;
@@ -550,31 +523,21 @@ fn header(
     if prefix.u32() != Some(length) {
         return Err(());
     }
-    let versions = if store.transcripts.machines.turn.is_some() { 2 } else { 0 };
-    let fields = bytes.len().checked_sub(8).ok_or(())?.checked_sub(versions).ok_or(())?;
-    let mut body = Writer::new(fields.checked_add(4).ok_or(())?);
-    body.put(prefix.bytes(u32::try_from(fields).or(Err(()))?).ok_or(())?).or(Err(()))?;
-    body.put(&0_u32.to_be_bytes()).or(Err(()))?;
-    let turn = codec::core::read_turn(&body.finish(), &store.codec_limits).or(Err(()))?;
-    let size = prefix.u32().ok_or(())?;
-    if let Some(machine) = &store.transcripts.machines.turn {
+    let body = bytes.get(4..).ok_or(())?;
+    let id = registry::head(body).ok_or(())?;
+    let version = store.registry.frame_version(Frame::Body, id)?.ok_or(())?;
+    let (turn, at, size) = frame::metadata(body, version, &store.codec_limits).or(Err(()))?;
+    if store.registry.has_frame(Frame::Turn) {
         if size < 2 {
             return Err(());
         }
-        let version = prefix.u16().ok_or(())?;
-        let patcher = machine.patcher.as_ref().ok_or(())?;
-        if patcher.schema(version).is_none() || version > machine.last {
-            return Err(());
-        }
-        if version < machine.last {
+        let id = registry::head(body.get(at..).ok_or(())?).ok_or(())?;
+        if store.registry.frame_version(Frame::Turn, id)?.is_none() {
             return whole_from_head(store, read, offset, length, &bytes, below);
         }
     }
-    let expected = len_u64(bytes.len().checked_sub(versions).ok_or(())?)
-        .checked_add(u64::from(size))
-        .ok_or(())?
-        .checked_add(8)
-        .ok_or(())?;
+    let expected =
+        len_u64(at).checked_add(u64::from(size)).ok_or(())?.checked_add(u64::from(frame::WRAPPER_BYTES)).ok_or(())?;
     if u64::from(length) != expected || size > store.codec_limits.core.turn_record_transcript {
         return Err(());
     }
@@ -588,7 +551,7 @@ fn header(
         }
         return Ok(false);
     }
-    let charged_frame = store.transcripts.machines.body.is_some() || store.transcripts.machines.turn.is_some();
+    let charged_frame = frame::charged(store);
     let size = if charged_frame { length } else { size };
     if charged_frame && let Some(party) = &mut read.party {
         party.frame_bytes = Some(length);
@@ -926,130 +889,49 @@ fn whole_from_head(
     Ok(false)
 }
 
-fn patching(
+fn complete(
     store: &mut Store,
     read: &mut Read,
     offset: u64,
     length: u32,
-    mut patch: frame::Patch,
-    above: &mut Queue<Event>,
+    mut turn: TurnRecord,
+    size: u32,
     below: &mut Below,
 ) -> Result<bool, ()> {
-    match patch.next(&mut store.transcripts.machines, &store.codec_limits).or(Err(()))? {
-        frame::Progress::Written { of, site, at } => {
-            let own = match read.source {
-                Source::File => keys::Own::Transcript { task: read.task },
-                Source::Log(_) => keys::Own::TurnLog { task: read.task },
-            };
-            let key = keys::encode_own(&own, store.limits.store.key).ok_or(())?;
-            let mut name = Writer::new(key.len().checked_add(8).ok_or(())?);
-            name.put(&key).or(Err(()))?;
-            name.put(&offset.to_be_bytes()).or(Err(()))?;
-            let machine = match of {
-                crate::Owner::Jig => store.transcripts.machines.body.as_mut(),
-                crate::Owner::Smith => store.transcripts.machines.turn.as_mut(),
-                crate::Owner::Skein | crate::Owner::Application => return Err(()),
+    let charged = frame::charged(store);
+    let transcript = core::mem::replace(&mut turn.transcript, Box::new([]));
+    let payload = u32::try_from(transcript.len()).or(Err(()))?;
+    if charged && let Some(party) = &mut read.party {
+        party.frame_bytes = Some(size);
+    }
+    let cost = if charged { size } else { payload };
+    if party::single(read) && party::header(store, read, &turn, cost)? {
+        return Ok(true);
+    }
+    if let Some(page) = &mut read.activity {
+        let selected = match read.scan {
+            Scan::Turn { attempt, turn: number } => turn.attempt == attempt && turn.turn == number,
+            Scan::Page => true,
+            Scan::Window { .. } => return Err(()),
+        };
+        if selected {
+            if page.identity() != Some((turn.task, turn.attempt, turn.turn)) {
+                return Err(());
             }
-            .ok_or(())?;
-            let patcher = machine.patcher.take().ok_or(())?;
-            let owner = store.transcripts.reading.expect("active read owns the frame machine");
-            above.push(Event::Site { owner, of, key: name.finish(), site, at, patcher });
-            read.step = Step::Site { offset, length, patch, of };
-            Ok(false)
-        }
-        frame::Progress::Done { mut turn, size } => {
-            if let Some(party) = &mut read.party {
-                party.frame_bytes = Some(size);
+            let row = page.rows.get_mut(page.index).expect("pending row");
+            row.related = Some(domain::Record::Core(domain::CoreRecord::Turn(turn.clone())));
+            let bytes = row.owned_bytes().ok_or(())?.checked_add(u64::from(cost)).ok_or(())?;
+            row.related = None;
+            if bytes > page.bound {
+                return sized(store, read, offset, length, turn, cost, below);
             }
-            // Fixed metadata is judged exactly as a head's, after patching.
-            let transcript = core::mem::replace(&mut turn.transcript, Box::new([]));
-            if party::single(read) && party::header(store, read, &turn, size)? {
+            if bytes > page.bytes {
                 return Ok(true);
             }
-            if let Some(page) = &mut read.activity {
-                let selected = match read.scan {
-                    Scan::Turn { attempt, turn: number } => turn.attempt == attempt && turn.turn == number,
-                    Scan::Page => true,
-                    Scan::Window { .. } => return Err(()),
-                };
-                if selected {
-                    if page.identity() != Some((turn.task, turn.attempt, turn.turn)) {
-                        return Err(());
-                    }
-                    let row = page.rows.get_mut(page.index).expect("pending row");
-                    row.related = Some(domain::Record::Core(domain::CoreRecord::Turn(turn.clone())));
-                    let cost = row.owned_bytes().ok_or(())?.checked_add(u64::from(size)).ok_or(())?;
-                    row.related = None;
-                    if cost > page.bound {
-                        return sized(store, read, offset, length, turn, size, below);
-                    }
-                    if cost > page.bytes {
-                        return Ok(true);
-                    }
-                }
-            }
-            turn.transcript = transcript;
-            accept(store, read, Decoded { offset, length, turn, size, charge_frame: true, cut: None }, below)
         }
     }
-}
-
-/// A serving site belongs to the active read alone. A stray goes through the
-/// existing open-refusal path, including its fail-stop in Ready.
-pub(crate) fn site(
-    store: &mut Store,
-    owner: Token,
-    patcher: Box<skein_codec::patch::Patcher>,
-    result: Result<(), skein_codec::patch::Halt>,
-    above: &mut Queue<Event>,
-    below: &mut Below,
-) {
-    let waiting = if store.transcripts.reading == Some(owner) {
-        match store.transcripts.reads.get(&owner) {
-            Some(read) => match read.step {
-                Step::Site { .. } => true,
-                Step::Waiting
-                | Step::Log { .. }
-                | Step::Opening
-                | Step::Evicting { .. }
-                | Step::Length { .. }
-                | Step::Header { .. }
-                | Step::Sized { .. }
-                | Step::Frame { .. } => false,
-            },
-            None => false,
-        }
-    } else {
-        false
-    };
-    if !waiting {
-        above.push(Event::Unread { owner });
-        return;
-    }
-    let mut read = store.transcripts.reads.remove(&owner).expect("site's active reader");
-    let step = core::mem::replace(&mut read.step, Step::Waiting);
-    let resumed = match step {
-        Step::Site { offset, length, patch, of } => {
-            let machine = match of {
-                crate::Owner::Jig => store.transcripts.machines.body.as_mut(),
-                crate::Owner::Smith => store.transcripts.machines.turn.as_mut(),
-                crate::Owner::Skein | crate::Owner::Application => unreachable!("only frames' owners stop"),
-            }
-            .expect("site's machine");
-            assert!(machine.patcher.is_none(), "one outstanding site on the machine");
-            machine.patcher = Some(patcher);
-            if result.is_err() { Err(()) } else { patching(store, &mut read, offset, length, patch, above, below) }
-        }
-        Step::Waiting
-        | Step::Log { .. }
-        | Step::Opening
-        | Step::Evicting { .. }
-        | Step::Length { .. }
-        | Step::Header { .. }
-        | Step::Sized { .. }
-        | Step::Frame { .. } => unreachable!("checked waiting site"),
-    };
-    settle(store, owner, read, resumed, above);
+    turn.transcript = transcript;
+    accept(store, read, Decoded { offset, length, turn, size, charge_frame: charged, cut: None }, below)
 }
 
 fn extend_header(
@@ -1060,22 +942,19 @@ fn extend_header(
     bytes: Box<[u8]>,
     below: &mut Below,
 ) -> Result<bool, ()> {
-    if let Some(machine) = &store.transcripts.machines.body {
-        let version = skein_codec::version_of(bytes.get(4..).ok_or(())?).or(Err(()))?;
-        if version != machine.last {
-            return whole_from_head(store, read, offset, length, &bytes, below);
-        }
+    let id = registry::head(bytes.get(4..).ok_or(())?).ok_or(())?;
+    if store.registry.frame_version(Frame::Body, id)?.is_none() {
+        return whole_from_head(store, read, offset, length, &bytes, below);
     }
-    let header_size = match *bytes.get(35).ok_or(())? {
-        0 => 48_u32,
-        1 => 56_u32,
-        _ => return Err(()),
-    };
+    let header_size = u32::try_from(frame::header_bytes(bytes.get(4..).ok_or(())?).ok_or(())?)
+        .or(Err(()))?
+        .checked_add(4)
+        .ok_or(())?;
     if length < header_size.checked_add(8).ok_or(())? {
         return Err(());
     }
     let header_size =
-        if store.transcripts.machines.turn.is_some() { header_size.checked_add(2).ok_or(())? } else { header_size };
+        if store.registry.has_frame(Frame::Turn) { header_size.checked_add(2).ok_or(())? } else { header_size };
     if length < header_size.checked_add(8).ok_or(())? {
         return Err(());
     }

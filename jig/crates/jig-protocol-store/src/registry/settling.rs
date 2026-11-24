@@ -58,7 +58,7 @@ impl Walk {
                     index = index.checked_add(1).expect("registered type count fits");
                     if family.map != KeptMap::Store
                         || declared.keys.is_empty()
-                        || check::history_type(family.name, declared.number)
+                        || check::history_type(&layouts.owners, family.name, declared.number)
                     {
                         continue;
                     }
