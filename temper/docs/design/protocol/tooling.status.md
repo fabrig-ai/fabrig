@@ -2,10 +2,6 @@
 
 2026-11-24. Where temper's code lags or departs from [tooling.md](tooling.md).
 
-- **Not yet:** 4.1: the checkout doesn't yet hold the contents the merge
-  command's rename detection reads (`git-operations.md`, 1.6), so its
-  comparison of a commit whose parent held a copy no step fetched fails
-  `fatal: unable to read <object>` [in flight: change 15504].
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract (`../domain/worker/jobs.md`): no project names one, and the
