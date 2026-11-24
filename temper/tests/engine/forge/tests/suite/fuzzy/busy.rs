@@ -2,23 +2,16 @@
 use skein_fake_forge_domain::Called;
 use skein_lib::Duration;
 use skein_world::{
-    faults::Kind,
     streams::{Stream, Streams},
     sweep::Sweep,
 };
 use temper_engine_forge_world::{World, fake_config};
-
-const NO_ROOM: Kind = Kind { family: "busy", name: "no_room" };
-const UNAVAILABLE: Kind = Kind { family: "busy", name: "unavailable" };
-const TIMED_OUT: Kind = Kind { family: "busy", name: "timed_out" };
-const LANDING: Kind = Kind { family: "busy", name: "landing" };
-const LATE: Kind = Kind { family: "busy", name: "late" };
-const LIMITED: Kind = Kind { family: "busy", name: "limited" };
+use temper_faults::forge::{BUSY, LANDING, LATE, NO_ROOM};
 
 #[test]
 fn busy_and_slow_forges_keep_the_batches_invariants() {
     let mut sweep = Sweep::new("busy_and_slow_forges_keep_the_batches_invariants");
-    for kind in [NO_ROOM, UNAVAILABLE, TIMED_OUT, LANDING, LATE, LIMITED] {
+    for kind in BUSY {
         sweep.configure(kind);
     }
     let mut refused_read = false;
