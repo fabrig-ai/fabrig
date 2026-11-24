@@ -183,6 +183,17 @@ impl Tree {
         self.clone().bind(path.as_ref())
     }
 
+    /// Get a handle to a live listener without rebinding its socket.
+    pub fn bound_listener(&self, path: impl AsRef<Path>) -> io::Result<Listener> {
+        let path = self.walk(path.as_ref(), true, false)?;
+        let entry = self.entry(&path)?;
+        let Contents::Socket(connections) = &entry.borrow().contents else {
+            return Err(ErrorKind::ConnectionRefused.into());
+        };
+        let connections = connections.upgrade().ok_or(ErrorKind::ConnectionRefused)?;
+        Ok(Listener { path, connections })
+    }
+
     fn absolute(&self, path: &Path) -> PathBuf {
         let mut absolute = PathBuf::from("/");
         for part in self.directory.join(path).components() {
