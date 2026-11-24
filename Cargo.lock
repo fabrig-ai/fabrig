@@ -7676,6 +7676,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "rustls",
+ "skein-fake-machine",
  "skein-http",
  "skein-io",
  "skein-lib",
