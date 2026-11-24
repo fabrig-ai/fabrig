@@ -35,13 +35,14 @@ pub(crate) fn run(
     })
 }
 
-fn run_with(
+/// Perform the checked sign-in command with supplied credential and print effects.
+pub fn run_with(
     directories: &super::Directories,
     bytes: &[u8],
     named: &Named,
     number: u16,
     environment: &[EnvironmentEntry],
-    make_missing: impl Fn(&Path, bool) -> Result<(), String>,
+    mut make_missing: impl FnMut(&Path, bool) -> Result<(), String>,
     print: impl FnOnce(&[u8]) -> Result<(), String>,
 ) -> Result<u8, String> {
     let row = named

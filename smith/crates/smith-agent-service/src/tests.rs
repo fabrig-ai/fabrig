@@ -61,6 +61,7 @@ fn standard_profile_admits_the_priced_shell_run_defaults() {
             workspace: None,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );
@@ -94,6 +95,7 @@ fn seen_entrance_answer(
             workspace: None,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );
@@ -365,6 +367,7 @@ fn the_measured_large_contract_is_admitted_at_the_host_edge_and_refused_one_byte
                 workspace: None,
                 transcript: None,
                 resumed: false,
+                tell_parts: false,
             },
             &mut out,
         );
@@ -442,6 +445,7 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
             workspace: None,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );
@@ -717,6 +721,7 @@ fn a_small_window_lowers_the_guide_bound_and_admits_the_run() {
     charter.models = Box::default();
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             name: b"work".as_slice().into(),
             host: b"/workspace".as_slice().into(),
             root: Token::new(1),
@@ -754,6 +759,7 @@ fn start_with_workspace(
             workspace: Some(workspace),
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );

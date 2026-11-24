@@ -11,7 +11,13 @@
 //! oversized bundle refuses startup. PEM follows RFC 7468's lax form and
 //! recovers at the next BEGIN line after a malformed certificate block.
 
+mod files;
+mod roots;
 mod store;
+
+pub use files::directory_access;
+pub(crate) use files::{private_metadata, read_bounded};
+pub use roots::make_root;
 pub use store::{STORE_OPERATIONS, StartupStore, StoreDirectory, Stored, Unstored, store_file};
 
 use std::path::{Path, PathBuf};
@@ -20,10 +26,7 @@ use skein_io::kernel;
 use skein_lib::Secret;
 use skein_lib::base64::{self, Alphabet};
 
-pub use crate::system::{
-    directory_access, effective_user, make_root, open_append, open_root, prepare_output, process_id,
-    resolve_system_links,
-};
+pub use crate::system::{effective_user, open_append, open_root, prepare_output, process_id, resolve_system_links};
 
 /// How startup adopts a standard output descriptor (runtime/io/files.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,6 +71,28 @@ pub enum Unread {
 /// entry such as a FIFO or taking a controlling terminal (runtime/shell-startup.md, 1.1).
 pub fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     crate::system::read_file(path, max)
+}
+
+/// Read metadata at the final name without following a symbolic link.
+pub fn symlink_stat(path: &Path) -> std::io::Result<kernel::Stat> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = std::fs::symlink_metadata(path)?;
+    let kind = if metadata.is_symlink() {
+        kernel::Kind::Symlink
+    } else if metadata.is_dir() {
+        kernel::Kind::Directory
+    } else if metadata.is_file() {
+        kernel::Kind::File
+    } else {
+        kernel::Kind::Other
+    };
+    Ok(kernel::Stat {
+        kind,
+        size: metadata.len(),
+        mode: metadata.mode() & kernel::PERMISSIONS,
+        owner: metadata.uid(),
+        links: u32::try_from(metadata.nlink()).unwrap_or(u32::MAX),
+    })
 }
 
 /// Reads a secret within `max` bytes after io's private-file checks,
@@ -120,9 +145,27 @@ pub enum RootsRefusal {
 /// counting malformed and other blocks (runtime/shell-startup.md, 1.2). Empty results are
 /// handed to TLS, whose `Config::from_der` refuses roots of none.
 pub fn read_trust_roots(trust: &Trust, bounds: &RootBounds) -> Result<Roots, RootsRefusal> {
+    roots_with(trust, bounds, native_read)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RootRead<'a> {
+    path: &'a Path,
+    max: u32,
+}
+
+fn native_read(request: RootRead<'_>) -> Result<Box<[u8]>, Unread> {
+    read_file(request.path, request.max)
+}
+
+fn roots_with(
+    trust: &Trust,
+    bounds: &RootBounds,
+    mut read: impl FnMut(RootRead<'_>) -> Result<Box<[u8]>, Unread>,
+) -> Result<Roots, RootsRefusal> {
     match trust {
         Trust::Der(path) => {
-            let certificate = source(path, bounds.bundle_bytes)?;
+            let certificate = source(RootRead { path, max: bounds.bundle_bytes }, &mut read)?;
             if skein_lib::len_u64(certificate.len()) > u64::from(bounds.certificate_bytes) {
                 return Err(RootsRefusal::TooLong { index: 0, bound: bounds.certificate_bytes });
             }
@@ -132,7 +175,7 @@ pub fn read_trust_roots(trust: &Trust, bounds: &RootBounds) -> Result<Roots, Roo
             Ok(Roots { certificates: Box::from([certificate]), path: path.clone(), other_blocks: 0, malformed: 0 })
         }
         Trust::Machine { ssl_cert_file: Some(path) } => {
-            let bytes = source(path, bounds.bundle_bytes)?;
+            let bytes = source(RootRead { path, max: bounds.bundle_bytes }, &mut read)?;
             pem(&bytes, path, bounds)
         }
         Trust::Machine { ssl_cert_file: None } => {
@@ -144,15 +187,20 @@ pub fn read_trust_roots(trust: &Trust, bounds: &RootBounds) -> Result<Roots, Roo
                 "/etc/ssl/cert.pem",
             ]
             .map(Path::new);
-            machine(&paths, bounds)
+            machine(&paths, bounds, read)
         }
     }
 }
 
-fn machine(paths: &[&Path], bounds: &RootBounds) -> Result<Roots, RootsRefusal> {
+fn machine(
+    paths: &[&Path],
+    bounds: &RootBounds,
+    mut read: impl FnMut(RootRead<'_>) -> Result<Box<[u8]>, Unread>,
+) -> Result<Roots, RootsRefusal> {
     let mut selected = None;
     for path in paths {
-        select_source(&mut selected, path, read_file(path, bounds.bundle_bytes), bounds);
+        let result = read(RootRead { path, max: bounds.bundle_bytes });
+        select_source(&mut selected, path, result, bounds);
         if let Some(result) = selected {
             return result;
         }
@@ -177,8 +225,11 @@ fn select_source(
     };
 }
 
-fn source(path: &Path, max: u32) -> Result<Box<[u8]>, RootsRefusal> {
-    read_file(path, max).map_err(|why| RootsRefusal::Unread { path: path.to_path_buf(), why })
+fn source(
+    request: RootRead<'_>,
+    read: &mut impl FnMut(RootRead<'_>) -> Result<Box<[u8]>, Unread>,
+) -> Result<Box<[u8]>, RootsRefusal> {
+    read(request).map_err(|why| RootsRefusal::Unread { path: request.path.to_path_buf(), why })
 }
 
 fn pem(bundle: &[u8], path: &Path, bounds: &RootBounds) -> Result<Roots, RootsRefusal> {
@@ -279,7 +330,7 @@ mod tests {
 
     use skein_scratch::Scratch;
 
-    use super::{RootBounds, RootsRefusal, machine};
+    use super::{RootBounds, RootsRefusal, machine, native_read};
 
     #[test]
     fn a_distribution_bundle_loads_from_its_path() {
@@ -287,7 +338,7 @@ mod tests {
         let first = scratch.path().join("first");
         let bounds = RootBounds { bundle_bytes: 1_024, certificates: 1, certificate_bytes: 3 };
         fs::write(&first, b"-----BEGIN CERTIFICATE-----\nTWFu\n-----END CERTIFICATE-----\n").expect("first bundle");
-        let roots = machine(&[&first], &bounds).expect("load distribution bundle");
+        let roots = machine(&[&first], &bounds, native_read).expect("load distribution bundle");
         assert_eq!(roots.path, first, "loaded bundle path");
     }
 
@@ -296,9 +347,11 @@ mod tests {
         let scratch = Scratch::new("startup");
         let absent = scratch.path().join("absent");
         let bounds = RootBounds { bundle_bytes: 1_024, certificates: 1, certificate_bytes: 3 };
-        assert_eq!(machine(&[&absent], &bounds).expect_err("none exist"), RootsRefusal::NoBundle);
+        assert_eq!(machine(&[&absent], &bounds, native_read).expect_err("none exist"), RootsRefusal::NoBundle);
     }
 }
 
 #[cfg(test)]
 mod lower_tests;
+#[cfg(test)]
+mod trust_tests;

@@ -1,6 +1,5 @@
 //! Native endpoint resolution and bounded trust loading before channel startup.
 //! Contract: smith/docs/design/shell/README.md, section 2.6; smith/docs/design/protocol/agent.md, section 4.
-#[cfg(unix)]
 use super::document::TrustDocument;
 use super::{
     ConfigurationRefusal,
@@ -51,16 +50,25 @@ pub(super) fn resolve(address: &str) -> Result<SocketAddr, ConfigurationRefusal>
     address.parse().map_err(|error| format!("endpoint address {address:?}: {error}; no name resolution").into())
 }
 
+#[cfg(unix)]
 pub(super) fn endpoints(
     endpoints: Box<[PreparedEndpoint]>,
     limits: &connection::Limits,
-    #[cfg_attr(not(unix), expect(unused_variables, reason = "only the cfg(unix) trust loading writes diagnostics"))]
     errors: &mut dyn Write,
     #[cfg(unix)] mut roots: RootReader<'_>,
 ) -> Result<Box<[llm::ConfiguredEndpoint]>, ConfigurationRefusal> {
+    endpoints_with(endpoints, limits, resolve, |der, trust| endpoint_trust(der, trust, errors, &mut roots))
+}
+
+pub(super) fn endpoints_with(
+    endpoints: Box<[PreparedEndpoint]>,
+    limits: &connection::Limits,
+    address: impl Fn(&str) -> Result<SocketAddr, ConfigurationRefusal>,
+    mut trust: impl FnMut(Option<&str>, Option<&TrustDocument>) -> Result<skein_tls::Config, ConfigurationRefusal>,
+) -> Result<Box<[llm::ConfiguredEndpoint]>, ConfigurationRefusal> {
     let mut configured = Vec::with_capacity(endpoints.len());
     for endpoint in endpoints {
-        let address = resolve(&endpoint.address)?;
+        let address = address(&endpoint.address)?;
         let transport = match endpoint.transport {
             EndpointTransport::Plaintext => {
                 if !address.ip().is_loopback() {
@@ -68,13 +76,9 @@ pub(super) fn endpoints(
                 }
                 connection::Transport::Plaintext
             }
-            #[cfg(unix)]
-            EndpointTransport::Tls { server_name, trust_der, trust } => connection::Transport::Tls {
-                server_name,
-                trust: endpoint_trust(trust_der.as_deref(), trust.as_ref(), errors, &mut roots)?,
-            },
-            #[cfg(not(unix))]
-            EndpointTransport::Tls { .. } => return Err("TLS requires a native shell".into()),
+            EndpointTransport::Tls { server_name, trust_der, trust: roots } => {
+                connection::Transport::Tls { server_name, trust: trust(trust_der.as_deref(), roots.as_ref())? }
+            }
         };
         let mut destination = connection::Endpoint {
             address,
@@ -161,7 +165,7 @@ pub(super) fn trust_source(source: &skein_shell::Trust) -> Result<tls::Config, S
 }
 
 #[cfg(unix)]
-fn endpoint_trust(
+pub(super) fn endpoint_trust(
     der: Option<&str>,
     document: Option<&TrustDocument>,
     errors: &mut dyn Write,
@@ -177,6 +181,15 @@ fn endpoint_trust(
     sources.extend(document.der.iter().map(|path| skein_shell::Trust::Der(path.into())));
     sources.extend(document.pem.iter().map(|path| skein_shell::Trust::Machine { ssl_cert_file: Some(path.into()) }));
     trust_sources(&sources, errors, roots)
+}
+
+#[cfg(not(unix))]
+pub(super) fn endpoint_trust(
+    _der: Option<&str>,
+    _document: Option<&TrustDocument>,
+    _errors: &mut dyn Write,
+) -> Result<skein_tls::Config, ConfigurationRefusal> {
+    Err("TLS requires a native shell".into())
 }
 
 #[cfg(unix)]

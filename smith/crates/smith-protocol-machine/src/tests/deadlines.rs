@@ -31,6 +31,7 @@ fn running(held: bool) -> (Component, Queue<ToDomain>, Queue<Below>) {
             }
         } else {
             FromDomain::Check {
+                results: None,
                 owner,
                 program: run::Place { root: Token::new(10), path: Box::from(b"check".as_slice()) },
                 bound: DEADLINE.saturating_since(Time::ZERO),

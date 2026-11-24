@@ -126,7 +126,8 @@ Moved to [`run-start.md`](run-start.md), section 1.
    nothing it started is still writing.
 6. **Tells each turn** to its host as it ends (session.md, section 3):
    what the LLM said and called, the results, what it spent, and the last
-   message it read.
+   message it read; and, to a host that asks, its parts as they come
+   (turn-parts.md).
 7. **Judges** a declared result against the contract (section 7). A
    violation goes back to the LLM as a tool error it can fix; it does not
    end the run.
@@ -418,6 +419,7 @@ finish delivered meanwhile is still its result (`run-delivery.md`, 1.4).
 - **At once** when no completion of main is in flight: a run awaiting its first message, waiting, listening after a reply, or still preparing ends as a cancel ends it.
 - **A turn that ends the run anyway** answers as it would have: a result accepted, a park.
 - **A cancel after a drain** cuts the turn, as any cancel does. The drain's wait is the host's to bound: smith arms nothing for it.
+- **A drain with a grace,** from a host that asked for parts, ends the run at its answer instead: the calls in flight get the grace, then are cut, and the turn stays open for the next activation (turn-parts.md, section 4).
 
 ## 10. Facts
 

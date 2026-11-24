@@ -239,7 +239,14 @@ terms (channel.md, sections 2 and 7):
   transcript, the answers it lacks and the start's messages. The
   transcript is one piece of bytes, bounded at the resume limit's bytes
   with a length for each turn; the agent counts its turns against the
-  resume limit's turns as it splits it (channel.md, section 3);
+  resume limit's turns as it splits it (channel.md, section 3). The
+  parts a resumed start carries are one piece too, counted with the
+  transcript's turns against the same limit, in turns and bytes; the
+  agent drops parts past it, never refusing the start for them, and
+  resumes from the window alone. Main's parts fit beside its window,
+  since a session's window held them when they were told; sub-agents'
+  may not;
+- **a part's frame:** as a turn's, its body bounded as a turn's;
 - **a message's frame:** a message at its bound (1.9);
 - **its queue:** the window's turns, the calls in flight (at most
   `conversations`), the notices, the long operations, the answer and a

@@ -901,6 +901,7 @@ fn a_headless_start_reading_its_repository_head() -> (Domain, Env<Limits>, Queue
     config.mode = crate::Mode::Headless { prompt: b"hello".as_slice().into() };
     config.workspace = Some(run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             root: Token::new(1),
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),

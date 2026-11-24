@@ -16,7 +16,7 @@
 #![expect(clippy::disallowed_macros, reason = "fixed and limit-sized kernel buffers need initialized storage")]
 #![expect(clippy::large_enum_variant, reason = "FileIo holds one pending store without a separate allocation")]
 
-use crate::file::{Entry, Event, Request};
+use crate::file::{Entry, Event, Request, Unsafe};
 use crate::kernel::{Complete, Done, Error, Fd, Op, OpenHow, Submit};
 use alloc::boxed::Box;
 use alloc::vec;
@@ -1105,10 +1105,10 @@ fn up_inner(
         Pending::LoadStating { owner, fd, max, mut loading } => {
             let stat = store::done_stat(done);
             let unsafe_found = match loading.as_ref() {
-                Some(loading) => private::unsafe_file(stat, loading.user),
+                Some(loading) => Unsafe::private_file(stat, loading.user),
                 None => None,
             };
-            if unsafe_found == Some(crate::file::Unsafe::Links(0))
+            if unsafe_found == Some(Unsafe::Links(0))
                 && match loading.as_ref() {
                     Some(loading) => !loading.reopened,
                     None => false,

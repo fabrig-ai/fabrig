@@ -127,6 +127,7 @@ fn take(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             workspace,
             transcript,
             resumed,
+            tell_parts,
         } => {
             run::start(
                 domain,
@@ -142,6 +143,7 @@ fn take(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                     workspace,
                     transcript,
                     resumed,
+                    tell_parts,
                 },
                 out,
             );
@@ -153,8 +155,9 @@ fn take(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         Event::Turn { conversation, record, sequence, opens_window } => {
             run::turn(domain, conversation, record, sequence, opens_window, out);
         }
-        Event::Cancel { run } => run::cancel(domain, run, out),
-        Event::Drain { run } => run::drain(domain, run, out),
+        Event::Cancel { run } => run::cancel_now(domain, run, out),
+        Event::Drain { run, grace } => run::drain(domain, run, grace, env.now, out),
+        Event::PartKept { run, number } => run::part_kept(domain, run, number),
         Event::Started { conversation, peer } => run::started(domain, conversation, peer, out),
         Event::JobsCancelled { conversation } => run::jobs_cancelled(domain, env, conversation, out),
         Event::Yielded { conversation, stop, text } => run::yielded(domain, env, conversation, stop, &text, out),
@@ -188,6 +191,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     match alarm {
         Alarm::Deadline { run } => run::deadline(domain, run, out),
         Alarm::Park { run } => run::park(domain, run, out),
+        Alarm::Grace { run } => run::cut(domain, run, out),
         Alarm::Call { call } => run::expired(domain, call, out),
         Alarm::Host { call } => run::host_alarm(domain, env, call, out),
     }
@@ -202,7 +206,14 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     facts::tell(&mut domain.facts, &domain.runs, &domain.conversations, out, mark);
 }
 
-pub use run::{close_drained, completion_overflow, completion_permit, reserve, settle_reservation};
+pub use run::{close_drained, completion_overflow, completion_permit, cutting, part, reserve, settle_reservation};
+
+/// Arm the drain's grace after a provider terminal has released its reservation.
+pub fn completion_settled(domain: &mut Domain, conversation: Token, now: Time) {
+    if let Some(id) = owner(domain, conversation) {
+        run::arm_grace(domain, skein_lib::Id::from_token(id), now);
+    }
+}
 
 /// Live run that owns this conversation, for its parent's acknowledgement routing.
 #[must_use]

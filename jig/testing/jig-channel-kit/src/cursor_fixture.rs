@@ -35,6 +35,7 @@ pub(crate) fn frames() -> Wire {
     let message =
         w::Message { name: 9, sender: Box::default(), words: b"Hello".as_slice().into(), finish_requested: false };
     let assignment = w::Assignment {
+        parts: Box::new([]),
         task: 7,
         attempt: 2,
         identity: [0; 16],

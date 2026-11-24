@@ -397,7 +397,10 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
 - **Its world behind faces:** the drive tool, run as a process from the
   place's `bin/`; the archive (below); the install's checksums, in Rust
   (section 3; `builds.md`, 3 and 4); the holder's socket and its
-  process. The QA tool links none of the drive tool's code: the place's
+  process. The drive tool's and the archive's production faces run their
+  programs through the tool's processes face and their paths through its
+  files face (`README.md`, 6), so that what they decide replays. The QA
+  tool links none of the drive tool's code: the place's
   build reads its own recipes and speaks its own lines.
 - **The archive** is the system's `tar`, run as a process with the
   captured environment and closed stdin, given only options GNU tar and
@@ -430,10 +433,12 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
   system's tar writes by default; a copy is restored only at the place
   that made it (section 2), so by the tar that wrote it. Copies saved before this form hold the same members, those with a
   pinned `agent/` among them, and restore unchanged.
-- **Focused tests,** with no box and no browser: a fake
-  `temper-client-journeys` in a test place's `bin/`, a small script that
-  answers `recipe list`, `recipe hash`, `recipe walk` and `drive` as the
-  test tells it; an archive face that copies directories:
+- **Focused tests,** in the QA world (`README.md`, 6), with no box and
+  no browser: `temper-client-journeys` in the place's `bin/` a scripted
+  program answering `recipe list`, `recipe hash`, `recipe walk` and
+  `drive` as the test tells it, `tar` a scripted program for the
+  archive's own face, and an archive face that copies directories of
+  the world's tree:
   - a copy restored and its check walked; a copy refused by name made
     again from its parent's copy, each copy saved on the way, and the
     refused one removed; a chain with no copy walked from a fresh box;
@@ -442,18 +447,21 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
   - a copy saved without its worker's pinned `agent/`, the rest of
     `data/` with it, and a copy holding one restored without it;
   - the install's checksum refused for a file the manifest disagrees
-    with;
-  - the real faces, on both systems: the real archive's save leaving out
-    a pinned `agent/` and a restore removing one an older copy holds,
-    with a directory of the same name elsewhere kept, and `copies/R/`
-    and SCRATCH holding nothing set aside once it ends; the real
-    checksums' lines equal to `sha256sum`'s for plain and escaped paths
-    (`builds.md`, 4), and their check naming each file that differs or
-    does not read; a path that is not UTF-8 on Linux alone
+    with; the checksums' lines equal to `sha256sum`'s for plain and
+    escaped paths (`builds.md`, 4), and their check naming each file
+    that differs or does not read;
+  - the archive's saves and restores through `tar` setting aside,
+    moving back and removing pinned paths, and refusing in their words;
+  - the real faces, on both systems, in the real loop: the system's
+    `tar` saving a copy without a pinned `agent/` and a restore removing
+    one an older copy holds, with a directory of the same name elsewhere
+    kept, and `copies/R/` and SCRATCH holding nothing set aside once it
+    ends; the checksums of a path that is not UTF-8, on Linux alone
     (`../macos.md`, 3);
-  - a holder giving lines and answers through the socket, `pass line`'s
-    exits, `pass close`'s kept lines, and the holder ending its session
-    once the ledger ends the pass session;
+  - a holder giving lines and answers, `pass line`'s exits, `pass
+    close`'s kept lines, and the holder ending its session once the
+    ledger ends the pass session, its two halves over scripted peers
+    (`README.md`, 6), and through the socket once in the real loop;
   - `pass open --ctl` starting `drive --ctl`; at a deployment's place,
     a restore walking with `--scratch deployment`, its ports and
     `--bundle bundle`, its copy saved from that directory, and the

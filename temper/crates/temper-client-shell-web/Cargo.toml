@@ -48,3 +48,4 @@ skein-scratch.workspace = true
 skein-world.workspace = true
 jig-client-protocol-link.workspace = true
 jig-client-test-records.workspace = true
+temper-client-view-kit.workspace = true

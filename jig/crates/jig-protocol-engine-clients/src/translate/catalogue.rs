@@ -16,7 +16,7 @@ pub(super) fn offers(values: &List<d::ProviderOffer>, bound: u32, limits: &w::Li
             signed_in_plan: value.signed_in_plan,
             provider: value.provider,
             key_bytes: value.key_bytes,
-            name: owner::text(&value.name, limits)?,
+            name: owner::text(&value.name),
             programs: value.programs.clone(),
             manage_usage: value.manage_usage.clone(),
         };
@@ -36,7 +36,7 @@ pub(super) fn readiness(
     for value in values {
         let row = w::PayerReadiness {
             provider: value.provider,
-            payer: accounts::payer(value.payer, limits)?,
+            payer: accounts::payer(value.payer),
             readiness: match value.readiness {
                 d::Readiness::Usable => w::Readiness::Usable,
                 d::Readiness::Unavailable => w::Readiness::Unavailable,

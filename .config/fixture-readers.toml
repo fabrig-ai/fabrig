@@ -817,7 +817,7 @@ package = "temper-worker-service"
 filter = "kind(lib)"
 
 # temper/testing/temper-box-kit/src/cluster.rs: description/read/documents/render_files and settings_file; suite
-# configuration/startup/fake_opening and process cluster/case callers.
+# configuration/startup/fake_opening and process cluster callers.
 [[fixture]]
 paths = ["temper/bin/temper-box/tests/fixtures/cluster/*"]
 [[fixture.reader]]
@@ -829,13 +829,13 @@ pair = "process-temper"
 package = "temper-box"
 filter = "binary(=process)"
 
-# cluster_turn/mod.rs and its focused shared-setup contracts.
+# cluster_turn/mod.rs and its focused worker-input and delivery fixture contracts.
 [[fixture]]
 paths = ["temper/bin/temper-box/tests/fixtures/cluster-turn/*"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-box"
-filter = "binary(=suite) & test(/support_tests::cluster_turn_/)"
+filter = "binary(=suite) & (test(=support_tests::cluster_turn_documents_admit_the_worker_and_script_delivery) | test(=support_tests::cluster_turn_worker_inputs_exclude_the_forge_admin_token))"
 [[fixture.reader]]
 pair = "process-temper"
 package = "temper-box"
@@ -1013,7 +1013,7 @@ filter = "binary(=suite) & (test(/^fuzzy::green_light::/) | test(/^fuzzy::repair
 [[fixture.reader]]
 pair = "process-temper"
 package = "temper-box"
-filter = "binary(=process) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
+filter = "binary(=proof_live) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
 
 # real-loop repair::{fixture,recipe,acts,check}; temper suite/fake_opening.rs reads person/llm.
 # llm-base.json feeds the declared regenerator.

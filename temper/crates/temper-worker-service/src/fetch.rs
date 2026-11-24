@@ -182,6 +182,7 @@ impl Fetch {
                 link::Request::Ready
                 | link::Request::Restarting { .. }
                 | link::Request::RelayCancelled { .. }
+                | link::Request::ResendPart { .. }
                 | link::Request::Resend { .. }
                 | link::Request::Lost
                 | link::Request::GracePassed

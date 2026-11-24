@@ -386,7 +386,7 @@ fn an_accounts_document_is_watched_but_never_read() {
     }));
     let limits = fixtures::wire();
     assert_eq!(
-        watches::delivery(&document, 0, 1, &[], &List::with_capacity(0), &limits),
+        watches::delivery(&document, 1, &[], &List::with_capacity(0), &limits),
         Ok(w::DeliveryValue::Accounts(w::Accounts {
             lendable: false,
             usable: false,
@@ -466,7 +466,7 @@ fn a_stream_queue_includes_the_in_flight_record_at_its_exact_bound() {
     for short in [false, true] {
         let (mut world, stream) = stream_world();
         let watcher = application_watch(&mut world, stream, 1);
-        let packet = watches::application_packet(9, 2, Box::new([77; 128]), 1, &world.env.limits.wire).expect("packet");
+        let packet = watches::application_packet(9, 2, Box::new([77; 128]), 1);
         let exact =
             world.stream().bytes + packet.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture");
         world.env.limits.queued_bytes = exact - u32::from(short);

@@ -71,7 +71,11 @@ of domain/host.md, section 2.
   of kinds, and the records of that version's schema. Each half speaks
   one version, its build's, and offers only that one: this channel is
   per-build (README.md, section 8).
-  The current version is 13 (`channel-v13.schema`), which adds the
+  The current version is 14 (`channel-v14.schema`), which adds a
+  turn's parts, `part` up and `part kept` down (section 4), the
+  start's `tell_parts` and parts, a directory's `results` and the
+  drain's grace (section 3), for a host that keeps a run's place
+  across its restart (domain/turn-parts.md); version 13 added the
   agent's `signalled` (section 4); version 12 added a program's usage
   window (section 4); version 11 added a program that
   started without smith's tools to a run's failures, and version 8 a
@@ -127,8 +131,9 @@ of domain/host.md, section 2.
 | acknowledge | a turn's number: that turn and every one before it are kept durably | as the host keeps them |
 | grant | an account; a generation; how long it is valid; its value (section 6) | when the host refreshes one |
 | renewals | whether the host's renewals of grants are held | when its link to what grants them is lost, `held`, and when it is back, not held (section 6) |
+| part kept | a part's number: that part and every one before it are kept durably | as the host keeps them, from version 14 |
 | cancel | nothing | at most once |
-| drain | nothing | at most once, and never after a cancel: the run stops at the end of its current turn (domain/run.md, section 9) |
+| drain | the grace, an optional `duration` (from version 14) | at most once, and never after a cancel: without a grace the run stops at the end of its current turn (domain/run.md, section 9); with one, at its answer, the calls in flight cut after the grace (domain/turn-parts.md, section 4). Only a host whose start asked for parts gives a grace |
 
 **The start** (../domain/run-start.md, 1.2):
 
@@ -149,6 +154,10 @@ of domain/host.md, section 2.
     whole; a run takes as many as its run limits' `conflicts` and
     `conflict_path_bytes` give (`limits.md`), which the host's own bounds
     on a checkout's conflicts must fit;
+  - its checks' results directory, `results`, if the host names one:
+    where it sits on the agent's file system, at most 4,096 bytes, kept
+    by the host as long as the directory's tree (`domain/run-delivery.md`, 1.1);
+    from version 14;
 - **the transcript,** if the run resumes: its turns' bytes, in order, as
   they were told, from the last turn whose record had `opens_window`
   (section 4; transcript.md, section 3). Earlier windows are never sent.
@@ -160,6 +169,22 @@ of domain/host.md, section 2.
   (limits-derivation.md, 1.6). A piece whose lengths do not end exactly at
   its end, or with a turn past the turn's bound, is a malformed or
   oversized transcript (domain/session.md, section 3);
+- **`tell_parts`:** whether the run tells its turns' parts (section 4;
+  domain/turn-parts.md, section 3), for a host that keeps them; from
+  version 14;
+- **the parts,** if the run resumes a turn a drain cut: those the host
+  kept since the transcript's last turn, in the order told, across the
+  activations that told them, one piece as the transcript is: each a
+  `KeptPart` record after its length, a `u32`. A `KeptPart` is the
+  activation it was told in, its `turn`, `thread`, `call` and `kind`, and
+  its body's bytes, as the part record had them (section 4). The
+  transcript's turns and the parts count together against the resume
+  limit, in turns and bytes (protocol/limits.md, 3.6). A host sends main's
+  parts, then each sub-agent's, all of one `call` or none, in call
+  order, while they fit; where main's do not, it sends the window alone.
+  The agent drops parts past the limit, or that do not decode, and
+  resumes from the window alone, never refusing the start for them.
+  From version 14;
 - **the calls the transcript does not hold as answered,** that the host
   answered: a call whose turn was never told, or one the run withdrew and
   the host decided later. Each is a name, the tool, and the answer the
@@ -223,6 +248,7 @@ of domain/host.md, section 2.
 | call | a name; the tool; its effect; its deadline, as a duration; what it asks (below) | while the run lives, each name once while in flight |
 | withdraw | a call's name | once per call, at most |
 | turn | its number in this activation; the spend so far; the last message read, if any; `opens_window`; its body, as bytes (transcript.md) | numbered from one in each activation, each once |
+| part | its number in this activation; its `turn`; its `thread`; its `call`; its `kind`, `answer`, `result` or `window`; its body, as a turn's bytes (transcript.md) (below) | only to a start that asked (`tell_parts`), numbered from one in each activation apart from turns, each once; from version 14 |
 | waiting | the last message read, if any | when the run waits for a message, or awaits its first |
 | long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, a completion waits out its provider's rate limit (as `completion`, until its retry), or a completion waits for a grant (domain/session.md, section 4) |
 | long done | nothing | when one ends |
@@ -265,6 +291,26 @@ at or after the end of the one before. A start after the end is a gap,
 the bytes between dropped (section 7); a reader marks a gap and carries
 on. The pieces carry no count of what was dropped: the agent counts it
 (section 7).
+
+**A part** (domain/turn-parts.md, section 2), from version 14:
+
+```
+enum PartKind { answer, result, window }
+record Part { number: u32 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
+record PartKept { number: u32 }
+record KeptPart { activation: u64 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
+record Drain { grace: option duration }
+```
+
+- **`turn`:** the number main's turn in flight will have in this
+  activation, the last turn told plus one, as a live piece's;
+- **`thread`:** the conversation's, main's zero; **`call`:** for a
+  sub-agent's part, the position of the `sub_agent` call it answers
+  among main's answer's blocks, and zero for main's;
+- **its body** is bounded as a turn's, and counts with the turns
+  against the start's window of unacknowledged turns and bytes
+  (section 7); a `part kept` acknowledges it as `acknowledge` does a
+  turn.
 
 **Long operations** are what the run waits on below it with deadlines of
 its own, so the host's watchdog stretches over them (domain/host.md,
@@ -358,10 +404,14 @@ edge is independent of the channel's own flow control (section 7).
   - answers to calls come once per call, even after a cancel, since a
     delivery is never abandoned (domain/host.md, section 2);
   - the cancel comes at most once;
-  - the drain comes at most once, and never after the cancel; a cancel may follow it.
+  - the drain comes at most once, and never after the cancel; a cancel may follow it; a drain with a grace only to a start that asked for parts;
+  - a part kept names a part told, and never goes back.
 - **Up:**
   - admitted, or a refused answer, comes first;
   - turns are consecutive from one, and their spend never falls;
+  - parts come only to a start that asked, consecutive from one apart
+    from turns; a part's `turn` is the last turn told plus one, and an
+    answer of main's comes before any result of its turn;
   - a call's name is used once while it is in flight;
   - a message is refused at most once, and only before a fence covers it;
   - the last message read names a message the host sent, and never goes

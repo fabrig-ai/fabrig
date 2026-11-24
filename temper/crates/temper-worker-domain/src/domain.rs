@@ -170,6 +170,7 @@ impl Domain {
                         | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Part { .. }
                         | host::LinkUp::Turn { .. }
                         | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. },
@@ -255,6 +256,11 @@ impl Domain {
     #[must_use]
     pub const fn checkout(&self) -> &checkout::Domain {
         &self.checkout
+    }
+
+    /// Restore the workspaces the protocol start kept for their runs.
+    pub fn restore_workspaces(&mut self, marks: Box<[checkout::git::Kept]>) {
+        self.checkout.restore_workspaces(marks);
     }
 
     /// Keep matching clones when an idle checkout workspace is evicted.

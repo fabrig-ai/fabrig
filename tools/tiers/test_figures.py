@@ -127,6 +127,70 @@ class Figures(unittest.TestCase):
         self.assertEqual((result.returncode, result.stdout, result.stderr),
                          (0, f"figures: {BUDGETS} alone changed since {self.base}: the user's figures\n", ''))
 
+    def member_head(self, content=None, *, other=False):
+        self.git('checkout', '-q', '--detach', self.base)
+        if content is not None:
+            self.write(BUDGETS, content)
+        if other:
+            self.write('other', 'member change\n')
+        return self.commit('member')
+
+    def stack_members(self, *members):
+        self.git('checkout', '-q', '--detach', self.base)
+        prefixes = []
+        for member in members:
+            self.git('merge', '--no-ff', '-qm', 'land member', member)
+            prefixes.append(self.git('rev-parse', 'HEAD'))
+        return prefixes
+
+    def test_batch_passes_the_users_figures_in_either_order(self):
+        accepted = INSTRUCTION_BASE.replace('ideal_instructions = 250000000000\n',
+                                            'ideal_instructions = 250000000000\naccepted_instructions = 300000000000\n')
+        self.set_base(accepted)
+        budget = self.member_head(accepted.replace('300000000000', '300000000001'))
+        other = self.member_head(other=True)
+        for lowest, highest in ((other, budget), (budget, other)):
+            with self.subTest(budget_on_top=highest == budget):
+                prefix, _ = self.stack_members(lowest, highest)
+                before_budget, before_other = (prefix, self.base) if highest == budget else (self.base, prefix)
+                alone = f"figures: {BUDGETS} alone changed since {before_budget}: the user's figures"
+                unchanged = f'figures: {BUDGETS} unchanged since {before_other}'
+                lines = [unchanged, alone] if highest == budget else [alone, unchanged]
+                result = self.run_check('--base', self.base)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(result.stdout.splitlines(),
+                                 [f'figures: HEAD stacks 2 members on {self.base}: each judged by its own change',
+                                  *lines, f'figures: 0 raised or added since {self.base}'])
+                self.assertEqual(result.stderr, '')
+
+    def test_batch_refuses_a_raise_with_other_paths(self):
+        content = BASE + MOVE
+        self.set_base(content)
+        budget = self.member_head(content.replace('wall_hard_s = 300', 'wall_hard_s = 301'))
+        mixed = self.member_head(content.replace('cpu_s = 136', 'cpu_s = 140'), other=True)
+        prefix, _ = self.stack_members(budget, mixed)
+        result = self.run_check('--base', self.base)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.splitlines(),
+                         [f'figures: HEAD stacks 2 members on {self.base}: each judged by its own change',
+                          f"figures: {BUDGETS} alone changed since {self.base}: the user's figures",
+                          'figure raised: default temper domain ceiling: 137.5 to 141.5',
+                          f'figures: 1 raised or added since {prefix}',
+                          f'figures: 1 raised or added since {self.base}', REPAIR_LINE])
+        self.assertEqual(result.stderr, '')
+
+    def test_single_merge_compares_whole(self):
+        mixed = self.member_head(BASE.replace('cpu_s = 136', 'cpu_s = 140'), other=True)
+        self.stack_members(mixed)
+        self.check(['figure raised: default temper domain ceiling: 136 to 140'])
+
+    def test_commit_on_top_of_merge_compares_whole(self):
+        budget = self.member_head(BASE.replace('cpu_s = 136', 'cpu_s = 140'))
+        self.stack_members(budget)
+        self.write('other', 'squashed change\n')
+        self.commit('land squashed member')
+        self.check(['figure raised: default temper domain ceiling: 136 to 140'])
+
     def merge_head(self, content, resolution=None):
         self.git('checkout', '-q', '--detach', self.base)
         self.write(BUDGETS, content)

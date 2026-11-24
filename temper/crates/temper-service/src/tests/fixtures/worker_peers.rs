@@ -282,9 +282,8 @@ impl AgentPeer {
 }
 
 /// Encode a concrete saved assistant turn, with the supplied text.
-pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v7 as transcript;
-    let limits = &agent.limits.transcript;
+pub(crate) fn text_turn(number: u32, text: &[u8]) -> Box<[u8]> {
+    use smith_transcript::v8 as transcript;
     let mut blocks = List::with_capacity(1);
     blocks.push(transcript::Block::Text(transcript::Text { text: text.into(), replay: None })).unwrap();
     let mut messages = List::with_capacity(1);
@@ -292,7 +291,7 @@ pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]
     let turn = transcript::Turn {
         system: None,
         kind: transcript::TurnKind::Ordinary,
-        opening: turn_opening(limits, number),
+        opening: turn_opening(number),
         endpoint: b"fake".as_slice().into(),
         model: b"small".as_slice().into(),
         effort: None,
@@ -321,8 +320,8 @@ fn agent_spawn(worker: &mut crate::Worker) -> Token {
     panic!("assigned process spawn");
 }
 
-fn turn_opening(_limits: &smith_transcript::v7::Limits, number: u32) -> Option<smith_transcript::v7::Opening> {
-    use smith_transcript::v7 as t;
+fn turn_opening(number: u32) -> Option<smith_transcript::v8::Opening> {
+    use smith_transcript::v8 as t;
     if number != 1 {
         return None;
     }
@@ -605,14 +604,13 @@ impl AskingChat {
     reason = "the saved-history fixture sizes eight concrete turns to the walk's byte count"
 )]
 fn asking_history() -> Box<[Box<[u8]>]> {
-    let agent = fixtures::worker_agent();
     let mut turns = Vec::new();
     let mut remaining = ASKING_HISTORY_BYTES;
     for number in 1..=HISTORY_TURNS {
-        let overhead = text_turn(&agent, number, b"").len();
+        let overhead = text_turn(number, b"").len();
         let bytes = if number == HISTORY_TURNS { remaining.checked_sub(overhead).unwrap() } else { HISTORY_TEXT_BYTES };
         let text = ::core::iter::repeat_n(b'x', bytes).collect::<Vec<_>>();
-        let turn = text_turn(&agent, number, &text);
+        let turn = text_turn(number, &text);
         remaining = remaining.checked_sub(turn.len()).unwrap();
         turns.push(turn);
     }
@@ -738,7 +736,7 @@ fn scripted_description(
         None => None,
     };
     let sequence = description_sequence(start);
-    let body = text_turn(agent, sequence, b"Accepted settings apply to new work; running work stays on its revision.");
+    let body = text_turn(sequence, b"Accepted settings apply to new work; running work stays on its revision.");
     let turn =
         smith_protocol_channel::decode_turn(&body, sequence, &agent.limits.transcript, &agent.endpoints).unwrap();
     peer.component

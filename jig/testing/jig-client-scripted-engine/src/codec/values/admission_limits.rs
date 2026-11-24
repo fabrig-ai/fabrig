@@ -1,10 +1,7 @@
 //! Wire projections of admission limits facts (client/domain/testing.md, 4).
 use super::super::{c, w};
-pub(in crate::codec) fn wire_admission_limit(
-    value: &c::AdmissionLimit,
-    _limits: &w::Limits,
-) -> Result<w::AdmissionLimit, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_admission_limit(value: &c::AdmissionLimit) -> w::AdmissionLimit {
+    match value {
         c::AdmissionLimit::Goals => w::AdmissionLimit::Goals,
         c::AdmissionLimit::Operations => w::AdmissionLimit::Operations,
         c::AdmissionLimit::Grace => w::AdmissionLimit::Grace,
@@ -53,5 +50,5 @@ pub(in crate::codec) fn wire_admission_limit(
         c::AdmissionLimit::ProjectPlacedHolds => w::AdmissionLimit::ProjectPlacedHolds,
         c::AdmissionLimit::PartyPlacedHolds => w::AdmissionLimit::PartyPlacedHolds,
         c::AdmissionLimit::Exemptions => w::AdmissionLimit::Exemptions,
-    })
+    }
 }

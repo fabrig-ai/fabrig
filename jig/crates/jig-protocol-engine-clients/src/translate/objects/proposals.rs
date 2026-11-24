@@ -17,17 +17,17 @@ pub fn amendment(
 
     Ok(w::AmendmentState {
         addressed: match value.addressed {
-            Some(item) => Some(chips::address(item, limits)?),
+            Some(item) => Some(chips::address(item)),
             None => None,
         },
         taken_by: value.taken_by,
         instructions: match &value.instructions {
-            Some(item) => Some(owner::text(item, limits)?),
+            Some(item) => Some(owner::text(item)),
             None => None,
         },
-        spec: owner::specification(&value.spec, limits)?,
+        spec: owner::specification(&value.spec)?,
         authority: owner::authority(models, &value.authority, limits)?,
-        wake: owner::wake(value.wake, limits)?,
+        wake: owner::wake(value.wake),
         dependencies,
         cut: value.cut,
     })
@@ -42,15 +42,14 @@ pub fn kind(value: t::ProposalKind) -> w::MessageProposalKind {
         t::ProposalKind::Release => w::MessageProposalKind::Release,
     }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub fn holder(value: t::ProposalHolder, _limits: &w::Limits) -> Result<w::HistoryHolder, w::Problem> {
-    Ok(match value {
+pub fn holder(value: t::ProposalHolder) -> w::HistoryHolder {
+    match value {
         t::ProposalHolder::Task(value) => w::HistoryHolder::Task(w::HistoryHolderTask { value }),
         t::ProposalHolder::Person(value) => w::HistoryHolder::Person(w::HistoryHolderPerson { value }),
         t::ProposalHolder::Policy { project, kind: value } => {
             w::HistoryHolder::Policy(w::HistoryHolderPolicy { project, kind: kind(value) })
         }
-    })
+    }
 }
 pub fn proposed(
     models: &[crate::Model],
@@ -63,7 +62,7 @@ pub fn proposed(
     }
     let mut resources = List::with_capacity(value.resources.len());
     for row in &value.resources {
-        resources.push(owner::part(row, limits)?).expect("supplied rows fit");
+        resources.push(owner::part(row)).expect("supplied rows fit");
     }
     let resources = part_pieces(&resources, limits.proposed_task_resources, w::paths::PROPOSED_TASK_RESOURCES, limits)?;
 
@@ -73,15 +72,15 @@ pub fn proposed(
             jig_domain_tasks::Deadline::Span(value) => w::NewDeadline::Span(w::DeadlineSpan { value }),
         },
         number: value.number,
-        spec: owner::specification(&value.spec, limits)?,
-        executor: owner::executor(value.executor, limits)?,
+        spec: owner::specification(&value.spec)?,
+        executor: owner::executor(value.executor),
         contract: owner::contract(&value.contract, limits)?,
         authority: owner::authority(models, &value.authority, limits)?,
         budget: value.budget,
-        funder: owner::funder(value.funder, limits)?,
+        funder: owner::funder(value.funder),
         dependencies,
         resources,
-        wake: owner::wake(value.wake, limits)?,
+        wake: owner::wake(value.wake),
         priority: value.priority,
         cut: value.cut,
     })
@@ -95,7 +94,7 @@ pub fn action(
         d::ProposalAction::Settings { against, items, review, made } => {
             w::ProposalAction::Settings(Box::new(w::ProposalActionSettings {
                 against: *against,
-                items: super::super::settings::item_heads(items, limits)?,
+                items: super::super::settings::item_heads(items),
                 made: *made,
                 review: match review {
                     Some(review) => Some(super::super::settings::review(review, models, limits)?),
@@ -118,7 +117,7 @@ pub fn action(
         }
         d::ProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
             w::ProposalAction::Effect(w::ProposalActionEffect {
-                part: owner::part(part, limits)?,
+                part: owner::part(part),
                 authority: owner::authority(models, authority, limits)?,
                 attempt: *attempt,
                 completion: *completion,
@@ -128,7 +127,7 @@ pub fn action(
         }
         d::ProposalAction::ProcedureEffect { part, authority, step, purpose } => {
             w::ProposalAction::ProcedureEffect(w::ProposalActionProcedureEffect {
-                part: owner::part(part, limits)?,
+                part: owner::part(part),
                 authority: owner::authority(models, authority, limits)?,
                 step: *step,
                 purpose: *purpose,
@@ -140,13 +139,13 @@ pub fn action(
                 addressed: match *addressed {
                     Some(item) => Some(w::AddressChange {
                         revision: w::Revision { value: item.revision },
-                        address: chips::address(item.address, limits)?,
+                        address: chips::address(item.address),
                     }),
                     None => None,
                 },
                 before: amendment(models, before, limits)?,
                 after: amendment(models, after, limits)?,
-                reason: owner::text(reason, limits)?,
+                reason: owner::text(reason),
                 release: *release,
             }))
         }
@@ -158,7 +157,7 @@ pub fn action(
         d::ProposalAction::Release { task: target, hold } => w::ProposalAction::Release(w::ProposalActionRelease {
             task: task::link(target, limits)?,
             hold: match hold {
-                Some(item) => Some(chips::held(item, limits)?),
+                Some(item) => Some(chips::held(item)),
                 None => None,
             },
         }),
@@ -169,7 +168,7 @@ pub fn proposal(models: &[crate::Model], value: &d::Proposal, limits: &w::Limits
     for row in &value.funding {
         funding
             .push(w::FundingOffer {
-                source: owner::funder(row.source, limits)?,
+                source: owner::funder(row.source),
                 needed: row.needed,
                 left: row.left,
                 after: row.after,
@@ -179,15 +178,12 @@ pub fn proposal(models: &[crate::Model], value: &d::Proposal, limits: &w::Limits
 
     Ok(w::Proposal {
         projects: value.projects.clone(),
-        key: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.number }, limits)?,
+        key: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.number }),
         project: value.project,
-        reason: owner::text(&value.reason, limits)?,
+        reason: owner::text(&value.reason),
         action: action(models, &value.action, limits)?,
         as_holder: value.as_holder,
-        waiting: w::ProposalWaiting {
-            holder: holder(value.waiting.holder, limits)?,
-            since: value.waiting.since.as_nanos(),
-        },
+        waiting: w::ProposalWaiting { holder: holder(value.waiting.holder), since: value.waiting.since.as_nanos() },
         funding,
         acts: task::offered(models, &value.acts, limits, limits.proposal_acts, w::paths::PROPOSAL_ACTS)?,
     })

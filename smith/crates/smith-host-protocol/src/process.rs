@@ -236,14 +236,28 @@ impl Process {
         Ok(())
     }
 
-    /// Ask the run to stop at its current turn boundary.
+    /// Acknowledge the prefix of parts kept by the parent.
+    pub fn send_part_kept(
+        &mut self,
+        number: u32,
+        token: Token,
+        to_service: &mut Queue<ProcessEvent>,
+        below: &mut Queue<IoRequest>,
+    ) -> Result<(), Error> {
+        self.channel.send_part_kept(number, token, &mut self.channel_events, &mut self.channel_below)?;
+        self.drain_channel(to_service, below);
+        Ok(())
+    }
+
+    /// Carry a drain's optional grace down unchanged.
     pub fn send_drain(
         &mut self,
+        grace: Option<skein_lib::Duration>,
         token: Token,
         above: &mut Queue<ProcessEvent>,
         below: &mut Queue<IoRequest>,
     ) -> Result<(), Error> {
-        self.channel.send_drain(token, &mut self.channel_events, &mut self.channel_below)?;
+        self.channel.send_drain(grace, token, &mut self.channel_events, &mut self.channel_below)?;
         self.drain_channel(above, below);
         Ok(())
     }

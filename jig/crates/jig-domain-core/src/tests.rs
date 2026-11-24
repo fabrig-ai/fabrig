@@ -27,7 +27,7 @@ mod translate;
 use crate::{
     Settings,
     admission::{amendments, compound, person_task},
-    documents::{Document, *},
+    documents::{Document, PartKey, *},
     effects::{connector, projections},
     routing::Work,
     settings::revisions,
@@ -815,6 +815,7 @@ fn documents_run_has_only_the_live_proofs_committed_progress() {
         .insert(
             1,
             RunProof {
+                kept_part: 0,
                 worker: None,
                 accounts: Box::new([]),
                 placement: None,
@@ -2323,6 +2324,7 @@ fn watch_core() -> (Core, Limits) {
         .insert(
             1,
             RunProof {
+                kept_part: 0,
                 worker: None,
                 accounts: Box::new([]),
                 placement: None,

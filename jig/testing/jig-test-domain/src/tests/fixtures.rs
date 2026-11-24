@@ -256,6 +256,7 @@ pub fn run() -> Box<core::RunCharter> {
 }
 pub fn assignment() -> Assignment {
     Assignment {
+        parts: Box::new([]),
         live: core::LiveAsk::NONE,
         brief: Box::new([]),
         conversation: 1,

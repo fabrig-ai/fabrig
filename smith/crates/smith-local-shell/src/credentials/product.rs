@@ -1,7 +1,7 @@
 //! Startup source descriptors and the product's exact credential notice names.
 //! Driver sources are handed in once; key and program values stay in memory
 //! for repeated shell lends (shell/credentials.md, section 1). Locations contain no values.
-use super::{Credential, Refusal, Source, environment, inspect, source};
+use super::{Credential, Environment, Refusal, Source, inspect, source};
 use crate::settings::resolve::Resolved;
 use skein_lib::{Duration, List, Map, Wall};
 use smith_local_service as service;
@@ -30,6 +30,16 @@ pub fn prepare(
     wall: Wall,
     interactive: bool,
     programs: &super::program_check::ProgramStates,
+) -> Result<Prepared, Refusal> {
+    prepare_in(resolved, wall, interactive, programs, &Environment { variables: std::env::vars_os().collect() })
+}
+
+pub(crate) fn prepare_in(
+    resolved: &Resolved,
+    wall: Wall,
+    interactive: bool,
+    programs: &super::program_check::ProgramStates,
+    environment: &Environment,
 ) -> Result<Prepared, Refusal> {
     warnings(resolved, wall, programs)?;
     let count = u32::try_from(resolved.accounts.len()).map_err(|_| {
@@ -72,7 +82,11 @@ pub fn prepare(
         }
         let handed = match descriptor {
             Source::Env { variable } => {
-                let borrowed = environment(&variable, wall);
+                let borrowed = environment
+                    .variables
+                    .iter()
+                    .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(&variable))
+                    .and_then(|(_, value)| super::env_record(value.as_encoded_bytes(), wall));
                 let credential = super::env_state(&variable, borrowed.as_ref());
                 if !credential.usable() {
                     return Err(unavailable(&account.name, credential));

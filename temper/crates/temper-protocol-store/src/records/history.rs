@@ -3,18 +3,16 @@ use super::{FITS, w};
 use skein_lib::List;
 use temper_engine_domain_forge_vocabulary::history as d;
 fn encode_job(value: d::Job) -> w::HistoryJob {
-    crate::generated::store::history_job_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::history_job_to_record(&value)
 }
 fn decode_job(value: w::HistoryJob) -> d::Job {
-    crate::generated::store::history_job_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::history_job_to_domain(value)
 }
 fn encode_job_failure(value: d::JobFailure) -> w::HistoryJobFailure {
-    crate::generated::store::history_job_failure_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::history_job_failure_to_record(&value)
 }
 fn decode_job_failure(value: w::HistoryJobFailure) -> d::JobFailure {
-    crate::generated::store::history_job_failure_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::history_job_failure_to_domain(value)
 }
 pub(super) fn encode_job_outcome(value: d::JobOutcome) -> w::HistoryJobOutcome {
     match value {
@@ -41,39 +39,34 @@ pub(super) fn decode_job_outcome(value: w::HistoryJobOutcome) -> d::JobOutcome {
     }
 }
 pub(super) fn encode_project(value: &d::Project) -> w::HistoryProject {
-    crate::generated::store::history_project_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::history_project_to_record(value).expect(FITS)
 }
 pub(super) fn decode_project(value: w::HistoryProject) -> d::Project {
-    crate::generated::store::history_project_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::history_project_to_domain(value)
 }
 pub(super) fn encode_change_index(value: &d::ChangeIndex) -> w::HistoryChange {
-    crate::generated::store::history_change_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::history_change_to_record(value)
 }
 pub(super) fn decode_change_index(value: w::HistoryChange) -> d::ChangeIndex {
-    crate::generated::store::history_change_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::history_change_to_domain(value)
 }
 pub(super) fn encode_landing_index(value: &d::LandingIndex) -> w::HistoryLanding {
-    crate::generated::store::history_landing_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::history_landing_to_record(value)
 }
 pub(super) fn decode_landing_index(value: w::HistoryLanding) -> d::LandingIndex {
-    crate::generated::store::history_landing_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::history_landing_to_domain(value)
 }
 pub(super) fn encode_last(value: &d::Last) -> w::HistoryLast {
-    crate::generated::store::history_last_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::history_last_to_record(value)
 }
 pub(super) fn decode_last(value: w::HistoryLast) -> d::Last {
-    crate::generated::store::history_last_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::history_last_to_domain(value)
 }
 pub(super) fn encode_event(value: &d::Event) -> w::HistoryEvent {
-    crate::generated::store::history_event_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::history_event_to_record(value).expect(FITS)
 }
 pub(super) fn decode_event(value: w::HistoryEvent) -> d::Event {
-    crate::generated::store::history_event_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::history_event_to_domain(value)
 }
 pub(super) fn encode_job_record(job: Option<&d::JobRecord>) -> Option<w::HistoryJobRecord> {
     let job = job?;
@@ -115,30 +108,22 @@ pub(super) fn decode_job_record(job: Option<w::HistoryJobRecord>) -> Option<d::J
     })
 }
 
-pub fn history_job_outcome_to_record(
-    value: &d::JobOutcome,
-    _context: &super::Context,
-) -> Result<w::HistoryJobOutcome, w::Problem> {
-    Ok(encode_job_outcome(*value))
+#[must_use]
+pub fn history_job_outcome_to_record(value: &d::JobOutcome) -> w::HistoryJobOutcome {
+    encode_job_outcome(*value)
 }
 
-pub fn history_job_outcome_to_domain(
-    value: w::HistoryJobOutcome,
-    _context: &super::Context,
-) -> Result<d::JobOutcome, w::Problem> {
-    Ok(decode_job_outcome(value))
+#[must_use]
+pub fn history_job_outcome_to_domain(value: w::HistoryJobOutcome) -> d::JobOutcome {
+    decode_job_outcome(value)
 }
 
-pub fn history_job_record_to_record(
-    value: &d::JobRecord,
-    _context: &super::Context,
-) -> Result<w::HistoryJobRecord, w::Problem> {
-    Ok(encode_job_record(Some(value)).expect("present job"))
+#[must_use]
+pub fn history_job_record_to_record(value: &d::JobRecord) -> w::HistoryJobRecord {
+    encode_job_record(Some(value)).expect("present job")
 }
 
-pub fn history_job_record_to_domain(
-    value: w::HistoryJobRecord,
-    _context: &super::Context,
-) -> Result<d::JobRecord, w::Problem> {
-    Ok(decode_job_record(Some(value)).expect("present job"))
+#[must_use]
+pub fn history_job_record_to_domain(value: w::HistoryJobRecord) -> d::JobRecord {
+    decode_job_record(Some(value)).expect("present job")
 }

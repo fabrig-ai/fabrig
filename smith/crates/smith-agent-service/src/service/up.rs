@@ -94,7 +94,7 @@ pub(super) fn lower_events(service: &mut Stages, mut frame: Option<&mut Frame>) 
     }
 }
 
-fn lower_event(service: &mut Stages, framed: bool, event: domain::Below) {
+pub(super) fn lower_event(service: &mut Stages, framed: bool, event: domain::Below) {
     if framed {
         service.domain_events.push(domain::Event::Below(event));
     } else {
@@ -417,15 +417,24 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
             }
         }
         channel::Heard::Cancel => super::admission::cancel(service),
-        channel::Heard::Drain => super::admission::drain(service),
+        channel::Heard::Drain { grace } => super::admission::drain(service, grace),
+        channel::Heard::PartKept { number } => {
+            if let Some(run) = service.admission.run() {
+                service.domain_events.push(domain::Event::PartKept { run, number });
+            }
+        }
         channel::Heard::WriteFailed => {
             service.host_word_closed = true;
             service.mark_failed(Failure::WriteFailed);
-            if service.signalled {
-                match service.teardown {
-                    Teardown::Live { .. } => super::admission::cancel(service),
-                    Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
+            match service.teardown {
+                Teardown::Live { .. } => {
+                    if let Some(run) = service.admission.run() {
+                        service.domain_events.push(domain::Event::Disconnected { run });
+                    } else {
+                        super::admission::cancel(service);
+                    }
                 }
+                Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
             }
         }
         channel::Heard::Ended { why: _ } => {
@@ -434,7 +443,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 Teardown::Live { .. } => {
                     service.mark_failed(Failure::ChannelEnded);
                     if let Some(run) = service.admission.run() {
-                        service.domain_events.push(domain::Event::Cancel { run });
+                        service.domain_events.push(domain::Event::Disconnected { run });
                     } else {
                         teardown::answered(service);
                     }
@@ -485,14 +494,17 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         }
         domain::Event::Message { name, label, text, .. } => events.message(*name, label, text),
         domain::Event::HostReturned { .. }
+        | domain::Event::PartKept { .. }
         | domain::Event::Acknowledge { .. }
         | domain::Event::Grant { .. }
         | domain::Event::Renewals { .. }
         | domain::Event::Cancel { .. }
+        | domain::Event::Disconnected { .. }
         | domain::Event::Drain { .. }
         | domain::Event::Delivered { .. }
         | domain::Event::Below(
-            smith_domain::Below::Usage { .. }
+            smith_domain::Below::Classified { .. }
+            | smith_domain::Below::Usage { .. }
             | smith_domain::Below::Completed { .. }
             | smith_domain::Below::Failed { .. }
             | smith_domain::Below::Cancelled { .. }

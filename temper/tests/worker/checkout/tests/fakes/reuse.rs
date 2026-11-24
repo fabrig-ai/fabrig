@@ -416,3 +416,95 @@ fn a_restart_keeps_the_count_of_facts_dropped_before_it() {
         assert_eq!(after, before, "the cumulative fact counters retain their lost count");
     }
 }
+
+#[test]
+fn an_unchanged_save_keeps_its_start_and_a_failed_or_absent_save_keeps_nothing() {
+    let mut config = settings(false, 30);
+    config.edit = 0;
+    let mut world = World::new(config);
+    let client = world.submit(Time::ZERO, Plan { save: true, keep: true, ..plan(0) });
+    world.run(ITERATIONS);
+    ready(&world, client);
+    let start = world.forge().branch(world.repository(0), b"main").expect("start");
+    assert_eq!(world.kept()[0].repositories[0].commit, translate::commit(start));
+    for save in [true, false] {
+        let mut config = settings(false, 30);
+        config.refusing = 1000;
+        let mut world = World::new(config);
+        let client = world.submit(Time::ZERO, Plan { save, keep: true, ..plan(0) });
+        world.run(ITERATIONS);
+        ready(&world, client);
+        assert_eq!(world.kept().len(), 0, "failed or absent save");
+    }
+}
+
+#[test]
+fn a_cut_runs_workspace_survives_restart_and_is_taken_up_without_checkout() {
+    let mut world = World::new(settings(false, 31));
+    let saver = world.submit(Time::ZERO, Plan { save: true, keep: true, ..plan(0) });
+    world.run(ITERATIONS);
+    ready(&world, saver);
+    let marks = world.kept();
+    assert_eq!(marks.len(), 1);
+    let commit = world.forge().branch(world.repository(0), b"saved/0").expect("saved branch");
+    assert_eq!(marks[0].repositories[0].commit, translate::commit(commit));
+    world.write_disk(b"ws/0/r0/target/output", b"build output");
+    world.write_disk(b"ws/0/r0/.git/smith-check/passed", b"checked");
+    world.restart();
+    assert_eq!(world.disk_tree(b"ws/0/r0/target").get(b"output".as_slice()), Some(&b"build output".to_vec()));
+    let before = world.told().0;
+    let resumer = world.submit(world.now(), Plan { start: Some(Pick::Saved), ..plan(0) });
+    world.run(ITERATIONS);
+    ready(&world, resumer);
+    assert!(world.kept().is_empty(), "the mark is consumed");
+    assert!(world.checkouts(resumer).is_empty(), "no checkout for a matching saved start");
+    assert_eq!(world.told().0.makes, before.makes);
+    assert_eq!(world.told().0.clones, before.clones);
+    assert_eq!(world.disk_tree(b"ws/0/r0/.git/smith-check").get(b"passed".as_slice()), Some(&b"checked".to_vec()));
+    assert_eq!(world.disk_tree(b"ws/0/r0/target").get(b"output".as_slice()), Some(&b"build output".to_vec()));
+}
+
+#[test]
+fn a_kept_workspace_is_rebuilt_for_another_start_or_saved_commit() {
+    for changed_commit in [false, true] {
+        let mut world = World::new(settings(false, 32));
+        world.submit(Time::ZERO, Plan { save: true, keep: true, ..plan(0) });
+        world.run(ITERATIONS);
+        world.write_disk(b"ws/0/r0/target/output", b"old build");
+        world.restart();
+        if changed_commit {
+            world.advance_at(world.now(), 0, b"saved/0");
+        }
+        let before = world.told().0;
+        let start = if changed_commit { Pick::Saved } else { Pick::Branch };
+        let resumer = world.submit(world.now(), Plan { start: Some(start), ..plan(0) });
+        world.run(ITERATIONS);
+        ready(&world, resumer);
+        assert_eq!(world.kept().len(), 0);
+        assert_eq!(world.told().0.makes, before.makes + 1);
+        assert_eq!(world.told().0.clones, before.clones + 1);
+        assert!(world.disk_tree(b"ws/0/r0/target").is_empty());
+    }
+}
+
+#[test]
+fn another_workstream_evicts_the_oldest_kept_workspace_from_empty() {
+    let mut config = settings(true, 34);
+    config.checkout.workspaces = 2;
+    config.workstreams = 3;
+    let mut world = World::new(config);
+    let first = world.submit(Time::ZERO, Plan { save: true, keep: true, ..plan(0) });
+    world.run(ITERATIONS);
+    world.submit(world.now(), Plan { save: true, keep: true, ..plan(1) });
+    world.run(ITERATIONS);
+    world.write_disk(b"ws/0/r0/target/output", b"old build");
+    world.restart();
+    let before = world.told().0;
+    let next = world.submit(world.now(), plan(2));
+    world.run(ITERATIONS);
+    ready(&world, next);
+    assert_eq!(world.client(first).workspace, world.client(next).workspace);
+    assert_eq!(world.told().0.makes, before.makes + 1);
+    assert!(world.disk_tree(b"ws/0/r0/target").is_empty());
+    assert_eq!(world.kept().len(), 1, "the newer mark remains");
+}

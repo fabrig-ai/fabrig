@@ -98,6 +98,7 @@ pub(crate) fn configure(value: &mut temper_playground::documents::Configuration)
         value.jig_over(name, u64::from(count));
     }
     temper_playground::documents::turn_bounds::apply(value, service::agent_settings().limits.bodies.turn_body);
+    deployment::configure(value);
     previous::configure(value);
 }
 

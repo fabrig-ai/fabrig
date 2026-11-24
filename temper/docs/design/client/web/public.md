@@ -142,24 +142,37 @@ never streaming (`../../draft/first-release.md`, 5.3).
   plain text, and no link to the forge on any page.
 - **Fuzzy tests:** the address codec's parser over seeded paths under
   `/public`, never panicking and printing back what it read.
-- **The browser tier** (`testing.md`): a public project on fakes read at
-  `/public`, its board, a task and its landings, by a page with no
-  sign-in and no stream, the view's text checked against the public
-  records' fields alone. Its board and task lines, goals and delegates,
-  are also read at 1440 px and 420 px with a long title and populated facts:
-  one geometry query reads all text matches at each page and width, with the
-  count of any matches beyond the browser's limit checked. Text boxes stay
-  separate, titles remain readable, navigation stays inset and content stays
-  within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
-  unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (`testing.md`, 6). Every page includes the "temper" and
-  "Sign in" top bar (2), including unknown and empty pages. Its landings page
-  then reads "Landings", optionally "Queue" and its one member, then "No landings to show yet."
-  or the stock queue's merge. The member reads "task " and eight lowercase hexadecimal
+- **The view's tests,** from one populated fixture of the records: the
+  projects page's heading and whole list; the board and a goal's card showing
+  the records' fields alone, a long title cut, the goal and its delegate,
+  spend on both, no priority on the board and the executor on the card alone,
+  with none of a signed-in page's words or a forge's address; each row's
+  phase and its live or ended time at fixed clocks, a change's landed never a
+  task's phase. Every page includes the "temper" and "Sign in" top bar (2),
+  and Unknown and the empty projects page are read whole with it. The
+  landings page is read whole in each of its forms: "Landings", optionally
+  "Queue" and its one member, then "No landings to show yet." or the stock
+  queue's merge. The member reads "task " and eight lowercase hexadecimal
   digits, " · Goal " and eight such digits, then " · Ready " and "just now",
   "a minute ago" or decimal digits and " minutes ago". The merge reads
   "landed · task ", eight lowercase hexadecimal digits, " · " and seven such
-  commit digits. These are the whole text joined without separators; nothing may
-  precede or follow it. One run reads only one form, so the tier's library holds
-  the queued and unqueued forms as a table in the focused suite, and refuses
-  any other line. The story's other page and geometry checks stay the same.
+  commit digits. These are the whole text joined without separators; nothing
+  precedes or follows it.
+- **The host's tests:** a task open when its project is made private reads
+  Unknown at its next read, at its own address, a change answered late not
+  restoring it, and Unknown's link reads the empty projects page; an
+  upper-case board path is replaced by `/public`.
+- **The one-process world:** each owner's records carry none of a chat's
+  words, a report, another task's title, a private project's name, an owner,
+  a repository or branch, a review or a forge's address; a project made
+  private answers its task's card and change unknown.
+- **The browser tier** (story 13 of `testing.md`, 6): a public project on fakes, made
+  through ctl before the page opens (`testing.md`, 3), its board and a goal's
+  task page, reached by the goal's link, read at 1440 px and 420 px with a
+  long title and populated facts, by a page with no sign-in and no stream:
+  one geometry query reads all text matches at each page and width, with the
+  count of any matches beyond the browser's limit checked. Text boxes stay
+  separate, titles remain readable, navigation stays inset and content stays
+  within the viewport. A missing text box reports its text and measurement
+  stage. The goal it reads is under way: a landed goal's pages hold nothing a
+  browser alone shows (`testing.md`, 6).

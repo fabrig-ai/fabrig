@@ -18,6 +18,10 @@ skein-lib.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 
+[dev-dependencies]
+skein-fake-person.workspace = true
+skein-ui.workspace = true
+
 [lints.rust] # ring: tools/lints/design.md, 2.4
 unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"

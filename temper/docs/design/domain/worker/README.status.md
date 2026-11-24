@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-19. Where temper's code lags or departs from [README.md](README.md).
+2026-11-21. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline.
 

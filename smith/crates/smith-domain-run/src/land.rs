@@ -16,6 +16,7 @@ use crate::limits::Limits;
 use crate::outcome::Change;
 use crate::run::Run;
 use crate::workspace::{self, Directory};
+use alloc::boxed::Box;
 use core::mem;
 use skein_lib::bytes::copy_of;
 use skein_lib::{Duration, Env, Id, Queue, Time, Token};
@@ -27,6 +28,7 @@ pub(crate) struct Landing {
     deadline: Time,
     purpose: Purpose,
     stage: Stage,
+    recovered: Option<Box<Delivery>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,8 +57,14 @@ pub(crate) enum Settled {
     Cancelled,
 }
 
-pub(crate) fn landing(change: Change, name: CallName, deadline: Time, purpose: Purpose) -> Landing {
-    Landing { change, name, deadline, purpose, stage: Stage::Closed }
+pub(crate) fn landing(
+    change: Change,
+    name: CallName,
+    deadline: Time,
+    purpose: Purpose,
+    recovered: Option<Box<Delivery>>,
+) -> Landing {
+    Landing { change, name, deadline, purpose, stage: Stage::Closed, recovered }
 }
 
 pub(crate) fn cancel_jobs(landing: &mut Landing, peer: Token, out: &mut Queue<Request>) {
@@ -75,7 +83,10 @@ pub(crate) fn jobs_cancelled(
     match mem::replace(&mut landing.stage, Stage::Closed) {
         Stage::Cancelling { why: Some(why) } => back(call, call::stopped(why), Settled::Cancelled, out),
         Stage::Cancelling { why: None } => {
-            if env.now >= landing.deadline {
+            if let Some(delivery) = landing.recovered.take() {
+                landing.stage = Stage::Delivering;
+                delivered(landing, call, *delivery, run, out)
+            } else if env.now >= landing.deadline {
                 back(call, Returned::TimedOut, Settled::Cancelled, out)
             } else {
                 begin(landing, id, run, env, out);
@@ -292,10 +303,12 @@ fn start_check(
     out: &mut Queue<Request>,
 ) -> Stage {
     run.lease.assert_workspace(id.token());
-    let root = repository(run, check).root;
+    let directory = repository(run, check);
+    let root = directory.root;
+    let results = directory.results.clone();
     let program = Place { root, path: copy_of(conventions::checks(&run.charter)) };
     let deadline = env.now.saturating_add(bound).min(cap);
-    out.push(Request::Check { owner: id.token(), program, bound, cap, tail: env.limits.check_tail });
+    out.push(Request::Check { owner: id.token(), program, results, bound, cap, tail: env.limits.check_tail });
     out.push(Request::Checking { host_run: run.host_name, deadline });
     Stage::Checking { check, given: bound, retry }
 }

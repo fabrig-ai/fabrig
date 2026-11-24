@@ -499,17 +499,20 @@ pages (`../journey-writer.md`, 7). The suites are:
   (`../journey-walks.md`, 7). No test walks main's journeys to their end.
 - **`temper-client-journeys-tool`, library binary
   `temper_client_journeys_tool`:** `tests` holds empty overlays and
-  nonempty journey descriptions, redaction and print refusals;
+  nonempty journey descriptions, redaction and print refusals, and the
+  admission over an in-memory output: recording prints with resolving
+  assets, layout refusal before proof, the recorded build, ports and
+  approval code kept, refusals with their positions and no original
+  byte, and no output on refusal;
   `tui_driver::tests` holds terminal key bytes and a save detected by
   replacement even when its bytes are unchanged. `drive::tests::tui`
   holds lazy startup, explicit approval in a journey, save replay,
   looks, bounds and stops; `journey_walk::tests` holds chains through
   one session, scripts, ancestor marks skipped and first-failure stop.
-- **`temper-client-journeys-tool`, integration binary `suite`:**
-  `admission` holds recording prints with resolving assets, layout
-  refusal before proof, unchanged build, ports and approval codes, and
-  no output on refusal. `journey_pages` and `look_refresh` hold the
-  writer and request refresh machinery (`../journey-writer.md`, 7).
+- **`temper-client-journeys`, integration binary `suite`:** one launch
+  per path of its table, one print through its report and destination,
+  and the writer's and refresh's scripts as they ship
+  (`../journey-writer.md`, 7).
 
 These tests start no terminal, browser or box. Native frames and byte
 equality establish no real terminal's rendered look; section 8's box
@@ -573,11 +576,11 @@ not terminal escape sequences, give the frame.
   unanswered: Auto draws dark with no band (`theme.md`).
 - **Its saves:** the session sends Alt+Shift+S and observes a file's
   replacement by device and inode, not changed bytes, then reads the
-  whole save through the native replay (section 4). The observer
-  currently looks for `session/state/temper/tui/recording`, whereas
-  the recorder writes `recording-TIME` (3.1). Following that per-run
-  file is a gap in [journeys.status.md](journeys.status.md); a missing save times out
-  as 8.1 has it.
+  whole save through the native replay (section 4). The file it watches
+  is the newest `recording-TIME` (3.1) in `session/state/temper/tui/`,
+  chosen by name at the save's request and again at each poll; a
+  `recording` an earlier build saved, an older run's file and any other
+  name are not saves. A missing save times out as 8.1 has it.
 - **Its end:** the session stops the TUI and its process group, then
   the browser and box (`../drive.md`, 2.4). Its private session files
   stay until the next session, never becoming main's pages.

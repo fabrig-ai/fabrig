@@ -1,5 +1,5 @@
 //! A person's child and three pipes, driven by the harness's io.
-use super::{Command, Opens, Output, Stdin, substitute};
+use super::{Account, Command, Opens, Output, Stdin, substitute};
 use skein_io::{
     self as io,
     kernel::{Exit, Fd, Pipe, Signal, Spawn, Target, Way},
@@ -8,7 +8,6 @@ use skein_lib::{
     Time, Token,
     stream::{self, Down, Up},
 };
-use skein_world::Deadline;
 use std::{collections::VecDeque, os::unix::ffi::OsStrExt};
 
 // A complete command transcript may include diagnostics as well as a URL.
@@ -38,7 +37,7 @@ pub(super) struct Process {
     pub output: [Vec<u8>; 2],
     pub stderr: Vec<u8>,
     opens: Option<Opens>,
-    pub wait: Option<(Deadline, WaitFor)>,
+    pub wait: Option<(Account, WaitFor)>,
     pub error: Option<String>,
     pub requests: VecDeque<io::Request>,
 }
@@ -53,15 +52,11 @@ pub(super) struct Context<'a> {
     pub browser_pid: Option<u32>,
 }
 impl Process {
-    pub fn new(serial: u64, command: Command, context: Context<'_>) -> Self {
-        let mut deadline = Deadline::arm("the scenario command's readiness", command.within);
+    pub fn new(serial: u64, command: Command, context: Context<'_>, deadline: Account) -> Self {
+        let mut deadline = deadline;
         for pid in [context.server_pid, context.browser_pid].into_iter().flatten() {
             deadline.watch_process(pid);
         }
-        Self::with_deadline(serial, command, context, deadline)
-    }
-
-    fn with_deadline(serial: u64, command: Command, context: Context<'_>, deadline: Deadline) -> Self {
         let Context { held, root, address, peers, write_cap, .. } = context;
         let owner = Token::new(FIRST.checked_add(serial).expect("command identity fits"));
         let mut input = VecDeque::new();
@@ -341,6 +336,13 @@ pub(super) enum Progress {
     TimedOut(&'static str),
 }
 
+pub(super) struct CommandExpiry {
+    pub person: usize,
+    pub step: u32,
+    pub report: String,
+    pub deadline: Account,
+}
+
 impl super::Runtime {
     pub(super) fn command_event(&self, event: &io::Event) -> bool {
         super::event_owner(event).is_some_and(|owner| self.commands.iter().flatten().any(|command| command.owns(owner)))
@@ -366,26 +368,31 @@ impl super::Runtime {
                     self.pending_commands[index] = Some(command);
                     return;
                 }
+                let deadline =
+                    Account::arm(self.native(), "the scenario command's readiness", command.within, self.benv.now);
                 let command = Process::new(
                     self.command_serial,
                     command,
                     Context {
                         held: self.held[index].as_deref(),
-                        root: self.roots[0],
+                        root: self.roots[0].expect("launch root"),
                         address: self.address.as_deref().expect("server address"),
                         peers: &self.peer_addresses,
                         write_cap: usize::try_from(self.ienv.limits.output).expect("output fits"),
                         server_pid: self.server_pid,
                         browser_pid: self.browser_pid,
                     },
+                    deadline,
                 );
                 self.command_serial = self.command_serial.checked_add(1).expect("command serial fits");
                 self.commands[index] = Some(command);
             }
             super::CommandAction::Exit { code, within } => {
+                let native = self.native();
                 if let Some(command) = &mut self.commands[index] {
-                    let mut deadline = Deadline::arm("the scenario command's expected exit", within);
-                    if let Some(pid) = command.pid {
+                    let mut deadline =
+                        Account::arm(native, "the scenario command's expected exit", within, self.benv.now);
+                    for pid in [self.server_pid, self.browser_pid, command.pid].into_iter().flatten() {
                         deadline.watch_process(pid);
                     }
                     command.wait = Some((deadline, WaitFor::Exit { code }));
@@ -403,7 +410,8 @@ impl super::Runtime {
         now: Time,
         page_query: &[u8],
         page_addresses: fn(&[u8]) -> bool,
-    ) {
+    ) -> Option<CommandExpiry> {
+        let mut expiry = None;
         for (index, face) in faces.iter_mut().enumerate() {
             if !self.closing.active()
                 && self.commands[index].as_ref().is_some_and(|previous| previous.settled)
@@ -436,13 +444,19 @@ impl super::Runtime {
                 Progress::TimedOut(report) => {
                     let (deadline, _) = command.wait.take().expect("an unanswered command wait");
                     face.command_complete();
-                    self.expire(index, people[index].at(), &format!("command {name}: {report}"), deadline.expired());
+                    expiry.get_or_insert(CommandExpiry {
+                        person: index,
+                        step: people[index].at(),
+                        report: format!("command {name}: {report}"),
+                        deadline,
+                    });
                 }
             }
             for request in face.requests() {
                 self.ask(request);
             }
         }
+        expiry
     }
 }
 

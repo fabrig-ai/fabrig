@@ -31,7 +31,8 @@ pub(super) fn channel_event_ready(service: &Stages) -> bool {
             | channel::Heard::Acknowledged { .. }
             | channel::Heard::Grant { .. }
             | channel::Heard::Cancel
-            | channel::Heard::Drain
+            | channel::Heard::PartKept { .. }
+            | channel::Heard::Drain { .. }
             | channel::Heard::WriteFailed
             | channel::Heard::Ended { .. },
         ) => true,

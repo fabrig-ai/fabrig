@@ -130,7 +130,7 @@ fn assigned(
     charter.grants.contract = contract;
     charter.resume = resumed;
     if resumed {
-        assignment.turns = Box::new([fixtures::worker_peers::turn_body(agent, 1)]);
+        assignment.turns = Box::new([fixtures::worker_peers::turn_body(1)]);
     }
     assignment.assignment.charter =
         smith_protocol_channel::encode_charter(&charter, &agent.limits.charter, &agent.endpoints)

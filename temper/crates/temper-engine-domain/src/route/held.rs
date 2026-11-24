@@ -109,6 +109,23 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
                 Delivery::Fleet(fleet::Event::Acknowledge { run: Token::new(task), attempt: Token::new(attempt) }),
             );
         }
+        core::Held::TaskPartKept { key } => emit(
+            decision,
+            &env.limits,
+            Delivery::Fleet(fleet::Event::PartKept {
+                run: Token::new(key.task),
+                attempt: Token::new(key.attempt),
+                part: key.number,
+            }),
+        ),
+        core::Held::AcknowledgePart { channel, run, attempt, part } => emit(
+            decision,
+            &env.limits,
+            Delivery::Link { channel, down: host::LinkDown::PartKept { run, attempt, part } },
+        ),
+        core::Held::PartBusy { channel, run, attempt, part } => {
+            emit(decision, &env.limits, Delivery::PartBusy { channel, task: run.raw(), attempt: attempt.raw(), part });
+        }
         core::Held::TaskTurnKept { task, attempt, turn } => {
             emit(
                 decision,

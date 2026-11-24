@@ -8,12 +8,14 @@ use jig_domain_tasks as domain;
 use skein_lib::List;
 
 /// Translate `Hold` to its store value.
-pub fn hold(source: &domain::Hold, _limits: &wire::Limits) -> Result<wire::Hold, wire::Problem> {
-    mapped::hold_to_record(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn hold(source: &domain::Hold) -> wire::Hold {
+    mapped::hold_to_record(source)
 }
 /// Read `Hold` from its store value.
-pub fn read_hold(source: wire::Hold) -> Result<domain::Hold, wire::Problem> {
-    mapped::hold_to_domain(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn read_hold(source: wire::Hold) -> domain::Hold {
+    mapped::hold_to_domain(source)
 }
 
 /// Translate `Phase` to its store value.
@@ -26,38 +28,39 @@ pub fn read_phase(source: wire::Phase, limits: &wire::Limits) -> Result<domain::
 }
 
 /// Translate `Grace` to its store record.
-pub fn grace(source: &domain::Grace, limits: &wire::Limits) -> Result<wire::Grace, wire::Problem> {
-    mapped::grace_to_record(source, &Context::new(limits, None))
+#[must_use]
+pub fn grace(source: &domain::Grace) -> wire::Grace {
+    mapped::grace_to_record(source)
 }
 /// Read `Grace` from its store record.
-pub fn read_grace(source: wire::Grace) -> Result<domain::Grace, wire::Problem> {
-    mapped::grace_to_domain(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn read_grace(source: wire::Grace) -> domain::Grace {
+    mapped::grace_to_domain(source)
 }
 
 /// Translate `Revisions` to its store record.
-pub fn revisions(source: &domain::Revisions, _limits: &wire::Limits) -> Result<wire::Revisions, wire::Problem> {
-    mapped::revisions_to_record(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn revisions(source: &domain::Revisions) -> wire::Revisions {
+    mapped::revisions_to_record(source)
 }
 /// Read `Revisions` from its store record.
-pub fn read_revisions(source: wire::Revisions) -> Result<domain::Revisions, wire::Problem> {
-    mapped::revisions_to_domain(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn read_revisions(source: wire::Revisions) -> domain::Revisions {
+    mapped::revisions_to_domain(source)
 }
 
 /// Translate `RetryNotice` to its store value.
-pub fn retry_notice(source: &domain::RetryNotice, _limits: &wire::Limits) -> Result<wire::RetryNotice, wire::Problem> {
-    mapped::retry_notice_to_record(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn retry_notice(source: &domain::RetryNotice) -> wire::RetryNotice {
+    mapped::retry_notice_to_record(source)
 }
 /// Read `RetryNotice` from its store value.
-pub fn read_retry_notice(source: wire::RetryNotice) -> Result<domain::RetryNotice, wire::Problem> {
-    mapped::retry_notice_to_domain(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn read_retry_notice(source: wire::RetryNotice) -> domain::RetryNotice {
+    mapped::retry_notice_to_domain(source)
 }
 
-pub(super) fn references(
-    source: &[u64],
-    cap: u32,
-    path: wire::Path,
-    _limits: &wire::Limits,
-) -> Result<List<wire::Number>, wire::Problem> {
+pub(super) fn references(source: &[u64], cap: u32, path: wire::Path) -> Result<List<wire::Number>, wire::Problem> {
     let mut members = List::with_capacity(cap);
     for number in source {
         let number = wire::Number { value: *number };
@@ -108,20 +111,20 @@ pub(super) fn member(
     }
     Ok(wire::Member {
         label: *label,
-        flags: mapped::flags_to_record(flags, context)?,
+        flags: mapped::flags_to_record(flags),
         number: *number,
         project: *project,
-        executor: mapped::executor_to_record(executor, context)?,
-        llm: value::llm(llm.as_ref(), limits)?,
+        executor: mapped::executor_to_record(executor),
+        llm: value::llm(llm.as_ref())?,
         spec: value::spec(spec, limits)?,
         contract: value::contract(contract, limits)?,
         authority: value::authority(authority, limits, moved)?,
-        deadline: mapped::deadline_to_record(deadline, context)?,
-        numbers: mapped::numbers_to_record(allotment, context)?,
-        funder: mapped::funder_to_record(funder, context)?,
-        dependencies: references(dependencies, limits.member_dependencies, wire::paths::MEMBER_DEPENDENCIES, limits)?,
+        deadline: mapped::deadline_to_record(deadline),
+        numbers: mapped::numbers_to_record(allotment),
+        funder: mapped::funder_to_record(funder),
+        dependencies: references(dependencies, limits.member_dependencies, wire::paths::MEMBER_DEPENDENCIES)?,
         holdings: resources,
-        wake: mapped::wake_policy_to_record(policy, context)?,
+        wake: mapped::wake_policy_to_record(policy),
         tracked: *tracked,
     })
 }
@@ -150,21 +153,21 @@ pub(super) fn read_member(source: wire::Member, limits: &wire::Limits) -> Result
         resources.push(mapped::holding_to_domain(resource, context)?).expect("same number of holdings");
     }
     Ok(domain::New {
-        deadline: mapped::deadline_to_domain(deadline, context)?,
+        deadline: mapped::deadline_to_domain(deadline),
         label,
-        flags: mapped::flags_to_domain(flags, context)?,
+        flags: mapped::flags_to_domain(flags),
         number,
         project,
-        executor: mapped::executor_to_domain(executor, context)?,
-        llm: value::read_llm(llm)?,
+        executor: mapped::executor_to_domain(executor),
+        llm: value::read_llm(llm),
         spec: value::read_spec(spec, limits)?,
         contract: value::read_contract(contract, limits)?,
         authority: value::read_authority(authority, limits)?,
-        numbers: mapped::numbers_to_domain(numbers, context)?,
-        funder: mapped::funder_to_domain(funder, context)?,
+        numbers: mapped::numbers_to_domain(numbers),
+        funder: mapped::funder_to_domain(funder),
         dependencies: read_references(dependencies),
         holdings: resources.into_boxed(),
-        wake: mapped::wake_policy_to_domain(policy, context)?,
+        wake: mapped::wake_policy_to_domain(policy),
         recurring: None,
         tracked,
     })
@@ -205,11 +208,7 @@ pub fn template(
         wire::paths::RECURRING_TEMPLATE_BATCH,
         moved,
     )?;
-    Ok(wire::RecurringTemplate {
-        key: *key,
-        batch: members,
-        overlap: mapped::recurring_overlap_to_record(rule, &Context::new(limits, None))?,
-    })
+    Ok(wire::RecurringTemplate { key: *key, batch: members, overlap: mapped::recurring_overlap_to_record(rule) })
 }
 /// Read a recurring batch whose schema members cannot recur.
 pub fn read_template(
@@ -218,11 +217,7 @@ pub fn read_template(
 ) -> Result<domain::RecurringTemplate, wire::Problem> {
     let wire::RecurringTemplate { key, batch, overlap } = source;
     let members = super::pieces::read_members(batch, limits, wire::paths::RECURRING_TEMPLATE_BATCH)?;
-    Ok(domain::RecurringTemplate {
-        key,
-        batch: members,
-        overlap: mapped::recurring_overlap_to_domain(overlap, &Context::new(limits, None))?,
-    })
+    Ok(domain::RecurringTemplate { key, batch: members, overlap: mapped::recurring_overlap_to_domain(overlap) })
 }
 /// Translate a result within its combined byte bound.
 pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire::TaskResult, wire::Problem> {

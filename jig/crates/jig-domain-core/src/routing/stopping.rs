@@ -197,6 +197,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::Tasks(_)
         | Event::ConnectorRepair { .. }
         | Event::PersonTask { .. }
+        | Event::PartPayload { .. }
         | Event::TurnPayload { .. }
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }

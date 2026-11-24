@@ -1,6 +1,5 @@
 use super::*;
 pub fn merged_targets() -> [(&'static str, Ask); 4] {
-    let limits = limits();
     let proposal = ProposalKey { proposer: Proposer::Party(ProposerParty { value: u64::MAX }), number: u64::MAX };
     let decide = [
         ("proposal", DecideOn::Proposal(DecideProposal { proposal, decision: Decision::Accepted, running: None })),
@@ -8,7 +7,7 @@ pub fn merged_targets() -> [(&'static str, Ask); 4] {
             "escalation",
             DecideOn::Escalation(DecideEscalation {
                 task: u64::MAX,
-                revision: revision(&limits),
+                revision: revision(),
                 decision: Decision::PassedUp,
             }),
         ),
@@ -26,7 +25,7 @@ pub fn merged_targets() -> [(&'static str, Ask); 4] {
             "person",
             AnswerOn::Person(AnswerPerson {
                 task: u64::MAX,
-                revision: revision(&limits),
+                revision: revision(),
                 answer: PersonAnswer::Words(PersonAnswerWords { value: b"answer".as_slice().into() }),
             }),
         ),

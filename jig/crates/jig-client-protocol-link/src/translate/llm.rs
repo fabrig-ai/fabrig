@@ -4,43 +4,37 @@ use crate::Limits;
 use jig_client_domain::contract as c;
 use skein_lib::{List, bytes};
 
-pub(crate) fn wire_choice(
-    value: Option<&c::LlmChoice>,
-    limits: &w::Limits,
-) -> Result<Option<w::LlmChoice>, w::Problem> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
+pub(crate) fn wire_choice(value: Option<&c::LlmChoice>) -> Option<w::LlmChoice> {
+    let value = value?;
     let mut subagents = List::with_capacity(value.subagents.len());
     for item in &value.subagents {
-        subagents.push(wire_model_effort(item, limits)?).expect("same capacity");
+        subagents.push(wire_model_effort(item)).expect("same capacity");
     }
-    Ok(Some(w::LlmChoice {
+    Some(w::LlmChoice {
         account: value.account,
-        main: wire_model_effort(&value.main, limits)?,
+        main: wire_model_effort(&value.main),
         subagents,
         later: match &value.later {
-            Some(later) => Some(wire_later(later, limits)?),
+            Some(later) => Some(wire_later(later)),
             None => None,
         },
-    }))
+    })
 }
-fn wire_later(value: &c::LlmLater, limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
+fn wire_later(value: &c::LlmLater) -> w::LlmLater {
     let mut subagents = List::with_capacity(value.subagents.len());
     for item in &value.subagents {
-        subagents.push(wire_model_effort(item, limits)?).expect("same capacity");
+        subagents.push(wire_model_effort(item)).expect("same capacity");
     }
-    Ok(w::LlmLater { main: wire_model_effort(&value.main, limits)?, subagents })
+    w::LlmLater { main: wire_model_effort(&value.main), subagents }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn wire_model_effort(value: &c::ModelEffort, _limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
-    Ok(w::ModelEffort {
+fn wire_model_effort(value: &c::ModelEffort) -> w::ModelEffort {
+    w::ModelEffort {
         model: bytes::copy_of(value.model.bytes()),
         effort: match &value.effort {
             Some(effort) => Some(bytes::copy_of(effort.bytes())),
             None => None,
         },
-    })
+    }
 }
 pub(crate) fn choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Result<Option<c::LlmChoice>, w::Problem> {
     let Some(value) = value else {

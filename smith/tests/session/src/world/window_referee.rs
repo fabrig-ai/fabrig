@@ -221,9 +221,10 @@ fn outcome_bytes(outcome: &smith_domain_tools::Outcome) -> usize {
             hits.len() * std::mem::size_of::<smith_domain_tools::Hit>()
                 + hits.iter().map(|hit| hit.path.len() + hit.text.len()).sum::<usize>()
         }
-        Outcome::Exited { head, tail, .. } | Outcome::Running { head, tail, .. } | Outcome::Job { head, tail, .. } => {
-            head.len() + tail.len()
-        }
+        Outcome::Exited { head, tail, .. }
+        | Outcome::Running { head, tail, .. }
+        | Outcome::Job { head, tail, .. }
+        | Outcome::Interrupted { head, last: tail, .. } => head.len() + tail.len(),
         Outcome::EditFailed { why: Mismatch::Ambiguous { lines, .. }, .. } => lines.len() * std::mem::size_of::<u32>(),
         Outcome::EditFailed { why: Mismatch::NoMatch | Mismatch::Unchanged, .. }
         | Outcome::Removed

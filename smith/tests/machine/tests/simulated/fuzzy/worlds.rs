@@ -96,6 +96,7 @@ fn run(seed: u64) -> (usize, ToDomain, Vec<String>) {
         4 | 5 => {
             let program = if mode == 4 { b"check-fail".as_slice() } else { b"check-hang".as_slice() };
             let done = world.request(FromDomain::Check {
+                results: None,
                 owner,
                 program: run::Place { root, path: Box::from(program) },
                 bound: deadline.saturating_since(Time::ZERO),
@@ -156,6 +157,7 @@ fn configured_environment_spawns_replay_and_searches_keep_none() {
                         deadline: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
                     },
                     1 => FromDomain::Check {
+                        results: None,
                         owner: Token::new(2),
                         program: run::Place { root, path: b"check-ok".as_slice().into() },
                         bound: skein_lib::Duration::from_secs(1),

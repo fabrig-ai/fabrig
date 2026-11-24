@@ -89,16 +89,12 @@ fn fetched_release(mirror: &Fetched, pin: &Pin) -> Vec<u8> {
     release
 }
 #[must_use]
-pub fn mirror(index: &[u8]) -> Served {
-    let pin = Pin::committed();
-    let fetched = Fetched::find(&pin).expect("fetched mirror");
-    served(&pin, release(&fetched_release(&fetched, &pin)), Universe::read(index).expect("pinned index"))
-}
-#[must_use]
-pub fn committed() -> Served {
-    let cut = fs::read(universe()).expect("committed universe; write under HEARTH_RECORD=1");
+pub fn committed() -> (Served, Vec<u8>) {
+    let mut cut = fs::read(universe()).expect("committed universe; write under HEARTH_RECORD=1");
     let end = cut.windows(2).position(|p| p == b"\n\n").expect("release stanza");
-    served(&Pin::committed(), release(&cut[..end]), Universe::read(&cut[end + 2..]).expect("committed KEPT index"))
+    let index = cut.split_off(end + 2);
+    let mirror = served(&Pin::committed(), release(&cut[..end]), Universe::read(&index).expect("committed KEPT index"));
+    (mirror, index)
 }
 #[must_use]
 pub fn cut(mirror: &Fetched, pin: &Pin) -> Box<[u8]> {

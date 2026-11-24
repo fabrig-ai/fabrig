@@ -728,19 +728,18 @@ fn now_written_round_trips_and_enforces_the_line_bound() {
 
 #[test]
 fn rejection_deciders_keep_their_stored_kind() {
-    let limits = tasks_limits();
     for (by, kind) in [
         (domain::EscalationDecider::Task(31), wire::DeciderKind::Task),
         (domain::EscalationDecider::Person(31), wire::DeciderKind::Person),
     ] {
         let rejection = domain::Escalation::Rejected { revision: 7, by, reason: Box::from(b"leave held".as_slice()) };
-        let stored = tasks::state::escalation(&rejection, &limits).expect("rejection fits");
+        let stored = tasks::state::escalation(&rejection);
         let wire::Escalation::Rejected(record) = &stored else {
             panic!("stored rejection");
         };
         assert_eq!(record.by, 31);
         assert_eq!(record.by_kind, kind);
-        assert_eq!(tasks::state::read_escalation(stored), Ok(rejection.clone()));
+        assert_eq!(tasks::state::read_escalation(stored), rejection.clone());
         let mut record = current_record();
         record.escalation = rejection;
         let row = live_record(record);

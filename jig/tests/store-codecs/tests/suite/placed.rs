@@ -22,11 +22,11 @@ fn placed_hold_smallest_and_full_fixed_rule_values_round_trip() {
 fn hold_placed_round_trips_with_its_number_at_the_existing_tag() {
     for hold in [0, 1, u64::MAX] {
         let value = tasks::Hold::Placed { hold };
-        let encoded = codec::tasks::phase::hold(&value, &wire::CEILINGS).expect("number");
+        let encoded = codec::tasks::phase::hold(&value);
         let bytes = encoded.encode(&wire::CEILINGS).expect("bounded value");
         assert_eq!(bytes[0], 4);
         let decoded = wire::Hold::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("hold");
-        assert_eq!(codec::tasks::phase::read_hold(decoded), Ok(value));
+        assert_eq!(codec::tasks::phase::read_hold(decoded), value);
     }
 }
 

@@ -41,6 +41,7 @@ fn a_push_without_passing_checks_is_rejected() {
     broken(
         started(),
         Seen::Pushing {
+            checked: true,
             finishing: true,
             name: smith_domain::run::CallName { activation: 1, completion: 1, position: 0 },
             owner: Token::new(2),
@@ -62,6 +63,7 @@ fn a_host_that_lands_different_bytes_is_rejected() {
     referee.observe(
         Time::ZERO,
         Seen::Pushing {
+            checked: true,
             finishing: true,
             name: smith_domain::run::CallName { activation: 1, completion: 1, position: 0 },
             owner: Token::new(2),
@@ -237,7 +239,7 @@ fn mid_history() -> Referee<Meeting> {
         },
         Seen::Checking { owner, tree: b"checked".to_vec() },
         Seen::Checked { owner, exit: Some(Exit::Code { code: 0 }) },
-        Seen::Pushing { finishing: false, owner, name, tree: b"checked".to_vec() },
+        Seen::Pushing { checked: true, finishing: false, owner, name, tree: b"checked".to_vec() },
     ];
     for observation in observations {
         referee.observe(Time::ZERO, observation, &mut Vec::new());
@@ -308,6 +310,7 @@ fn duplicate_terminal_and_reused_durable_name_are_rejected_after_positive_prefix
     broken(
         referee,
         Seen::Pushing {
+            checked: true,
             finishing: false,
             owner,
             name: smith_domain::run::CallName { activation: 1, completion: 2, position: 1 },
@@ -327,6 +330,7 @@ fn changed_bytes_between_check_and_submission_are_rejected_after_positive_check(
     broken(
         referee,
         Seen::Pushing {
+            checked: true,
             finishing: true,
             owner,
             name: smith_domain::run::CallName { activation: 1, completion: 4, position: 0 },

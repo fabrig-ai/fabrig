@@ -63,6 +63,7 @@ fn waiting_writer_bytes(limits: &Limits, brief: u64, bound: u64) -> u64 {
 fn open_main_for_waiting_writer(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>, bound: u64) -> Token {
     let meter = Meter::new();
     let start = Event::Start {
+        tell_parts: false,
         messages: Box::default(),
         workspace: Some(workspace()),
         reply_to: ReplyTo::new(HOST_RUN),

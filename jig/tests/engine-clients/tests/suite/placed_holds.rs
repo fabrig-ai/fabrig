@@ -110,8 +110,7 @@ fn placed_hold_documents_preserve_the_smallest_and_full_owner_facts() {
             tries: t::Tries::NONE,
             hold_wait_since: None,
         };
-        let encoded =
-            jig_protocol_engine_clients::translate::chips::held(&line, &w::CEILINGS).expect("document translation");
+        let encoded = jig_protocol_engine_clients::translate::chips::held(&line);
         let mut bytes =
             Writer::new(encoded.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
         encoded.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("hold bytes");
@@ -139,8 +138,7 @@ fn a_lift_capacity_diagnostic_keeps_the_hold_identity() {
         at: Wall::EPOCH,
         cause: p::CapacityCause::Requests { limit: u32::MAX },
     };
-    let record =
-        jig_protocol_engine_clients::translate::deployment::person_refusal(&value, &w::CEILINGS).expect("diagnostic");
+    let record = jig_protocol_engine_clients::translate::deployment::person_refusal(&value);
     let w::PersonCapacityAction::Lift(action) = &record.action else { panic!("lift action") };
     assert_eq!(action.hold, u64::MAX);
     assert_eq!((&record.project), &None);

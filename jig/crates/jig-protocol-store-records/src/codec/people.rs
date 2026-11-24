@@ -167,13 +167,12 @@ pub fn encode(
         domain::Stored::Public { project } => wire::Value::Public(wire::StoredPublic { project: *project }),
         domain::Stored::Deletion { project, step, grace } => wire::Value::Deletion(wire::StoredDeletion {
             project: *project,
-            step: mapped::deletion_step_to_record(step, limits)?,
+            step: mapped::deletion_step_to_record(step),
             grace: compound::encode_grace(*grace),
         }),
-        domain::Stored::Person { number, identity } => wire::Value::Person(wire::StoredPerson {
-            number: *number,
-            identity: mapped::identity_to_record(identity, limits)?,
-        }),
+        domain::Stored::Person { number, identity } => {
+            wire::Value::Person(wire::StoredPerson { number: *number, identity: mapped::identity_to_record(identity) })
+        }
         domain::Stored::ReadResults { party, through } => {
             wire::Value::ReadResults(wire::StoredReadResults { party: *party, through: *through })
         }
@@ -191,25 +190,25 @@ pub fn encode(
             wire::Value::SignIn(wire::StoredSignIn { number: *number, person: *person, expires: expires.as_nanos() })
         }
         domain::Stored::Roles { project, holdings } => {
-            wire::Value::Roles(wire::StoredRoles { project: *project, holdings: encode_holdings(holdings, limits)? })
+            wire::Value::Roles(wire::StoredRoles { project: *project, holdings: encode_holdings(holdings)? })
         }
         domain::Stored::Policy { project, name, value } => wire::Value::Policy(wire::StoredPolicy {
             project: *project,
             name: Box::from(name.as_bytes()),
             value: policy_value_to_record(value, limits)?,
-            models: encode_configured_names(names, limits)?,
+            models: encode_configured_names(names)?,
         }),
         domain::Stored::Acted { key, act, outcome, at } => wire::Value::Acted(wire::StoredActed {
             key: wire::ActKey { connector: key.connector, key: key.key },
             act: mapped::act_to_record(act, limits)?,
-            outcome: mapped::outcome_to_record(outcome, limits)?,
+            outcome: mapped::outcome_to_record(outcome)?,
             at: at.as_nanos(),
         }),
         domain::Stored::Answer { key, ask, models, outcome, at } => wire::Value::Answer(wire::StoredAnswer {
-            key: encode_request_key(key, limits)?,
+            key: encode_request_key(key),
             ask: encode_ask(ask, limits)?,
-            models: encode_model_names(models, limits)?,
-            outcome: mapped::outcome_to_record(outcome, limits)?,
+            models: encode_model_names(models)?,
+            outcome: mapped::outcome_to_record(outcome)?,
             at: at.as_nanos(),
         }),
     };
@@ -233,13 +232,13 @@ pub fn decode(
             let wire::StoredDeletion { project, step, grace } = value;
             domain::Stored::Deletion {
                 project,
-                step: mapped::deletion_step_to_domain(step, limits)?,
+                step: mapped::deletion_step_to_domain(step),
                 grace: compound::decode_grace(grace),
             }
         }
         wire::Value::Person(value) => {
             let wire::StoredPerson { number, identity } = value;
-            domain::Stored::Person { number, identity: mapped::identity_to_domain(identity, limits)? }
+            domain::Stored::Person { number, identity: mapped::identity_to_domain(identity) }
         }
         wire::Value::ReadResults(value) => {
             let wire::StoredReadResults { party, through } = value;
@@ -282,7 +281,7 @@ pub fn decode(
             domain::Stored::Acted {
                 key: domain::ActKey { connector, key },
                 act: mapped::act_to_domain(act, limits)?,
-                outcome: mapped::outcome_to_domain(outcome, limits)?,
+                outcome: mapped::outcome_to_domain(outcome),
                 at: Wall::from_nanos(at),
             }
         }
@@ -292,7 +291,7 @@ pub fn decode(
                 key: decode_request_key(key),
                 ask: Box::new(decode_ask(ask, limits)?),
                 models: decode_model_names(models)?,
-                outcome: mapped::outcome_to_domain(outcome, limits)?,
+                outcome: mapped::outcome_to_domain(outcome),
                 at: Wall::from_nanos(at),
             }
         }
@@ -300,10 +299,7 @@ pub fn decode(
     Ok(row)
 }
 
-fn encode_configured_names(
-    names: &[core::settings::ModelName],
-    _limits: &wire::Limits,
-) -> Result<List<wire::ModelName>, wire::Problem> {
+fn encode_configured_names(names: &[core::settings::ModelName]) -> Result<List<wire::ModelName>, wire::Problem> {
     let mut result = List::with_capacity(count(names.len())?);
     for name in names {
         let name = wire::ModelName { name: name.name.clone() };
@@ -311,7 +307,7 @@ fn encode_configured_names(
     }
     Ok(result)
 }
-fn encode_model_names(names: &[Box<[u8]>], _limits: &wire::Limits) -> Result<List<wire::ModelName>, wire::Problem> {
+fn encode_model_names(names: &[Box<[u8]>]) -> Result<List<wire::ModelName>, wire::Problem> {
     let mut result = List::with_capacity(count(names.len())?);
     for name in names {
         let name = wire::ModelName { name: name.clone() };
@@ -348,15 +344,13 @@ fn count(length: usize) -> Result<u32, wire::Problem> {
     }
 }
 
-pub fn encode_request_key(
-    value: &domain::RequestKey,
-    limits: &wire::Limits,
-) -> Result<wire::RequestKey, wire::Problem> {
-    mapped::request_key_to_record(value, limits)
+#[must_use]
+pub fn encode_request_key(value: &domain::RequestKey) -> wire::RequestKey {
+    mapped::request_key_to_record(value)
 }
 #[must_use]
 pub fn decode_request_key(value: wire::RequestKey) -> domain::RequestKey {
-    mapped::request_key_to_domain(value, &wire::CEILINGS).expect("translation of a decoded or bounded value")
+    mapped::request_key_to_domain(value)
 }
 
 fn encode_policy_value_roles(
@@ -418,16 +412,14 @@ fn encode_requirements(
 fn decode_holdings(values: List<wire::Holding>) -> Box<[domain::Holding]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        result
-            .push(mapped::holding_to_domain(value, &wire::CEILINGS).expect("translation of a decoded or bounded value"))
-            .expect("same number of members");
+        result.push(mapped::holding_to_domain(value)).expect("same number of members");
     }
     result.into_boxed()
 }
-fn encode_holdings(values: &[domain::Holding], limits: &wire::Limits) -> Result<List<wire::Holding>, wire::Problem> {
+fn encode_holdings(values: &[domain::Holding]) -> Result<List<wire::Holding>, wire::Problem> {
     let mut result = List::with_capacity(count(values.len())?);
     for value in values {
-        result.push(mapped::holding_to_record(value, limits)?).expect("same number of members");
+        result.push(mapped::holding_to_record(value)).expect("same number of members");
     }
     Ok(result)
 }
@@ -507,33 +499,30 @@ fn derive_amendment(domain: &core::Limits, limits: &mut wire::Limits) -> Option<
 
 /// Reuse the people family's refusal vocabulary inside a decided core call.
 pub(crate) fn refusal_bytes(value: &domain::Refusal) -> Result<Box<[u8]>, wire::Problem> {
-    let value = mapped::refusal_to_record(value, &wire::CEILINGS)?;
+    let value = mapped::refusal_to_record(value)?;
     value.encode(&wire::CEILINGS)
 }
 pub(crate) fn read_refusal(bytes: &[u8]) -> Result<domain::Refusal, wire::Problem> {
-    mapped::refusal_to_domain(wire::Refusal::decode(&wire::CEILINGS, &mut Reader::new(bytes))?, &wire::CEILINGS)
+    Ok(mapped::refusal_to_domain(wire::Refusal::decode(&wire::CEILINGS, &mut Reader::new(bytes))?))
 }
 
 // By-hand declarations called by the maps translation.
 
-#[expect(clippy::unnecessary_wraps, reason = "maps translation pairs have a uniform fallible signature")]
-pub(crate) fn again_to_record(value: &domain::Again, _limits: &wire::Limits) -> Result<wire::Again, wire::Problem> {
-    Ok(match value {
+pub(crate) fn again_to_record(value: &domain::Again) -> wire::Again {
+    match value {
         domain::Again::Busy => wire::Again::Busy,
         domain::Again::Full { .. } => unreachable!("answers-full is never a stored outcome"),
         domain::Again::NotReady => wire::Again::NotReady,
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps translation pairs have a uniform fallible signature")]
-pub(crate) fn again_to_domain(value: wire::Again, _limits: &wire::Limits) -> Result<domain::Again, wire::Problem> {
-    Ok(match value {
+pub(crate) fn again_to_domain(value: wire::Again) -> domain::Again {
+    match value {
         wire::Again::Busy => domain::Again::Busy,
         wire::Again::NotReady => domain::Again::NotReady,
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps translation pairs have a uniform fallible signature")]
-pub(crate) fn digest_to_record(value: &[u8; 32]) -> Result<Box<[u8]>, skein_codec::Reason> {
-    Ok(skein_lib::bytes::copy_of(value))
+pub(crate) fn digest_to_record(value: &[u8; 32]) -> Box<[u8]> {
+    skein_lib::bytes::copy_of(value)
 }
 pub(crate) fn digest_to_domain(value: Box<[u8]>) -> Result<[u8; 32], skein_codec::Reason> {
     match value.as_ref().try_into() {
@@ -541,9 +530,8 @@ pub(crate) fn digest_to_domain(value: Box<[u8]>) -> Result<[u8; 32], skein_codec
         Err(_) => Err(skein_codec::Reason::Bound),
     }
 }
-#[expect(clippy::unnecessary_wraps, reason = "maps translation pairs have a uniform fallible signature")]
-pub(crate) fn program_name_to_record(value: &[u8]) -> Result<Box<[u8]>, skein_codec::Reason> {
-    Ok(skein_lib::bytes::copy_of(value))
+pub(crate) fn program_name_to_record(value: &[u8]) -> Box<[u8]> {
+    skein_lib::bytes::copy_of(value)
 }
 pub(crate) fn program_name_to_domain(value: Box<[u8]>) -> Result<Box<[u8]>, skein_codec::Reason> {
     if jig_domain_link::SourceName::new(&value).is_none() {

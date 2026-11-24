@@ -493,6 +493,7 @@ skein-forge-connection = { path = "skein/crates/skein-forge-connection" }
 skein-throwaway-forgejo = { path = "skein/testing/skein-throwaway-forgejo" }
 skein-fake-person-browser = { path = "skein/testing/skein-fake-person-browser" }
 skein-ui-example-server = { path = "skein/examples/ui/server" }
+skein-ui-example-shell-web = { path = "skein/examples/ui/shell-web" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }

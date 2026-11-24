@@ -55,17 +55,22 @@ that they cover what its work waits on.
   the App's delivery log, read by the forge component, with no address
   GitHub must reach and no webhook secret (../forge/README.md, a GitHub App's
   delivery log; `github.md`, 6).
-- **Checked:** the process tier's hinted story (`testing.md`, 4) checks the
-  table's third row, CI on a head: the one wait of its landing that the
-  forge ends. Its other waits end on temper's own writes, its push, its
-  pull request and its merge, whose deliveries are echoes. Within its
-  budget, only the job's end delivery brings a read of its CI:
-  - the keep's `poll`, `poll_max` and `slow` are raised past the budget
+- **Checked:** the protocol-forge world's hinted case
+  (`testing.md`, 4) checks the table's third row, CI on a head: the one
+  wait of a landing that the forge ends. Its other waits end on temper's
+  own writes, its push, its pull request and its merge, whose deliveries
+  are echoes. Within the case's deadline, on its virtual clock, only the
+  job's end delivery brings a read of its CI, so the change lands with
+  that delivery and has not landed at the deadline without it:
+  - the keep's `poll`, `poll_max` and `slow` are past the deadline
     (../configuration/limits.md);
   - so is the change's `stall`, whose end reads its pull request afresh
     before it holds the change (`../../domain/forge/keeping-up.md`, 3 and `../../domain/forge/change/repairs.md`);
   - its job outlasts `settle` from its change's push, so the rereads
     within `settle` end before CI does (`../../domain/forge/keeping-up.md`, 2).
+
+  That a real Forgejo sends a job's end to the hook reconcile made,
+  signed, is the process tier's deliveries test (`../../testing/process-tier.md`).
 
   The first two rows, moved by someone else's push or edit, and the
   others, comments, reviews, issues and drift, are checked from hints

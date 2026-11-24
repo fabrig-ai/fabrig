@@ -88,6 +88,9 @@ pub(crate) fn document(
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
+                | core::Held::TaskPartKept { .. }
+                | core::Held::AcknowledgePart { .. }
+                | core::Held::PartBusy { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained

@@ -234,4 +234,6 @@ fn kept_link(boxed: &mut box_link::Boxed) -> Vec<u8> {
     link.to_vec()
 }
 
+#[path = "../support/listeners.rs"]
+pub(super) mod inherited;
 mod lifetime;

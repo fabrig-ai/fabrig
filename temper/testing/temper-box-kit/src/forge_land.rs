@@ -73,8 +73,6 @@ pub struct Plan<'a> {
 
 /// The first box's reply, once the change has landed.
 pub const LANDED: &str = "The change landed.";
-/// The restarted chat's answer: the second box's reply.
-pub const RESTARTED: &str = "The change is still on main.";
 /// The chat's answer to a held change's escalation.
 pub const HELD: &str = "The change is held: its coder could not make it.";
 
@@ -213,6 +211,8 @@ pub struct Seen {
     /// Catalogue reads, which consume no scripted model call.
     pub lists: usize,
     pub schemes: Vec<Option<skein_llm::Scheme>>,
+    /// Which configured credential matched each request, without the credential bytes.
+    pub credential_indexes: Vec<Option<u32>>,
 }
 
 #[must_use]
@@ -223,12 +223,21 @@ pub(super) fn seen(procs: &[Process], at: &FaceProcs) -> Seen {
 pub(super) fn peer_seen(procs: &[Process], index: usize) -> Seen {
     use skein_fake_peers::llm::Observation;
     let Process::Peer(peer) = &procs[index] else { panic!("LLM peer") };
-    let mut seen = Seen { requests: Vec::new(), answers: Vec::new(), lists: 0, schemes: Vec::new() };
+    let mut seen = Seen {
+        requests: Vec::new(),
+        answers: Vec::new(),
+        lists: 0,
+        schemes: Vec::new(),
+        credential_indexes: Vec::new(),
+    };
     for event in peer.observations() {
         match event {
             Observation::Query { query, .. } => seen.requests.push(query.clone()),
             Observation::Answered { result, .. } => seen.answers.push(*result),
-            Observation::Credential { scheme, .. } => seen.schemes.push(*scheme),
+            Observation::Credential { scheme, index, .. } => {
+                seen.schemes.push(*scheme);
+                seen.credential_indexes.push(*index);
+            }
             Observation::List { .. } => seen.lists += 1,
             Observation::Accepted { .. } | Observation::Head { .. } | Observation::Closed { .. } => {}
         }
@@ -236,148 +245,6 @@ pub(super) fn peer_seen(procs: &[Process], index: usize) -> Seen {
     seen
 }
 
-/// A face and the conversation reads its box must follow before stopping.
-pub struct CtlFace {
-    pub face: Face,
-    pub first: bool,
-    /// The chat's reply the box waits for before it stops.
-    pub reply: &'static str,
-}
-
-/// The plan story's face: the first box waits for the landing, the second for the restarted answer.
-#[must_use]
-pub fn plan_face(issuer: oauth::Peer, scripts: Box<[Script]>, first: bool) -> CtlFace {
-    let scripts = if first { super::llm::requested(scripts) } else { temper_real_loop_world::llm::cued(scripts) };
-    CtlFace { face: fake_face(issuer, scripts), first, reply: if first { LANDED } else { RESTARTED } }
-}
-
-/// Follow the committed reply, paging the conversation and waiting from a read's digest.
-pub(super) struct Reply {
-    first: bool,
-    awaited: &'static str,
-    snapshot: Option<String>,
-    phase: ReplyPhase,
-    replied: bool,
-}
-enum ReplyPhase {
-    Snapshot,
-    Pages,
-    Delegates(u64),
-    Done,
-}
-impl Reply {
-    pub fn new(first: bool, awaited: &'static str) -> Self {
-        Self { first, awaited, snapshot: None, phase: ReplyPhase::Snapshot, replied: false }
-    }
-    pub fn advance(&mut self, calls: &mut super::ctl::Calls, expected_exits: &mut Vec<(usize, u8)>) {
-        use super::ctl::{Call, Step, json};
-        if matches!(self.phase, ReplyPhase::Done) || !calls.foreground_idle() {
-            return;
-        }
-        let last = json(calls.ends().last().expect("reply read"));
-        if matches!(self.phase, ReplyPhase::Snapshot) {
-            self.snapshot = Some(last["digest"].as_str().expect("task read digest").to_owned());
-            calls.push(Step::Run(Call::new(&["chat", "show", "1", "--json"])));
-            self.phase = ReplyPhase::Pages;
-            return;
-        }
-        if let ReplyPhase::Delegates(parent) = self.phase {
-            if let Some(after) = last["ended"]["rows"]["after"]["value"].as_str() {
-                calls.push(Step::Run(delegate_page(parent, Some(after))));
-            } else if parent == 1 {
-                calls.push(Step::Run(delegate_page(2, None)));
-                self.phase = ReplyPhase::Delegates(2);
-            } else {
-                if !self.first {
-                    // Closing adds no work: task 5 must still be unknown.
-                    expected_exits.push((calls.ends().len() + 3, 2));
-                    for args in [
-                        &["chat", "close", "1", "--key", "close-plan", "--json"][..],
-                        &["task", "show", "1", "--until", "ended", "--json"],
-                        &["task", "list", "--project", FIRST_PROJECT, "--json"],
-                        &["task", "show", "5", "--json"],
-                    ] {
-                        calls.push(Step::Run(Call::new(args)));
-                    }
-                }
-                calls.release();
-                self.phase = ReplyPhase::Done;
-            }
-            return;
-        }
-        // The first box waits for the change's reply; the second, for the
-        // restarted chat's answer, before it closes the chat.
-        self.replied |=
-            serde_json::to_string(&last["activity"]["rows"]).expect("conversation JSON").contains(self.awaited);
-        if let Some(before) = last["activity"]["before"]["value"].as_str() {
-            calls.push(Step::Run(Call::new(&["chat", "show", "1", "--before", before, "--json"])));
-        } else if !self.replied {
-            // 'Change requested' plus wait already meets replied. A snapshot
-            // taken before reading the conversation prevents missing its next reply.
-            calls.push(Step::Run(Call::new(&[
-                "task",
-                "show",
-                "1",
-                "--until",
-                "replied",
-                "--since",
-                self.snapshot.as_deref().expect("snapshot before conversation"),
-                "--json",
-            ])));
-            calls.push(Step::Run(Call::new(&["task", "show", "1", "--json"])));
-            self.phase = ReplyPhase::Snapshot;
-        } else {
-            calls.push(Step::Run(delegate_page(1, None)));
-            self.phase = ReplyPhase::Delegates(1);
-        }
-    }
-}
-
-fn delegate_page(parent: u64, after: Option<&str>) -> super::ctl::Call {
-    let parent = parent.to_string();
-    let mut args = vec!["task", "list", "--project", FIRST_PROJECT, "--parent", &parent, "--ended", "--json"];
-    if let Some(after) = after {
-        args.extend(["--after", after]);
-    }
-    super::ctl::Call::new(&args)
-}
-
-#[must_use]
-pub fn restart_script(chat_cue: &[u8]) -> Box<[Script]> {
-    // A system cue's turns count every assistant message (skein/docs/design/testing/fakes/llm.md 2.4):
-    // the first box's delegate, wait and reply are turns 0 to 2, played there.
-    // The restart runs the chat's lost attempt again, which answers (turn 3);
-    // Close then asks the parked run to finish, and its text ends it (turn 4,
-    // domain/agent/charter.md, 5). An Open run offers no finish tool.
-    let text =
-        |bytes: &[u8]| Turn { lines: Box::new([Line::Text { text: bytes.into() }]), finish: Finish::Stop, tokens: 20 };
-    let played = b"Played in the first box.";
-    Box::new([Script {
-        cue: chat_cue.into(),
-        turns: Box::new([
-            text(played),
-            text(played),
-            text(played),
-            text(RESTARTED.as_bytes()),
-            text(b"The plan chat is now closed."),
-        ]),
-    }])
-}
-
-/// The plan chat receives the entire landed pull line, including its address.
-pub fn assert_landed_chat_pull(run: &str, evidence: &super::first_repository::Evidence) {
-    let pull = format!("pull request #1 of work/hello on {0}: http://{0}/work/hello/pulls/1", evidence.address);
-    assert!(
-        evidence.delegation.contains(&pull),
-        "{run}: the chat receives the whole pull line: {}",
-        evidence.delegation
-    );
-}
-
-#[must_use]
-pub fn landed_identity(task: &str, page: &str) -> (String, String) {
-    check_landed_identity(task, page).unwrap_or_else(|why| panic!("{why}"))
-}
 pub fn check_landed_identity(task: &str, page: &str) -> Result<(String, String), String> {
     let (landed, _) = super::ctl::check_landed_result(task)?;
     let pull = page.lines().find(|line| line.starts_with("PR #")).ok_or("pull identity on the change page")?;
@@ -389,20 +256,6 @@ pub fn check_landed_identity(task: &str, page: &str) -> Result<(String, String),
         return Err(landed.to_owned());
     }
     Ok((landed.to_owned(), pull.to_owned()))
-}
-
-#[must_use]
-pub fn plan_ended_tasks(calls: &[super::Ended]) -> (usize, [Vec<u64>; 2]) {
-    let tasks_at = calls
-        .iter()
-        .position(|call| {
-            serde_json::from_slice::<serde_json::Value>(&call.stdout)
-                .is_ok_and(|value| value["ended"].is_object() && value["live"].is_array())
-        })
-        .expect("ended delegate pages");
-    let tasks =
-        [0, 1].map(|offset| ended_tasks(&calls[tasks_at..], 1 + offset, if offset == 0 { &[2] } else { &[3, 4] }));
-    (tasks_at, tasks)
 }
 
 /// The chat's ended delegates and its change's, read whole, a page at a time, by `--after`
@@ -487,68 +340,6 @@ impl EndedDelegates {
     }
 }
 
-#[must_use]
-pub fn ended_tasks(calls: &[super::Ended], parent: u64, expected: &[u64]) -> Vec<u64> {
-    let mut tasks = Vec::new();
-    let mut whole = false;
-    for call in calls {
-        let value = super::ctl::json(call);
-        let ended = &value["ended"]["rows"];
-        let rows = ended["rows"].as_array().expect("ended rows");
-        if !rows.iter().any(|row| row["requester"]["task"] == parent) {
-            continue;
-        }
-        assert_no_live_tasks(&value);
-        assert_eq!(ended["cut"], false, "uncut ended task page: {value}");
-        whole = ended["after"].is_null();
-        for row in rows {
-            assert_eq!(row["requester"]["task"], parent, "one parent's delegates per query");
-            tasks.push(row["chip"]["task"].as_u64().expect("task number"));
-        }
-    }
-    assert!(whole, "every ended task page was read");
-    tasks.sort_unstable();
-    assert_eq!(tasks, expected, "exact ended delegates of this parent");
-    tasks
-}
-pub fn assert_no_live_tasks(value: &serde_json::Value) {
-    assert_eq!(value["live"], serde_json::json!([]), "no live tasks in this query: {value}");
-    assert!(value["live_after"].is_null(), "all live tasks read");
-}
-/// A project's live roots read: `task list --project PROJECT` without `--ended`.
-pub fn assert_no_live_roots(value: &serde_json::Value) {
-    assert_eq!(value["tasks"]["rows"], serde_json::json!([]), "no live root tasks: {value}");
-    assert_eq!(value["tasks"]["more"], false, "all live root tasks read: {value}");
-}
-
-pub fn assert_reply(calls: &[super::Ended], first: bool) {
-    assert_eq!(replies(calls, LANDED), 1, "one committed final reply, across all conversation pages");
-    assert_eq!(replies(calls, RESTARTED), usize::from(!first), "the restarted chat answers once");
-}
-fn replies(calls: &[super::Ended], text: &str) -> usize {
-    let mut replies = std::collections::BTreeMap::new();
-    for call in calls {
-        let page = super::ctl::json(call);
-        let Some(rows) = page["activity"]["rows"].as_array() else { continue };
-        assert_eq!(page["activity"]["cut"], false);
-        for row in rows {
-            let Some(turn) = row.pointer("/event/owner/decoded/turn/decoded") else { continue };
-            assert_eq!(turn["cut"], false, "whole turn");
-            for message in turn["messages"].as_array().expect("turn messages") {
-                if message["speaker"] != "assistant" {
-                    continue;
-                }
-                for block in message["blocks"].as_array().expect("message blocks") {
-                    if block["text"]["text"] == text {
-                        replies.insert(row["position"].as_u64().expect("position"), turn.clone());
-                    }
-                }
-            }
-        }
-    }
-    replies.len()
-}
-
 pub fn assert_requests(seen: &Seen, count: usize, words: &[u8], first: bool) {
     let mut counts = [0; 3];
     for query in &seen.requests {
@@ -574,46 +365,20 @@ pub fn assert_requests(seen: &Seen, count: usize, words: &[u8], first: bool) {
     );
 }
 
-pub fn plan_change_steps(
-    steps: &mut Vec<super::ctl::Step>,
-    first: bool,
-    setup_calls: usize,
-    words: &str,
-) -> (usize, usize) {
-    change_steps(steps, first, setup_calls, words, Ends::Landed)
-}
-
 /// The first box's steps when its coder fails: the change holds, and the chat,
 /// woken by the held change's escalation, answers.
 pub fn held_change_steps(steps: &mut Vec<super::ctl::Step>, setup_calls: usize, words: &str) -> (usize, usize) {
-    change_steps(steps, true, setup_calls, words, Ends::Held)
+    change_steps(steps, setup_calls, words)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Ends {
-    Landed,
-    Held,
-}
-
-fn change_steps(
-    steps: &mut Vec<super::ctl::Step>,
-    first: bool,
-    setup_calls: usize,
-    words: &str,
-    ends: Ends,
-) -> (usize, usize) {
+fn change_steps(steps: &mut Vec<super::ctl::Step>, setup_calls: usize, words: &str) -> (usize, usize) {
     use super::ctl::{Call, Step};
-    steps.push(Step::Run(Call::new(&["me", "--json"])));
-    if first {
-        steps.extend([
-            Step::Run(Call::new(&["account", "connect", "1", "--key", "connect-plan"])),
-            Step::Run(Call::new(&["account", "list", "--until", "settled", "--json"])),
-        ]);
-    }
-    let account_at = setup_calls + if first { 3 } else { 1 };
-    steps.push(Step::Run(Call::new(&["account", "list", "--json"])));
-    if first {
-        steps.push(Step::Run(Call::new(&[
+    steps.extend([
+        Step::Run(Call::new(&["me", "--json"])),
+        Step::Run(Call::new(&["account", "connect", "1", "--key", "connect-plan"])),
+        Step::Run(Call::new(&["account", "list", "--until", "settled", "--json"])),
+        Step::Run(Call::new(&["account", "list", "--json"])),
+        Step::Run(Call::new(&[
             "chat",
             "start",
             "--project",
@@ -624,41 +389,13 @@ fn change_steps(
             "change-on-plan",
             words,
             "--json",
-        ])));
-    }
-    if first {
-        // Chat creation answers before its delegate exists. As in the
-        // first-repository story, wait for the chat's initial reply first.
-        steps.push(Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])));
-    }
-    let found_at = account_at + 1 + 2 * usize::from(first);
-    steps.extend(match ends {
-        Ends::Landed => super::first_repository::found_steps(),
-        // The box's referee then waits for the chat's HELD reply to the
-        // escalation; a chat refused before each run never gives it.
-        Ends::Held => vec![
-            Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--json"])),
-            Step::Run(Call::new(&["task", "show", "2", "--json"])),
-        ],
-    });
-    // The referee holds ctl open, reads and pages the conversation, and
-    // follows --since if the procedure's end has not yet reached the chat.
-    steps.push(Step::Run(Call::new(&["task", "show", "1", "--json"])));
-    (account_at, found_at)
-}
-
-pub fn assert_plan_box<T>(run: &str, first: bool, outcome: &super::boxed::CtlOutcome<T>, stderr: &str) {
-    assert_eq!(outcome.exit, Some(Exit::Code(0)), "{run}: {stderr}");
-    assert_eq!(outcome.left, Some(vec![]), "{run}: {stderr}");
-    for (index, call) in outcome.calls.iter().enumerate() {
-        assert_eq!(
-            call.exit,
-            Some(Exit::Code(if !first && index == outcome.calls.len() - 1 { 2 } else { 0 })),
-            "{run} call {index}: stdout {}; stderr {}; box {stderr}",
-            String::from_utf8_lossy(&call.stdout),
-            String::from_utf8_lossy(&call.stderr)
-        );
-    }
+        ])),
+        Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
+        Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--json"])),
+        Step::Run(Call::new(&["task", "show", "2", "--json"])),
+        Step::Run(Call::new(&["task", "show", "1", "--json"])),
+    ]);
+    (setup_calls + 3, setup_calls + 6)
 }
 
 #[must_use]
@@ -914,12 +651,17 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
             .expect("Claude Code must be installed on PATH");
         configure_live_model(&paths[0], model, &executable);
     }
-    if let LiveModel::AnthropicKey { .. } = model {
-        configure_live_model(&paths[0], model, std::path::Path::new(""));
-    }
     let mut value = super::limit_settings::configuration(&paths[0]);
+    live_limits(&mut value);
+    if let LiveModel::AnthropicKey { .. } = model {
+        super::limit_settings::remember_figures(&paths[0], &value);
+    } else {
+        super::limit_settings::remember(&paths[0], &value);
+    }
+}
+
+fn live_limits(value: &mut temper_playground::documents::Configuration) {
     value.jig_over("accounts.sign_in_deadline_ms", 600_000);
-    super::limit_settings::remember(&paths[0], &value);
 }
 
 /// Select the launcher's store and admit it before starting any process; a
@@ -1552,22 +1294,6 @@ pub fn retain_live_model(path: &std::path::Path, name: &str) {
 }
 
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
-    if let LiveModel::AnthropicKey { .. } = model {
-        let data = temper_agent_fixtures::data(config);
-        let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
-        let provider = temper_agent_fixtures::providers::input(&mut value)["providers"]
-            .as_array_mut()
-            .expect("providers")
-            .iter_mut()
-            .find(|provider| provider["name"] == "anthropic")
-            .expect("init Anthropic provider")
-            .as_object_mut()
-            .expect("provider");
-        provider.remove("keep");
-        provider.remove("drop");
-        temper_agent_fixtures::providers::keep(&mut value, &data);
-        return;
-    }
     let LiveModel::ClaudeCode { login } = model else { return };
     let data = temper_agent_fixtures::data(config);
     let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
@@ -1628,6 +1354,40 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
 pub struct LiveChange {
     pub key: &'static str,
     pub file: serde_json::Value,
+}
+
+/// The key story disables catalogue discovery in the store, not in its startup copy
+/// (temper/docs/design/testing/live-tier.md, the key story's configuration).
+pub fn key_provider_change(row: &serde_json::Value) -> Result<LiveChange, String> {
+    require(
+        row["setting"] == serde_json::json!({"kind":"provider","number":2})
+            && row["value"]["number"] == 2
+            && row["value"]["name"] == "anthropic",
+        "the stock Anthropic provider 2",
+    )?;
+    let mut value = row["value"].clone();
+    let provider = value.as_object_mut().ok_or("Anthropic provider value missing")?;
+    provider.remove("keep");
+    provider.remove("drop");
+    Ok(LiveChange {
+        key: "live-key-provider",
+        file: serde_json::json!({"items":[{"setting":row["setting"], "set":value}]}),
+    })
+}
+
+fn key_provider_steps(data: &std::path::Path) -> Vec<super::ctl::Step> {
+    use super::ctl::{Call, Step, json, settings_change};
+    let file = data.join("live-key-provider.json");
+    vec![
+        Step::Run(Call::new(&["settings", "show", "--json"])),
+        Step::Run(Call::new(&["settings", "show", "provider", "2", "--json"])),
+        Step::Then(Box::new(move |calls| {
+            let reads = &calls[calls.len() - 2..];
+            let change = key_provider_change(&json(&reads[1])).expect("key story's provider setting");
+            super::write_private(&file, &serde_json::to_vec(&change.file).expect("provider settings JSON"));
+            settings_change(&reads[0], &file, change.key)
+        })),
+    ]
 }
 
 /// The settings changes a fresh sitting applies, in order (testing/live-tier.md):
@@ -2790,7 +2550,21 @@ pub fn run_live_counted(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
-    super::limit_settings::install_paths(plan.paths);
+    if plan.first && !plan.kept && matches!(plan.model, LiveModel::AnthropicKey { .. }) {
+        super::limit_settings::install_paths_with(plan.paths, key_provider_steps(&plan.paths[1]));
+        // Serve has drained. The next start reads the shell's copy before it can add the key.
+        let providers = temper_service_shell::providers::read(
+            &plan.paths[1].join("providers.setting"),
+            temper_service::stock::providers(),
+            &mut Vec::new(),
+        );
+        require(
+            providers.iter().any(|value| value.provider.number == 2 && value.provider.list.is_none()),
+            "bootstrap did not keep Anthropic provider 2 without a list policy",
+        )?;
+    } else {
+        super::limit_settings::install_paths(plan.paths);
+    }
     plan.install_return_hook(&skein_scratch::paths::binary("temper-box"))?;
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(

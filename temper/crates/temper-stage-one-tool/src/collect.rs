@@ -430,11 +430,15 @@ fn parse_number(text: &str, flag: &str) -> Result<u32, CollectError> {
         .filter(|n| *n != 0)
         .ok_or_else(|| failure("collect", format!("{flag} requires a positive u32")))
 }
+pub(crate) fn arguments(args: &[String]) -> Result<CollectArgs, String> {
+    CollectArgs::parse(args).map_err(|error| crate::TABLE.refusal(&crate::cli::COLLECT, &error.reason))
+}
+
 /// Run the collect command, reporting usage and read failures with exit 2.
 pub fn main(args: &[String]) -> ExitCode {
-    let args = match CollectArgs::parse(args) {
+    let args = match arguments(args) {
         Ok(args) => args,
-        Err(error) => return crate::cli::refuse(&crate::TABLE.refusal(&crate::cli::COLLECT, &error.reason)),
+        Err(error) => return crate::cli::refuse(&error),
     };
     match collect(&args) {
         Ok(()) => ExitCode::SUCCESS,

@@ -29,6 +29,10 @@ fn check_all(bytes: &[u8]) {
     check!(bytes, smith_channel, Call);
     check!(bytes, smith_channel, Withdraw);
     check!(bytes, smith_channel, Turn);
+    check!(bytes, smith_channel, Part);
+    check!(bytes, smith_channel, PartKept);
+    check!(bytes, smith_channel, KeptPart);
+    check!(bytes, smith_channel, Drain);
     check!(bytes, smith_channel, Waiting);
     check!(bytes, smith_channel, Long);
     check!(bytes, smith_channel, LongDone);
@@ -52,7 +56,7 @@ fn arbitrary_and_mutated_wires_never_panic_and_round_trip_when_valid() {
         check_all(buffer.get(..length).expect("within buffer"));
     }
 
-    for (family, version) in [("charter", 5), ("transcript", 7), ("channel", 7)] {
+    for (family, version) in [("charter", 5), ("transcript", 8), ("channel", smith_channel::wire::VERSION)] {
         for value in crate::support::fixed_values::all(family, version)
             .into_iter()
             .filter(|value| value.name.starts_with("record_") && value.name.ends_with("_full.bin"))

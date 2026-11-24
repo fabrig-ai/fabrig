@@ -29,13 +29,14 @@ pub(super) fn limits() -> jig_protocol_worker_link::Limits {
     limits
 }
 pub(super) fn fixed_value(text: &'static str, name: &str) -> Box<[u8]> {
+    let filename = format!("{name}.bin");
     skein_codegen::values(text)
         .fixed
-        .clone()
-        .into_iter()
-        .find(|g| g.name == format!("{name}.bin"))
+        .iter()
+        .find(|g| g.name == filename)
         .expect("bounded translation fixture")
         .bytes
+        .clone()
         .into_boxed_slice()
 }
 pub(super) fn charter(contract: u16) -> Box<[u8]> {

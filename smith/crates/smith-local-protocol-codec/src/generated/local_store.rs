@@ -10,6 +10,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub turn_body: u32,
@@ -56,19 +57,37 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.turn_body).expect("room for every named limit");
-        values.push(self.push_target_remote).expect("room for every named limit");
-        values.push(self.push_target_branch).expect("room for every named limit");
-        values.push(self.intent_directory_head_some).expect("room for every named limit");
-        values.push(self.delivery_intent_directories).expect("room for every named limit");
-        values.push(self.receipt_text).expect("room for every named limit");
-        values.push(self.delivered_receipts).expect("room for every named limit");
-        values.push(self.marker_path).expect("room for every named limit");
-        values.push(self.delivery_refusal_explanation).expect("room for every named limit");
-        values.push(self.delivery_failure_output).expect("room for every named limit");
-        values.push(self.delivery_landed).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.turn_body,
+            self.push_target_remote,
+            self.push_target_branch,
+            self.intent_directory_head_some,
+            self.delivery_intent_directories,
+            self.receipt_text,
+            self.delivered_receipts,
+            self.marker_path,
+            self.delivery_refusal_explanation,
+            self.delivery_failure_output,
+            self.delivery_landed,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            turn_body: self.turn_body.min(most),
+            push_target_remote: self.push_target_remote.min(most),
+            push_target_branch: self.push_target_branch.min(most),
+            intent_directory_head_some: self.intent_directory_head_some.min(most),
+            delivery_intent_directories: self.delivery_intent_directories.min(most),
+            receipt_text: self.receipt_text.min(most),
+            delivered_receipts: self.delivered_receipts.min(most),
+            marker_path: self.marker_path.min(most),
+            delivery_refusal_explanation: self.delivery_refusal_explanation.min(most),
+            delivery_failure_output: self.delivery_failure_output.min(most),
+            delivery_landed: self.delivery_landed.min(most),
+        }
     }
 }
 
@@ -95,272 +114,64 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const STATE_IDENTITY: Path = Path::new(0, 0);
-    pub const STATE_ACTIVATION: Path = Path::new(0, 1);
-    pub const STATE_NEXT_MESSAGE: Path = Path::new(0, 2);
-    pub const STATE_READ: Path = Path::new(0, 3);
-    pub const STATE_VERSION: Path = Path::new(0, 4);
-    pub const STATE_TAIL: Path = Path::new(0, 5);
-    pub const TURN_READ: Path = Path::new(1, 0);
-    pub const TURN_OPENS_WINDOW: Path = Path::new(1, 1);
-    pub const TURN_BODY: Path = Path::new(1, 2);
-    pub const TURN_VERSION: Path = Path::new(1, 3);
-    pub const TURN_TAIL: Path = Path::new(1, 4);
-    pub const CALL_NAME_ACTIVATION: Path = Path::new(2, 0);
-    pub const CALL_NAME_COMPLETION: Path = Path::new(2, 1);
-    pub const CALL_NAME_POSITION: Path = Path::new(2, 2);
-    pub const CALL_NAME_TAIL: Path = Path::new(2, 3);
-    pub const PUSH_TARGET_REMOTE: Path = Path::new(3, 0);
-    pub const PUSH_TARGET_BRANCH: Path = Path::new(3, 1);
-    pub const PUSH_TARGET_TAIL: Path = Path::new(3, 2);
-    pub const INTENT_DIRECTORY_DIRECTORY: Path = Path::new(4, 0);
-    pub const INTENT_DIRECTORY_CHANGED: Path = Path::new(4, 1);
-    pub const INTENT_DIRECTORY_HEAD: Path = Path::new(4, 2);
-    pub const INTENT_DIRECTORY_PUSH: Path = Path::new(4, 3);
-    pub const INTENT_DIRECTORY_TAIL: Path = Path::new(4, 4);
-    pub const DELIVERY_INTENT_DIRECTORIES: Path = Path::new(5, 0);
-    pub const DELIVERY_INTENT_TAIL: Path = Path::new(5, 1);
-    pub const RECEIPT_DIRECTORY: Path = Path::new(6, 0);
-    pub const RECEIPT_TEXT: Path = Path::new(6, 1);
-    pub const RECEIPT_TAIL: Path = Path::new(6, 2);
-    pub const DELIVERED_RECEIPTS: Path = Path::new(7, 0);
-    pub const DELIVERED_TAIL: Path = Path::new(7, 1);
-    pub const MARKER_DIRECTORY: Path = Path::new(8, 0);
-    pub const MARKER_PATH: Path = Path::new(8, 1);
-    pub const MARKER_TAIL: Path = Path::new(8, 2);
-    pub const DELIVERY_REFUSAL_MARKER: Path = Path::new(9, 0);
-    pub const DELIVERY_REFUSAL_EXPLANATION: Path = Path::new(9, 1);
-    pub const DELIVERY_REFUSAL_TAIL: Path = Path::new(9, 2);
-    pub const DELIVERY_REASON_TAG: Path = Path::new(10, 0);
-    pub const DELIVERY_FAILURE_DIRECTORY: Path = Path::new(11, 0);
-    pub const DELIVERY_FAILURE_REASON: Path = Path::new(11, 1);
-    pub const DELIVERY_FAILURE_OUTPUT: Path = Path::new(11, 2);
-    pub const DELIVERY_FAILURE_CUT: Path = Path::new(11, 3);
-    pub const DELIVERY_FAILURE_TAIL: Path = Path::new(11, 4);
-    pub const ANSWER_TAG: Path = Path::new(12, 0);
-    pub const DELIVERY_ANSWER_ANSWER: Path = Path::new(13, 0);
-    pub const DELIVERY_ANSWER_TAIL: Path = Path::new(13, 1);
-    pub const DELIVERY_STATE_TAG: Path = Path::new(14, 0);
-    pub const DELIVERY_NAME: Path = Path::new(15, 0);
-    pub const DELIVERY_STATE: Path = Path::new(15, 1);
-    pub const DELIVERY_LANDED: Path = Path::new(15, 2);
-    pub const DELIVERY_VERSION: Path = Path::new(15, 3);
-    pub const DELIVERY_TAIL: Path = Path::new(15, 4);
-    pub const LAYOUTS_STORE: Path = Path::new(16, 0);
-    pub const LAYOUTS_TRANSCRIPT: Path = Path::new(16, 1);
-    pub const LAYOUTS_VERSION: Path = Path::new(16, 2);
-    pub const LAYOUTS_TAIL: Path = Path::new(16, 3);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "State.identity",
-        "State.activation",
-        "State.next_message",
-        "State.read",
-        "State (version)",
-        "State (tail)",
-    ],
-    &[
-        "Turn.read",
-        "Turn.opens_window",
-        "Turn.body",
-        "Turn (version)",
-        "Turn (tail)",
-    ],
-    &[
-        "CallName.activation",
-        "CallName.completion",
-        "CallName.position",
-        "CallName (tail)",
-    ],
-    &[
-        "PushTarget.remote",
-        "PushTarget.branch",
-        "PushTarget (tail)",
-    ],
-    &[
-        "IntentDirectory.directory",
-        "IntentDirectory.changed",
-        "IntentDirectory.head",
-        "IntentDirectory.push",
-        "IntentDirectory (tail)",
-    ],
-    &[
-        "DeliveryIntent.directories",
-        "DeliveryIntent (tail)",
-    ],
-    &[
-        "Receipt.directory",
-        "Receipt.text",
-        "Receipt (tail)",
-    ],
-    &[
-        "Delivered.receipts",
-        "Delivered (tail)",
-    ],
-    &[
-        "Marker.directory",
-        "Marker.path",
-        "Marker (tail)",
-    ],
-    &[
-        "DeliveryRefusal.marker",
-        "DeliveryRefusal.explanation",
-        "DeliveryRefusal (tail)",
-    ],
-    &[
-        "DeliveryReason (tag)",
-    ],
-    &[
-        "DeliveryFailure.directory",
-        "DeliveryFailure.reason",
-        "DeliveryFailure.output",
-        "DeliveryFailure.cut",
-        "DeliveryFailure (tail)",
-    ],
-    &[
-        "Answer (tag)",
-    ],
-    &[
-        "DeliveryAnswer.answer",
-        "DeliveryAnswer (tail)",
-    ],
-    &[
-        "DeliveryState (tag)",
-    ],
-    &[
-        "Delivery.name",
-        "Delivery.state",
-        "Delivery.landed",
-        "Delivery (version)",
-        "Delivery (tail)",
-    ],
-    &[
-        "Layouts.store",
-        "Layouts.transcript",
-        "Layouts (version)",
-        "Layouts (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(16),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 3 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 4] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 6 },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[7, 8, 9] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[11, 12, 13] },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[15, 16] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Bytes { limit: 3 },
-    skein_codec::bounds::Node::Option { item: 20 },
-    skein_codec::bounds::Node::Option { item: 17 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[18, 19, 21, 22] },
-    skein_codec::bounds::Node::List { limit: 4, item: 23, size: size_of::<IntentDirectory>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[24] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Bytes { limit: 5 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[26, 27] },
-    skein_codec::bounds::Node::List { limit: 6, item: 28, size: size_of::<Receipt>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[29] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Bytes { limit: 7 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[31, 32] },
-    skein_codec::bounds::Node::Option { item: 33 },
-    skein_codec::bounds::Node::Bytes { limit: 8 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[34, 35] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[37, 38, 39, 40, 41, 42, 43, 44, 45, 46] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Bytes { limit: 9 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[48, 47, 49, 50] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[30, 52, 36, 51, 53] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[54] },
-    skein_codec::bounds::Node::Enum { variants: &[25, 55] },
-    skein_codec::bounds::Node::List { limit: 10, item: 28, size: size_of::<Receipt>() },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[14, 56, 57] },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[59, 60] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    5,
-    10,
-    14,
-    17,
-    23,
-    25,
-    28,
-    30,
-    33,
-    36,
-    47,
-    51,
-    54,
-    55,
-    56,
-    58,
-    61,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    67_108_864,
-    1_048_576,
-    1_048_576,
-    512,
-    64,
-    512,
-    64,
-    4_096,
-    512,
-    512,
-    64,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const STATE_IDENTITY: Path = Path::new("State.identity");
+    pub const STATE_ACTIVATION: Path = Path::new("State.activation");
+    pub const STATE_NEXT_MESSAGE: Path = Path::new("State.next_message");
+    pub const STATE_READ: Path = Path::new("State.read");
+    pub const STATE_VERSION: Path = Path::new("State (version)");
+    pub const STATE_TAIL: Path = Path::new("State (tail)");
+    pub const TURN_READ: Path = Path::new("Turn.read");
+    pub const TURN_OPENS_WINDOW: Path = Path::new("Turn.opens_window");
+    pub const TURN_BODY: Path = Path::new("Turn.body");
+    pub const TURN_VERSION: Path = Path::new("Turn (version)");
+    pub const TURN_TAIL: Path = Path::new("Turn (tail)");
+    pub const CALL_NAME_ACTIVATION: Path = Path::new("CallName.activation");
+    pub const CALL_NAME_COMPLETION: Path = Path::new("CallName.completion");
+    pub const CALL_NAME_POSITION: Path = Path::new("CallName.position");
+    pub const CALL_NAME_TAIL: Path = Path::new("CallName (tail)");
+    pub const PUSH_TARGET_REMOTE: Path = Path::new("PushTarget.remote");
+    pub const PUSH_TARGET_BRANCH: Path = Path::new("PushTarget.branch");
+    pub const PUSH_TARGET_TAIL: Path = Path::new("PushTarget (tail)");
+    pub const INTENT_DIRECTORY_DIRECTORY: Path = Path::new("IntentDirectory.directory");
+    pub const INTENT_DIRECTORY_CHANGED: Path = Path::new("IntentDirectory.changed");
+    pub const INTENT_DIRECTORY_HEAD: Path = Path::new("IntentDirectory.head");
+    pub const INTENT_DIRECTORY_PUSH: Path = Path::new("IntentDirectory.push");
+    pub const INTENT_DIRECTORY_TAIL: Path = Path::new("IntentDirectory (tail)");
+    pub const DELIVERY_INTENT_DIRECTORIES: Path = Path::new("DeliveryIntent.directories");
+    pub const DELIVERY_INTENT_TAIL: Path = Path::new("DeliveryIntent (tail)");
+    pub const RECEIPT_DIRECTORY: Path = Path::new("Receipt.directory");
+    pub const RECEIPT_TEXT: Path = Path::new("Receipt.text");
+    pub const RECEIPT_TAIL: Path = Path::new("Receipt (tail)");
+    pub const DELIVERED_RECEIPTS: Path = Path::new("Delivered.receipts");
+    pub const DELIVERED_TAIL: Path = Path::new("Delivered (tail)");
+    pub const MARKER_DIRECTORY: Path = Path::new("Marker.directory");
+    pub const MARKER_PATH: Path = Path::new("Marker.path");
+    pub const MARKER_TAIL: Path = Path::new("Marker (tail)");
+    pub const DELIVERY_REFUSAL_MARKER: Path = Path::new("DeliveryRefusal.marker");
+    pub const DELIVERY_REFUSAL_EXPLANATION: Path = Path::new("DeliveryRefusal.explanation");
+    pub const DELIVERY_REFUSAL_TAIL: Path = Path::new("DeliveryRefusal (tail)");
+    pub const DELIVERY_REASON_TAG: Path = Path::new("DeliveryReason (tag)");
+    pub const DELIVERY_FAILURE_DIRECTORY: Path = Path::new("DeliveryFailure.directory");
+    pub const DELIVERY_FAILURE_REASON: Path = Path::new("DeliveryFailure.reason");
+    pub const DELIVERY_FAILURE_OUTPUT: Path = Path::new("DeliveryFailure.output");
+    pub const DELIVERY_FAILURE_CUT: Path = Path::new("DeliveryFailure.cut");
+    pub const DELIVERY_FAILURE_TAIL: Path = Path::new("DeliveryFailure (tail)");
+    pub const ANSWER_TAG: Path = Path::new("Answer (tag)");
+    pub const DELIVERY_ANSWER_ANSWER: Path = Path::new("DeliveryAnswer.answer");
+    pub const DELIVERY_ANSWER_TAIL: Path = Path::new("DeliveryAnswer (tail)");
+    pub const DELIVERY_STATE_TAG: Path = Path::new("DeliveryState (tag)");
+    pub const DELIVERY_NAME: Path = Path::new("Delivery.name");
+    pub const DELIVERY_STATE: Path = Path::new("Delivery.state");
+    pub const DELIVERY_LANDED: Path = Path::new("Delivery.landed");
+    pub const DELIVERY_VERSION: Path = Path::new("Delivery (version)");
+    pub const DELIVERY_TAIL: Path = Path::new("Delivery (tail)");
+    pub const LAYOUTS_STORE: Path = Path::new("Layouts.store");
+    pub const LAYOUTS_TRANSCRIPT: Path = Path::new("Layouts.transcript");
+    pub const LAYOUTS_VERSION: Path = Path::new("Layouts (version)");
+    pub const LAYOUTS_TAIL: Path = Path::new("Layouts (tail)");
 }
 
 // Type: State.
@@ -374,6 +185,15 @@ pub struct State {
 
 // Record: State.
 impl State {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(16),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 43;
 }
@@ -383,11 +203,11 @@ impl Record for State {
     const TAIL: Path = paths::STATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "State")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "State")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -429,6 +249,14 @@ pub struct Turn {
 
 // Record: Turn.
 impl Turn {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, turn_body) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -438,11 +266,11 @@ impl Record for Turn {
     const TAIL: Path = paths::TURN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Turn")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Turn")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -482,6 +310,13 @@ pub struct CallName {
 
 // Record: CallName.
 impl CallName {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -491,11 +326,20 @@ impl Record for CallName {
     const TAIL: Path = paths::CALL_NAME_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CallName")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CallName")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -523,6 +367,12 @@ pub struct PushTarget {
 
 // Record: PushTarget.
 impl PushTarget {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, push_target_remote) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, push_target_branch) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -532,11 +382,20 @@ impl Record for PushTarget {
     const TAIL: Path = paths::PUSH_TARGET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PushTarget")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PushTarget")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -564,6 +423,16 @@ pub struct IntentDirectory {
 
 // Record: IntentDirectory.
 impl IntentDirectory {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, intent_directory_head_some) },
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Named("PushTarget"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 19;
 }
@@ -573,11 +442,20 @@ impl Record for IntentDirectory {
     const TAIL: Path = paths::INTENT_DIRECTORY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "IntentDirectory")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "IntentDirectory")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -606,6 +484,12 @@ pub struct DeliveryIntent {
 
 // Record: DeliveryIntent.
 impl DeliveryIntent {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("IntentDirectory"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, delivery_intent_directories), item: 0, size: size_of::<IntentDirectory>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -615,11 +499,20 @@ impl Record for DeliveryIntent {
     const TAIL: Path = paths::DELIVERY_INTENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryIntent")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryIntent")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -643,6 +536,12 @@ pub struct Receipt {
 
 // Record: Receipt.
 impl Receipt {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, receipt_text) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -652,11 +551,20 @@ impl Record for Receipt {
     const TAIL: Path = paths::RECEIPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 28)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Receipt")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 28)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Receipt")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -681,6 +589,12 @@ pub struct Delivered {
 
 // Record: Delivered.
 impl Delivered {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Receipt"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, delivered_receipts), item: 0, size: size_of::<Receipt>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -690,11 +604,20 @@ impl Record for Delivered {
     const TAIL: Path = paths::DELIVERED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 30)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Delivered")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 30)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Delivered")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -718,6 +641,12 @@ pub struct Marker {
 
 // Record: Marker.
 impl Marker {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, marker_path) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -727,11 +656,20 @@ impl Record for Marker {
     const TAIL: Path = paths::MARKER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 33)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Marker")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 33)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Marker")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -757,6 +695,13 @@ pub struct DeliveryRefusal {
 
 // Record: DeliveryRefusal.
 impl DeliveryRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Marker"),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, delivery_refusal_explanation) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 13;
 }
@@ -766,11 +711,20 @@ impl Record for DeliveryRefusal {
     const TAIL: Path = paths::DELIVERY_REFUSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryRefusal")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -804,6 +758,20 @@ pub enum DeliveryReason {
 
 // Record: DeliveryReason.
 impl DeliveryReason {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -813,11 +781,20 @@ impl Record for DeliveryReason {
     const TAIL: Path = paths::DELIVERY_REASON_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 47)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryReason")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 47)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryReason")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -864,6 +841,14 @@ pub struct DeliveryFailure {
 
 // Record: DeliveryFailure.
 impl DeliveryFailure {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("DeliveryReason"),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, delivery_failure_output) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -873,11 +858,20 @@ impl Record for DeliveryFailure {
     const TAIL: Path = paths::DELIVERY_FAILURE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 51)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryFailure")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 51)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryFailure")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -910,6 +904,15 @@ pub enum Answer {
 
 // Record: Answer.
 impl Answer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Delivered"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("DeliveryRefusal"),
+        skein_codec::bounds::Node::Named("DeliveryFailure"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 18;
 }
@@ -919,11 +922,20 @@ impl Record for Answer {
     const TAIL: Path = paths::ANSWER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 54)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Answer")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 54)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Answer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -957,6 +969,11 @@ pub struct DeliveryAnswer {
 
 // Record: DeliveryAnswer.
 impl DeliveryAnswer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Answer"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 18;
 }
@@ -966,11 +983,20 @@ impl Record for DeliveryAnswer {
     const TAIL: Path = paths::DELIVERY_ANSWER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 55)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryAnswer")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 55)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryAnswer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -994,6 +1020,12 @@ pub enum DeliveryState {
 
 // Record: DeliveryState.
 impl DeliveryState {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("DeliveryIntent"),
+        skein_codec::bounds::Node::Named("DeliveryAnswer"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 19;
 }
@@ -1003,11 +1035,20 @@ impl Record for DeliveryState {
     const TAIL: Path = paths::DELIVERY_STATE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 56)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryState")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 56)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DeliveryState")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1037,6 +1078,14 @@ pub struct Delivery {
 
 // Record: Delivery.
 impl Delivery {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("CallName"),
+        skein_codec::bounds::Node::Named("DeliveryState"),
+        skein_codec::bounds::Node::Named("Receipt"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, delivery_landed), item: 2, size: size_of::<Receipt>() },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 41;
 }
@@ -1046,11 +1095,11 @@ impl Record for Delivery {
     const TAIL: Path = paths::DELIVERY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 58)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Delivery")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 58)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Delivery")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1089,6 +1138,12 @@ pub struct Layouts {
 
 // Record: Layouts.
 impl Layouts {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 66;
 }
@@ -1098,11 +1153,11 @@ impl Record for Layouts {
     const TAIL: Path = paths::LAYOUTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 61)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Layouts")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 61)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Layouts")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1130,3 +1185,47 @@ impl Record for Layouts {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Answer", nodes: Answer::SHAPE },
+    skein_codec::bounds::Declaration { name: "CallName", nodes: CallName::SHAPE },
+    skein_codec::bounds::Declaration { name: "Delivered", nodes: Delivered::SHAPE },
+    skein_codec::bounds::Declaration { name: "Delivery", nodes: Delivery::SHAPE },
+    skein_codec::bounds::Declaration { name: "DeliveryAnswer", nodes: DeliveryAnswer::SHAPE },
+    skein_codec::bounds::Declaration { name: "DeliveryFailure", nodes: DeliveryFailure::SHAPE },
+    skein_codec::bounds::Declaration { name: "DeliveryIntent", nodes: DeliveryIntent::SHAPE },
+    skein_codec::bounds::Declaration { name: "DeliveryReason", nodes: DeliveryReason::SHAPE },
+    skein_codec::bounds::Declaration { name: "DeliveryRefusal", nodes: DeliveryRefusal::SHAPE },
+    skein_codec::bounds::Declaration { name: "DeliveryState", nodes: DeliveryState::SHAPE },
+    skein_codec::bounds::Declaration { name: "IntentDirectory", nodes: IntentDirectory::SHAPE },
+    skein_codec::bounds::Declaration { name: "Layouts", nodes: Layouts::SHAPE },
+    skein_codec::bounds::Declaration { name: "Marker", nodes: Marker::SHAPE },
+    skein_codec::bounds::Declaration { name: "PushTarget", nodes: PushTarget::SHAPE },
+    skein_codec::bounds::Declaration { name: "Receipt", nodes: Receipt::SHAPE },
+    skein_codec::bounds::Declaration { name: "State", nodes: State::SHAPE },
+    skein_codec::bounds::Declaration { name: "Turn", nodes: Turn::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.turn_body,
+    CEILINGS.push_target_remote,
+    CEILINGS.push_target_branch,
+    CEILINGS.intent_directory_head_some,
+    CEILINGS.delivery_intent_directories,
+    CEILINGS.receipt_text,
+    CEILINGS.delivered_receipts,
+    CEILINGS.marker_path,
+    CEILINGS.delivery_refusal_explanation,
+    CEILINGS.delivery_failure_output,
+    CEILINGS.delivery_landed,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

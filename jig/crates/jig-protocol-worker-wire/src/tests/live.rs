@@ -1,6 +1,6 @@
 use super::fixtures::{SIZES_LARGE, SIZES_ONE_SLOT};
-use crate::v21::Record;
-use crate::{self as wire, sizes, v21};
+use crate::v22::Record;
+use crate::{self as wire, sizes, v22};
 use skein_lib::{Reader, Writer};
 
 use super::fixtures::repeated;
@@ -59,7 +59,7 @@ fn piece_content_at_its_ceiling_decodes_and_one_past_is_refused() {
         } else {
             assert_eq!(
                 result.unwrap_err(),
-                v21::Problem { path: v21::paths::PIECE_BYTES, reason: skein_codec::Reason::Bound }
+                v22::Problem { path: v22::paths::PIECE_BYTES, reason: skein_codec::Reason::Bound }
             );
         }
     }
@@ -68,8 +68,8 @@ fn piece_content_at_its_ceiling_decodes_and_one_past_is_refused() {
 fn input_call_fields_at_their_ceilings_decode_and_one_past_is_refused() {
     for (id, tool, problem) in [
         (256_u32, 64_u32, None),
-        (257, 64, Some(v21::paths::INPUT_CALL_ID)),
-        (256, 65, Some(v21::paths::INPUT_CALL_TOOL)),
+        (257, 64, Some(v22::paths::INPUT_CALL_ID)),
+        (256, 65, Some(v22::paths::INPUT_CALL_TOOL)),
     ] {
         let mut writer = Writer::new(8 + usize::try_from(id + tool).unwrap());
         writer.put(&id.to_be_bytes()).unwrap();
@@ -83,7 +83,7 @@ fn input_call_fields_at_their_ceilings_decode_and_one_past_is_refused() {
                 let call = result.unwrap();
                 assert_eq!(call.measure(&crate::CEILINGS).expect("record within limits"), 328);
             }
-            Some(path) => assert_eq!(result.unwrap_err(), v21::Problem { path, reason: skein_codec::Reason::Bound }),
+            Some(path) => assert_eq!(result.unwrap_err(), v22::Problem { path, reason: skein_codec::Reason::Bound }),
         }
     }
 }

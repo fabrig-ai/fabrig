@@ -286,6 +286,8 @@ impl Parent {
     /// Takes the host's request `request`, which is for the parent.
     pub fn take(&mut self, request: Request) -> Vec<Out> {
         match request {
+            Request::Agent(ToAgent::AcknowledgePart { .. }) => panic!("scripted agent sends no parts"),
+            Request::Up(LinkUp::Part { .. }) => panic!("parts are not relayed by this hub"),
             Request::Paused { .. } | Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }
@@ -315,7 +317,7 @@ impl Parent {
             }
             Request::Agent(ToAgent::Message { agent, .. }) => self.deliver(agent),
             Request::Agent(ToAgent::Answer { agent, call: _, answer: _ }) => self.reply(agent),
-            Request::Agent(ToAgent::Drain { agent }) => {
+            Request::Agent(ToAgent::Drain { agent, grace: _ }) => {
                 self.agents.get_mut(&agent).expect("a drain is for a started agent").drained = true;
                 Vec::new()
             }

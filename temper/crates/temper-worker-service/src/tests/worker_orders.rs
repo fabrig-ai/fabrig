@@ -24,7 +24,7 @@ const ADMITTED_FRAMES: usize = 1;
 const WITH_TURN: usize = ADMITTED_FRAMES + 1;
 const PROCESS_RECORDS: u32 = 3; // The two messages and cancellation.
 // One value per grant, then the assignment, in one link invocation.
-const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v21::CEILINGS.assignment_grants;
+const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v22::CEILINGS.assignment_grants;
 
 fn chat() -> (Token, Token) {
     let link::Request::Down { down: hub::LinkDown::Assign { assignment }, .. } = fixtures::chat_assignment() else {
@@ -58,7 +58,7 @@ fn hold_notes_while_translating(stand: &mut fixtures::WorkerStand) {
 
 fn stage_turn(stand: &mut fixtures::WorkerStand, peer: &mut AgentPeer, number: u32, frames: usize) {
     let agent = fixtures::worker_agent();
-    let body = turn_body(&agent, number);
+    let body = turn_body(number);
     let turn = channel::decode_turn(&body, number, &agent.limits.transcript, &agent.endpoints).unwrap();
     peer.component
         .send_turn(
@@ -428,7 +428,7 @@ fn worker_encoding_fault_logs_an_agent_stop_without_a_bound() {
     let peer = AgentPeer::assigned(&mut stand.worker, &fixtures::worker_agent());
     stand.worker.notes().clear();
     let agent = fixtures::worker_agent();
-    let body = turn_body(&agent, 1);
+    let body = turn_body(1);
     let turn = channel::decode_turn(&body, 1, &agent.limits.transcript, &agent.endpoints).unwrap();
     let event = smith_host_domain::process::Event::Received {
         owner: peer.owner,

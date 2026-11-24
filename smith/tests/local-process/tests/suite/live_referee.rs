@@ -32,7 +32,7 @@ fn capture(world: &mut World) -> Seen {
     }
 }
 
-fn rejects(seen: Seen, before: Option<Vec<u8>>, files: skein_fake_checkout::git::Tree, why: &str) {
+fn rejects(seen: Seen, before: Option<Vec<u8>>, files: Vec<(Vec<u8>, Vec<u8>)>, why: &str) {
     let review = live::review(seen, Outcome { before, files });
     let Verdict::Failed(failure) = review.verdict() else { panic!("live mutation must fail: {why}") };
     assert_eq!(failure.why, why);
@@ -66,6 +66,60 @@ fn refused_finish(seen: &Seen) -> Seen {
     refused
 }
 
+fn traced_change(seed: u64, files: &Files) -> World {
+    let mut world = World::changed(seed, files, Placement::InProcess);
+    world.scenario.launch.traced = true;
+    world
+}
+
+fn edit_and_deliver() -> Box<[skein_fake_llm_domain::api::Script]> {
+    use skein_fake_llm_domain::api::{Line, Script};
+    let calls = [
+        ("edit", r#"{"path":"original.txt","edits":[{"old":"original","new":"edited"}]}"#),
+        ("write", r#"{"path":"result.txt","content":"new\n"}"#),
+        ("finish", r#"{"form":"change","fields":{"title":"Updated result","body":"Created the result file"}}"#),
+    ];
+    Box::new([Script {
+        cue: b"@local-shell".as_slice().into(),
+        turns: calls
+            .into_iter()
+            .map(|(name, arguments)| {
+                smith_agent_world::fixture::calls(
+                    Box::new([Line::Call { name: name.as_bytes().into(), arguments: arguments.as_bytes().into() }]),
+                    1,
+                )
+            })
+            .collect(),
+    }])
+}
+
+#[test]
+fn the_live_outcome_referee_accepts_settled_report_and_change() {
+    let report = Files::new();
+    let change = Files::new();
+    let mut changed = traced_change(36, &change);
+    changed.scenario.scripts = Some(edit_and_deliver());
+    // Lay the command artifacts; this test judges the settled checkout, not the commands.
+    let staged = [(b"command.txt".as_slice(), b"ran\n".as_slice()), (b"checks-ran.txt", b"checked\n")];
+    for (path, content) in staged {
+        changed.fixture_file(&[b"repo/".as_slice(), path].concat(), content);
+    }
+    let expected = staged
+        .into_iter()
+        .chain([(b"original.txt".as_slice(), b"edited\n".as_slice()), (b"result.txt", b"new\n")])
+        .map(|(path, bytes)| (path.to_vec(), bytes.to_vec()))
+        .collect();
+    let before = changed.head().expect("initial head");
+    for (mut world, outcome) in [
+        (World::traced(35, &report, Placement::InProcess, b"First answer"), Outcome { before: None, files: vec![] }),
+        (changed, Outcome { before: Some(before), files: expected }),
+    ] {
+        let seed = world.scenario.launch.seed;
+        world.settle();
+        live::review(capture(&mut world), outcome).assert_passed(seed);
+    }
+}
+
 #[test]
 fn the_live_report_policy_rejects_mutated_accepted_observations() {
     let files = Files::new();
@@ -90,15 +144,12 @@ fn the_live_report_policy_rejects_mutated_accepted_observations() {
 #[test]
 fn the_live_change_policy_rejects_mutated_delivery_observations() {
     let files = Files::new();
-    let mut world = World::changed(87, &files, Placement::InProcess);
-    world.scenario.launch.traced = true;
+    let mut world = traced_change(87, &files);
     let before = world.head();
     world.settle();
     let seen = capture(&mut world);
-    let expected = skein_fake_checkout::git::Tree::from([
-        (b"original.txt".to_vec(), b"original\n".to_vec()),
-        (b"result.txt".to_vec(), b"new\n".to_vec()),
-    ]);
+    let expected =
+        vec![(b"original.txt".to_vec(), b"original\n".to_vec()), (b"result.txt".to_vec(), b"new\n".to_vec())];
     live::review(seen.clone(), Outcome { before: before.clone(), files: expected.clone() }).assert_passed(87);
     let mut unchanged = seen.clone();
     unchanged.head = before.clone();

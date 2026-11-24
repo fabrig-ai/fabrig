@@ -1503,7 +1503,6 @@ fn forges(world: World) -> Box<[u8]> {
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;
-    let l = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let (branch, head_prefix, pull_number, pull_address, step) = match (w, task) {
         (Reference, 28) => {
             let mut ahead = List::with_capacity(1);
@@ -1543,7 +1542,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         branch: Box::from(branch),
         landing: Box::from(b"main".as_slice()),
         head: Some(head),
-        pull: Some(gallery_pull(&l, pull_number, pull_address)),
+        pull: Some(gallery_pull(pull_number, pull_address)),
         step,
         hold: None,
         runs: None,
@@ -1562,11 +1561,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         },
     })
 }
-fn gallery_pull(
-    _limits: &temper_client_protocol_wire::v1::Limits,
-    number: u64,
-    address: &[u8],
-) -> temper_client_protocol_wire::v1::Pull {
+fn gallery_pull(number: u64, address: &[u8]) -> temper_client_protocol_wire::v1::Pull {
     use temper_client_protocol_wire::v1 as w;
     w::Pull { number, address: Box::from(address) }
 }

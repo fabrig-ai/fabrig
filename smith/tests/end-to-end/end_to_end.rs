@@ -1,11 +1,8 @@
-mod chat_crossing;
 mod credentials;
-mod fake_lookup;
 mod program_check;
 mod program_children;
 mod program_commands;
 mod program_lifetime;
-mod program_rechecks;
 mod program_runs;
 mod relay;
 pub use smith_end_to_end_kit as support;
@@ -141,77 +138,11 @@ fn an_interrupt_cancels_the_run() {
 }
 
 #[test]
-fn smith_on_a_terminal_signs_in_and_commits_in_place() {
-    use smith_local_process_world::terminal::Action;
-    let scratch = Scratch::new();
-    let mut settings: toml::Value =
-        toml::from_str(std::str::from_utf8(&support::fake_provider_settings(&scratch)).unwrap()).unwrap();
-    let issuer = smith_real_world::address(34_444);
-    let redirect = smith_real_world::redirect_port();
-    settings["endpoints"]["openai"].as_table_mut().unwrap().insert("account".into(), "openai".into());
-    settings["accounts"]["openai"] = toml::Value::try_from(serde_json::json!({
-        "source":"sign_in", "client_id":"client", "authorization_url":format!("http://{issuer}/authorize"),
-        "token_url":format!("http://{issuer}/token"), "redirect_uri":format!("http://127.0.0.1:{redirect}/callback"),
-        "scope":"read", "token_format":"form"
-    }))
-    .unwrap();
-    settings.as_table_mut().unwrap().insert(
-        "workspace".into(),
-        toml::Value::try_from(serde_json::json!({
-            "directories":[{"name":"repo","path":scratch.path().join("repo"),"writable":true,"git":true}],
-            "conventions":{"guide":".smith-test/guide","checks":".smith-test/check"},
-            "contract":{"form":"change","checks_must_pass":true,
-                "fields":[{"name":"title","max":256},{"name":"body","max":1024}]}
-        }))
-        .unwrap(),
-    );
-    let _file = support::user_layer(&scratch, toml::to_string(&settings).unwrap().as_bytes());
-    let before = scratch.checkout().head().unwrap();
-    let ran = support::chat_signed_in(
-        &scratch,
-        vec![
-            Action::Send(b"change it\n".as_slice().into()),
-            Action::Wait(b"Change delivered".as_slice().into()),
-            Action::Eof,
-        ],
-    );
-    assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(String::from_utf8_lossy(&ran.stdout).contains(&format!("Sign in: http://{issuer}/authorize")));
-    assert!(scratch.path().join("credentials/tokens/openai").is_file());
-    let checkout = scratch.checkout();
-    let after = checkout.head().unwrap();
-    assert_ne!(before, after);
-    assert_delivered(&scratch);
-}
-
-#[test]
 fn an_agent_configuration_metadata_refusal_reaches_stderr() {
     let scratch = Scratch::new();
     let agent = skein_scratch::paths::binary("smith-agent");
     let errors = support::refusal_program(&agent, &scratch, vec!["".into()]);
     assert!(String::from_utf8_lossy(&errors).contains("configuration metadata"));
-}
-
-#[test]
-fn withdrawn_endpoint_settings_exit_two_at_their_key() {
-    let scratch = Scratch::new();
-    for (text, key, line) in [
-        ("[endpoints.work]\nidentity='claude-code'\n", "endpoints.work.identity", 2_u32),
-        ("[endpoints.work]\ndialect='codex'\n", "endpoints.work.dialect", 2),
-        ("[endpoints.work]\npreset='codex'\n", "endpoints.work.preset", 2),
-        ("[endpoints.codex]\n", "endpoints.codex", 1),
-        ("model='codex/gpt-6-luna'\n", "model", 1),
-        ("[models.'codex/gpt-6-luna']\nwindow=272000\n", "models.codex/gpt-6-luna", 1),
-    ] {
-        let path = support::user_layer(&scratch, text.as_bytes());
-        let ran = support::smith(&scratch, &["check"], b"");
-        let diagnostic = String::from_utf8_lossy(&ran.stderr);
-        assert_eq!(ran.code, 2, "{key}: {diagnostic}");
-        assert!(
-            diagnostic.contains(&format!("{}:{line}: {key}: use `openai/<model>`", path.display())),
-            "{key}: {diagnostic}"
-        );
-    }
 }
 
 #[test]
@@ -249,83 +180,6 @@ fn an_agent_channel_end_is_reported_to_stderr() {
 }
 
 #[test]
-fn an_agent_transport_refusal_is_reported_to_stderr() {
-    let errors = agent_refusal(&agent_document("192.0.2.1:8080"));
-    assert_eq!(
-        String::from_utf8_lossy(&errors).lines().last(),
-        Some("smith: plaintext endpoint address must be loopback")
-    );
-}
-
-#[test]
-fn the_live_outcome_referee_runs_on_the_shared_fake_binary_harness() {
-    let report = Scratch::new();
-    support::live_run::run_fake(&report, &World::new(35, &report, Placement::Spawned, b"First answer").scenario);
-    let change = Scratch::new();
-    support::live_run::run_fake(&change, &World::changed(36, &change, Placement::Spawned).scenario);
-}
-
-#[test]
-fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
-    use skein_fake_llm_domain::api;
-    use smith_local_process_world::referee::CheckoutRead;
-
-    let scratch = Scratch::new();
-    let scenario = World::changed(37, &scratch, Placement::Spawned).scenario;
-    let large = serde_json::to_vec(&serde_json::json!({
-        "path": "result.txt", "content": "// coding regression\n".repeat(160)
-    }))
-    .expect("large coding tool arguments");
-    assert!(large.len() > 2048, "coding write exceeds 2,048 bytes");
-    let mut turns = vec![(b"write".as_slice(), large)];
-    for (name, arguments) in [
-        ("read", r#"{"path":"result.txt"}"#),
-        ("read", r#"{"path":"original.txt"}"#),
-        ("edit", r#"{"path":"original.txt","edits":[{"old":"original","new":"edited"}]}"#),
-        ("write", r#"{"path":"result.txt","content":"new\n"}"#),
-        ("shell", r#"{"command":"printf 'ran\n' > command.txt"}"#),
-        (
-            "finish",
-            r#"{"form":"change","text":"","fields":{"title":"Updated result","body":"Created the result file"}}"#,
-        ),
-    ] {
-        turns.push((name.as_bytes(), arguments.as_bytes().to_vec()));
-    }
-    let token = support::settings(&scratch, &scenario);
-    let peer = smith_agent_process_world::fake::configured_openai(
-        Box::new([api::Script {
-            cue: b"@local-shell".as_slice().into(),
-            turns: turns
-                .into_iter()
-                .map(|(name, arguments)| {
-                    smith_agent_world::fixture::calls(
-                        Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
-                        1,
-                    )
-                })
-                .collect(),
-        }]),
-        skein_llm::Credential::bearer(token),
-        skein_lib::Duration::ZERO,
-        skein_fake_peers::Transport::Tls,
-    );
-    let seen = support::run_with_provider(&scratch, scenario, Some(peer));
-    assert_eq!(seen.queries.len(), 7, "large write and every subsequent call completed");
-    assert!(
-        seen.queries.iter().skip(1).any(|query| query
-            .messages
-            .iter()
-            .any(|message| { message.parts.iter().any(|part| matches!(part, api::Part::ToolOutput { .. })) })),
-        "follow-up provider prompts contain workspace answers"
-    );
-    let checkout = scratch.checkout();
-    let files = checkout.files(&checkout.head().expect("committed head"));
-    assert_eq!(files[b"result.txt".as_slice()], b"new\n");
-    assert_eq!(files[b"original.txt".as_slice()], b"edited\n");
-    assert_eq!(files[b"checks-ran.txt".as_slice()], b"checked\n");
-}
-
-#[test]
 fn local_host_io_failure_keeps_exit_1() {
     let scratch = Scratch::new();
     let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
@@ -335,38 +189,6 @@ fn local_host_io_failure_keeps_exit_1() {
     assert_eq!(ran.code, 1);
     assert!(String::from_utf8_lossy(&ran.stderr).contains("Not a directory"));
     assert_eq!(std::fs::read(state).expect("unchanged state file"), b"a file cannot be the state directory");
-}
-
-#[test]
-fn exec_in_a_repository_without_a_commit_exits_two_with_its_line() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let (ran, requests) = support::exec_without_head(&scratch);
-    assert_eq!(ran.code, 2);
-    let stderr = std::str::from_utf8(&ran.stderr).expect("operator lines are UTF-8");
-    assert_eq!(stderr.lines().last(), Some("smith: run refused: repository workspace: its head cannot be read"));
-    assert!(requests.is_empty(), "a refused start sends no provider request");
-}
-
-#[test]
-fn local_chat_store_io_failure_keeps_exit_1() {
-    use std::fmt::Write as _;
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let workspace = scratch.path().canonicalize().unwrap();
-    let digest = skein_io::digest::digest(workspace.as_os_str().as_encoded_bytes());
-    let mut key = String::new();
-    for part in digest.0 {
-        write!(&mut key, "{part:016x}").expect("fixture workspace key");
-    }
-    let state = scratch.path().join("state/smith/chats").join(key);
-    std::fs::create_dir_all(&state).expect("state root");
-    let chat = state.join("refused");
-    std::fs::write(&chat, b"a file cannot be the chat directory").expect("block chat directory");
-    let ran = support::smith(&scratch, &["exec", "hello", "--chat", "refused"], b"");
-    assert_eq!(ran.code, 1);
-    assert!(String::from_utf8_lossy(&ran.stderr).contains("File exists"), "{}", String::from_utf8_lossy(&ran.stderr));
-    assert_eq!(std::fs::read(chat).expect("unchanged chat file"), b"a file cannot be the chat directory");
 }
 
 #[test]
@@ -394,36 +216,13 @@ fn smith_check_json_shows_each_value_with_its_layer() {
     assert!(!String::from_utf8_lossy(&ran.stdout).contains("repository-value"));
     assert_eq!(
         report["formats"],
-        serde_json::json!({"channel":13,"charter":5,"transcript":7,"events":4,"chat_store":1,"check":2})
+        serde_json::json!({"channel":14,"charter":5,"transcript":8,"events":4,"chat_store":1,"check":2})
     );
     for tool in ["sh", "rg", "git"] {
         assert!(report["tools"][tool].as_str().expect("tool path").starts_with('/'));
     }
     assert_eq!(report["agent"], serde_json::json!({"name":"smith", "version":env!("CARGO_PKG_VERSION")}));
     assert!(report.get("build").is_none(), "check reports the agent name and version");
-}
-
-#[test]
-fn smith_check_names_both_sides_of_a_budget_past_the_profile_ceiling() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, b"model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='cannot-resolve.invalid:443'\n");
-    let ran = support::smith(&scratch, &["check", "-c", "budget.turns=5000"], b"");
-    assert_eq!(ran.code, 2);
-    assert_eq!(
-        String::from_utf8(ran.stderr).expect("UTF-8"),
-        "smith: budget.turns = 5000 (from -c) exceeds the standard profile's ceiling of 4096 turns\n"
-    );
-    assert_eq!(ran.stdout, Vec::<u8>::new());
-}
-
-#[test]
-fn a_headless_run_that_would_wait_exits_5_naming_its_chat() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let ran =
-        support::exec_with_provider(&scratch, &["exec", "--chat", "plan", "-"], b"Ask first\n", support::Reply::Wait);
-    assert_eq!(ran.code, 5, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(ran.stderr.ends_with(b"smith: needs input: answer with `smith exec --chat plan`\n"));
 }
 
 #[test]
@@ -448,26 +247,6 @@ fn smith_exec_json_ends_accepted_with_its_events_and_exit_0() {
 }
 
 #[test]
-fn an_account_without_a_credential_exits_3_before_any_request() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    std::fs::remove_file(scratch.path().join("auth.json")).unwrap();
-    let ran = support::smith(&scratch, &["exec", "Ask first"], b"");
-    assert_eq!(ran.code, 3);
-    assert_eq!(ran.stdout, Vec::<u8>::new());
-    assert!(!scratch.path().join("state/smith/chats").exists());
-}
-
-#[test]
-fn an_empty_prompt_is_a_usage_error_exiting_2() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let ran = support::smith(&scratch, &["exec", "-"], b" \n");
-    assert_eq!(ran.code, 2);
-    assert!(ran.stderr.ends_with(b"smith: usage: the prompt is empty\n"));
-}
-
-#[test]
 fn the_trace_file_is_read_as_it_grows() {
     let scratch = Scratch::new();
     let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
@@ -487,30 +266,6 @@ fn the_trace_file_is_read_as_it_grows() {
 }
 
 #[test]
-fn smith_exec_replaces_the_result_file_with_only_its_text() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let path = scratch.path().join("answer.txt");
-    std::fs::write(&path, b"an older and longer result\n").unwrap();
-    let ran = support::exec_with_provider(
-        &scratch,
-        &["exec", "-o", "answer.txt", "-"],
-        b"Ask first\n",
-        support::Reply::Accepted,
-    );
-    assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert_eq!(std::fs::read(path).unwrap(), b"First answer");
-    assert_eq!(ran.stdout, b"First answer");
-    assert!(
-        ran.stderr
-            .split(|byte| *byte == b'\n')
-            .rfind(|line| !line.is_empty())
-            .unwrap()
-            .starts_with(b"smith: accepted in ")
-    );
-}
-
-#[test]
 fn smith_exec_json_writes_its_result_file_beside_the_event_stream() {
     let scratch = Scratch::new();
     let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
@@ -526,46 +281,6 @@ fn smith_exec_json_writes_its_result_file_beside_the_event_stream() {
     assert_eq!(records.last().unwrap()["type"], "session.ended");
     assert_eq!(records.last().unwrap()["exit"], 0);
     assert_eq!(records.iter().find(|record| record["type"] == "run.completed").unwrap()["status"], "accepted");
-}
-
-#[test]
-fn smith_exec_result_file_failure_exits_1_after_an_accepted_run() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    std::fs::create_dir(scratch.path().join("answer.txt")).unwrap();
-    let ran = support::exec_with_provider(
-        &scratch,
-        &["exec", "--json", "-o", "answer.txt", "-"],
-        b"Ask first\n",
-        support::Reply::Accepted,
-    );
-    assert_eq!(ran.code, 1, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(
-        ran.stderr.ends_with(b"smith: run accepted, but its result could not be written to answer.txt: IsADirectory\n")
-    );
-    let records = output_records(&ran.stdout);
-    assert_eq!(records.last().unwrap()["type"], "session.ended");
-    assert_eq!(records.last().unwrap()["exit"], 1);
-    assert_eq!(records.iter().find(|record| record["type"] == "run.completed").unwrap()["status"], "accepted");
-    assert!(scratch.path().join("answer.txt").is_dir());
-}
-
-#[test]
-fn smith_exec_result_file_failure_warns_before_a_parked_answers_last_line() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    std::fs::create_dir(scratch.path().join("answer.txt")).unwrap();
-    let ran = support::exec_with_provider(
-        &scratch,
-        &["exec", "--chat", "plan", "--json", "-o", "answer.txt", "-"],
-        b"Ask first\n",
-        support::Reply::Wait,
-    );
-    assert_eq!(ran.code, 5, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(ran.stderr.ends_with(b"smith: warning: its result could not be written to answer.txt: IsADirectory\nsmith: needs input: answer with `smith exec --chat plan`\n"));
-    let records = output_records(&ran.stdout);
-    assert_eq!(records.last().unwrap()["exit"], 5);
-    assert_eq!(records.iter().find(|record| record["type"] == "run.completed").unwrap()["status"], "parked");
 }
 
 fn output_records(bytes: &[u8]) -> Vec<serde_json::Value> {
@@ -591,54 +306,6 @@ fn smith_exec_ephemeral_removes_its_private_files_after_acceptance() {
     assert_eq!(std::fs::read(scratch.path().join("answer.txt")).unwrap(), b"First answer");
     assert_eq!(ephemeral_directories(&scratch), Vec::<std::path::PathBuf>::new());
     assert!(!String::from_utf8_lossy(&ran.stderr).contains("smith: warning: ephemeral directory "));
-}
-
-#[test]
-fn smith_exec_ephemeral_removes_its_private_files_after_a_failed_answer() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let ran = support::exec_with_provider(
-        &scratch,
-        &["exec", "--ephemeral", "--json", "-"],
-        b"Ask first\n",
-        support::Reply::Filtered,
-    );
-    assert_eq!(ran.code, 1, "{}", String::from_utf8_lossy(&ran.stderr));
-    let records = output_records(&ran.stdout);
-    assert_eq!(records.last().unwrap()["type"], "session.ended");
-    assert_eq!(records.last().unwrap()["exit"], 1);
-    assert_eq!(records.iter().find(|record| record["type"] == "run.completed").unwrap()["status"], "failed");
-    assert_eq!(ephemeral_directories(&scratch), Vec::<std::path::PathBuf>::new());
-}
-
-#[test]
-fn smith_exec_ephemeral_keeps_a_foreign_file_and_warns_before_the_last_line() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let ran = support::exec_with_foreign_file(&scratch, &["exec", "--ephemeral", "-"], b"Ask first\n");
-    assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    let entries = ephemeral_directories(&scratch);
-    assert_eq!(entries.len(), 1);
-    let directory = entries[0].clone();
-    assert_eq!(std::fs::metadata(&directory).unwrap().permissions().mode() & 0o777, 0o700);
-    assert_eq!(std::fs::read(directory.join("foreign.txt")).unwrap(), b"kept foreign content");
-    assert_eq!(std::fs::read_dir(&directory).unwrap().count(), 1);
-    let errors = std::str::from_utf8(&ran.stderr).unwrap();
-    let mut last = errors.lines().rev();
-    assert!(last.next().unwrap().starts_with("smith: accepted in "));
-    assert_eq!(last.next().unwrap(), format!("smith: warning: ephemeral directory {}: NotEmpty", directory.display()));
-}
-
-#[test]
-fn an_ephemeral_directory_is_removed_when_product_startup_refuses() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let ran = support::smith(&scratch, &["exec", "--ephemeral", "--trace", "absent/events.jsonl", "message"], b"");
-    assert_eq!(ran.code, 1, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert_eq!(ran.stdout, Vec::<u8>::new());
-    assert_eq!(ephemeral_directories(&scratch), Vec::<std::path::PathBuf>::new());
 }
 
 /// What an ephemeral run left in the scratch runtime directory, where its

@@ -273,8 +273,8 @@ impl Value {
 }
 ```
 
-A `Path` names what the generated `Path` (`README.md`, section 4) names, by the
-same positions: `Report`'s field `title` (`paths::REPORT_TITLE`), the
+A `Path` names what the generated `Path` (`README.md`, section 4) names by
+its name, here by the text's positions: `Report`'s field `title` (`paths::REPORT_TITLE`), the
 tag of `Effect`, the bytes after `Field`, the version of `Report`. Reading a node as what it is not is a `Misread`, a value
 the caller handles, never a panic.
 

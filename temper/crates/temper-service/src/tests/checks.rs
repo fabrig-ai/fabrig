@@ -59,21 +59,21 @@ fn standalone_shape_is_required_of_jigs_parts() {
 }
 #[test]
 fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
-    // Header 8 + fixed fields 57 + calls * (14 + name 64 + tool 64 + cut words):
+    // Header 8 + fixed fields 61 + calls * (14 + name 64 + tool 64 + cut words):
     // 32 calls with 69-byte words; 128 with 70-byte words (jig/docs/design/protocol/channel/README.md, 10).
-    const SMALL: u32 = 6_817;
-    const STANDARD: u32 = 27_201;
+    const SMALL: u32 = 6_821;
+    const STANDARD: u32 = 27_205;
     let mut engine = fixtures::engine().jig;
     for (profile, smallest, words) in [
         (
             jig_protocol_config_fixtures::small(),
             SMALL,
-            "engine.limits.io.output: 6816 bytes, short of the smallest resumed start, 6817 bytes\n",
+            "engine.limits.io.output: 6820 bytes, short of the smallest resumed start, 6821 bytes\n",
         ),
         (
             config::stock(),
             STANDARD,
-            "engine.limits.io.output: 27200 bytes, short of the smallest resumed start, 27201 bytes\n",
+            "engine.limits.io.output: 27204 bytes, short of the smallest resumed start, 27205 bytes\n",
         ),
     ] {
         let limits = profile;

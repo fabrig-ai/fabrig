@@ -569,6 +569,7 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
             workspace: None,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );

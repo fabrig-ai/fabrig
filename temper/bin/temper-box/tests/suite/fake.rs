@@ -1567,7 +1567,8 @@ fn git_run() {
 fn check_run() {
     let scratch = support::Scratch::startup("fake-check-run");
     let directory = scratch.path();
-    let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper-box"));
+    let binary = skein_scratch::paths::binary("temper-box");
+    let (agent, _) = support::configuration::documents(directory, binary.to_str().expect("a UTF-8 binary path"));
     support::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     let data = directory.join("data");
     fs::create_dir(&data).expect("fixture data");
@@ -1583,7 +1584,7 @@ fn check_run() {
     let store = directory.join("copy");
     let cache = directory.join("cache");
     let entries_before = fs::read_dir(&data).expect("fixture entries").count();
-    let ended = Command::new(skein_scratch::paths::binary("temper-box"))
+    let ended = Command::new(binary)
         .env_clear()
         .args(["fake", "forge", "check", "--config"])
         .arg(directory)

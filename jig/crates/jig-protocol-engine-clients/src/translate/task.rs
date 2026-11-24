@@ -28,17 +28,19 @@ pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::P
         }),
     })
 }
-pub fn proposal(value: &d::ProposalRef, _limits: &w::Limits) -> Result<w::ProposalKey, w::Problem> {
-    Ok(w::ProposalKey {
+#[must_use]
+pub fn proposal(value: &d::ProposalRef) -> w::ProposalKey {
+    w::ProposalKey {
         proposer: match value.proposer {
             jig_domain_people::Proposer::Task(number) => w::Proposer::Task(w::ProposerTask { value: number }),
             jig_domain_people::Proposer::Party(number) => w::Proposer::Party(w::ProposerParty { value: number }),
         },
         number: value.number,
-    })
+    }
 }
-pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn act(value: acts::Act) -> w::ActKind {
+    match value {
         acts::Act::Reorder => w::ActKind::Reorder,
         acts::Act::Talk => w::ActKind::Talk,
         acts::Act::Leave => w::ActKind::Leave,
@@ -66,10 +68,11 @@ pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
         acts::Act::SetRoles => w::ActKind::SetRoles,
         acts::Act::MakeService => w::ActKind::MakeService,
         acts::Act::SetPool => w::ActKind::SetPool,
-    })
+    }
 }
-pub fn recipient(value: &acts::Recipient, _limits: &w::Limits) -> Result<w::Recipient, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn recipient(value: &acts::Recipient) -> w::Recipient {
+    match value {
         acts::Recipient::Task(number) => w::Recipient::Task(w::RecipientTask { value: *number }),
         acts::Recipient::Party(number) => w::Recipient::Party(w::RecipientParty { value: *number }),
         acts::Recipient::Role { project, role } => {
@@ -78,7 +81,7 @@ pub fn recipient(value: &acts::Recipient, _limits: &w::Limits) -> Result<w::Reci
         acts::Recipient::Roles { project, roles } => {
             w::Recipient::Roles(w::RecipientRoles { project: *project, roles: roles.clone() })
         }
-    })
+    }
 }
 pub(super) fn bounds(
     models: &[crate::Model],
@@ -121,7 +124,7 @@ pub(super) fn bounds(
         acts::Bounds::Amend { budget_left, grants, implications, authority, ceiling } => {
             let mut rows = List::with_capacity(grants.capacity());
             for item in grants {
-                rows.push(owner::grant(item, limits)?).expect("supplied grants");
+                rows.push(owner::grant(item)).expect("supplied grants");
             }
             let grants = owner::grants_pieces(
                 &rows,
@@ -148,13 +151,13 @@ pub(super) fn bounds(
 fn admission(models: &[crate::Model], value: &acts::Admission, limits: &w::Limits) -> Result<w::Admission, w::Problem> {
     Ok(match value {
         acts::Admission::Allowed => w::Admission::Allowed,
-        acts::Admission::Proposed { to } => w::Admission::Proposed(w::AdmissionProposed { to: recipient(to, limits)? }),
+        acts::Admission::Proposed { to } => w::Admission::Proposed(w::AdmissionProposed { to: recipient(to) }),
         acts::Admission::Refused(value) => {
             w::Admission::Refused(w::AdmissionRefused { value: refusals::refusal(value.clone(), limits)? })
         }
         acts::Admission::Bounded { within, beyond } => {
             let beyond = match beyond {
-                acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: recipient(to, limits)? }),
+                acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: recipient(to) }),
                 acts::Beyond::Refused(value) => {
                     w::Beyond::Refused(w::BeyondRefused { value: refusals::refusal(value.clone(), limits)? })
                 }
@@ -177,10 +180,10 @@ pub fn offered(
     for item in value {
         rows.push(w::Offered {
             effect: match &item.effect {
-                Some(value) => Some(effect(value, limits)?),
+                Some(value) => Some(effect(value)),
                 None => None,
             },
-            act: act(item.act)?,
+            act: act(item.act),
             admission: admission(models, &item.admission, limits)?,
         })
         .expect("supplied offered acts");
@@ -313,7 +316,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     let resources = resources(&value.resources, limits)?;
     let mut proposals = List::with_capacity(value.proposals.capacity());
     for item in &value.proposals {
-        proposals.push(proposal(item, limits)?).expect("supplied proposals");
+        proposals.push(proposal(item)).expect("supplied proposals");
     }
     Ok(w::Task {
         concluded: match value.concluded {
@@ -330,27 +333,27 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
             Some(session) => Some(w::Session { first: session.first, last: session.last.as_nanos() }),
             None => None,
         },
-        settings: settings(value.settings, limits)?,
-        dependency_facts: chips::dependencies(&value.dependency_facts, limits)?,
-        unread: unread(&value.unread, limits)?,
-        llm: super::llm::choice(value.llm.as_ref(), models, limits)?,
+        settings: settings(value.settings),
+        dependency_facts: chips::dependencies(&value.dependency_facts),
+        unread: unread(&value.unread),
+        llm: super::llm::choice(value.llm.as_ref(), models)?,
         kept_account: value.kept_account,
-        run_wait: super::task_wait::waiting(value.run_wait, limits)?,
+        run_wait: super::task_wait::waiting(value.run_wait),
         label: value.label,
-        flags: super::me::flags(value.flags, limits)?,
+        flags: super::me::flags(value.flags),
         last_activity: value.last_activity.as_nanos(),
         made: value.made.as_nanos(),
         tasks_left: value.tasks_left,
-        waits_on: super::queries::waits(value.waits_on.clone(), limits)?,
+        waits_on: super::queries::waits(value.waits_on.clone())?,
         chip: chips::chip(&value.chip, limits)?,
         goal: value.goal,
         priority: value.priority,
         lineage_chips,
         inputs,
         project: value.project,
-        requester: owner::requester(value.requester, limits)?,
+        requester: owner::requester(value.requester),
         lineage,
-        spec: owner::specification(&value.spec, limits)?,
+        spec: owner::specification(&value.spec)?,
         spec_revision: w::Revision { value: value.spec_revision },
         person_revision: match value.person_revision {
             Some(item) => Some(w::Revision { value: item }),
@@ -358,20 +361,20 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
         },
         taken_by: value.taken_by,
         instructions: match &value.instructions {
-            Some(item) => Some(owner::text(item, limits)?),
+            Some(item) => Some(owner::text(item)),
             None => None,
         },
-        wake: owner::wake(value.wake, limits)?,
-        subscriptions: owner::subscriptions(&value.subscriptions, limits)?,
+        wake: owner::wake(value.wake),
+        subscriptions: owner::subscriptions(&value.subscriptions),
         result_contract: owner::contract(&value.contract, limits)?,
         dependencies,
         references,
         cut: value.cut,
         resources,
-        budget: owner::budget(&value.budget, limits)?,
+        budget: owner::budget(&value.budget),
         authority: owner::authority(models, &value.authority, limits)?,
         hold: match &value.hold {
-            Some(item) => Some(chips::held(item, limits)?),
+            Some(item) => Some(chips::held(item)),
             None => None,
         },
         proposals,
@@ -387,13 +390,13 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     })
 }
 
-fn unread(value: &List<d::UnreadWords>, limits: &w::Limits) -> Result<List<w::UnreadWords>, w::Problem> {
+fn unread(value: &List<d::UnreadWords>) -> List<w::UnreadWords> {
     let mut result = List::with_capacity(value.capacity());
     for word in value {
         result
             .push(w::UnreadWords {
                 message: word.message,
-                by: owner::requester(word.by, limits)?,
+                by: owner::requester(word.by),
                 at: word.at.as_nanos(),
                 seen: word.seen,
                 head: word.head.bytes.clone(),
@@ -401,7 +404,7 @@ fn unread(value: &List<d::UnreadWords>, limits: &w::Limits) -> Result<List<w::Un
             })
             .expect("supplied unread words");
     }
-    Ok(result)
+    result
 }
 
 fn link_list(
@@ -420,7 +423,7 @@ fn link_list(
 fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut resource_rows = List::with_capacity(value.capacity());
     for item in value {
-        resource_rows.push(chips::resource(item, limits)?).expect("supplied resources");
+        resource_rows.push(chips::resource(item)).expect("supplied resources");
     }
     task_resources_pieces(
         &resource_rows,
@@ -445,8 +448,9 @@ fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u
     )
 }
 
-pub fn effect(value: &acts::Effect, _limits: &w::Limits) -> Result<w::Effect, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn effect(value: &acts::Effect) -> w::Effect {
+    match value {
         acts::Effect::Release(value) => w::Effect::Release(w::EffectRelease {
             what: match value {
                 acts::ReleaseEffect::Judged => w::ReleaseEffect::Judged,
@@ -477,13 +481,12 @@ pub fn effect(value: &acts::Effect, _limits: &w::Limits) -> Result<w::Effect, w:
             live_runs: value.live_runs,
             proposals: value.proposals,
         }),
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn settings(value: Option<d::TaskSettings>, _limits: &w::Limits) -> Result<Option<w::TaskSettings>, w::Problem> {
+fn settings(value: Option<d::TaskSettings>) -> Option<w::TaskSettings> {
     match value {
-        Some(value) => Ok(Some(w::TaskSettings { task: value.task, run: value.run, newest: value.newest })),
-        None => Ok(None),
+        Some(value) => Some(w::TaskSettings { task: value.task, run: value.run, newest: value.newest }),
+        None => None,
     }
 }

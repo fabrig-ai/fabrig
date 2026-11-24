@@ -10,6 +10,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub draft_words: u32,
@@ -29,10 +30,19 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.draft_words).expect("room for every named limit");
-        values.push(self.stored_record_record).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.draft_words,
+            self.stored_record_record,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            draft_words: self.draft_words.min(most),
+            stored_record_record: self.stored_record_record.min(most),
+        }
     }
 }
 
@@ -50,166 +60,35 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const PROJECT_SECTION_TAG: Path = Path::new(0, 0);
-    pub const TASK_SECTION_TAG: Path = Path::new(1, 0);
-    pub const ADDRESS_INBOX_PROJECT: Path = Path::new(2, 0);
-    pub const ADDRESS_INBOX_TAIL: Path = Path::new(2, 1);
-    pub const ADDRESS_CONVERSATIONS_PROJECT: Path = Path::new(3, 0);
-    pub const ADDRESS_CONVERSATIONS_TAIL: Path = Path::new(3, 1);
-    pub const ADDRESS_TASK_TASK: Path = Path::new(4, 0);
-    pub const ADDRESS_TASK_SECTION: Path = Path::new(4, 1);
-    pub const ADDRESS_TASK_TAIL: Path = Path::new(4, 2);
-    pub const ADDRESS_PROJECT_PROJECT: Path = Path::new(5, 0);
-    pub const ADDRESS_PROJECT_SECTION: Path = Path::new(5, 1);
-    pub const ADDRESS_PROJECT_TAIL: Path = Path::new(5, 2);
-    pub const ADDRESS_TAG: Path = Path::new(6, 0);
-    pub const PLACE_PARTY: Path = Path::new(7, 0);
-    pub const PLACE_ADDRESS: Path = Path::new(7, 1);
-    pub const PLACE_TAIL: Path = Path::new(7, 2);
-    pub const DRAFT_PARTY: Path = Path::new(8, 0);
-    pub const DRAFT_TASK: Path = Path::new(8, 1);
-    pub const DRAFT_WORDS: Path = Path::new(8, 2);
-    pub const DRAFT_TOUCHED: Path = Path::new(8, 3);
-    pub const DRAFT_TAIL: Path = Path::new(8, 4);
-    pub const VIEW_RECORD_TAG: Path = Path::new(9, 0);
-    pub const STORED_RECORD_STORE_VERSION: Path = Path::new(10, 0);
-    pub const STORED_RECORD_RECORD: Path = Path::new(10, 1);
-    pub const STORED_RECORD_VERSION: Path = Path::new(10, 2);
-    pub const STORED_RECORD_TAIL: Path = Path::new(10, 3);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "ProjectSection (tag)",
-    ],
-    &[
-        "TaskSection (tag)",
-    ],
-    &[
-        "AddressInbox.project",
-        "AddressInbox (tail)",
-    ],
-    &[
-        "AddressConversations.project",
-        "AddressConversations (tail)",
-    ],
-    &[
-        "AddressTask.task",
-        "AddressTask.section",
-        "AddressTask (tail)",
-    ],
-    &[
-        "AddressProject.project",
-        "AddressProject.section",
-        "AddressProject (tail)",
-    ],
-    &[
-        "Address (tag)",
-    ],
-    &[
-        "Place.party",
-        "Place.address",
-        "Place (tail)",
-    ],
-    &[
-        "Draft.party",
-        "Draft.task",
-        "Draft.words",
-        "Draft.touched",
-        "Draft (tail)",
-    ],
-    &[
-        "ViewRecord (tag)",
-    ],
-    &[
-        "StoredRecord.store_version",
-        "StoredRecord.record",
-        "StoredRecord (version)",
-        "StoredRecord (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[11, 12, 13, 14, 15, 16] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 18 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[19] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 21 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[22] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[24, 17] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[26, 10] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[20, 23, 25, 27, 28] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[30, 29] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[32, 33, 34, 35] },
-    skein_codec::bounds::Node::Enum { variants: &[31, 36] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[38, 39] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    10,
-    17,
-    20,
-    23,
-    25,
-    27,
-    29,
-    31,
-    36,
-    37,
-    40,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    65_536,
-    65_565,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const PROJECT_SECTION_TAG: Path = Path::new("ProjectSection (tag)");
+    pub const TASK_SECTION_TAG: Path = Path::new("TaskSection (tag)");
+    pub const ADDRESS_INBOX_PROJECT: Path = Path::new("AddressInbox.project");
+    pub const ADDRESS_INBOX_TAIL: Path = Path::new("AddressInbox (tail)");
+    pub const ADDRESS_CONVERSATIONS_PROJECT: Path = Path::new("AddressConversations.project");
+    pub const ADDRESS_CONVERSATIONS_TAIL: Path = Path::new("AddressConversations (tail)");
+    pub const ADDRESS_TASK_TASK: Path = Path::new("AddressTask.task");
+    pub const ADDRESS_TASK_SECTION: Path = Path::new("AddressTask.section");
+    pub const ADDRESS_TASK_TAIL: Path = Path::new("AddressTask (tail)");
+    pub const ADDRESS_PROJECT_PROJECT: Path = Path::new("AddressProject.project");
+    pub const ADDRESS_PROJECT_SECTION: Path = Path::new("AddressProject.section");
+    pub const ADDRESS_PROJECT_TAIL: Path = Path::new("AddressProject (tail)");
+    pub const ADDRESS_TAG: Path = Path::new("Address (tag)");
+    pub const PLACE_PARTY: Path = Path::new("Place.party");
+    pub const PLACE_ADDRESS: Path = Path::new("Place.address");
+    pub const PLACE_TAIL: Path = Path::new("Place (tail)");
+    pub const DRAFT_PARTY: Path = Path::new("Draft.party");
+    pub const DRAFT_TASK: Path = Path::new("Draft.task");
+    pub const DRAFT_WORDS: Path = Path::new("Draft.words");
+    pub const DRAFT_TOUCHED: Path = Path::new("Draft.touched");
+    pub const DRAFT_TAIL: Path = Path::new("Draft (tail)");
+    pub const VIEW_RECORD_TAG: Path = Path::new("ViewRecord (tag)");
+    pub const STORED_RECORD_STORE_VERSION: Path = Path::new("StoredRecord.store_version");
+    pub const STORED_RECORD_RECORD: Path = Path::new("StoredRecord.record");
+    pub const STORED_RECORD_VERSION: Path = Path::new("StoredRecord (version)");
+    pub const STORED_RECORD_TAIL: Path = Path::new("StoredRecord (tail)");
 }
 
 // Type: ProjectSection.
@@ -229,6 +108,20 @@ pub enum ProjectSection {
 
 // Record: ProjectSection.
 impl ProjectSection {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -238,11 +131,20 @@ impl Record for ProjectSection {
     const TAIL: Path = paths::PROJECT_SECTION_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectSection")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ProjectSection")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -291,6 +193,16 @@ pub enum TaskSection {
 
 // Record: TaskSection.
 impl TaskSection {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -300,11 +212,20 @@ impl Record for TaskSection {
     const TAIL: Path = paths::TASK_SECTION_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TaskSection")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TaskSection")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -340,6 +261,12 @@ pub struct AddressInbox {
 
 // Record: AddressInbox.
 impl AddressInbox {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -349,11 +276,20 @@ impl Record for AddressInbox {
     const TAIL: Path = paths::ADDRESS_INBOX_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 20)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressInbox")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 20)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressInbox")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -376,6 +312,12 @@ pub struct AddressConversations {
 
 // Record: AddressConversations.
 impl AddressConversations {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -385,11 +327,20 @@ impl Record for AddressConversations {
     const TAIL: Path = paths::ADDRESS_CONVERSATIONS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressConversations")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressConversations")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -413,6 +364,12 @@ pub struct AddressTask {
 
 // Record: AddressTask.
 impl AddressTask {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("TaskSection"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -422,11 +379,20 @@ impl Record for AddressTask {
     const TAIL: Path = paths::ADDRESS_TASK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressTask")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressTask")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -452,6 +418,12 @@ pub struct AddressProject {
 
 // Record: AddressProject.
 impl AddressProject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("ProjectSection"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -461,11 +433,20 @@ impl Record for AddressProject {
     const TAIL: Path = paths::ADDRESS_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 27)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressProject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 27)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AddressProject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -494,6 +475,15 @@ pub enum Address {
 
 // Record: Address.
 impl Address {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("AddressInbox"),
+        skein_codec::bounds::Node::Named("AddressConversations"),
+        skein_codec::bounds::Node::Named("AddressTask"),
+        skein_codec::bounds::Node::Named("AddressProject"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 10;
 }
@@ -503,11 +493,20 @@ impl Record for Address {
     const TAIL: Path = paths::ADDRESS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 29)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Address")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 29)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Address")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -542,6 +541,12 @@ pub struct Place {
 
 // Record: Place.
 impl Place {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("Address"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 18;
 }
@@ -551,11 +556,20 @@ impl Record for Place {
     const TAIL: Path = paths::PLACE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 31)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Place")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 31)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Place")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -583,6 +597,14 @@ pub struct Draft {
 
 // Record: Draft.
 impl Draft {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, draft_words) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 28;
 }
@@ -592,11 +614,20 @@ impl Record for Draft {
     const TAIL: Path = paths::DRAFT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Draft")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Draft")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -626,6 +657,12 @@ pub enum ViewRecord {
 
 // Record: ViewRecord.
 impl ViewRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Place"),
+        skein_codec::bounds::Node::Named("Draft"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 29;
 }
@@ -635,11 +672,11 @@ impl Record for ViewRecord {
     const TAIL: Path = paths::VIEW_RECORD_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 37)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ViewRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 37)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ViewRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -677,6 +714,12 @@ pub struct StoredRecord {
 
 // Record: StoredRecord.
 impl StoredRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stored_record_record) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -686,11 +729,11 @@ impl Record for StoredRecord {
     const TAIL: Path = paths::STORED_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 40)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "StoredRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 40)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "StoredRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -718,3 +761,32 @@ impl Record for StoredRecord {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Address", nodes: Address::SHAPE },
+    skein_codec::bounds::Declaration { name: "AddressConversations", nodes: AddressConversations::SHAPE },
+    skein_codec::bounds::Declaration { name: "AddressInbox", nodes: AddressInbox::SHAPE },
+    skein_codec::bounds::Declaration { name: "AddressProject", nodes: AddressProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "AddressTask", nodes: AddressTask::SHAPE },
+    skein_codec::bounds::Declaration { name: "Draft", nodes: Draft::SHAPE },
+    skein_codec::bounds::Declaration { name: "Place", nodes: Place::SHAPE },
+    skein_codec::bounds::Declaration { name: "ProjectSection", nodes: ProjectSection::SHAPE },
+    skein_codec::bounds::Declaration { name: "StoredRecord", nodes: StoredRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "TaskSection", nodes: TaskSection::SHAPE },
+    skein_codec::bounds::Declaration { name: "ViewRecord", nodes: ViewRecord::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.draft_words,
+    CEILINGS.stored_record_record,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

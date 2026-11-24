@@ -48,12 +48,44 @@ pub fn configuration(directory: &Path) -> oauth::Peer {
 /// Point an initialized config directory at the issuer and the existing TLS fake.
 #[must_use]
 pub fn patch_configuration(directory: &Path) -> oauth::Peer {
-    super::own_listener_files(directory);
-    let file = super::read_file(&directory.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone);
-    let taken = [file.listen.expect("init listener"), file.webhooks.expect("init webhooks")];
-    let mut value = serde_json::json!({});
-    let [listener] = super::reserve_listeners(&taken);
+    use temper_config_shell::{FILE, Shape};
+
+    let start = super::read_start(&directory.join(FILE), Shape::Standalone);
+    let document = serde_json::from_slice(&start.document).expect("start document");
+    let drawn = super::free_addresses(&super::listener_addresses(&document));
+    let [listener] = super::reserve_listeners(&drawn);
     let address = listener.local_addr().expect("issuer address");
+    let data = temper_agent_fixtures::data(directory);
+    let (setting, registration, redirect) =
+        patch_configuration_with(directory, start, drawn, address, |path, bytes, providers| {
+            super::write_private(path, bytes);
+            let start = temper_agent_fixtures::start(directory);
+            let figures = temper_agent_fixtures::agent_figures(&data);
+            let agent = temper_agent_fixtures::with_figures(&start, &figures, &data, providers);
+            (start, agent)
+        });
+    setting.lay(&data);
+    super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
+    issuer(listener, &registration, redirect.as_bytes())
+}
+
+/// Compose the initialized listeners and the startup copies for a local issuer.
+/// The sink returns the start and prospective agent after the edit to listeners and providers.
+pub fn patch_configuration_with(
+    directory: &Path,
+    start: temper_config_shell::Read,
+    drawn: [std::net::SocketAddr; 2],
+    address: std::net::SocketAddr,
+    write_start: impl FnOnce(
+        &Path,
+        &[u8],
+        &[jig_protocol_config::ProviderSetting],
+    ) -> (serde_json::Value, serde_json::Value),
+) -> (temper_agent_fixtures::Setting, serde_json::Value, String) {
+    use temper_config_shell::{FILE, Shape};
+
+    let file = super::move_listener_file(start, drawn);
+    let mut value = serde_json::json!({});
     let origin = format!("http://{address}");
     let provider = &mut temper_agent_fixtures::providers::input(&mut value)["providers"][0];
     assert_eq!(provider["number"], 1);
@@ -76,37 +108,25 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["server_name"] = "skein.test".into();
     temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["trust"] =
         serde_json::json!(directory.join("root.der"));
-    temper_agent_fixtures::providers::keep(&mut value, &temper_agent_fixtures::data(directory));
-    let mut agent = temper_agent_fixtures::read(directory);
+    let providers = temper_agent_fixtures::providers::take(&mut value).expect("fixture providers");
+    let (mut document, mut agent) =
+        write_start(&directory.join(FILE), &temper_config_shell::render(&file, Shape::Standalone), &providers);
     agent["endpoints"][0]["address"] = "127.0.0.1:0".into();
     agent["endpoints"][0]["server_name"] = "skein.test".into();
     agent["endpoints"][0]["trust_der"] = serde_json::json!(directory.join("root.der"));
-    temper_agent_fixtures::install(directory, &agent);
-    super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    issuer(listener, &registration, redirect.as_bytes())
-}
-
-/// Recreate the fake issuer on its recorded address without changing the deployment.
-#[must_use]
-pub fn restart_issuer(directory: &Path) -> oauth::Peer {
-    restarted_issuer(directory, false)
+    let setting = temper_agent_fixtures::compose_setting(&mut document, &agent, &providers);
+    (setting, registration, redirect)
 }
 
 /// Recreate a provider that already issued the fixture's client registration.
 /// A restarted fake otherwise forgets it and rejects a moved account's refresh.
 #[must_use]
 pub fn restart_issued_issuer(directory: &Path) -> oauth::Peer {
-    restarted_issuer(directory, true)
-}
-
-fn restarted_issuer(directory: &Path, issued: bool) -> oauth::Peer {
     let mut registration = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory))["providers"]
         [0]["sources"]["sign_in"]
         .clone();
-    if issued {
-        // Known fixture identity, never a credential read from a deployment.
-        registration["client"] = "issued-client".into();
-    }
+    // Known fixture identity, never a credential read from a deployment.
+    registration["client"] = "issued-client".into();
     let address = registration["issuer"]
         .as_str()
         .expect("patched issuer")

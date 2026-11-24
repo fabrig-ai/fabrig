@@ -1,5 +1,4 @@
 //! Scripted documents in the generated client wire vocabulary (client/domain/testing.md, 4).
-#![expect(clippy::unnecessary_wraps, reason = "field translations share a fallible signature for bounded constructors")]
 #![expect(clippy::trivially_copy_pass_by_ref, reason = "field translations borrow all source facts uniformly")]
 #[path = "values/admission_limits.rs"]
 mod admission_limits;

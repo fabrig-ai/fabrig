@@ -197,17 +197,60 @@ def compare(base, head, layers, base_name, head_name):
     return findings
 
 
-def compare_revision(revision, head):
-    """A short-cut comparison names no figure places."""
+def path_short_cut(revision, head):
     paths = git('diff', '--no-renames', '--name-only', revision, head).splitlines()
     if BUDGETS not in paths:
-        print(f'figures: {BUDGETS} unchanged since {revision}')
-        return None
+        return f'figures: {BUDGETS} unchanged since {revision}'
     if paths == [BUDGETS]:
-        print(f"figures: {BUDGETS} alone changed since {revision}: the user's figures")
-        return None
+        return f"figures: {BUDGETS} alone changed since {revision}: the user's figures"
+    return None
+
+
+def compare_figures(revision, head):
     return compare(read_table(revision, BUDGETS), read_table(head, BUDGETS),
                    read_table(head, 'tools/tiers/layers.toml')['layers'], revision, head)
+
+
+def compare_revision(revision, head):
+    """Print the short cut, or return the figure findings for a mixed change."""
+    short_cut = path_short_cut(revision, head)
+    if short_cut:
+        print(short_cut)
+        return None
+    return compare_figures(revision, head)
+
+
+def batch_members(base, head):
+    """Return the merge prefixes, lowest first, only for a complete stack."""
+    try:
+        start = git('rev-parse', '--verify', '--quiet', '--end-of-options', f'{base}^{{commit}}').strip()
+        tip = git('rev-parse', '--verify', '--quiet', '--end-of-options', f'{head}^{{commit}}').strip()
+        history = git('rev-list', '--first-parent', '--parents', f'{start}..{tip}')
+    except subprocess.CalledProcessError:
+        # Trees and checkouts without the history still have a tree diff.
+        return []
+    commits = [line.split() for line in history.splitlines()]
+    if len(commits) < 2 or any(len(row) < 3 for row in commits) or commits[-1][1] != start:
+        return []
+    return [row[0] for row in reversed(commits)]
+
+
+def print_findings(findings):
+    for _, line in findings:
+        print(line)
+
+
+def check_batch(base, head, members):
+    print(f'figures: {head} stacks {len(members)} members on {base}: each judged by its own change')
+    below, count = base, 0
+    for member in members:
+        findings = compare_revision(below, member)
+        if findings is not None:
+            print_findings(findings)
+            print(f'figures: {len(findings)} raised or added since {below}')
+            count += len(findings)
+        below = member
+    return count
 
 
 def main(argv):
@@ -217,23 +260,29 @@ def main(argv):
     parser.add_argument('--merged', action='append')
     args = parser.parse_args(argv)
     try:
-        findings = compare_revision(args.base, args.head)
-        if findings is None and not args.merged:
-            return 0
-        findings = findings or []
-        for revision in args.merged or []:
-            places = {place for place, _ in compare_revision(revision, args.head) or []}
-            findings = [(place, line) for place, line in findings if place in places or line.startswith(BUDGET_REASON)]
+        short_cut = path_short_cut(args.base, args.head)
+        if short_cut:
+            print(short_cut)
+            if not args.merged:
+                return 0
+        members = batch_members(args.base, args.head) if not (short_cut or args.merged) else []
+        if members:
+            count = check_batch(args.base, args.head, members)
+        else:
+            findings = [] if short_cut else compare_figures(args.base, args.head)
+            for revision in args.merged or []:
+                places = {place for place, _ in compare_revision(revision, args.head) or []}
+                findings = [(place, line) for place, line in findings if place in places or line.startswith(BUDGET_REASON)]
+            print_findings(findings)
+            count = len(findings)
     except (subprocess.CalledProcessError, OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         print(f'figures: {getattr(error, "stderr", None) or error}', file=sys.stderr)
         return 2
-    for _, line in findings:
-        print(line)
     since = ' and '.join([args.base, *(args.merged or [])])
-    print(f'figures: {len(findings)} raised or added since {since}')
-    if findings:
+    print(f'figures: {count} raised or added since {since}')
+    if count:
         print(REPAIR_LINE)
-    return 1 if findings else 0
+    return int(bool(count))
 
 
 if __name__ == '__main__':

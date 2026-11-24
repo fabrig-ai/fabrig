@@ -28,9 +28,8 @@ fn attempt(value: fleet::AttemptState) -> w::AttemptState {
         fleet::AttemptState::Closed => w::AttemptState::Closed,
     }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(super) fn shortfall(value: fleet::AgentShortfall, _limits: &w::Limits) -> Result<w::AgentShortfall, w::Problem> {
-    Ok(match value {
+pub(super) fn shortfall(value: fleet::AgentShortfall) -> w::AgentShortfall {
+    match value {
         fleet::AgentShortfall::Model { charter, model } => {
             w::AgentShortfall::Model(w::AgentShortfallModel { charter, model })
         }
@@ -48,19 +47,17 @@ pub(super) fn shortfall(value: fleet::AgentShortfall, _limits: &w::Limits) -> Re
         fleet::AgentShortfall::Message => w::AgentShortfall::Message,
         fleet::AgentShortfall::Inbox => w::AgentShortfall::Inbox,
         fleet::AgentShortfall::Unacknowledged => w::AgentShortfall::Unacknowledged,
-    })
+    }
 }
-pub(super) fn hello(value: fleet::HelloRefusal, limits: &w::Limits) -> Result<w::HelloRefusal, w::Problem> {
-    Ok(match value {
-        fleet::HelloRefusal::Agent { why } => {
-            w::HelloRefusal::Agent(w::HelloRefusalAgent { why: shortfall(why, limits)? })
-        }
+pub(super) fn hello(value: fleet::HelloRefusal) -> w::HelloRefusal {
+    match value {
+        fleet::HelloRefusal::Agent { why } => w::HelloRefusal::Agent(w::HelloRefusalAgent { why: shortfall(why) }),
         fleet::HelloRefusal::JobKinds => w::HelloRefusal::JobKinds,
         fleet::HelloRefusal::ReservedChannel => w::HelloRefusal::ReservedChannel,
         fleet::HelloRefusal::Workers { limit } => w::HelloRefusal::Workers(w::HelloRefusalWorkers { limit }),
         fleet::HelloRefusal::Position { worker } => w::HelloRefusal::Position(w::HelloRefusalPosition { worker }),
         fleet::HelloRefusal::StopBound { grace } => w::HelloRefusal::StopBound(w::HelloRefusalStopBound { grace }),
-    })
+    }
 }
 pub(crate) fn account_place(value: accounts::Place) -> w::AccountPlace {
     match value {
@@ -77,9 +74,8 @@ pub(crate) fn account_unread(value: accounts::Unread) -> w::AccountUnread {
         accounts::Unread::TooLarge => w::AccountUnread::TooLarge,
     }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn account_state(value: d::AccountState, _limits: &w::Limits) -> Result<w::AccountState, w::Problem> {
-    Ok(match value {
+pub(crate) fn account_state(value: d::AccountState) -> w::AccountState {
+    match value {
         d::AccountState::Granted => w::AccountState::Granted,
         d::AccountState::Asking => w::AccountState::Asking,
         d::AccountState::SignInAgain => w::AccountState::SignInAgain,
@@ -96,10 +92,10 @@ pub(crate) fn account_state(value: d::AccountState, _limits: &w::Limits) -> Resu
         d::AccountState::Unloaded { at, why } => {
             w::AccountState::Unloaded(w::AccountStateUnloaded { at: account_place(at), why: account_unread(why) })
         }
-    })
+    }
 }
-fn person_action(value: people::CapacityAction, limits: &w::Limits) -> Result<w::PersonCapacityAction, w::Problem> {
-    Ok(match value {
+fn person_action(value: people::CapacityAction) -> w::PersonCapacityAction {
+    match value {
         people::CapacityAction::AccountSignIn => w::PersonCapacityAction::AccountSignIn,
         people::CapacityAction::AccountSignOut => w::PersonCapacityAction::AccountSignOut,
         people::CapacityAction::AccountChange => w::PersonCapacityAction::AccountChange,
@@ -149,27 +145,25 @@ fn person_action(value: people::CapacityAction, limits: &w::Limits) -> Result<w:
         }
         people::CapacityAction::Proposal { proposer, number } => {
             w::PersonCapacityAction::Proposal(w::PersonCapacityActionProposal {
-                proposer: task::proposal(&d::ProposalRef { proposer, number }, limits)?.proposer,
+                proposer: task::proposal(&d::ProposalRef { proposer, number }).proposer,
                 number,
             })
         }
         people::CapacityAction::MarkSeen { seen } => {
-            w::PersonCapacityAction::MarkSeen(w::PersonCapacityActionMarkSeen { seen: seen_record(seen, limits)? })
+            w::PersonCapacityAction::MarkSeen(w::PersonCapacityActionMarkSeen { seen: seen_record(seen) })
         }
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn seen_record(value: people::Seen, _limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
-    Ok(match value {
+fn seen_record(value: people::Seen) -> w::SeenThrough {
+    match value {
         people::Seen::Results { through } => w::SeenThrough::Results(w::SeenResults { through }),
         people::Seen::Conversation { task, through } => {
             w::SeenThrough::Conversation(w::SeenConversation { task, through })
         }
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn person_cause(value: people::CapacityCause, _limits: &w::Limits) -> Result<w::PersonCapacityCause, w::Problem> {
-    Ok(match value {
+fn person_cause(value: people::CapacityCause) -> w::PersonCapacityCause {
+    match value {
         people::CapacityCause::Requests { limit } => {
             w::PersonCapacityCause::Requests(w::PersonCapacityCauseRequests { limit })
         }
@@ -182,10 +176,10 @@ fn person_cause(value: people::CapacityCause, _limits: &w::Limits) -> Result<w::
         people::CapacityCause::Limit { which } => {
             w::PersonCapacityCause::Limit(w::PersonCapacityCauseLimit { which: refusals::limit(which) })
         }
-    })
+    }
 }
-fn task_action(value: tasks::CapacityAction, limits: &w::Limits) -> Result<w::TaskCapacityAction, w::Problem> {
-    Ok(match value {
+fn task_action(value: tasks::CapacityAction) -> w::TaskCapacityAction {
+    match value {
         tasks::CapacityAction::Place { hold } => w::TaskCapacityAction::Place(w::TaskCapacityActionPlace { hold }),
         tasks::CapacityAction::Release => w::TaskCapacityAction::Release,
         tasks::CapacityAction::Move => w::TaskCapacityAction::MoveTask,
@@ -212,13 +206,12 @@ fn task_action(value: tasks::CapacityAction, limits: &w::Limits) -> Result<w::Ta
             w::TaskCapacityAction::Claim(w::TaskCapacityActionClaim { attempt })
         }
         tasks::CapacityAction::Source { funder } => {
-            w::TaskCapacityAction::Source(w::TaskCapacityActionSource { funder: owner::funder(funder, limits)? })
+            w::TaskCapacityAction::Source(w::TaskCapacityActionSource { funder: owner::funder(funder) })
         }
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn task_cause(value: tasks::CapacityCause, _limits: &w::Limits) -> Result<w::TaskCapacityCause, w::Problem> {
-    Ok(match value {
+fn task_cause(value: tasks::CapacityCause) -> w::TaskCapacityCause {
+    match value {
         tasks::CapacityCause::PlacedHolds { limit } => {
             w::TaskCapacityCause::PlacedHolds(w::TaskCapacityCausePlacedHolds { limit })
         }
@@ -265,14 +258,14 @@ fn task_cause(value: tasks::CapacityCause, _limits: &w::Limits) -> Result<w::Tas
         tasks::CapacityCause::Inbox { task, messages, bytes } => {
             w::TaskCapacityCause::Inbox(w::TaskCapacityCauseInbox { task, messages, bytes })
         }
-    })
+    }
 }
-pub fn capacity(value: d::Capacity, _limits: &w::Limits) -> Result<w::Capacity, w::Problem> {
-    Ok(w::Capacity { used: value.used, limit: value.limit })
+#[must_use]
+pub fn capacity(value: d::Capacity) -> w::Capacity {
+    w::Capacity { used: value.used, limit: value.limit }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn location(value: d::RunLocation, _limits: &w::Limits) -> Result<w::RunLocation, w::Problem> {
-    Ok(match value {
+fn location(value: d::RunLocation) -> w::RunLocation {
+    match value {
         d::RunLocation::None => w::RunLocation::None,
         d::RunLocation::Connected { channel, kind } => {
             w::RunLocation::Connected(w::RunLocationConnected { channel, kind: host_kind(kind) })
@@ -285,7 +278,7 @@ fn location(value: d::RunLocation, _limits: &w::Limits) -> Result<w::RunLocation
             },
             remaining,
         }),
-    })
+    }
 }
 pub fn run(value: &d::HostRun, limits: &w::Limits) -> Result<w::HostRun, w::Problem> {
     Ok(w::HostRun {
@@ -294,22 +287,21 @@ pub fn run(value: &d::HostRun, limits: &w::Limits) -> Result<w::HostRun, w::Prob
         kept: value.kept,
         listed: value.listed,
         state: attempt(value.state),
-        location: location(value.location, limits)?,
+        location: location(value.location),
         grace_until: match value.grace_until {
             Some(item) => Some(item.as_nanos()),
             None => None,
         },
     })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn host_rule(value: jig_domain_core_vocabulary::HostRule, _limits: &w::Limits) -> Result<w::HostRule, w::Problem> {
+fn host_rule(value: jig_domain_core_vocabulary::HostRule) -> w::HostRule {
     use jig_domain_core_vocabulary::HostRule;
-    Ok(match value {
+    match value {
         HostRule::Open => w::HostRule::Open,
         HostRule::Person(party) => w::HostRule::Person(w::HostPerson { party }),
         HostRule::Several => w::HostRule::Several,
         HostRule::Unknown => w::HostRule::Unknown,
-    })
+    }
 }
 pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> {
     let mut runs = List::with_capacity(value.runs.len());
@@ -324,7 +316,7 @@ pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> 
         connected: value.connected,
         cut: value.cut,
         name: value.name.clone(),
-        rule: host_rule(value.rule, limits)?,
+        rule: host_rule(value.rule),
         programs: super::programs::logins(&value.programs, limits, limits.host_programs, w::paths::HOST_PROGRAMS)?,
         channel: value.channel,
         kind: host_kind(value.kind),
@@ -352,19 +344,19 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
     let waiting = chip_pieces(&waiting, limits.account_waiting, w::paths::ACCOUNT_WAITING, limits)?;
 
     Ok(w::Account {
-        list: super::accounts::list(value.list.as_ref(), limits)?,
-        facts: super::accounts::facts(&value.facts, limits)?,
+        list: super::accounts::list(value.list.as_ref()),
+        facts: super::accounts::facts(&value.facts),
         number: value.number,
         place: value.place,
-        uses: super::accounts::uses(value.uses.as_ref(), limits)?,
+        uses: super::accounts::uses(value.uses.as_ref()),
         provider: value.provider,
         provider_name: match &value.provider_name {
-            Some(name) => Some(owner::text(name, limits)?),
+            Some(name) => Some(owner::text(name)),
             None => None,
         },
         manage_usage: value.manage_usage.clone(),
-        display: owner::text(&value.display, limits)?,
-        holder: super::accounts::holder(value.holder, limits)?,
+        display: owner::text(&value.display),
+        holder: super::accounts::holder(value.holder),
         sources: super::accounts::source_pieces(
             &value.sources,
             limits,
@@ -372,7 +364,7 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
             w::paths::ACCOUNT_SOURCES,
         )?,
         generation: value.generation,
-        state: account_state(value.state, limits)?,
+        state: account_state(value.state),
         spent_until: match value.spent_until {
             Some(item) => Some(item.as_nanos()),
             None => None,
@@ -386,28 +378,27 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
         cut: value.cut,
     })
 }
-pub fn person_refusal(
-    value: &people::CapacityRefusal,
-    limits: &w::Limits,
-) -> Result<w::PersonCapacityRefusal, w::Problem> {
-    Ok(w::PersonCapacityRefusal {
+#[must_use]
+pub fn person_refusal(value: &people::CapacityRefusal) -> w::PersonCapacityRefusal {
+    w::PersonCapacityRefusal {
         key: w::RequestKey { person: value.key.person, key: value.key.key },
         project: value.project,
-        action: person_action(value.action, limits)?,
+        action: person_action(value.action),
         at: value.at.as_nanos(),
-        cause: person_cause(value.cause, limits)?,
-    })
+        cause: person_cause(value.cause),
+    }
 }
-pub fn task_refusal(value: &tasks::CapacityRefusal, limits: &w::Limits) -> Result<w::TaskCapacityRefusal, w::Problem> {
-    Ok(w::TaskCapacityRefusal {
+#[must_use]
+pub fn task_refusal(value: &tasks::CapacityRefusal) -> w::TaskCapacityRefusal {
+    w::TaskCapacityRefusal {
         request: w::TaskCapacityRequest {
             project: value.request.project,
-            by: owner::requester(value.request.by, limits)?,
-            action: task_action(value.request.action, limits)?,
-            cause: task_cause(value.request.cause, limits)?,
+            by: owner::requester(value.request.by),
+            action: task_action(value.request.action),
+            cause: task_cause(value.request.cause),
         },
         at: value.at.as_nanos(),
-    })
+    }
 }
 #[expect(clippy::too_many_lines, reason = "one field-for-field deployment document translation")]
 pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployment, w::Problem> {
@@ -429,11 +420,7 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
     let mut projects = List::with_capacity(value.projects.len());
     for row in &value.projects {
         projects
-            .push(w::ProjectCapacity {
-                project: row.project,
-                tasks: capacity(row.tasks, limits)?,
-                proposals: row.proposals,
-            })
+            .push(w::ProjectCapacity { project: row.project, tasks: capacity(row.tasks), proposals: row.proposals })
             .expect("supplied rows fit");
     }
     let mut hello_refusals = List::with_capacity(value.hello_refusals.len());
@@ -444,17 +431,17 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
                 at: row.at.as_nanos(),
                 slots: row.slots,
                 stop_bound: row.stop_bound,
-                why: hello(row.why, limits)?,
+                why: hello(row.why),
             })
             .expect("supplied rows fit");
     }
     let mut person_room_refusals = List::with_capacity(value.person_room_refusals.len());
     for row in &value.person_room_refusals {
-        person_room_refusals.push(person_refusal(row, limits)?).expect("supplied rows fit");
+        person_room_refusals.push(person_refusal(row)).expect("supplied rows fit");
     }
     let mut task_room_refusals = List::with_capacity(value.task_room_refusals.len());
     for row in &value.task_room_refusals {
-        task_room_refusals.push(task_refusal(row, limits)?).expect("supplied rows fit");
+        task_room_refusals.push(task_refusal(row)).expect("supplied rows fit");
     }
     let mut connectors = List::with_capacity(value.connectors.len());
     for row in &value.connectors {
@@ -495,17 +482,17 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
         readiness: super::catalogue::readiness(&value.readiness, limits.deployment_readiness, limits)?,
         store: w::StoreFill { bytes: value.store.bytes, mark: value.store.mark },
         census: match &value.census {
-            Some(value) => Some(store_census(value, limits)?),
+            Some(value) => Some(store_census(value)),
             None => None,
         },
         hosts,
         attempts,
         accounts,
-        tasks: capacity(value.tasks, limits)?,
-        workers: capacity(value.workers, limits)?,
-        attempts_capacity: capacity(value.attempts_capacity, limits)?,
+        tasks: capacity(value.tasks),
+        workers: capacity(value.workers),
+        attempts_capacity: capacity(value.attempts_capacity),
         waiting_attempts: value.waiting_attempts,
-        proposals: capacity(value.proposals, limits)?,
+        proposals: capacity(value.proposals),
         projects,
         grace_bound: value.grace_bound,
         hello_refusals,
@@ -519,8 +506,7 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
         connectors,
     })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn store_census(value: &d::StoreCensus, _limits: &w::Limits) -> Result<w::StoreCensus, w::Problem> {
+fn store_census(value: &d::StoreCensus) -> w::StoreCensus {
     let mut keyspaces = List::with_capacity(value.keyspaces.len());
     for row in &value.keyspaces {
         let mut heads = List::with_capacity(row.heads.len());
@@ -541,7 +527,7 @@ fn store_census(value: &d::StoreCensus, _limits: &w::Limits) -> Result<w::StoreC
             })
             .expect("supplied keyspaces fit");
     }
-    Ok(w::StoreCensus { commit: value.commit, since: value.since, keyspaces })
+    w::StoreCensus { commit: value.commit, since: value.since, keyspaces }
 }
 fn chip_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
