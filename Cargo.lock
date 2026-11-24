@@ -8368,6 +8368,7 @@ name = "temper-service-shell"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
+ "rustix",
  "skein-io",
  "skein-json",
  "skein-lib",

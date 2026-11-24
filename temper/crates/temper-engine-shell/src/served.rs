@@ -3,6 +3,7 @@ use crate::lines;
 use temper_engine_service as service;
 use temper_service_shell::Served;
 pub const SERVED: Served<service::Service> = Served {
+    set_local_places: None,
     stages: &service::STAGES,
     iterate_stage: service::iterate_stage,
     resolve: |service| resolve(service.engine_component()),
