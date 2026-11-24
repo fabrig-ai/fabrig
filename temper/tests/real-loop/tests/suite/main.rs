@@ -4,14 +4,12 @@ use skein_world::domain::heap::Counting;
 #[global_allocator]
 static HEAP: Counting = Counting;
 
-mod account_key;
 mod case_5_3;
 mod cluster;
 mod github_land;
 mod lifecycle;
 mod lock;
 mod peers;
-mod restart;
 mod sample;
 mod sign_in;
 mod teardown;

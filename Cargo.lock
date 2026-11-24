@@ -7818,6 +7818,7 @@ dependencies = [
  "skein-io",
  "skein-kv",
  "skein-lib",
+ "skein-llm",
  "skein-oauth-accounts",
  "skein-playground",
  "skein-push",

@@ -324,12 +324,21 @@ pub fn agent_configuration() -> smith_agent_service::Config {
 /// The same endpoints and model at the harness's declared capacities.
 #[must_use]
 pub fn agent_configuration_for(profile: &smith_agent_service::profile::Profile) -> smith_agent_service::Config {
+    agent_configuration_at(profile, (std::net::Ipv4Addr::LOCALHOST, 443).into())
+}
+/// The hosted agent's single direct model dial.
+#[must_use]
+pub fn agent_configuration_at(
+    profile: &smith_agent_service::profile::Profile,
+    address: std::net::SocketAddr,
+) -> smith_agent_service::Config {
     let mut config = smith::configuration_with_limits(skein_llm::Provider::OpenAi, &smith::derive_limits());
     config.limits = agent_limits_for(profile);
     config.channel_endpoints = channel::endpoints();
     let (destinations, _) = config.llm_endpoints.into_parts();
     let mut destination = destinations.into_boxed().into_vec().pop().expect("one LLM endpoint");
     destination.limits = config.limits.llm.translation.client;
+    destination.address = skein_io::kernel::Addr::from(address);
     config.llm_endpoints = smith_protocol_llm::Endpoints::new(
         Box::new([smith_protocol_llm::ConfiguredEndpoint {
             name: smith_domain::llm::Endpoint(0),

@@ -84,6 +84,7 @@ skein-sim = { path = "../../../skein/crates/skein-sim" }
 skein-fake-machine = { path = "../../../skein/crates/skein-fake-machine" }
 skein-fake-peers = { path = "../../../skein/crates/skein-fake-peers" }
 skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
+skein-llm.workspace = true
 skein-kv = { path = "../../../skein/crates/skein-kv" }
 
 [dev-dependencies]

@@ -1,3 +1,4 @@
+mod account_key;
 mod across_versions;
 mod cluster_start;
 mod copy;
@@ -14,6 +15,7 @@ mod public;
 mod push;
 mod ready_copies;
 mod replay;
+mod restart;
 mod story_a;
 mod tools;
 mod upgrade;

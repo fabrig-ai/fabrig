@@ -195,11 +195,6 @@ impl Ran {
     pub fn path(&self) -> &std::path::Path {
         self.scratch.path()
     }
-    #[must_use]
-    pub fn into_scratch(self) -> Scratch {
-        drop(self.outcome);
-        self.scratch
-    }
 }
 #[must_use]
 pub fn run(
@@ -316,17 +311,6 @@ pub fn run_forge_by_input(
     let scratch = Scratch::new("real-forge");
     let outcome = world::run_forge(&scratch, fixture, scripts, Some(rules), None, steps);
     checked(Ran { outcome: Outcome::Forge(outcome), scratch })
-}
-
-/// Run the private-key smoke on a standard `OpenAI` endpoint.
-#[must_use]
-pub fn run_key_on(
-    scratch: Scratch,
-    recipe: impl FnOnce() -> llm::Recipe,
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Ran {
-    let outcome = world::run(&scratch, recipe, steps, true, false);
-    checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 
 /// Run a GitHub story on the layer's authenticated HTTP git route.
