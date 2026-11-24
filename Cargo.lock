@@ -8402,6 +8402,7 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
  "rustix",
+ "skein-fake-machine",
  "skein-io",
  "skein-json",
  "skein-lib",
