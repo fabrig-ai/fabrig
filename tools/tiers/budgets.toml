@@ -382,6 +382,12 @@ to = "hearth.simulated"
 cpu_s = 3.9
 why = "hearth-builder-world's tests that replay left its real-loop binary for a binary of their own (tools/tiers/layers.md, 6.1)."
 
+[[gate.default.moves]]
+from = "hearth.real-loop"
+to = "hearth.simulated"
+cpu_s = 3.0
+why = "hearth's builder render, diff, outcome, repository and store cases, 220, left its real and suite binaries for the simulated world (temper/docs/design/draft/slow-tests-down.md, 5.2); the user's figure of 2026-11-24."
+
 [gate.default.repository]
 ideal_s = 30
 
