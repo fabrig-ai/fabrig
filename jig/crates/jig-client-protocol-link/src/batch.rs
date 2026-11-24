@@ -42,8 +42,10 @@ impl Link {
             return Admission::NotServed { readout: read.then_some(result) };
         }
         // A keyed attempt first waits for me in the client domain. If it is
-        // still queued when that stream drops, it must wait for the next hello.
-        if self.stream_name().is_none() && (read || self.judged_hello()) {
+        // still queued when that stream drops, it waits for the next hello
+        // while a credential is held. A signed-out request goes to the engine,
+        // which answers it SignedOut.
+        if self.stream_name().is_none() && (read || (self.judged_hello() && self.credential.is_some())) {
             return Admission::Wait;
         }
         Admission::Ready

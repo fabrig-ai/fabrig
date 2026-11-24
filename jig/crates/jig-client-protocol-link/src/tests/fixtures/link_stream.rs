@@ -67,11 +67,14 @@ pub fn past_two_heartbeats() -> Time {
 impl Harness {
     pub fn with_hello(limits: &Limits) -> Self {
         let mut harness = Self::new(limits);
-        harness.link.step(Time::ZERO, Event::OpenStream, &mut harness.out);
-        harness.link.settle(&mut harness.out);
-        harness.stream_record(&hello_event(HEARTBEAT));
-        harness.clear();
+        harness.open_with_hello();
         harness
+    }
+    pub fn open_with_hello(&mut self) {
+        self.link.step(Time::ZERO, Event::OpenStream, &mut self.out);
+        self.link.settle(&mut self.out);
+        self.stream_record(&hello_event(HEARTBEAT));
+        self.clear();
     }
     pub fn clear(&mut self) {
         self.out = Queue::uncapped();
