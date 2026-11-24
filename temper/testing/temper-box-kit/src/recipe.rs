@@ -1,4 +1,4 @@
-//! The base box fixture over explicit startup facts (temper/docs/design/testing/box/contracts.md, 2.1).
+//! The base box fixture composed in memory and laid for native stories (temper/docs/design/testing/box/README.md, 2.1).
 use crate::configuration::{file, parse_with_key, turn_bounds, typed_documents};
 use crate::{Forge, owned};
 use serde_json::Value;

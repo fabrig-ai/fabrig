@@ -1,5 +1,4 @@
-#[path = "../support/listeners.rs"]
-pub mod listeners;
+use box_listeners::inherited as listeners;
 use temper_box_kit as support;
 
 mod agent_modes;
@@ -13,7 +12,6 @@ mod landing_failure;
 mod ports;
 mod relay;
 mod startup;
-mod table;
-
 mod support_tests;
+mod table;
 mod wiring;

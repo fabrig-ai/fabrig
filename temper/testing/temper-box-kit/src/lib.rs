@@ -80,13 +80,6 @@ pub fn reserve_listeners<const N: usize>(taken: &[SocketAddr]) -> [std::net::Tcp
     temper_fixtures::ports::reserve(taken)
 }
 
-/// Reserves every listener an init-made document names and moves its socket and HTTP URLs,
-/// keeping URL paths, so that no story depends on init's preferred ports.
-pub fn own_listeners(document: &mut serde_json::Value) {
-    let old = listener_addresses(document);
-    move_listeners(document, old, free_addresses(&old));
-}
-
 fn listener_addresses(document: &serde_json::Value) -> [SocketAddr; 2] {
     ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
         document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")

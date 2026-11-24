@@ -175,16 +175,6 @@ pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::
     turn_restart::configure_at(root, repository, turn_restart::Profile::NarrowedBatch)
 }
 
-/// Lay the message-room setting over a native story's preceding agent and providers.
-pub fn message_room(root: &Path, value: &mut temper_playground::documents::Configuration) {
-    use temper_agent_fixtures::providers;
-
-    let agent = temper_agent_fixtures::read(root);
-    let providers = providers::take(value).unwrap_or_else(|| providers::values(&providers::read(root)));
-    compose_message_room(value, agent, &providers).lay(root);
-    value.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
-}
-
 /// Hold the prepare job and the batch call under the standard engine profile.
 /// The caller applies the prospective agent's bounds after preparing it with the returned setting.
 #[must_use]

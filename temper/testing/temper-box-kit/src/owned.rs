@@ -719,11 +719,6 @@ pub fn example_files() -> temper_service::settings::Files {
 
 const EXAMPLE_WORKER_SECRET: &[u8] = b"worker-secret\n";
 
-#[must_use]
-pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
-    example_start(directory, owned).0
-}
-
 fn example_start(directory: &Path, owned: &Owned) -> (Vec<u8>, Box<[jig_protocol_config::ProviderSetting]>) {
     let mut value = example_value(owned);
     value["workers"][0]["secret"] = "worker.secret".into();
@@ -1299,22 +1294,12 @@ pub fn owned_landing_settings(owned: &Owned) -> Option<Vec<u8>> {
     (!owned.review).then(|| producer_landing_settings_bytes(1))
 }
 
-/// This fixture's changes use the ordinary charter without an agent review.
-pub fn native_landing_settings(directory: &Path) {
-    producer_landing_settings(directory, 1);
-}
-
-/// Replace seeded project 1's review rule and select this fixture's producer charter.
-/// temper/docs/design/protocol/configuration/stock.md and temper/docs/design/protocol/configuration/settings.md, 4–5.
-pub fn producer_landing_settings(directory: &Path, producer: u64) {
-    write_landing_settings(directory, &producer_landing_settings_bytes(producer));
-}
-
 pub(super) fn write_landing_settings(directory: &Path, bytes: &[u8]) {
     super::write_private(&directory.join("native-landing-settings.json"), bytes);
 }
 
-/// Render the native settings FILE without laying it.
+/// Replace seeded project 1's review rule and select this fixture's producer charter.
+/// temper/docs/design/protocol/configuration/stock.md and temper/docs/design/protocol/configuration/settings.md, 4–5.
 #[must_use]
 pub fn producer_landing_settings_bytes(producer: u64) -> Vec<u8> {
     let value = serde_json::json!({"items":[
