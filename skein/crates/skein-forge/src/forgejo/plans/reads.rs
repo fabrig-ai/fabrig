@@ -169,7 +169,7 @@ impl Plan {
                 if page == 0 {
                     return Err(api::Error::Empty);
                 }
-                let mut plan = super::commits::Plan::new(before, after, page, row, bounds)?;
+                let plan = super::commits::Plan::new(before, after, page, row, bounds)?;
                 let step = plan.begin();
                 return Ok((State::Delegated(Box::new(Delegate::Commits(plan))), step));
             }
@@ -280,11 +280,14 @@ impl Plan {
     pub fn after(&self) -> u64 {
         match &self.state {
             State::Issue { after, .. } | State::Comments { after, .. } => *after,
+            State::Delegated(delegate) => match delegate.as_ref() {
+                Delegate::Commits(plan) => plan.after(),
+                Delegate::Artifact(_) | Delegate::Turn(_) | Delegate::Contents(_) | Delegate::Actions(_) => 0,
+            },
             State::New { .. }
             | State::Resolving { .. }
             | State::Locating
             | State::Settings
-            | State::Delegated(_)
             | State::Items { .. }
             | State::Reviews { .. }
             | State::Remarks { .. }
@@ -348,7 +351,7 @@ impl Plan {
             State::Delegated(mut delegate) => {
                 let step = match delegate.as_mut() {
                     Delegate::Artifact(plan) => plan.heard(heard, bounds, self.repository, tables),
-                    Delegate::Commits(plan) => plan.heard(heard, bounds, self.repository, tables),
+                    Delegate::Commits(plan) => plan.heard(heard, bounds, self.repository, tables, &mut self.cut),
                     Delegate::Turn(plan) => plan.heard(heard, bounds, self.repository, tables),
                     Delegate::Contents(plan) => plan.heard(heard, bounds, self.repository, tables),
                     Delegate::Actions(plan) => plan.heard(heard, bounds, self.repository, tables),
