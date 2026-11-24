@@ -17,6 +17,8 @@ mod fuzzy {
     mod accounts;
     mod composed;
     mod green_light;
+    mod repair;
+    mod twin;
 }
 mod running_revision;
 

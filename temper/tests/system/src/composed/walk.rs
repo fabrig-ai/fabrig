@@ -87,12 +87,21 @@ impl World {
         question
     }
 
-    /// The overview visible to the person while the task is live.
+    /// The overview visible to the person, live or retained after ending.
     pub fn task_overview(&mut self, task: u64) -> Box<documents::Task> {
-        let answer = self.notes_read(reads::Read::Task { task });
-        let reads::Answer::Document(document) = answer else { panic!("task read: {answer:?}") };
-        let documents::Document::Task(task) = *document else { panic!("task read: {document:?}") };
-        task
+        match self.notes_read(reads::Read::Task { task }) {
+            reads::Answer::Document(document) => {
+                let documents::Document::Task(task) = *document else { panic!("task {task}: expected overview") };
+                task
+            }
+            reads::Answer::Ended(ended) => {
+                let reads::EndedValue::Task { document, .. } = ended.value else {
+                    panic!("task {task}: expected retained overview")
+                };
+                document
+            }
+            answer => panic!("task {task} read: {answer:?}"),
+        }
     }
 
     /// The live subtree as seen by the owner's standard tree watch.

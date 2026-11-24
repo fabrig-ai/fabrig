@@ -379,6 +379,78 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
 }
 
 #[test]
+fn question_json_keeps_its_inbox_identity_and_its_plan_in_task_activity() {
+    use serde_json::Value;
+    let plan = b"Add CSV output while preserving the table. Shall I go ahead?";
+    let argv = &["inbox", "--kind", "questions", "--json"];
+    for count in [1, 0] {
+        let (mut root, call) = fixtures::read_call(argv);
+        let c::ReadResult::Value(c::ReadValue::Inbox(mut page)) =
+            fixtures::inbox_rows(c::InboxReadGroup::Needs, count, false)
+        else {
+            panic!("questions page")
+        };
+        let task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
+        if let Some(row) = page.rows.get_mut(0) {
+            row.task = c::TaskLink::Live(task.chip.clone());
+        }
+        root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(page)));
+        if count == 1 {
+            root.serve(
+                call,
+                c::ReadResult::Value(c::ReadValue::Question(Box::new(c::Question {
+                    task: task.chip,
+                    message: 2,
+                    from: Some(c::Requester::Task(42)),
+                    words: fixtures::document_text(plan),
+                    since: skein_lib::Wall::EPOCH,
+                    acts: skein_lib::List::with_capacity(0),
+                    ending: None,
+                }))),
+            );
+        }
+        let printed = root.answer(call).expect("questions printed");
+        assert_eq!(printed.status, 0);
+        let value: Value = serde_json::from_slice(&printed.stdout).expect("inbox JSON");
+        let rows = value["needs"]["rows"].as_array().expect("questions array, even when empty");
+        assert_eq!(rows.len(), usize::try_from(count).expect("at most one row"));
+        if let [row] = rows.as_slice() {
+            assert_eq!(row["task"]["live"]["task"], fixtures::TASK);
+            assert_eq!(row["object"]["question"]["message"].as_u64(), Some(2));
+        }
+        assert!(root.reads.is_empty(), "no repeated inbox read");
+    }
+
+    let (mut root, call) = fixtures::read_call(&["task", "show", "41", "--activity", "32", "--json"]);
+    root.serve(call, fixtures::task_result(fixtures::goal(fixtures::TASK, fixtures::waiting_on_me())));
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(crate::tests::documents::line(
+        1,
+        skein_lib::Wall::EPOCH,
+        c::Activity::Words {
+            message: 2,
+            by: c::Requester::Task(42),
+            kind: c::MessageKind::QuestionOwed,
+            words: c::Text::new(plan.as_slice().into(), 128).expect("plan fits"),
+        },
+    ))
+    .expect("one activity row");
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+            cut: false,
+            rows,
+            before: None,
+            after: None,
+        }))),
+    );
+    let printed = root.answer(call).expect("activity printed");
+    assert_eq!(printed.status, 0);
+    assert!(fixtures::has(&printed, plan), "the activity JSON includes the whole plan");
+    assert!(root.reads.is_empty(), "no repeated activity read");
+}
+
+#[test]
 fn an_inbox_answer_is_acknowledged_in_task_activity() {
     for argv in [fixtures::ACTIVITY_CALL, fixtures::LIMITED_TASK_CALL] {
         let (mut root, call) = fixtures::read_call(argv);

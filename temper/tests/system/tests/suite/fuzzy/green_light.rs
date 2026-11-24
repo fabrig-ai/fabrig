@@ -5,78 +5,17 @@ use jig_domain_core::{
 };
 use jig_domain_tasks::{self as tasks, TaskResult};
 use serde_json::Value;
-use skein_fake_forge_domain::api::{Protection, Setup};
-use skein_fake_forge_domain::{Observation, object_bytes};
-use skein_fake_llm_domain::api::{Part, Query, Role as LlmRole};
-use smith_domain_session::llm;
+use skein_fake_forge_domain::Observation;
+use skein_fake_llm_domain::api::Query;
 use smith_protocol_llm_world::fixture::Dialect;
-use std::fmt::Write;
-use temper_engine_domain_forge::{Adoption, Role};
-use temper_engine_service_vocabulary::settings;
-use temper_system_world::composed::{WalkRepository, World, provider::Playback, review_rule};
+use temper_system_world::composed::{World, provider::Playback, review_rule};
+
+use super::twin::{calls, chat_text, done, heard_tool, hex, query, replies, repository, told, utf8};
 
 const TAPE: &[u8] = include_bytes!("../../../../real-loop/tests/fixtures/b0/llm.json");
 const FORGE: &[u8] = include_bytes!("../../../../real-loop/tests/fixtures/b0/forge.json");
 const PERSON: &[u8] = include_bytes!("../../../../real-loop/tests/fixtures/b0/person.json");
 const SEED: u64 = 17;
-
-fn repository() -> WalkRepository {
-    let document = temper_fake::forge::Document::decode(FORGE).expect("B0 forge document");
-    let [repository] = document.repositories() else { panic!("one widget repository") };
-    let checks = temper_fake::forge::checks(repository.ci.as_ref());
-    let protection = Protection {
-        branch: repository.landing.clone(),
-        contexts: checks.contexts.clone(),
-        approvals: 0,
-        dismiss_stale: false,
-        queue: false,
-        linear: false,
-        code_owners: false,
-        bypassing_users: Box::default(),
-    };
-    let host = b"twin.test";
-    WalkRepository {
-        seed: Setup {
-            id: repository.id.expect("recorded repository id"),
-            name: [&*repository.owner, b"/", &*repository.name].concat().into_boxed_slice(),
-            default: repository.landing.clone(),
-            tree: repository.tree.clone().expect("recorded widget seed"),
-            labels: Box::default(),
-            checks,
-            workflows: Box::default(),
-            protection: Some(protection),
-            hooked: false,
-        },
-        adoption: Adoption {
-            project: 1,
-            home: true,
-            forge: 1,
-            host: host.as_slice().into(),
-            owner: repository.owner.clone(),
-            name: repository.name.clone(),
-            prefix: b"temper/".as_slice().into(),
-            role: Role::Owned,
-            landing: repository.landing.clone(),
-            ci: true,
-            checks: Box::default(),
-        },
-        binding: settings::Forge {
-            log_origins: None,
-            mode: temper_engine_domain_forge::Mode::Connected,
-            number: 1,
-            kind: settings::Kind::Forgejo,
-            api: jig_protocol_config::Address::Host { name: host.as_slice().into(), port: 80 },
-            transport: settings::Transport::Plaintext,
-            git: [b"http://".as_slice(), host].concat().into_boxed_slice(),
-            git_program: None,
-            web: None,
-            app_read_only: false,
-            user: 19,
-            identity: 4,
-        },
-        person: 11,
-    }
-}
 
 const CHAT: u64 = 1;
 const GOAL: u64 = 2;
@@ -105,8 +44,11 @@ fn a_green_light_in_the_inbox_lets_the_change_land() {
     let person: Value = serde_json::from_slice(PERSON).expect("B0 person's script");
     let document = temper_fake::llm::Document::decode(TAPE).expect("B0 LLM document").with_strict(true);
     let playback = Playback::new(&document, Dialect::OpenAi.configuration(), SEED);
+    let forge = temper_fake::forge::Document::decode(FORGE).expect("B0 forge document");
+    let [widget] = forge.repositories() else { panic!("one widget repository") };
+    let repository = repository(widget, temper_fake::forge::checks(widget.ci.as_ref()));
     let mut world =
-        World::recorded_walk(SEED, playback, repository(), review_rule(), words(&person, "request").as_bytes());
+        World::recorded_walk(SEED, playback, repository, review_rule(), words(&person, "request").as_bytes());
     let seed = world.branch(b"main");
     world.run();
     check_waiting(&mut world, &person);
@@ -144,7 +86,7 @@ fn a_green_light_in_the_inbox_lets_the_change_land() {
 
 fn check_waiting(world: &mut World, person: &Value) {
     assert_eq!(world.party.last_task, Some(CHAT));
-    assert!(chat_text(world).contains("I’ve asked the work to wait for your go-ahead"));
+    assert!(chat_text(world, CHAT).contains("I’ve asked the work to wait for your go-ahead"));
     let inbox = world.inbox_needs();
     let [PageRow::Inbox(question)] = inbox.rows.as_slice() else { panic!("one waiting question: {inbox:?}") };
     assert!(!inbox.cut && inbox.next.is_none());
@@ -318,7 +260,7 @@ fn check_landing(world: &mut World, checkpoint: usize, person: &Value) {
     for name in [merge_id.as_str(), pull_name.as_str(), "merged into main"] {
         assert!(report.contains(name), "goal's report must name {name}: {report}");
     }
-    let chat = chat_text(world);
+    let chat = chat_text(world, CHAT);
     let last = chat.lines().next_back().expect("chat's last reply");
     for name in [merge_id.as_str(), pull_name.as_str(), words(person, "last_word")] {
         assert!(last.contains(name), "chat's last reply must name {name}: {last}");
@@ -365,84 +307,6 @@ fn check_review(query: &Query, pull: u64, title: &str, body: &str, branches: &sk
     assert_eq!(calls[2].1["commit"], head);
     assert!(heard_tool(query, "fn write_csv"), "reviewer read the produced source");
     assert!(!told(query).contains("Error:"), "successful source review: {}", told(query));
-}
-
-fn query(world: &World, task: u64, said: usize) -> &Query {
-    let mut queries =
-        world.observed.queries.iter().filter(|(owner, _, query)| *owner == task && replies(query) == said);
-    let (_, _, query) = queries.next().unwrap_or_else(|| panic!("task {task} with {said} prior replies"));
-    assert!(queries.next().is_none(), "one request for task {task}'s turn {said}");
-    query
-}
-
-fn replies(query: &Query) -> usize {
-    query.messages.iter().filter(|message| message.role == LlmRole::Assistant).count()
-}
-
-fn calls(query: &Query) -> Vec<(&str, Value)> {
-    query
-        .messages
-        .iter()
-        .filter(|message| message.role == LlmRole::Assistant)
-        .flat_map(|message| &message.parts)
-        .filter_map(|part| {
-            let Part::ToolCall { name, arguments, .. } = part else { return None };
-            Some((utf8(name), serde_json::from_slice(arguments).expect("observed tool JSON")))
-        })
-        .collect()
-}
-
-fn told(query: &Query) -> String {
-    query
-        .messages
-        .iter()
-        .filter(|message| message.role == LlmRole::User)
-        .flat_map(|message| &message.parts)
-        .filter_map(|part| match part {
-            Part::Text { text } | Part::ToolOutput { output: text, .. } => Some(utf8(text)),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn heard_tool(query: &Query, words: &str) -> bool {
-    query
-        .messages
-        .iter()
-        .flat_map(|message| &message.parts)
-        .any(|part| matches!(part, Part::ToolOutput { output, is_error: false, .. } if utf8(output).contains(words)))
-}
-
-fn chat_text(world: &World) -> String {
-    world
-        .committed_turns(CHAT)
-        .iter()
-        .flat_map(|turn| &turn.messages)
-        .filter(|message| message.role == llm::Role::Assistant)
-        .flat_map(|message| &message.content)
-        .filter_map(|block| block.text().map(utf8))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn done(world: &World, task: u64) -> &TaskResult {
-    let row = world.ended_task(task).unwrap_or_else(|| panic!("task {task} ended"));
-    let tasks::Phase::Ended(tasks::Ending::Done(result)) = &row.phase else {
-        panic!("task {task} succeeded: {:?}", row.phase)
-    };
-    result
-}
-
-fn utf8(bytes: &[u8]) -> &str {
-    std::str::from_utf8(bytes).expect("the peer's text is UTF-8")
-}
-
-fn hex(commit: u64) -> String {
-    object_bytes(commit).iter().fold(String::new(), |mut hex, byte| {
-        write!(hex, "{byte:02x}").expect("commit hex");
-        hex
-    })
 }
 
 fn recorded_write() -> String {

@@ -29,7 +29,6 @@ mod fuzzy {
     mod case_6_6;
     mod case_6_8;
     mod landing;
-    mod repair;
 }
 
 // Synchronous Usage operations measure this process and its reaped children;

@@ -13,7 +13,6 @@ pub mod green_light;
 pub mod issuer;
 pub mod landing;
 pub mod llm;
-pub mod repair;
 pub mod scripts;
 pub mod terminal;
 
