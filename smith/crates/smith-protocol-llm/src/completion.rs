@@ -79,6 +79,73 @@ pub fn completion(context: Context, completion: skein_llm::Completion) -> Result
     }))
 }
 
+/// Classify saved answer blocks under the prepared opening, without asking a provider.
+#[must_use]
+#[expect(clippy::too_many_arguments, reason = "the cut answer carries the same decoding contract as a completion")]
+pub fn classify(
+    content: Box<[smith_domain::session::llm::Block]>,
+    grants: smith_domain::tools::Grants,
+    served: Box<[llm::Served]>,
+    asker: llm::Asker,
+    outcome: run::outcome::OutcomeSpec,
+    deliver: Option<run::outcome::ChangeSpec>,
+    limits: crate::Limits,
+    decoded_call_bytes: u64,
+) -> Option<llm::Completion> {
+    use smith_domain::session::llm::Block;
+    let contract = Context {
+        owner: skein_lib::Token::new(0),
+        asker,
+        grants,
+        served,
+        outcome,
+        deliver,
+        limits,
+        receiving: crate::Receiving {
+            max_completion_bytes: decoded_call_bytes,
+            max_completion_blocks: u32::try_from(content.len()).ok()?,
+            max_failure_bytes: 0,
+            decoded_call_bytes,
+        },
+    };
+    let mut held = 0_u64;
+    for block in &content {
+        if block.tool_call().is_some() {
+            held = held.checked_add(u64::try_from(size_of::<llm::Decoded>()).ok()?)?;
+        }
+    }
+    if held > decoded_call_bytes {
+        return None;
+    }
+    let mut decoded = List::with_capacity(u32::try_from(content.len()).ok()?);
+    for block in content {
+        let said = match block {
+            Block::Text { text, replay } => llm::Said::Text { text, replay },
+            Block::Refusal { text, replay } => llm::Said::Refusal { text, replay },
+            Block::Opaque { bytes } => llm::Said::Opaque { bytes },
+            Block::ToolCall(call) => {
+                let classified = decode(&call.name, &call.input, &contract, held).ok()?;
+                let classified = receiving_call(classified, &mut held, decoded_call_bytes);
+                llm::Said::ToolCall {
+                    id: call.id,
+                    name: call.name,
+                    input: call.input,
+                    replay: call.replay,
+                    call: classified,
+                }
+            }
+            Block::ToolResult { .. } => return None,
+        };
+        decoded.push(said).ok()?;
+    }
+    Some(llm::Completion {
+        reasoning_dropped: Box::default(),
+        content: decoded.into_boxed(),
+        stop: llm::Stop::ToolUse,
+        usage: llm::Usage::NONE,
+    })
+}
+
 fn block_value(block: skein_llm::Block, context: &Context, decoded_bytes: &mut u64) -> Result<llm::Said, Error> {
     match block {
         skein_llm::Block::Text { text, replay } => {

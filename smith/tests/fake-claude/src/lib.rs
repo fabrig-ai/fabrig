@@ -18,7 +18,7 @@ mod server;
 mod story;
 mod stream;
 
-pub use faces::{config_root, hosted, main, mcp_root, observation_append};
+pub use faces::{config_root, hosted, main, mcp_root, observation_append, simulated_launch};
 pub use fake::{Faces, Fake};
 pub use server::{Answer, Server, ServerScript, Tool, Verdict, served, server_main};
 pub use story::{

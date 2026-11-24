@@ -7,3 +7,8 @@
     have no reference documents. The playground host's documents are
     rendered and checked; the tree's common and test documents exist
     (`../cli/README.md`, 8 and 11).
+  - 6: `temper-client-gallery`, `temper-client-walk`,
+    `temper-git-transcripts`, `temper-playground-serve` and `temper-qa`
+    still launch the binary for each row of their tables, rather than
+    their crates' unit tests holding the rows beyond one launch per
+    path.

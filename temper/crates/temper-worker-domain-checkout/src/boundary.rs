@@ -34,6 +34,8 @@ use crate::git::{Commit, Done, Missing, Op};
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Event {
+    /// Release a cut run, marking its workspace if its last save succeeded.
+    Keep { hold: Token },
     /// The answer to this hold's landed-dependency question; dropped unless waiting.
     DependencyLanded { hold: Token, landed: bool },
     /// A clear supersedes check writes still in flight.

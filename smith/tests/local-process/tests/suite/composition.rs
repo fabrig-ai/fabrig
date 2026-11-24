@@ -149,3 +149,18 @@ fn an_older_store_refuses_with_operator_words_and_unchanged_files() {
         assert_eq!(world.store_snapshot(), before);
     }
 }
+
+#[test]
+fn exec_in_a_repository_without_a_commit_exits_two_with_its_line() {
+    let files = Files::new();
+    let mut world = World::without_head(38, &files);
+    world.settle();
+    world.assert_ended(Ending::UnreadableHead);
+    assert!(
+        world.git_commands().iter().any(|args| args.iter().map(AsRef::as_ref).eq([b"rev-parse".as_slice(), b"HEAD"]))
+    );
+    assert_eq!(world.exit(), Some(kernel::Exit::Code(2)));
+    let errors = std::str::from_utf8(world.errors()).expect("operator lines are UTF-8");
+    assert_eq!(errors.lines().last(), Some("smith: run refused: repository workspace: its head cannot be read"));
+    assert!(world.queries().is_empty(), "a refused start sends no provider request");
+}

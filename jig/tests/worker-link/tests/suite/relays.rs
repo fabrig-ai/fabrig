@@ -37,6 +37,7 @@ fn answers(world: &World) -> Vec<&host::Relayed> {
         .filter_map(|request| match request {
             Request::Down { down: host::LinkDown::Relayed { answer, .. }, .. } => Some(answer),
             Request::Ready
+            | Request::ResendPart { .. }
             | Request::Resend { .. }
             | Request::Restarting { .. }
             | Request::GracePassed
@@ -84,6 +85,7 @@ fn a_relay_cancelled_while_the_link_is_down_is_never_sent_again() {
         .filter_map(|request| match request {
             Request::RelayCancelled { run, attempt, call } => Some((*run, *attempt, call.as_ref())),
             Request::Ready
+            | Request::ResendPart { .. }
             | Request::Resend { .. }
             | Request::Restarting { .. }
             | Request::GracePassed

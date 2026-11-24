@@ -50,6 +50,7 @@ pub enum LinkEvent {
     Assign,
     Message,
     Relayed,
+    PartKept,
     TurnKept,
     Acknowledge,
     Cancel,

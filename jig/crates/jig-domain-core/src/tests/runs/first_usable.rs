@@ -470,6 +470,7 @@ fn a_busy_login_host_is_a_host_wait() {
         &mut core.fleet,
         &env,
         fleet::Event::Adopt {
+            kept_part: 0,
             worker: None,
             reply_to: ReplyTo::new(HOST),
             run: BUSY,

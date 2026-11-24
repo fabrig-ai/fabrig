@@ -94,7 +94,7 @@ fn decode(bytes: &[u8], limits: &codec::View, task: u64, at: u64) -> Result<smit
     let turn = match smith::decode_archived(&smith::CEILINGS, &record.transcript) {
         Ok(turn) => turn,
         Err(problem) => {
-            if problem.path == smith::v7::paths::TURN_VERSION && record.transcript.len() >= 2 {
+            if problem.path == smith::v8::paths::TURN_VERSION && record.transcript.len() >= 2 {
                 return Err(Refusal::Version {
                     task,
                     version: u16::from_be_bytes([record.transcript[0], record.transcript[1]]),

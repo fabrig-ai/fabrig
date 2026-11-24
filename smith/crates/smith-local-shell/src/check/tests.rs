@@ -1,6 +1,50 @@
 use super::*;
 
 #[test]
+fn check_writes_a_settings_refusal_only_to_stderr() {
+    let merged = settings::from_sources(
+        &command::Shared::default(),
+        "/workspace".into(),
+        &[crate::fixture::source("fixture.toml".into(), "[endpoints.work]\nidentity='claude-code'\n".into())],
+    );
+    let verdict = report_for(merged.as_ref(), skein_lib::Wall::EPOCH, &skein_shell::Clock::new(), None);
+    let output = render_verdict(verdict, false);
+    assert_eq!(output.code, 2);
+    assert_eq!(output.stdout, "");
+    assert_eq!(output.stderr, "smith: fixture.toml:2: endpoints.work.identity: use `openai/<model>`\n");
+}
+
+#[test]
+fn check_names_both_sides_of_the_turn_ceiling() {
+    // The example in shell/settings.md, 1.3: a -c request past the standard ceiling.
+    const TURNS: u32 = 5000;
+    let Command::Check { shared, json, execution } =
+        command::parse(vec!["check".into(), "-c".into(), format!("budget.turns={TURNS}").into()])
+            .expect("check with an override")
+    else {
+        panic!("check command");
+    };
+    let merged = settings::from_sources(
+        &shared,
+        "/workspace".into(),
+        &[crate::fixture::source(
+            "fixture.toml".into(),
+            "model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='none'\n\
+             [endpoints.openai]\naddress='127.0.0.1:443'\n"
+                .into(),
+        )],
+    );
+    let verdict = report_for(merged.as_ref(), skein_lib::Wall::EPOCH, &skein_shell::Clock::new(), execution.as_ref());
+    let output = render_verdict(verdict, json);
+    assert_eq!(output.code, 2);
+    assert_eq!(output.stdout, "");
+    assert_eq!(
+        output.stderr,
+        "smith: budget.turns = 5000 (from -c) exceeds the standard profile's ceiling of 4096 turns\n"
+    );
+}
+
+#[test]
 fn a_small_declared_memory_checks() {
     let files = crate::credentials::tests::Files::new("smith-credentials");
     crate::credentials::tests::private_key(&files);
@@ -28,7 +72,7 @@ fn a_small_declared_memory_checks() {
         json: true,
     };
     for invocation in [Some(&execution), None] {
-        let report = match report_for(&settings, skein_lib::Wall::EPOCH, &skein_shell::Clock::new(), invocation) {
+        let report = match report_for(Ok(&settings), skein_lib::Wall::EPOCH, &skein_shell::Clock::new(), invocation) {
             Verdict::Ready(report) => report,
             Verdict::Refused(why) => panic!("{}", why.line()),
         };

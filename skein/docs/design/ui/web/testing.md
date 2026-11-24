@@ -34,7 +34,15 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     address for a compressed form; one bundle the bundler writes and the
     example's server reads from disk stays in `tests/ui-web`'s real suite;
   - the stylesheet (`README.md`, section 10): its 101 rules for a progress, read from
-    `skein_ui_bundle::STYLESHEET` against the numbers 0 to 100.
+    `skein_ui_bundle::STYLESHEET` against the numbers 0 to 100;
+  - the example's live tree, each case's revisions as patches on the
+    model of the document, its refused add, and its note's fan-out
+    to two readers (3).
+- **In skein's simulated suite,** `skein-world-tests::simulated`: the
+  harness's own bookkeeping, its run hosted beside scripted programs
+  with a scripted browser in Chromium's place (2): its keeps, its own
+  requests, its commands, the peers a test lends it, the addresses it
+  puts in arguments, and its steps' deadlines.
 - **The wasm32 builds in skein's gate:** `skein-ui`, `skein-ui-web`, the
   example's view and its browser shell, built for
   `wasm32-unknown-unknown` with clippy's lints as errors, since the
@@ -60,6 +68,18 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 - **A missing Chromium or bundle fails the suite,** naming the command
   that provides it; it is never skipped. The bundle's directory reaches
   the tests in `SKEIN_UI_EXAMPLE_BUNDLE`.
+- **It holds what only a browser shows,** one witness for each:
+  layout, focus, real input events, a reload, the live document the
+  platform half builds, and Chromium's own refusals and roles
+  (../../../foundation/testing-strategy.md, 9). What a lower tier can
+  show is held there (2 and 3), and a case leaves Chromium only once a
+  named lower test holds its every assertion. The harness's witnesses
+  are a module that throws, an accessible role found past the first,
+  a page of another origin, a framed page's refusal, words typed over
+  a field's, a command's printed link opened in the page, a command
+  awaiting the page's loopback signal, the server's listening line,
+  a held line given to a command's input, and a step's real expiry
+  classified by its account (2).
 - **Under the strict policy:** the example's server sends `bundle.md`, 4's policy,
   and the harness fails a test on any violation (2).
 - **The facts the face assumes,** checked against Chromium on fixed
@@ -331,6 +351,41 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     story that looks for no warning has its person act on the page
     first, since the browser warns only on a page acted on since it
     loaded.
+- **Its run is one step machine,** driven on the ring or hosted. The
+  run is a host as a shell's service is (../../runtime/shell.md,
+  section 11): completions in, submissions out, one turn at a time at
+  the `now` it is given, its peers' operations beside its own under
+  their own tokens. `run` and `run_lending` drive it on the shared
+  ring with the host's clock, the server, the commands and Chromium
+  real children, as above. A simulated test hosts the same run in
+  skein's simulated world (../../testing/simulator.md, section 3),
+  the server's and each command's program a scripted program the
+  world hosts at that path, and a scripted browser in Chromium's
+  place. Its bookkeeping (what it opens, keeps, substitutes, starts,
+  awaits, fails and hands back) is the same code either way; only
+  what the world gives differs: its kernel, its clock, its programs
+  and the browser's answers.
+- **The scripted browser** answers the kit's requests
+  (../../testing/browser.md, sections 5 and 6) from the pages the test
+  gives, each at a path, for every person: the nodes a find meets, by
+  their accessible role and name, and the elements a selector meets,
+  with their attributes. It makes a person's context at once; opens
+  a page, and lands a go or an opened line, at its path's page, a
+  held line's page blank; answers a find or an await from the page's
+  nodes, an await it cannot meet `Missed` at its deadline, as the kit
+  does; reads an attribute as the kit reads one (its value,
+  `NoElement` or `NoAttribute`); answers a snapshot with the page's
+  nodes as text; and refuses a screenshot, so a failure's report
+  writes it `unavailable`. Any other request it refuses at once,
+  naming it, which fails its step. So a story's harness runs as on the
+  ring, and no Chromium starts.
+- **A hosted run's account is the simulated clock's:** each bound,
+  the horizon's, the startup's and a step's, passes in simulated time,
+  and a step's expiry fails the step, its report followed by figures
+  that name the bound and the simulated time it waited and hold no
+  scheduler accounting. So a hosted run is never starved
+  (../../../foundation/testing-strategy.md, 2.10), and a red one ends
+  as the ring's does, its capture and its close within their windows.
 - **skein's stories for a browser shell,** functions of the harness an
   application's tier calls with its binary, its bundle and its codec,
   and what each story names of its pages, to check its wiring, since
@@ -342,6 +397,11 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   | back and forward | they move between pages, and an address opened directly shows its page | two addresses, and what each page shows; and what a page shows once it holds its server's state, which the story awaits at its start before its first move, since an application may sign the person in on its first page |
   | a panic | the page reloads within the restart limit, and past it says the application failed | an address at which its module panics at start, as its test build allows; and its words for "the application failed" (`README.md`, 4.1), which its page then shows |
   | a write refused | a write the small store refuses fails the step's exchanges, and none leaves | an address at which its small store is bounded below a step's write, as its test build allows; a script making that step there; what the step would have made, which no page then shows; and what a page shows once it holds its server's state |
+
+  The write refused is for a shell that replaces the transport, which
+  takes its rule on itself (`README.md`, 4.3). A shell on skein's
+  transport holds it below the browser, where the store, the transport
+  and its choice of the bound are host code, as the example does (3).
 
 - **What the application names is what a story takes,** and nothing
   else. What a story must see on a person's page is named as what a
@@ -369,20 +429,34 @@ parts carry, so that its tier tests each once.
   second person adding a note, and that note in the first person's
   list; `/` and a note's address, and what each shows; and, in its test
   build alone, an address that makes its module panic, with its words
-  for "the application failed", and one that bounds its small store
-  below an add's record, with the note the refused add would have made;
-  and, to the two that look for something absent, its status saying
-  the page is live (../../examples.md, 9.2 and 9.4). It adds: a person opens the
+  for "the application failed"; and, to the one that looks for
+  something absent, its status saying the page is live
+  (../../examples.md, 9.2 and 9.4). The typing story is also the
+  browser's witness of a note crossing from one person's page to
+  another's. It adds: a person opens the
   example and sees its notes, under the strict policy, with no trouble;
   a field of each entry kind it uses, and a label chosen from its
   select; Escape in its dialog pressing the button naming it, and a
   focus request moving the focus; its chart drawn, its fallback read by
   its name, and a bar's mark pressed through the harness, acting as the
-  choice beside it does; the component growing with its words; a note
-  added in one person's page showing in another's; a reload keeping a
+  choice beside it does; the component growing with its words; a reload keeping a
   pending add, which the server makes once; and the closing warning met
   by a reload while an add is pending, and by none once it is made
   (../../examples.md, 9.2 and 9.5).
+- **Below the browser,** in its host tests:
+  - **a refused add:** in its test build, the address `/test/small-store`
+    bounds its small store at zero bytes, a choice its shell takes from
+    a host function of the view's, beside its codec's reading of that
+    address. An add made there, its title typed and its button pressed
+    as the view takes them, is carried through the bounded store and
+    the transport (`transport.rs`): its write refused, each exchange of
+    its step failed, none sent, and the server's list holds no note.
+    The same add at `/`, unbounded, is sent once and listed;
+  - **a note's fan-out:** two readers' event streams open on the
+    example's server and its list answered empty; one add is posted,
+    then posted again with its key; the server keeps one note and writes
+    one event for it on each stream, and each stream's bytes, given to
+    a view of its own, show the note's link in that view's list.
 - **A tab,** at a test build's address alone, `/test/tab` (`effects.md`, section 1):
   a press opens the tab in that press's turn, its words its title; a
   second points it, on the page's own origin, its opener cut; one outside
@@ -404,13 +478,26 @@ parts carry, so that its tier tests each once.
   scroll's own turn goes on reading, with no timer; and neither a status at
   the head nor a wrapper with no box takes the place of the words. No story
   has a read fail.
-- **Its live tree**, in `browser_stories::live_tree`, checks the platform
-  half in Chromium: a first child gains a group; a child inserts between
-  keyed siblings; a keyed child moves; a rename keeps the same DOM node;
-  removing the last child removes its empty group; a paragraph splits
-  runs that grow and merge in order; and a visible label focuses its
-  named input. These seven cases check DOM structure and identity that
-  the host's pure half cannot observe.
+- **Its live tree,** at the test build's addresses under `/test/tree/`,
+  is a case per patch shape: a first child gains a group; a child
+  inserts between keyed siblings; a keyed child moves; a rename keeps
+  the same node; removing the last child removes its empty group; a
+  refreshed form removes its field and its companion label; a paragraph
+  splits runs that grow and merge in order; and a disclosure's
+  shown-folded children patch in its summary. Each case's views are
+  host code, which its shell's route and the host's tests both build:
+  - **on the host,** each case's revisions, as the view's patches
+    applied to the model of the document: the ops each makes, the
+    nodes each keeps by their ids, and the page each leaves, against
+    golden files;
+  - **in Chromium,** one witness, `browser_stories::live_tree`'s
+    walk of every case in one run: the live document the platform half
+    builds from each patch, its groups, runs and paragraphs, a node kept
+    by its identity, and what the accessibility tree then shows, which
+    the host cannot observe, since the platform half regroups the
+    live document itself. Beside it, two focus witnesses: a
+    disclosure keeping the focus as its summary's name changes, and a
+    visible label focusing its named input.
 - **Its shell takes `README.md`, 3.3's steps,** each once: it is the reference shell
   (step 1); its stylesheet, after `skein-ui.css` (step 2); its codec,
   its notes under `/notes/`, and `/bundle/` its bundle's prefix (step
@@ -421,3 +508,12 @@ parts carry, so that its tier tests each once.
   policy carry an application's JavaScript (step 7). It serves no root
   file (step 5) and replaces no part (step 8); it takes the file picker
   when that comes (`README.md`, section 12).
+
+## 4. Later
+
+- **One placement rule for both halves:** the platform half regroups
+  the live document from its current children, and the host's model
+  projects its groups from the model; a host-compiled plan both apply
+  would let the live tree's cases leave Chromium, one witness of the
+  plan's application kept. Turned down for now: it rewrites the
+  platform half, which only the browser tier, after landing, runs.

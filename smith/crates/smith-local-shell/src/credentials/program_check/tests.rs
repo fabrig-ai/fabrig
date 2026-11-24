@@ -9,23 +9,17 @@ use smith_host_domain::{FailureReason, ProgramFailure, ProgramMethod};
 #[test]
 fn a_program_answer_becomes_its_state() {
     let rows = [
+        (Ok(ProgramCheck::Usable { email: None }), serde_json::json!({"state":"usable","until":null})),
+        (Ok(ProgramCheck::NotSignedIn), serde_json::json!({"state":"program_not_signed_in","program":"claude_code"})),
         (
-            Ok(SourceAnswer::Check(ProgramCheck::Usable { email: None })),
-            serde_json::json!({"state":"usable","until":null}),
-        ),
-        (
-            Ok(SourceAnswer::Check(ProgramCheck::NotSignedIn)),
-            serde_json::json!({"state":"program_not_signed_in","program":"claude_code"}),
-        ),
-        (
-            Ok(SourceAnswer::Check(ProgramCheck::SignedInOtherwise(ProgramMethod::new(b"api\\key").expect("method")))),
+            Ok(ProgramCheck::SignedInOtherwise(ProgramMethod::new(b"api\\key").expect("method"))),
             serde_json::json!({"state":"program_signed_in_otherwise","program":"claude_code","method":r"api\\key"}),
         ),
         (
-            Ok(SourceAnswer::Check(ProgramCheck::Failed(ProgramFailure {
+            Ok(ProgramCheck::Failed(ProgramFailure {
                 reason: FailureReason::Unreadable,
                 detail: b"bad\x1b\n".as_slice().into(),
-            }))),
+            })),
             serde_json::json!({"state":"program_failed","program":"claude_code","detail":r"bad\x1b\n"}),
         ),
         (

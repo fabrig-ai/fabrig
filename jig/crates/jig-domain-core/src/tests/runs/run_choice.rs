@@ -132,6 +132,19 @@ fn ready(none: bool) -> (Core, Limits) {
     (core, limits)
 }
 
+#[test]
+fn a_precomputed_policy_keeps_its_model_and_matching_host() {
+    let (mut core, limits) = ready(false);
+    granted(&mut core, &limits, 2);
+    let mut policy = core.chosen_policy(TASK);
+    let main = policy.alternatives[1].clone();
+    policy.alternatives = Box::new([policy.model.clone(), policy.alternatives[0].clone()]);
+    policy.model = main;
+    let choice = core.run_choice_for_policy(TASK, Some(policy.clone())).expect("precomputed policy is usable");
+    assert_eq!(choice.policy, policy, "the account and host probe keeps the supplied policy");
+    assert_eq!(choice.placement.channel, SECOND, "only the second host serves its main model");
+}
+
 const RESUME_UNTIL: Wall = Wall::from_nanos(100);
 
 fn suspended_on_second(core: &mut Core, limits: &Limits) {
@@ -583,6 +596,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
             &mut core.fleet,
             &environment,
             fleet::Event::Adopt {
+                kept_part: 0,
                 worker: None,
                 reply_to: ReplyTo::new(Token::new(1)),
                 run: Token::new(TASK),
@@ -2759,6 +2773,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
         &mut core.fleet,
         &env.with(limits.fleet),
         fleet::Event::Adopt {
+            kept_part: 0,
             worker: None,
             reply_to: ReplyTo::new(Token::new(OPEN_ATTEMPT)),
             run: Token::new(OPEN_TASK),

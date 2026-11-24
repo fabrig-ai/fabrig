@@ -44,6 +44,22 @@ fn places_print_and_parse_back() {
 }
 
 #[test]
+fn only_the_small_store_test_address_sets_a_bound() {
+    #[cfg(debug_assertions)]
+    let test_bound = Some(0);
+    #[cfg(not(debug_assertions))]
+    let test_bound = None;
+    for (path, bound) in [
+        (b"/test/small-store".as_slice(), test_bound),
+        (b"/test/small-store?x=1", test_bound),
+        (b"/", None),
+        (b"/test/small-store/", None),
+    ] {
+        assert_eq!(places::small_store_bound(path), bound, "path {path:?}");
+    }
+}
+
+#[test]
 fn a_paths_box_holds_exactly_its_printed_bytes() {
     for &(_, place, printed) in PATHS {
         assert_eq!(places::bytes(place).as_ref(), printed, "place {place:?}");

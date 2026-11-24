@@ -1,0 +1,15 @@
+use hearth_builder_world::fixtures::{lines_starting, scripts};
+
+#[test]
+fn hearth_render_lists_presets_tmpfiles_and_scripts() {
+    let rendered = super::render(scripts::PRESETS);
+    assert_eq!(
+        lines_starting(&rendered.stdout, &["  presets ", "  tmpfiles ", "  scripts "]),
+        concat!(
+            "  presets    getty@tty1.service disable\n",
+            "  presets    ssh.service enable\n",
+            "  tmpfiles   /var/log/journal d 2755 root systemd-journal\n",
+            "  scripts    motd 300 b40d08aa8c5c\n",
+        )
+    );
+}

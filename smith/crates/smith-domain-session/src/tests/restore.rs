@@ -4,6 +4,28 @@
 use super::*;
 
 #[test]
+fn a_recorded_affinity_is_kept_without_a_cut_turn() {
+    let affinity = crate::llm::Affinity { key: [0x42; 16], thread: 3 };
+    let mut first_spec = spec();
+    first_spec.affinity = affinity;
+    let mut original = Harness::new(&LIMITS);
+    original.yielded_with(first_spec, done());
+    let mut resumed = Harness::new(&LIMITS);
+    let mut opening = opening(spec());
+    opening.spec.affinity = crate::llm::Affinity { key: [0x17; 16], thread: 99 };
+    opening.transcript = Some(crate::record::Transcript {
+        version: crate::record::VERSION,
+        endpoint: Some(Endpoint(0)),
+        dialect: 1,
+        turns: original.turn_records.to_boxed(),
+    });
+    step(&mut resumed.domain, &resumed.env, Event::Open { opener: Token::new(2), opening }, &mut resumed.out);
+    let Some(Request::Opened { .. }) = resumed.next() else { panic!("restored session opens") };
+    let (_, prompt) = calling(resumed.one());
+    assert_eq!(prompt.affinity, affinity);
+}
+
+#[test]
 fn a_resumed_ordinary_window_carries_the_guard() {
     let mut original = Harness::new(&LIMITS);
     original.yielded();

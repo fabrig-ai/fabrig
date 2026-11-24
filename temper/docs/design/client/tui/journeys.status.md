@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-21. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-23. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 - **Not yet:** 4.2: the recording print's mismatch diagnostic in
   `temper/crates/temper-client-journeys-tool/src/run.rs` points to

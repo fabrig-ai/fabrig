@@ -302,7 +302,7 @@ fn run(
     out: &mut Queue<Request>,
 ) -> State {
     let spec = super::nth(holding, repository);
-    let at = super::place(holding.workspace.token(), spec);
+    let at = super::place(holding.disk, spec);
     let tips = super::tips(holding, repository);
     let op = match step {
         Step::Work { head, merging } => Op::Commit {
@@ -333,7 +333,7 @@ fn run(
             let branch = branch(holding, repository);
             super::commit_merge(
                 holding,
-                holding.workspace.token(),
+                holding.disk,
                 repository,
                 tips.landing.expect("fetched tip"),
                 super::branch_merge_title(&branch),

@@ -35,6 +35,16 @@ fn fresh_channel_limits() -> skein_channel::Limits {
     }
 }
 
+#[test]
+fn a_prepared_schema_keeps_changed_part_bounds() {
+    let mut sizes = fixtures::SIZES;
+    sizes.turn += 1;
+    let codec = wire::sizes::limits(&sizes).expect("changed part bound");
+    assert_eq!(fixtures::schema_for_sizes(&sizes), wire::schema(&codec).expect("changed schema"));
+    let codec = wire::sizes::limits(&fixtures::SIZES).expect("fixture bounds");
+    assert_eq!(fixtures::schema_for_sizes(&fixtures::SIZES), wire::schema(&codec).expect("fixture schema"));
+}
+
 #[derive(Clone, Copy, Debug)]
 enum Row {
     Schema,

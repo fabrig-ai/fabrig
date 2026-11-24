@@ -1406,6 +1406,7 @@ impl World {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
             | Delivery::PartLoad { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
@@ -1661,6 +1662,7 @@ impl World {
                     | host::LinkUp::Usage { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
+                    | host::LinkUp::Part { .. }
                     | host::LinkUp::JobAnswer { .. }
                     | host::LinkUp::Ask { .. }
                     | host::LinkUp::Answer { .. } => {}
@@ -1955,6 +1957,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::Reset { .. }
         | Op::Pack { .. }
         | Op::Point { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }

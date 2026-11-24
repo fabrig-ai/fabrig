@@ -31,7 +31,7 @@ impl core::ops::DerefMut for Held {
 
 impl<B: super::Backend> World<B> {
     pub(super) fn start_job(&mut self, owner: Token, op: &Op, deadline: Time) -> bool {
-        let Op::Spawn { cwd, command, head, tail, after: Some(after) } = op else { return false };
+        let Op::Spawn { cwd, command, head, tail, after } = op else { return false };
         self.boundaries.push((self.now, super::Boundary::Io { op: op.clone() }));
         self.flights.open(
             (Family::Io, owner),
@@ -51,10 +51,12 @@ impl<B: super::Backend> World<B> {
                         started,
                         since: self.now,
                         deadline,
-                        output: Vec::new(),
+                        output: self.command_writes.get(command.as_ref()).cloned().unwrap_or_default(),
                         cursor: 0,
                         end: None,
-                        response: Response::Yield { at: self.now.saturating_add(*after) },
+                        response: Response::Yield {
+                            at: after.map_or(Time::from_nanos(u64::MAX), |after| self.now.saturating_add(after)),
+                        },
                         event: None,
                         caps: (*head, *tail),
                     },
@@ -110,11 +112,22 @@ impl<B: super::Backend> World<B> {
             job.end = Some(JobEnd::Cancelled);
         }
         match job.response {
-            Response::Yield { .. } => self.terminal(
-                Family::Io,
-                owner,
-                Event::Below(smith_domain::Below::Done { owner, done: Done::Cancelled }),
-            ),
+            Response::Yield { .. } => {
+                let written = job.written(self.now);
+                let Done::Exited { head, tail, dropped, .. } =
+                    io::exited(None, &job.started.process.program.output[job.cursor..written], job.caps.0, job.caps.1)
+                else {
+                    unreachable!("captured output")
+                };
+                self.terminal(
+                    Family::Io,
+                    owner,
+                    Event::Below(smith_domain::Below::Done {
+                        owner,
+                        done: Done::CommandCancelled { head, tail, dropped },
+                    }),
+                );
+            }
             Response::Held | Response::Read { .. } => {
                 job.response = Response::Read { at: self.now };
                 self.keep_job(owner, job);
@@ -159,7 +172,7 @@ impl<B: super::Backend> World<B> {
                 Response::Yield { .. } => match job.end {
                     None => Done::Held { head, tail, dropped },
                     Some(JobEnd::Ended(exit)) => Done::Exited { head, tail, dropped, exit },
-                    Some(JobEnd::Cancelled) => Done::Cancelled,
+                    Some(JobEnd::Cancelled) => Done::CommandCancelled { head, tail, dropped },
                     Some(JobEnd::Running | JobEnd::Stopped) => unreachable!("a yield has no stop"),
                 },
                 Response::Read { .. } => Done::Job { head, tail, dropped, end: job.end.unwrap_or(JobEnd::Running) },

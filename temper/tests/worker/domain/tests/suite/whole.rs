@@ -113,12 +113,42 @@ fn a_clean_repair_without_its_own_delivery_gets_nothing_when_finishing() {
 
 #[test]
 fn a_landed_change_saves_nothing() {
-    assert_eq!(run(111, Case::Delivered).expect("world checks").saves, 0);
+    let report = run(111, Case::Delivered).expect("world checks");
+    assert_eq!(report.saves, 0);
+    assert!(report.kept.is_empty(), "finished runs leave no workspace mark");
 }
 
 #[test]
 fn an_unchecked_save_keeps_the_producer_tree_and_a_checked_push_replaces_its_commit() {
     temper_worker_domain_world::whole::unchecked_save_then_delivery(101).expect("world checks");
+}
+
+#[test]
+fn parts_relay_before_the_answer_and_are_acknowledged_and_replayed() {
+    temper_worker_domain_world::whole::parts::relayed().expect("world checks");
+}
+
+#[test]
+fn starts_keep_ordered_parts_and_drains_use_grace_only_when_requested() {
+    temper_worker_domain_world::whole::parts::starts_and_graces().expect("world checks");
+}
+
+#[test]
+fn a_drained_answer_resumes_with_parts_in_its_kept_workspace() {
+    use temper_worker_domain_world::whole::parts::{InFlight, resumes};
+    resumes(InFlight::Answer).expect("world checks");
+}
+
+#[test]
+fn a_drained_check_resumes_with_parts_and_its_previous_results() {
+    use temper_worker_domain_world::whole::parts::{InFlight, resumes};
+    resumes(InFlight::Check).expect("world checks");
+}
+
+#[test]
+fn a_drained_command_resumes_with_its_interrupted_part() {
+    use temper_worker_domain_world::whole::parts::{InFlight, resumes};
+    resumes(InFlight::Command).expect("world checks");
 }
 
 #[test]

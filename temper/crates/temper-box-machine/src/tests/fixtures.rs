@@ -96,7 +96,7 @@ impl Rig {
 }
 
 use crate::host::{Service, Settings};
-use skein_fake_machine::Machine as FakeMachine;
+use skein_fake_machine::{Machine as FakeMachine, Opened};
 use skein_io::kernel::{Complete, Done, Fd, Op, ServiceSignal, Submit};
 use skein_lib::{Token, Wall};
 use skein_shell::Host;
@@ -164,6 +164,7 @@ pub struct Harness {
     pub calls: Queue<Call>,
     pub answers: Queue<Answer>,
     pub stubborn: bool,
+    pub script_owned: bool,
     pub hosted: List<Hosted>,
     pub pending: List<Token>,
     pub control_fds: List<Fd>,
@@ -263,6 +264,19 @@ impl Harness {
         echo: crate::host::Echo,
         opening: Opening,
     ) -> Self {
+        let mut machine = FakeMachine::new();
+        let root = machine.lay(items);
+        Self::on_disk(steps, (machine, root), stubborn, buffer, limits, echo, opening)
+    }
+    pub fn on_disk(
+        steps: temper_forge_setup::Steps,
+        (machine, opened): (FakeMachine, Opened),
+        stubborn: bool,
+        buffer: u32,
+        limits: &limits::Limits,
+        echo: crate::host::Echo,
+        opening: Opening,
+    ) -> Self {
         let mut config = Config::calm();
         config.buffer = buffer;
         let mut sim = Sim::new(0x12_02, config);
@@ -270,8 +284,6 @@ impl Harness {
         let signals = sim.open_signal_source(pid);
         let stdout = sim.open_inherited_write(pid);
         let stderr = sim.open_inherited_write(pid);
-        let mut machine = FakeMachine::new();
-        let opened = machine.lay(items);
         let root = sim.root(pid, Handle::new(opened.raw()));
         let mut listeners = List::with_capacity(32);
         for step in &steps.always {
@@ -335,6 +347,7 @@ impl Harness {
             calls: Queue::with_capacity(64),
             answers: Queue::with_capacity(64),
             stubborn,
+            script_owned: false,
             hosted: List::uncapped(),
             pending: List::uncapped(),
             control_fds: List::with_capacity(64),
@@ -363,13 +376,15 @@ impl Harness {
                 self.launches
                     .push(Launch {
                         args: args.clone(),
-                        name: args.last().expect("step name last").clone(),
+                        name: bytes::copy_of(child_name(args, self.script_owned)),
                         environment: env.clone(),
                         pipes: pipes.clone(),
                         at: self.sim.now(),
                     })
                     .expect("bounded launches");
-                if self.stubborn && fixture_arguments(args).first().expect("program").as_ref() == b"never" {
+                if self.script_owned
+                    || (self.stubborn && fixture_arguments(args).first().expect("program").as_ref() == b"never")
+                {
                     let (_, token, _) = self.sim.hosted_spawn(call.ticket);
                     self.pending.push(token).expect("bounded hosted launches");
                 }
@@ -423,7 +438,11 @@ impl Harness {
                 return;
             }
             // The fake executes the wrapped fixture; launches retain the whole exec boundary.
-            *args = Box::from(fixture_arguments(args));
+            *args = if self.script_owned {
+                Box::new([bytes::copy_of(b"never")])
+            } else {
+                Box::from(fixture_arguments(args))
+            };
         }
         skein_fake_machine::step(&mut self.machine, call, &mut self.answers);
         if self.stubborn {
@@ -454,7 +473,8 @@ impl Harness {
                 }
                 let control = n.checked_add(3).unwrap();
                 let answer = control.checked_add(1).unwrap();
-                let serve = spawn.args.last().unwrap().as_ref() == b"serve";
+                let name = bytes::copy_of(child_name(&spawn.args, self.script_owned));
+                let serve = name.as_ref() == b"serve";
                 let mut descriptors =
                     List::with_capacity(u32::try_from(inherited.len()).unwrap().checked_add(1).unwrap());
                 let mut listeners = List::with_capacity(n);
@@ -488,10 +508,9 @@ impl Harness {
                     }
                 }
                 descriptors.push(self.sim.open_signal_source(pid)).expect("child signal source");
-                let Op::Spawn { spawn } = &complete.kind else { panic!("hosted spawn") };
                 self.hosted
                     .push(Hosted {
-                        name: spawn.args.last().unwrap().clone(),
+                        name,
                         stdio,
                         parent_pipes: parent_pipes.into_boxed(),
                         pid,
@@ -589,6 +608,11 @@ impl Harness {
         }
         self.answer();
         self.settle_hosted();
+    }
+    /// A process kill loses the service, in-flight work and children, not the disk's
+    /// unsynced writes. A fresh simulator owns the replacement's descriptors.
+    pub fn abandon(self) -> FakeMachine {
+        self.machine.fork()
     }
     pub fn run_until_idle(&mut self) {
         for _ in 0..10_000_u32 {
@@ -992,6 +1016,22 @@ pub fn kind_steps() -> temper_forge_setup::Steps {
             before: 0,
             steps: Box::new([(Stage::Run, long(b"fake-forge", &[b"never", FORGE_ARGUMENT]).listening_group())]),
         }]),
+    }
+}
+
+fn child_name(args: &[Box<[u8]>], script_owned: bool) -> &[u8] {
+    if script_owned {
+        match args {
+            [command, action, ..] if command.as_ref() == b"internal" && action.as_ref() == b"serve" => action,
+            [command, action, rest @ ..] if command.as_ref() == b"forge" => match action.as_ref() {
+                b"fetch" | b"prepare" | b"remove" => action,
+                b"run" => rest.last().expect("run target"),
+                _ => panic!("unexpected owned box command: {args:?}"),
+            },
+            _ => panic!("unexpected owned box command: {args:?}"),
+        }
+    } else {
+        args.last().expect("step name last")
     }
 }
 

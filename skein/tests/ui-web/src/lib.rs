@@ -127,33 +127,8 @@ pub fn page(path: &[u8], body: &[u8]) -> skein_fake_person_browser::origins::Pag
     }
 }
 
-pub mod harness_peer;
-
 /// The UI test package's fixture binary, supplied by Cargo and nextest.
 #[must_use]
 pub fn harness_fixture() -> std::path::PathBuf {
     skein_scratch::paths::binary("harness_fixture")
-}
-
-#[must_use]
-pub fn lending_harness(
-    args: &[&str],
-    origins: Vec<skein_fake_person_browser::harness::Origin>,
-) -> skein_fake_person_browser::Harness {
-    use skein_fake_person_browser::harness::{Harness, Names, Output, Printed, Setup};
-    Harness::new(Setup {
-        server: harness_fixture(),
-        args: std::iter::once("server").chain(args.iter().copied()).map(Into::into).collect(),
-        printed: Printed {
-            sent: skein_fake_person_browser::harness::Sent::Page,
-            prefix: b"fixture listening ",
-            on: Output::Stderr,
-            names: Names::Address,
-        },
-        restart: vec!["server".into()],
-        downloads: None,
-        chromium: chromium(),
-        expected: vec![],
-        origins,
-    })
 }

@@ -159,7 +159,7 @@ fn child(root: &Path, restarted: bool, token: &[u8]) {
 
 fn configure(root: &Path, forge: &Forge<'_>) {
     let config = root.join("config");
-    super::configuration(&config, forge);
+    super::lay_configuration(&config, forge);
     let Forge::Throwaway { api, git, .. } = forge else { panic!("elsewhere fixture") };
     let value = super::limit_settings::configuration(&config);
     assert!(
@@ -185,13 +185,27 @@ fn configure(root: &Path, forge: &Forge<'_>) {
 
 /// Stage the complete fixture provider in the data directory and build its ctl edit therefrom.
 pub fn configure_provider(root: &Path, address: SocketAddr) {
-    let data = root.join("data");
-    let mut providers = temper_agent_fixtures::providers::read(&data);
-    providers["endpoints"][0]["address"] = json!({"socket":address.to_string()});
-    temper_agent_fixtures::providers::write(&data, &providers);
-    let items = super::provider_setup::items(&providers);
+    configure_provider_with(
+        root,
+        address,
+        temper_agent_fixtures::providers::read(&root.join("data")),
+        temper_service_shell::providers::write,
+        write_private,
+    );
+}
+
+/// Stage the split deployment's provider copies and its provider-only ctl change through supplied sinks.
+pub fn configure_provider_with(
+    root: &Path,
+    address: SocketAddr,
+    providers: Value,
+    keep: impl FnMut(&Path, &[jig_protocol_config::ProviderSetting]) -> std::io::Result<bool>,
+    write: impl FnOnce(&Path, &[u8]),
+) {
+    let providers = super::llm::rebind_with(&root.join("data"), providers, address, keep);
+    let items = super::provider_setup::items(&temper_agent_fixtures::providers::flat(&providers));
     assert!(!items.is_empty(), "the fixture has a provider to keep");
-    write_private(&root.join(SETTINGS), &serde_json::to_vec(&json!({"items":items})).expect("provider settings"));
+    write(&root.join(SETTINGS), &serde_json::to_vec(&json!({"items":items})).expect("provider settings"));
 }
 
 fn provider_edits(root: &Path) -> Vec<Value> {
@@ -305,12 +319,32 @@ fn life(root: &Path, restarted: bool) {
 }
 
 fn adopted_project(call: &super::Ended) -> u64 {
-    // Progress and the terminal answer are separate JSON lines, as for setup.
-    let answer = call.stdout.split(|byte| *byte == b'\n').rfind(|line| !line.is_empty()).expect("adoption answer");
-    let connected: Value = serde_json::from_slice(answer).expect("adoption JSON");
-    assert_eq!(connected["outcome"]["adopted"]["owner"], "elsewhere");
-    assert_eq!(connected["outcome"]["adopted"]["name"], "first");
-    connected["project"].as_u64().expect("adoption's project number")
+    check_adopted_project(call).unwrap_or_else(|why| panic!("{why}"))
+}
+/// Read the terminal connection answer and verify the adopted repository's identity.
+pub fn check_adopted_project(call: &super::Ended) -> Result<u64, String> {
+    Ok({
+        // Progress and the terminal answer are separate JSON lines, as for setup.
+        let answer = call
+            .stdout
+            .split(|byte| *byte == b'\n')
+            .rfind(|line| !line.is_empty())
+            .ok_or(String::from("adoption answer"))?;
+        let connected: Value = serde_json::from_slice(answer).map_err(|error| format!("adoption JSON: {error:?}"))?;
+        {
+            let (left, right) = (&(connected["outcome"]["adopted"]["owner"]), &("elsewhere"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(connected["outcome"]["adopted"]["name"]), &("first"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        connected["project"].as_u64().ok_or(String::from("adoption's project number"))?
+    })
 }
 
 fn connected(root: &Path, restarted: bool, ends: &[super::Ended], providers: &[Value]) {

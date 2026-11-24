@@ -105,6 +105,7 @@ fn the_worker_uses_constant_deadlines_workspaces_and_the_shells_git() {
         assert_eq!(
             worker.jig.graces,
             config::Graces {
+                drain_grace: config::DEFAULT_DRAIN_GRACE,
                 grace: Duration::from_millis(300_000),
                 drain: Duration::from_millis(180_000),
                 agent_stop: Duration::from_millis(5_000),

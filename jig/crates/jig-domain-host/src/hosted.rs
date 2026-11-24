@@ -25,6 +25,7 @@ use crate::facts::{Fact, Facts};
 use crate::limits::Limits;
 
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent assignment flags and run lifecycle state")]
 pub(crate) struct Hosted {
     pub(crate) asks: crate::asks::Pending,
     pub(crate) job: Option<Box<crate::jobs::Job>>,
@@ -37,6 +38,7 @@ pub(crate) struct Hosted {
     refreshed: bool,
     /// A live run asked to stop at its turn's end (domain/hosts/hub.md, 7).
     drained: bool,
+    tell_parts: bool,
     refusals: crate::refusals::Refusals,
     pub(crate) answer: Option<crate::answers::Kept>,
     /// Whether the workspace saves unfinished work before release.
@@ -58,6 +60,7 @@ pub(crate) struct Hosted {
 struct Runtime {
     start: Option<Conversation>,
     turns: u32,
+    parts: u32,
     spent: u64,
     read: Option<Token>,
 }
@@ -84,6 +87,8 @@ struct Conversation {
     messages: Box<[crate::StartMessage]>,
     turns: Box<[Box<[u8]>]>,
     answered: Box<[AnsweredCall]>,
+    parts: Box<[jig_domain_link::KeptPart]>,
+    tell_parts: bool,
 }
 
 #[derive(Debug)]
@@ -139,7 +144,7 @@ enum RunEnding {
 // cell's handler, conclude from the run's new state.
 
 pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, next: Assignment, out: &mut Queue<Request>) {
-    let Assignment { assignment, turns, answered, messages } = next;
+    let Assignment { assignment, turns, answered, messages, parts, tell_parts } = next;
     if !assignment::messages_fit(&messages, &env.limits) {
         refuse(&assignment, Refusal::Invalid(crate::Invalid::Messages), out);
         return;
@@ -149,8 +154,14 @@ pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, next: Assignment, out:
         refuse(&assignment, Refusal::Invalid(invalid), out);
         return;
     }
-    let conversation = Conversation { identity: assignment.identity, messages, turns, answered };
-    assign_runtime(domain, env, assignment, Runtime { start: Some(conversation), turns: 0, spent: 0, read: None }, out);
+    let conversation = Conversation { identity: assignment.identity, messages, turns, answered, parts, tell_parts };
+    assign_runtime(
+        domain,
+        env,
+        assignment,
+        Runtime { start: Some(conversation), turns: 0, parts: 0, spent: 0, read: None },
+        out,
+    );
 }
 
 fn conversation_fits(turns: &[Box<[u8]>], answered: &[AnsweredCall], limits: &Limits) -> bool {
@@ -237,6 +248,10 @@ fn assign_runtime(
         grants,
         refreshed: false,
         drained: false,
+        tell_parts: match &runtime.start {
+            Some(start) => start.tell_parts,
+            None => false,
+        },
         answer: None,
         refusals: crate::refusals::Refusals::new(env.limits.inbox),
         save: save && workspace.is_some(),
@@ -402,7 +417,7 @@ fn relay_ended(domain: &mut Hub, call_id: Id<Call>, out: &mut Queue<Request>) {
     conclude(domain, id, out);
 }
 
-pub(crate) fn drain(domain: &mut Hub, out: &mut Queue<Request>) {
+pub(crate) fn drain(domain: &mut Hub, drain_grace: skein_lib::Duration, out: &mut Queue<Request>) {
     let Hub { names, hosted, ready, .. } = domain;
     for (_, id) in names.iter() {
         let entry = hosted.get_mut(*id).expect("a named run is hosted");
@@ -413,7 +428,8 @@ pub(crate) fn drain(domain: &mut Hub, out: &mut Queue<Request>) {
             State::Active { agent, .. } | State::Waiting { agent, .. } => {
                 if !entry.drained {
                     entry.drained = true;
-                    out.push(Request::Agent(crate::ToAgent::Drain { agent: *agent }));
+                    let grace = if entry.tell_parts { Some(drain_grace) } else { None };
+                    out.push(Request::Agent(crate::ToAgent::Drain { agent: *agent, grace }));
                 }
             }
             State::Preparing { .. } | State::Starting { .. } => {
@@ -475,6 +491,8 @@ fn start_prepared(domain: &mut Hub, owner: Token, workspace: Option<Token>, out:
                 owner,
                 start: Box::new(crate::Start {
                     live: entry.live,
+                    tell_parts: conversation.tell_parts,
+                    parts: conversation.parts,
                     workspace,
                     charter,
                     activation: entry.attempt.raw(),
@@ -1377,6 +1395,51 @@ fn refused(assignment: &RunAssignment, refusal: Refusal, _runtime: &Runtime, out
     refuse(assignment, refusal, out);
 }
 
+/// Parts share the turns' room and telling order (domain/hosts/hub.md, 4).
+pub(crate) fn parted(
+    domain: &mut Hub,
+    env: &Env<Limits>,
+    owner: Token,
+    part: jig_domain_link::Part,
+    out: &mut Queue<Request>,
+) {
+    let Some(entry) = domain.hosted.get_mut(Id::<Hosted>::from_token(owner)) else { return };
+    let agent = match entry.state {
+        State::Active { agent, .. } | State::Waiting { agent, .. } | State::Stopping { agent, gone: false, .. } => {
+            agent
+        }
+        State::Preparing { .. }
+        | State::Cancelling { .. }
+        | State::Starting { .. }
+        | State::Unwanted { .. }
+        | State::Stopping { gone: true, .. }
+        | State::Saving { .. }
+        | State::Closed => return,
+    };
+    if entry.runtime.parts.checked_add(1) != Some(part.number)
+        || entry.runtime.turns.checked_add(1) != Some(part.turn)
+        || len(&part.body) > env.limits.turn_bytes
+    {
+        faulted(domain, env, owner, AgentFailure::Rules, out);
+        return;
+    }
+    entry.runtime.parts = part.number;
+    let (run, attempt) = (entry.run, entry.attempt);
+    let stopping = match entry.state {
+        State::Stopping { .. } => true,
+        State::Preparing { .. }
+        | State::Cancelling { .. }
+        | State::Starting { .. }
+        | State::Unwanted { .. }
+        | State::Active { .. }
+        | State::Waiting { .. }
+        | State::Saving { .. }
+        | State::Closed => false,
+    };
+    domain.turns.retain(agent, run, attempt, crate::turns::Record::Part(part));
+    domain.turns.admit(run, attempt, stopping, &env.limits, out);
+}
+
 pub(crate) fn turned(
     domain: &mut Hub,
     env: &Env<Limits>,
@@ -1413,7 +1476,7 @@ pub(crate) fn turned(
     if valid_hub {
         let (run, attempt) = (entry.run, entry.attempt);
         turn.refused = entry.refusals.take();
-        domain.turns.retain(agent, run, attempt, turn);
+        domain.turns.retain(agent, run, attempt, crate::turns::Record::Turn(turn));
         let stopping = match entry.state {
             State::Stopping { .. } => true,
             State::Preparing { .. }
@@ -1493,13 +1556,14 @@ impl Hosted {
             grants: Box::new([]),
             refreshed: false,
             drained: false,
+            tell_parts: false,
             refusals: crate::refusals::Refusals::new(0),
             save: false,
             live: crate::LiveAsk::NONE,
             left: None,
             relays: Set::with_capacity(0),
             delivery: None,
-            runtime: Runtime { start: None, turns: 0, spent: 0, read: None },
+            runtime: Runtime { start: None, turns: 0, parts: 0, spent: 0, read: None },
             state: State::Closed,
             observed: None,
         }

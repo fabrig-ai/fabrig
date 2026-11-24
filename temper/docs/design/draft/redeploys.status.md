@@ -6,9 +6,9 @@ Sections 3.1, 3.2, 3.3's interim and 3.4 are designed (`../protocol/wires.md`; j
 
 Sections 3.3 and 4 are designed (milestone R4): skein's `data/codec/bridges.md` (reverses, floors, the breaking declaration, the bridge) and `skein/docs/design/data/codec/run-time.md`, 1.3 (a kept version's bounds); jig's `protocol/channel/bridges.md` (the engine's statement, terms, translation in the channel's components, what cannot go down) and `domain/engine/fleet.md`; smith's `protocol/README.md`, 8 (`smith-pieces`) and `protocol/charter.md`, 2 and 5 (the host tools' `contract`); `../protocol/wires.md`, sections 3, 6 and 7.
 
-Of this draft, sections 4.4, 6.1 and 6.2 are designed and built (milestone R2): `../domain/worker/README.md`, section 2, and `../domain/worker/agent-processes.md`, section 1, jig's `domain/hosts/hub.md`, sections 6, 7 and 9, and smith's `domain/run.md`, section 9.
+Of this draft, sections 4.4, 6.1 and 6.2 are designed and built (milestone R2, and the drain at the answer of `worker-restarts.md`'s third milestone): `../domain/worker/README.md`, section 2, and `../domain/worker/agent-processes.md`, section 1, jig's `domain/hosts/hub.md`, sections 4, 6, 7 and 9, jig's `protocol/channel/records.md`, 5, and smith's `domain/run.md`, section 9, and `domain/turn-parts.md`.
 
-Sections 6.3 and 6.4 are designed, in `../domain/worker/checkouts.md`: stores kept across a restart and made once, blob-less, workspaces not kept, and preparations a few at a time, `checkout.preparations` of them, 1 by default.
+Sections 6.3 and 6.4 are designed, in `../domain/worker/checkouts.md`: stores kept across a restart and made once, blob-less, workspaces not kept but a cut run's, for that run alone (*A workspace kept for its run*), and preparations a few at a time, `checkout.preparations` of them, 1 by default.
 
 Section 8 is designed in jig's `protocol/client/versions.md`, 1: a client
 wire's version is its schema's `family` line and moves with its layout,

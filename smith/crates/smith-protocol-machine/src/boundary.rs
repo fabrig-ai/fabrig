@@ -21,7 +21,7 @@ pub enum FromDomain {
     /// Check whether one root-relative path names an executable file.
     Probe { owner: Token, at: run::Place, deadline: Time },
     /// Run the selected check executable and retain its output tail.
-    Check { owner: Token, program: run::Place, bound: Duration, cap: Time, tail: u32 },
+    Check { owner: Token, program: run::Place, results: Option<Box<[u8]>>, bound: Duration, cap: Time, tail: u32 },
     /// Stop one running check; its terminal remains owed.
     Abort { owner: Token },
 }

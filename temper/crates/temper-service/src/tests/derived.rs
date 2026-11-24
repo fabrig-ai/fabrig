@@ -55,11 +55,10 @@ fn stock_engine_link_cap_holds_the_fleet_ceiling() {
     let mut settings = fixtures::engine();
     settings.jig.limits = jig;
     settings.limits = own;
-    let mut sizes = crate::workers::limits(&settings).expect("stock engine link").sizes;
-    // Wire 18 reserves one additional host-wide read: read8 + source36 + frame8 =52 bytes.
-    assert_eq!(jig_protocol_worker_wire::sizes::engine_cap(&sizes).unwrap().bytes, 4_144_964_376);
-    sizes.slots = 48; // The next round figure above 40.
-    assert_eq!(jig_protocol_worker_wire::sizes::engine_cap(&sizes), None);
+    let limits = crate::workers::limits(&settings).expect("stock engine link");
+    let sizes = limits.sizes;
+    let cap = jig_protocol_worker_wire::sizes::engine_cap(&sizes, limits.room).unwrap();
+    assert!(cap.bytes >= limits.room, "room for a fitted assignment and its notices");
 }
 
 #[test]

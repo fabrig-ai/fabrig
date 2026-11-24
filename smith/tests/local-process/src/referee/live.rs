@@ -1,6 +1,7 @@
-//! Outside observations for the live outcome policy, tested with simulated
-//! captures and edited records (skein/docs/foundation/testing-strategy.md, 10).
-//! No process, clock, credential or filesystem is inspected by this referee.
+//! Shared live outcome judgments over outside observations (smith/docs/design/testing.md, 2.3).
+//! Simulated terminal captures and live exec records use the same delivery
+//! checks. No process, clock, credential or filesystem is inspected here.
+
 use crate::fixture::contains;
 use skein_fake_checkout::git::Tree;
 use skein_io::kernel::Exit;
@@ -11,7 +12,34 @@ use smith_events::{Delivered, Event, Record, Verdict};
 /// The expected report or committed change, supplied by the story's author.
 pub struct Outcome {
     pub before: Option<Vec<u8>>,
-    pub files: Tree,
+    pub files: Vec<(Vec<u8>, Vec<u8>)>,
+}
+
+impl Outcome {
+    /// A change reached a committed head other than the recorded starting head.
+    #[must_use]
+    pub fn has_new_head(&self, head: Option<&[u8]>) -> bool {
+        self.before.as_deref().is_some_and(|before| head.is_some_and(|head| head != before))
+    }
+}
+
+/// A typed finish terminal records delivery of the change.
+#[must_use]
+pub fn delivered_finish(record: &Record) -> bool {
+    matches!(&record.event, Event::ToolCompleted(tool)
+        if tool.tool.as_ref() == b"finish" && tool.delivery == Some(Delivered::Delivered))
+}
+
+/// The delivered commit records Smith's delivery identity.
+#[must_use]
+pub fn carries_delivery_identity(message: &[u8]) -> bool {
+    contains(message, b"Smith-Delivery:")
+}
+
+/// A prescribed file was observed with precisely the expected bytes.
+#[must_use]
+pub fn matches_file(found: Option<&[u8]>, expected: &[u8]) -> bool {
+    found == Some(expected)
 }
 
 /// A settled terminal, trace, commit and working tree observed from outside.
@@ -50,17 +78,22 @@ impl Expectations for Outcome {
                 matches!(&record.event,
             Event::ToolCompleted(tool) if tool.tool.as_ref() == b"finish"
                 && tool.verdict == Verdict::Result
-                && (self.before.is_none() || tool.delivery == Some(Delivered::Delivered)))
+                && (self.before.is_none() || delivered_finish(record)))
             }),
             "finish received its accepted or delivered terminal",
         );
-        if let Some(before) = &self.before {
-            judge.check(seen.head.as_ref().is_some_and(|head| head != before), "a new live commit exists");
-            judge.check(contains(&seen.message, b"Smith-Delivery:"), "the live commit carries its delivery identity");
+        if self.before.is_some() {
+            judge.check(self.has_new_head(seen.head.as_deref()), "a new live commit exists");
+            judge.check(carries_delivery_identity(&seen.message), "the live commit carries its delivery identity");
             for (path, expected) in &self.files {
-                judge
-                    .check(seen.committed.get(path) == Some(expected), "the committed file has its prescribed content");
-                judge.check(seen.working.get(path) == Some(expected), "the working file has its prescribed content");
+                judge.check(
+                    matches_file(seen.committed.get(path).map(Vec::as_slice), expected),
+                    "the committed file has its prescribed content",
+                );
+                judge.check(
+                    matches_file(seen.working.get(path).map(Vec::as_slice), expected),
+                    "the working file has its prescribed content",
+                );
             }
             judge.check(contains(&seen.shown, b"Change delivered"), "the person saw delivery");
         }

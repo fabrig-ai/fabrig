@@ -31,7 +31,9 @@ named, answered and tested.
   its table (4.3).
 - **Callers follow** the moved paths and the three new names: recipes,
   scripts, documents, tests, the tiers and the checks (section 5).
-- **One table test per binary,** in the focused suite (section 6).
+- **Its table in steps:** a table's answers are its crate's unit tests,
+  and its package's suite launches the binary once per path through
+  `main` (section 6).
 
 ## 2. The binaries
 
@@ -61,6 +63,12 @@ Their forms are today's:
   NAME`, the session and a journey on a box (`../client/drive.md`, 2.1
   and 2.7); `temper-client-journeys recipe hash NAME`, `recipe list` and
   `recipe walk NAME`, QA's recipes (`../client/recipe.md`, 5);
+  `temper-client-journeys writer [--project PROJECT (--budget AMOUNT |
+  --as-allowed)] [--branch NAME] [--push REMOTE] [--prepared DIR]
+  [--within DURATION]` and `temper-client-journeys look-refresh`, the
+  journeys' writer's run and the look requests' refresh, which
+  `scripts/journey-pages.sh` and `scripts/look-refresh.sh` run
+  (`../client/journey-writer.md`, 4 and 6);
 - `temper-client-walk print [--out DIR] [NAME]...` and
   `temper-client-walk pages`, the journeys' writer's print
   (`../client/journey-walks.md`, 5; `../client/journey-writer.md`, 3);
@@ -179,7 +187,10 @@ Their forms are today's:
   `TABLE.refusal`'s words and exit 2, where each tool printed a usage
   line of its own. Past its arguments, a run's output, its words for
   what failed or what it refused, and its exit codes are the tool's, as
-  before, under the binary's new name where they print one. A failure
+  before, under the binary's new name where they print one. The
+  journeys' `writer` and `look-refresh` keep their scripts' words
+  whole, their arguments' refusals among them, under the scripts'
+  names (`journey-pages: WHY`, `look-refresh: WHY`). A failure
   that Rust's `Result` from `main` reported, `Error: "WHY"` or `Error:
   WHY` with exit 1, as the transcripts' tool and the playground's host
   did, is `BINARY: WHY` with exit 1.
@@ -247,26 +258,39 @@ it byte for byte in its crate's tests.
 
 ## 6. Its tests
 
-- **One table test per binary,** its package's `tests/suite/main.rs`,
-  in the focused suite: each row runs the built binary with its
-  arguments, a cleared environment and stdin closed, in a scratch
-  directory, and checks its exit code, stdout and stderr, as
-  `temper-worker`'s does. The rows:
+- **Its table, in its crate's unit tests:** the table's answers without
+  a process, through `Table { version, commit, ..TABLE }.front` with an
+  identity of the test's own, such as `("0.0.0", "0123456789ab")`:
   - `--help`, `-h` and `help` print the same page, whose opening
     paragraph is `BINARY: LINE` as help wraps it, at spaces to 80
     columns (`skein/docs/design/runtime/shell-table.md`, 1.2), and which names
-    no internal command: a row checks that paragraph, its lines joined
+    no internal command: a test checks that paragraph, its lines joined
     by single spaces, never the page's first line alone;
-  - `--version` prints `BINARY VERSION (COMMIT)`, the commit twelve
-    hexadecimal digits, with `-dirty` or not, or `unknown`;
+  - `--version` prints `BINARY VERSION (COMMIT)` with the test's
+    identity;
   - each command of words answers `--help` with a page whose opening
     paragraph, wrapped and joined as above, is `internal: not part of
-    BINARY's public command line; it may change without notice.`;
-  - a command the table lacks is refused, exit 2: with the front's words
-    where the table has no bare command, and otherwise by its bare
-    command, with `TABLE.refusal`'s words, as is a flag the bare command
-    doesn't declare.
-
+    BINARY's public command line; it may change without notice.`, and
+    the notes its design keeps (4.1);
+  - a command the table lacks is refused: with the front's words where
+    the table has no bare command, and otherwise by its bare command,
+    with `TABLE.refusal`'s words, as is a flag the bare command
+    doesn't declare;
+  - each command's arguments refused with the words its run gives them,
+    from the arguments alone, its parsing a function of the crate's
+    that returns them rather than exiting.
+- **One launch per path, its package's `tests/suite/`,** in the focused
+  suite: the built binary with its arguments, a cleared environment and
+  stdin closed, in a scratch directory, checking its exit code, stdout
+  and stderr, for `--help`; for `--version`, the commit twelve
+  hexadecimal digits, with `-dirty` or not, or `unknown`; for one
+  refused invocation, exit 2, its words on stderr; and for each
+  command's run whose
+  effects only a process shows: the journeys' one print from its
+  arguments through its report and destination, and the writer's and
+  refresh's scripts (`../client/journey-writer.md`, 7); stage one's
+  `collect` naming a `temper` it can't start; the twin's conversion and
+  `--from`, each with its report. Every other row is the unit tests'.
   None starts a browser, a forge or a box, and none writes outside its
   scratch directory. QA's table test keeps the `--help`, `--version` and
   refused-command rows alone; the same rows for `-h`, `help` and each

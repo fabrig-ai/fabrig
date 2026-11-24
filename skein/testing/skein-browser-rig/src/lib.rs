@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
-use skein_browser::boundary::{Below, Down, Event, Expect, Key, Match, Point, Query, Refusal, Request, Trouble};
+use skein_browser::boundary::{Below, Down, Event, Expect, Key, Match, Point, Query, Read, Refusal, Request, Trouble};
 use skein_browser::{self as browser, Browser};
 use skein_io::kernel::{self, Complete, Done, Op, Pipe, Spawn, Submit, Way};
 use skein_io::{self as io, Io};
@@ -44,6 +44,10 @@ const EXPECT: Token = Token::new(16);
 const KEY: Token = Token::new(17);
 const IMAGE: Token = Token::new(18);
 const SNAPSHOT: Token = Token::new(19);
+const FIND_SENTENCE: Token = Token::new(22);
+const READ_ABSENT: Token = Token::new(23);
+const SENTENCE_MATCHES: u32 = 1; // Only the paragraph contains the words.
+const SENTENCE_MORE: u32 = 0; // The match fits in the default result limit.
 const ROOT_CLOSE: Token = Token::new(u64::MAX);
 
 #[derive(Debug)]
@@ -159,24 +163,34 @@ pub enum Scenario {
     MissingHeading,
     Tabs,
     TabBeside,
-    MouseDown { replace: bool },
+    MouseDown {
+        replace: bool,
+    },
     Form,
     Covered,
     Scroll,
     Throw,
     Csp,
-    Words,
     Figure,
     Facts,
-    Choose { name: &'static [u8] },
+    Choose {
+        name: &'static [u8],
+    },
     Select,
     Dates,
     Reduction,
     ScopeReload,
-    Attribute { selector: &'static [u8], name: &'static [u8], expected: Option<&'static [u8]> },
+    Attribute {
+        selector: &'static [u8],
+        name: &'static [u8],
+        expected: &'static [u8],
+        absent_selector: Option<&'static [u8]>,
+    },
     Leave,
     Confirm,
-    Download { allow: bool },
+    Download {
+        allow: bool,
+    },
     Letter,
 }
 
@@ -193,7 +207,6 @@ impl Scenario {
             Scenario::Scroll => "/scroll",
             Scenario::Throw => "/throw",
             Scenario::Csp => "/csp",
-            Scenario::Words => "/words",
             Scenario::Figure => "/figure",
             Scenario::Facts
             | Scenario::Tabs
@@ -627,7 +640,7 @@ impl Rig {
         } else {
             event
         };
-        let event = if let Scenario::Attribute { selector, name, expected } = self.scenario {
+        let event = if let Scenario::Attribute { selector, name, expected, absent_selector } = self.scenario {
             match event {
                 Event::Opened { page } => {
                     assert_eq!(page, PAGE);
@@ -635,12 +648,25 @@ impl Rig {
                     self.ask(Request::Attribute { page: PAGE, op: FIND, selector: selector.into(), name: name.into() });
                     return;
                 }
-                Event::Attribute { op, read } => {
-                    assert_eq!(op, FIND);
-                    let expected = expected.map_or(skein_browser::boundary::Read::NoElement, |bytes| {
-                        skein_browser::boundary::Read::Value(bytes.into())
-                    });
-                    assert_eq!(read, expected);
+                Event::Attribute { op: FIND, read } => {
+                    assert_eq!(self.stage, Stage::Finding);
+                    assert_eq!(read, Read::Value(expected.into()));
+                    if let Some(selector) = absent_selector {
+                        self.stage = Stage::Expecting;
+                        self.ask(Request::Attribute {
+                            page: PAGE,
+                            op: READ_ABSENT,
+                            selector: selector.into(),
+                            name: name.into(),
+                        });
+                    } else {
+                        self.close_browser();
+                    }
+                    return;
+                }
+                Event::Attribute { op: READ_ABSENT, read } => {
+                    assert_eq!(self.stage, Stage::Expecting);
+                    assert_eq!(read, Read::NoElement);
                     self.close_browser();
                     return;
                 }
@@ -741,7 +767,12 @@ impl Rig {
                     Scenario::Select => {
                         self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"combobox", b"Pick") });
                     }
-                    Scenario::Button | Scenario::MouseDown { .. } => {
+                    Scenario::Button => {
+                        let mut words = query(b"StaticText", b"3 failing");
+                        words.matching = Match::Words;
+                        self.ask(Request::Find { page: PAGE, op: FIND_SENTENCE, query: words });
+                    }
+                    Scenario::MouseDown { .. } => {
                         self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Press") });
                     }
                     Scenario::Form => {
@@ -758,11 +789,6 @@ impl Rig {
                     }
                     Scenario::Csp => {
                         self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"heading", b"CSP page") });
-                    }
-                    Scenario::Words => {
-                        let mut words = query(b"StaticText", b"3 failing");
-                        words.matching = Match::Words;
-                        self.ask(Request::Find { page: PAGE, op: FIND, query: words });
                     }
                     Scenario::Figure => {
                         self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"figure", b"Error rate") });
@@ -806,6 +832,12 @@ impl Rig {
                     stage => panic!("unexpected form find at {stage:?}"),
                 }
             }
+            Event::Found { op: FIND_SENTENCE, seen, more } if matches!(self.scenario, Scenario::Button) => {
+                assert_eq!(self.stage, Stage::Finding);
+                assert_eq!((seen.len(), more), (SENTENCE_MATCHES, SENTENCE_MORE));
+                assert_eq!(seen.get(0).expect("sentence").name.as_ref(), b"Checks: 3 failing, 2 passed");
+                self.ask(Request::Find { page: PAGE, op: FIND, query: query(b"button", b"Press") });
+            }
             Event::Found { op, seen, more } => {
                 assert_eq!(op, FIND);
                 assert_eq!(self.stage, Stage::Finding);
@@ -842,10 +874,6 @@ impl Rig {
                             expect: Expect::Absent,
                             within: Duration::from_millis(500),
                         });
-                    }
-                    Scenario::Words => {
-                        assert_eq!(seen.get(0).expect("sentence").name.as_ref(), b"Checks: 3 failing, 2 passed");
-                        self.close_browser();
                     }
                     Scenario::Figure => {
                         self.stage = Stage::Pressing;
@@ -929,7 +957,6 @@ impl Rig {
                         | Scenario::Confirm
                         | Scenario::Covered
                         | Scenario::Csp
-                        | Scenario::Words
                         | Scenario::Facts
                         | Scenario::Choose { .. }
                         | Scenario::Select

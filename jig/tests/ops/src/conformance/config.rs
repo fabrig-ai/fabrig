@@ -63,6 +63,7 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
         infrastructure: crate::infrastructure_limits(),
         observability: crate::limits(),
         host: host::Limits {
+            drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
             application_ask_bytes: 64,
             application_answer_bytes: 64,
             slots: 1,

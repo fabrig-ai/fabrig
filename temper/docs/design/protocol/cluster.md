@@ -271,74 +271,48 @@ Each where `../testing/README.md` puts it (2.4 to 2.6):
 | Where | What it shows |
 |---|---|
 | step tests | each shape read and checked, a document of none refused, naming its path; each line of 3 as printed |
-| the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace |
-| the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
-| the process tier | `bin/temper-box/tests/fixtures/cluster/` on real processes, as below, and case 4.6's restart boundary (`../testing/reference-case.md` and `../testing/process-tier.md`) |
+| the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace, the lost attempt's reply never committed and its replacement's committed once; a fenced attempt's late traffic changing no turn, its worker then taking new work; a task waiting for a slot taken at a late worker's hello; a worker back at its position after its run ended taking new work there |
+| the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end; case 4.6's restarted workstation (`../testing/reference-case.md`) |
+| the process tier | `bin/temper-box/tests/fixtures/cluster/` on real processes, as below |
 
-The process tier's first stories, one slot on each worker: the
-cluster's fixtures give each worker one. Two tasks on two workers need
-no more; the cluster's workers of several slots are later (7).
+The process tier's stories, one slot on each worker: the cluster's
+fixtures give each worker one. Two tasks on two workers need no more;
+the cluster's workers of several slots are later (7). Each ends a
+process and reads how it ended; what a loss, a fence or a return does
+to the run is the engine's domain world's, as the table says.
 
-
-- **A task on each worker:** two tasks on the fakes, one run on w1 and
-  one on w2, each to its end; then the cluster stopped, each process
-  exiting 0, no survivor.
-- **A task on each worker, on the deployment's binaries:** the same
-  story on the same description, its engine started by
-  `temper-engine serve`, each worker by `temper-worker serve`, and each
-  worker's agent `temper-agent AGENT.json` (configuration/worker.md, section
-  2) in place of the box's `temper-box internal agent`; the fakes and the
-  client stay the box's `temper-box`. The process tier builds the three
-  beside the box's binary (`tools/tiers/design.md`). Written and
-  compiled in its plan, and run after landing
-  (`../draft/deployment-binaries.md`, section 10).
-- **A worker lost:** w1 killed mid-run; its task's run is placed on w2
-  past the grace, and lands once. Its process is killed first, then
-  its tree, so the engine sees its link close, not an agent's end, and
-  no silence is waited on. A waiting
-  run's turn is committed only when the run ends, so the killed
-  attempt's reply never reaches the engine; the retried run resumes
-  from the chat's committed turns and answers anew, the reply is in
-  them once, and the lost attempt's run ends as lost in the task's
-  activity. The killed process's end is the story's, not a failure.
-- **A worker hung:** w1 stopped past the grace, then continued; its run,
-  placed on w2, lands once, and w1's attempt lands nothing. First, a
-  stop past the engine's silence alone, continued within the fleet's
-  grace, heals: w1 links again and the same attempt answers there,
-  nothing placed twice. Then a stop held until the run is seen on w2
-  (never a length of time): once continued, w1 links again, its
-  listing of the fenced attempt is cancelled and what it sends of it
-  dropped, and w1 takes a new run on its one slot, which shows it
-  acted on the cancel, whose end sent the fenced attempt's held turn;
-  the fenced attempt's activity and the chat's turns are as they were
-  before the continue, and the reply is in them once.
-- **A worker started later:** w2 started once w1's slot is taken; the
-  second task waits, due and unplaced, with no attempt (the engine
-  admits a run only once a slot is free), then runs on w2 once it
-  links. A restarted worker links again at its position: w1, its run
-  ended, is stopped alone, exits 0, and is started again on its own
-  directories; it prints `linked` again, is the engine's w1 again, and
-  takes a new run.
+- **A task on each worker, on the deployment's binaries:** two tasks
+  on the fakes, one run on w1 and one on w2, each to its end; then the
+  cluster stopped, each process exiting 0, no survivor. Its engine is
+  started by `temper-engine serve`, each worker by `temper-worker
+  serve`, and each worker's agent `temper-agent AGENT.json`
+  (configuration/worker.md, section 2) in place of the box's
+  `temper-box internal agent`; the fakes and the client stay the box's
+  `temper-box`. The process tier builds the three beside the box's
+  binary (`tools/tiers/design.md`).
+- **A worker killed** (`a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes`):
+  w1 killed mid-run, its process first, then its
+  tree, so the engine sees its link close, not an agent's end, and no
+  silence is waited on: w1 ends by signal 9, the engine reads its link
+  closed, and the others stop in reverse, exiting 0. The killed
+  process's end is the story's, not a failure.
+- **A worker stopped and continued** (`a_worker_stopped_past_the_silence_links_again_as_the_same_process`):
+  w1 alone is started, then stopped past the engine's
+  silence alone, read disconnected, then continued within the fleet's
+  grace: the same process links again and the same attempt answers
+  there, nothing placed twice.
 - **Every story waits on what shows each step,** read through the
   client and the processes' lines, never on a clock, within one bound;
-  w2 starts only once w1 holds its run, so which worker takes a chat is
-  never left to placement's order; and each chat is closed and ended
-  before the cluster stops, since a worker's ending under a waiting
-  run fails it into a retry.
+  in the kill story w2 starts only once w1 holds its run. Chat stories
+  that stop normally close their chats and wait for them to end first,
+  since a worker's ending under a waiting run fails it into a retry.
 - **A mixed document,** each shape's departures, refuses its start,
   exiting 1 and naming the path.
 
 These are the case's multi-worker steps at their smallest
-(`../testing/reference-case.md`): `binaries.md`, 1's placement by free slots, `binaries.md`, 3's
-worker added later, 4.6's hung worker.
-
-- **The case's restart,** a story on the same
-  description, the case's workers named ws, s1 and s2, its fixture
-  applied to the engine's and the workers' documents, its acts by real
-  `temper ctl`, and its oracle over what the processes observed
-  (`../testing/process-tier.md`): 4.6's restarted
-  workstation, ws stopped under the director's waiting chat and started
-  again on its own directories.
+(`../testing/reference-case.md`): `binaries.md`, 1's placement by free
+slots and 4.6's hung worker, at their process boundary; `binaries.md`,
+3's worker added later is the engine's domain world's.
 
 ## 7. Later
 

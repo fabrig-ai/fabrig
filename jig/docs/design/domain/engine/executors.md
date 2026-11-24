@@ -414,10 +414,12 @@ pub enum Request {
   (2), as before. The tasks child activates a due task again at its
   suspension's `until`, whatever else has changed, and with the window
   past the claim's check takes every host.
-- **What the return gains** is the worker's warm store and its
-  workstream's cache (`fleet.md`, the workstream affinity), until the
-  worker keeps the run's workspace too (temper's
-  `draft/worker-restarts.md`, 4).
+- **What the return gains** is the worker's warm store, its
+  workstream's cache (`fleet.md`, the workstream affinity) and, on
+  temper's worker, the cut run's workspace, kept for it with its build
+  outputs and its checks' results (temper's `domain/worker/checkouts.md`,
+  *A workspace kept for its run*), and with the parts kept since its
+  last turn, the cut turn itself (`executors-transcripts.md`, 1).
 
 ```rust
 // jig-domain-core

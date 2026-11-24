@@ -369,7 +369,7 @@ impl Process {
                 self.held_query = None;
                 self.agent.as_mut().expect("live agent").cancel_run();
             }
-            agent::Down::Drain => {
+            agent::Down::Drain { grace: _ } => {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.drain_at(agent.now());
             }
@@ -377,7 +377,7 @@ impl Process {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.renewals_at(agent.now(), held);
             }
-            agent::Down::Grant { .. } => {}
+            agent::Down::PartKept { .. } | agent::Down::Grant { .. } => {}
         }
     }
 
@@ -443,6 +443,8 @@ impl Process {
             provider.continue_provider(&mut previous);
         }
         let event = smith::Event::Start(smith::Start {
+            parts: Box::default(),
+            tell_parts: false,
             reply_to: ReplyTo::new(Token::new(402)),
             host_run: start.logical_run,
             activation: start.activation,
@@ -704,6 +706,7 @@ fn mount(directories: &[agent::Directory], disk: &Checkout, mounted: &mut Disk) 
             }
         }
         mounts.push(run::Directory {
+            results: None,
             name: directory.name.clone(),
             host: [b"/".as_slice(), directory.name.as_ref()].concat().into_boxed_slice(),
             root: Token::new(mounted.root(&directory.name)),

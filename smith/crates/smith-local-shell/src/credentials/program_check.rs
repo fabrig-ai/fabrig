@@ -11,8 +11,13 @@ use std::collections::BTreeMap;
 
 pub(crate) type ProgramStates = BTreeMap<String, Credential>;
 
-pub(crate) fn check<'a>(resolved: &Resolved, accounts: impl Iterator<Item = &'a str>, clock: &Clock) -> ProgramStates {
-    accounts.map(|account| (account.to_owned(), inspect(resolved, account, clock))).collect()
+/// The program's typed status or a shell failure before it could supply one.
+pub(crate) type Inspection = Result<ProgramCheck, String>;
+
+fn check<'a>(resolved: &Resolved, accounts: impl Iterator<Item = &'a str>, clock: &Clock) -> ProgramStates {
+    accounts
+        .map(|account| (account.to_owned(), state(ProgramName::ClaudeCode, inspect(resolved, account, clock))))
+        .collect()
 }
 
 pub(crate) fn needed(resolved: &Resolved, clock: &Clock) -> ProgramStates {
@@ -27,43 +32,42 @@ pub(crate) fn needed(resolved: &Resolved, clock: &Clock) -> ProgramStates {
     )
 }
 
-fn inspect(resolved: &Resolved, account: &str, clock: &Clock) -> Credential {
-    let program = ProgramName::ClaudeCode;
-    let failed = |detail: &str| Credential::ProgramFailed { program, detail: detail.into() };
+/// Inspect the source without creating its directory or changing its login.
+pub(crate) fn inspect(resolved: &Resolved, account: &str, clock: &Clock) -> Inspection {
     let Some(directory) = Directory::of(&resolved.settings) else {
-        return failed("an absolute credentials directory is required");
+        return Err("an absolute credentials directory is required".into());
     };
     // Inspect both levels without creating or following a source directory.
     for path in [directory.programs(), directory.program(account)] {
         match smith_agent_shell::program::private_directory(&path) {
-            Ok(false) => return Credential::ProgramNotSignedIn { program },
+            Ok(false) => return Ok(ProgramCheck::NotSignedIn),
             Ok(true) => {}
-            Err(why) => return failed(&program_source::detail(why.to_string().as_bytes())),
+            Err(why) => return Err(why.to_string()),
         }
     }
     let settings = &resolved.settings;
     let configured = settings.values.get("programs.claude_code").and_then(|field| field.value.as_str());
     let Ok(executable) = crate::settings::resolve::programs::locate(configured, settings.paths.path.as_deref()) else {
-        return failed("program is missing");
+        return Err("program is missing".into());
     };
-    state(
-        program,
-        program_source::run(
-            SourceAsk::Check,
-            &executable,
-            account,
-            &directory,
-            clock,
-            &resolved.agent.service.environment.command_entries(),
-        ),
-    )
+    match program_source::run(
+        SourceAsk::Check,
+        &executable,
+        account,
+        &directory,
+        clock,
+        &resolved.agent.service.environment.command_entries(),
+    )? {
+        SourceAnswer::Check(answer) => Ok(answer),
+        SourceAnswer::SignOut(_) => unreachable!("check answers check"),
+    }
 }
 
-fn state(program: ProgramName, answer: Result<SourceAnswer, String>) -> Credential {
+/// Project one inspection to a redacted state shared by check and startup.
+pub(crate) fn state(program: ProgramName, answer: Inspection) -> Credential {
     match answer {
-        Ok(SourceAnswer::Check(answer)) => credential(program, answer),
+        Ok(answer) => credential(program, answer),
         Err(why) => Credential::ProgramFailed { program, detail: program_source::detail(why.as_bytes()) },
-        Ok(SourceAnswer::SignOut(_)) => unreachable!("check answers check"),
     }
 }
 

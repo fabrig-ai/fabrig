@@ -35,6 +35,7 @@ mod boundary;
 mod config;
 mod domain;
 mod facts;
+mod flow;
 
 mod feedback;
 #[cfg(test)]
@@ -43,6 +44,7 @@ mod limits;
 pub mod llm;
 mod operation;
 mod peer;
+mod resuming;
 mod route;
 #[cfg(test)]
 mod tests;

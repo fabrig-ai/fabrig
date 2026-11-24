@@ -301,7 +301,7 @@ fn run(
     out: &mut Queue<Request>,
 ) -> State {
     let spec = super::nth(holding, delivery.repository);
-    let at = super::place(holding.workspace.token(), spec);
+    let at = super::place(holding.disk, spec);
     let head = super::tips(holding, delivery.repository).head;
     let op = match step {
         Step::Fetch => Op::Fetch {
@@ -321,7 +321,7 @@ fn run(
             let branch = spec.push.as_deref().expect("a design repository is writable");
             super::commit_merge(
                 holding,
-                holding.workspace.token(),
+                holding.disk,
                 delivery.repository,
                 delivery.tip.expect("fetched tip"),
                 super::branch_merge_title(branch),

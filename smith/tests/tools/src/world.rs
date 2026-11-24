@@ -362,6 +362,7 @@ impl World {
                 tools::Event::Done { owner, .. } => Some(*self.owners.get(owner).expect("an operation io ran")),
                 tools::Event::Open { .. }
                 | tools::Event::Close { .. }
+                | tools::Event::Cut { .. }
                 | tools::Event::CancelJobs { .. }
                 | tools::Event::EndWait { .. }
                 | tools::Event::ReadVersion { .. } => None,
@@ -684,6 +685,7 @@ impl World {
             | Done::Held { .. }
             | Done::Job { .. }
             | Done::Exited { .. }
+            | Done::CommandCancelled { .. }
             | Done::Found { .. }
             | Done::NotDirectory
             | Done::TooLarge { .. }

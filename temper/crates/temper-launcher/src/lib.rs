@@ -1,7 +1,7 @@
 //! Claude Code's launcher (temper/docs/design/protocol/setup/owned.md, 6).
 use std::{
     ffi::OsStr,
-    fs,
+    fs, io,
     os::unix::{
         ffi::OsStrExt,
         fs::{DirBuilderExt, symlink},
@@ -25,13 +25,45 @@ pub fn is_launcher(program: &OsStr) -> bool {
 /// Fetch the pinned build if missing and replace this process, preserving argv.
 #[must_use]
 pub fn run(name: &str, program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> u8 {
-    let why = launch(program, arguments, environment).expect_err("exec only returns on failure");
-    eprintln!("{name}: claude: {why}");
-    1
+    let mut stderr = io::stderr();
+    let why = launch(program, arguments, environment, &mut stderr).expect_err("exec only returns on failure");
+    refusal(name, &why, &mut stderr)
 }
-fn launch(program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> Result<(), String> {
+
+fn refusal(name: &str, why: &str, out: &mut dyn io::Write) -> u8 {
+    let (code, line) = launch_refusal(name, why);
+    out.write_all(line.as_bytes()).expect("write launcher refusal to stderr");
+    code
+}
+
+fn launch_refusal(name: &str, why: &str) -> (u8, String) {
+    (1, format!("{name}: claude: {why}\n"))
+}
+
+fn launch(
+    program: &OsStr,
+    arguments: &[Box<[u8]>],
+    environment: &[EnvironmentEntry],
+    out: &mut dyn io::Write,
+) -> Result<(), String> {
+    let mut command = launch_command_with(
+        program,
+        arguments,
+        |cache| fs::read_link(cache),
+        |file, pin, bytes| temper_fetch_shell::fetch::claude_code(&IO, &trust(environment), file, pin, bytes, out),
+    )?;
+    let why = command.exec();
+    Err(format!("{}: {why}", Path::new(command.get_program()).display()))
+}
+
+fn launch_command_with(
+    program: &OsStr,
+    arguments: &[Box<[u8]>],
+    read_cache: impl FnOnce(&Path) -> io::Result<PathBuf>,
+    fetch: impl FnOnce(&Path, temper_fetch::fetch::Pin, u64) -> Result<(), temper_fetch_shell::fetch::Failed>,
+) -> Result<std::process::Command, String> {
     let directory = Path::new(program).parent().ok_or("launcher has no parent")?;
-    let cache = fs::read_link(directory.join("cache")).map_err(|why| format!("cache: {why}"))?;
+    let cache = read_cache(&directory.join("cache")).map_err(|why| format!("cache: {why}"))?;
     let build = claude_code::build(
         if cfg!(target_os = "macos") {
             skein_forge::forgejo::pin::Platform::Macos
@@ -48,17 +80,8 @@ fn launch(program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEn
         build,
     );
     let file = claude_code::file(cache.as_os_str().as_bytes());
-    temper_fetch_shell::fetch::claude_code(
-        &IO,
-        &trust(environment),
-        path(&file),
-        pin,
-        build.bytes,
-        &mut std::io::stderr(),
-    )
-    .map_err(|why| why.words())?;
-    let why = command(path(&file), arguments).exec();
-    Err(format!("{}: {why}", path(&file).display()))
+    fetch(path(&file), pin, build.bytes).map_err(|why| why.words())?;
+    Ok(command(path(&file), arguments))
 }
 
 fn command(file: &Path, arguments: &[Box<[u8]>]) -> std::process::Command {
@@ -250,6 +273,17 @@ mod tests {
     }
 
     #[test]
+    fn a_cache_refusal_names_the_agent_and_claude() {
+        let failure = temper_fetch_shell::fetch::Failed::Refused(temper_fetch::fetch::Failure::Present {
+            file: b"/cache/claude".as_slice().into(),
+        });
+        assert_eq!(
+            launch_refusal("temper-agent", &failure.words()),
+            (1, "temper-agent: claude: /cache/claude: does not match the pinned digest\n".into())
+        );
+    }
+
+    #[test]
     fn download_trust_uses_the_given_certificate_file() {
         let environment = [(Box::from(b"SSL_CERT_FILE".as_slice()), Box::from(b"/fixture/roots.pem".as_slice()))];
         let skein_shell::Trust::Machine { ssl_cert_file } = trust(&environment) else { panic!("machine trust") };
@@ -266,10 +300,7 @@ mod tests {
         let directory = Path::new("/fixture");
         let launcher = directory.join("claude-code");
         let cache = directory.join("cache");
-        let mut machine = Machine::new();
-        let root = machine.lay(&[Item::directory(b"claude-code")]);
-        let place = machine.open(root, b"claude-code", How::Directory).unwrap();
-        let mut links = ScriptedLinks { machine, place };
+        let mut links = ScriptedLinks::new(&[]);
         let program = Path::new("/opt/agent/temper-agent");
         place_links(&launcher, &cache, program, &mut links).unwrap();
         assert_eq!(links.read(&launcher.join("claude")).unwrap(), program);
@@ -280,10 +311,89 @@ mod tests {
         assert_eq!(links.read(&launcher.join("cache")).unwrap(), cache);
     }
 
+    #[test]
+    fn a_wrong_size_cache_refuses_after_replacing_both_stale_login_links() {
+        use temper_fetch::fetch::Failure;
+        use temper_fetch_shell::fetch::Failed;
+
+        let directory = Path::new("/fixture/claude-code");
+        let launcher = directory.join("claude");
+        let cache_link = directory.join("cache");
+        let cache = Path::new("/fixture/cache");
+        let binary = Path::new("/fixture/bin/temper-box");
+        let file = Path::new("/fixture/cache/claude-code/2.1.311/claude");
+        let mut links = ScriptedLinks::new(&[
+            Item::file(b"claude-code/claude", b"/stale/temper"),
+            Item::file(b"claude-code/cache", b"/stale/cache"),
+        ]);
+
+        for first in [true, false] {
+            place_links(directory, cache, binary, &mut links).expect("place launcher links for login");
+            assert_eq!(links.read(&launcher).expect("claude link"), binary);
+            assert_eq!(links.read(&cache_link).expect("cache link"), cache);
+            if first {
+                assert_eq!(links.changes, ["stage", "rename", "stage", "rename"]);
+                links.changes.clear();
+            } else {
+                assert!(links.changes.is_empty(), "a second login keeps both links untouched");
+            }
+
+            let why = launch_command_with(
+                launcher.as_os_str(),
+                &[b"auth".as_slice().into(), b"login".as_slice().into()],
+                |path| {
+                    assert_eq!(path, cache_link);
+                    links.read(path)
+                },
+                |candidate, pin, _| {
+                    assert_eq!(candidate, file);
+                    assert_eq!(pin.file.as_ref(), file.as_os_str().as_bytes());
+                    // The fetch shell refuses this cache fact before executing or downloading anything.
+                    Err(Failed::Refused(Failure::Present { file: pin.file }))
+                },
+            )
+            .expect_err("no command to exec when the cache refuses");
+            let mut stderr = Vec::new();
+            assert_eq!(refusal("temper", &why, &mut stderr), 1);
+            assert_eq!(
+                stderr,
+                b"temper: claude: /fixture/cache/claude-code/2.1.311/claude: does not match the pinned digest\n"
+            );
+        }
+    }
+
+    #[test]
+    fn serve_installs_only_the_launcher_links_not_a_version_directory() {
+        let directory = Path::new("/fixture/claude-code");
+        let executable = Path::new("/fixture/current-exe");
+        let cache = Path::new("/fixture/cache");
+        let mut links = ScriptedLinks::new(&[]);
+        place_links(directory, cache, executable, &mut links).expect("place launcher links for serve");
+        assert_eq!(links.read(&directory.join("claude")).expect("claude link"), executable);
+        assert_eq!(links.read(&directory.join("cache")).expect("cache link"), cache);
+        assert_eq!(links.changes, ["stage", "rename", "stage", "rename"]);
+        assert_eq!(
+            links.machine.open(links.place, b"2.1.311", How::Directory),
+            Err(skein_fake_machine::Refusal::NotFound)
+        );
+    }
+
     // The namespace stores read-link replies as bytes, including absolute targets.
     struct ScriptedLinks {
         machine: Machine,
         place: Opened,
+        changes: Vec<&'static str>,
+    }
+
+    impl ScriptedLinks {
+        fn new(items: &[Item]) -> Self {
+            let mut machine = Machine::new();
+            let mut tree = vec![Item::directory(b"claude-code")];
+            tree.extend_from_slice(items);
+            let root = machine.lay(&tree);
+            let place = machine.open(root, b"claude-code", How::Directory).expect("fixture directory");
+            Self { machine, place, changes: Vec::new() }
+        }
     }
 
     fn link_name(file: &Path) -> &[u8] {
@@ -304,6 +414,7 @@ mod tests {
         }
 
         fn stage(&mut self, directory: &Path, name: &str, target: &Path) -> std::io::Result<PathBuf> {
+            self.changes.push("stage");
             let part = directory.join(format!(".{name}.part"));
             let opened = self.machine.open(self.place, link_name(&part), How::Create { mode: 0o600 }).unwrap();
             self.machine.write(opened, 0, target.as_os_str().as_bytes()).unwrap();
@@ -312,11 +423,13 @@ mod tests {
         }
 
         fn rename(&mut self, part: &Path, file: &Path) -> std::io::Result<()> {
+            self.changes.push("rename");
             self.machine.rename(self.place, link_name(part), self.place, link_name(file), false).unwrap();
             Ok(())
         }
 
         fn remove(&mut self, part: &Path) -> std::io::Result<()> {
+            self.changes.push("remove");
             self.machine.remove(self.place, link_name(part), false).unwrap();
             Ok(())
         }

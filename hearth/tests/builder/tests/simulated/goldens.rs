@@ -1,7 +1,85 @@
-use hearth_builder_world::fixtures;
+use hearth_builder_world::{fixtures, protocol};
 use hearth_test_render::golden;
 use skein_scratch::paths;
 use std::fs;
+
+#[test]
+fn merge_renders_its_layers_and_leaves_the_removed_task_out() {
+    let stdout = fixtures::check_golden("merge");
+    let targets = golden::Golden::targets(&stdout);
+    let gone: Vec<_> =
+        targets.iter().filter(|(_, text)| text.contains("/etc/gone ")).map(|(name, _)| name.as_str()).collect();
+    assert_eq!(gone, ["m-b", "m-c"]);
+}
+
+#[test]
+fn templates_render_byte_for_byte_as_their_witnesses_say() {
+    drop(fixtures::check_golden("templates"));
+}
+
+#[test]
+fn the_fleet_renders_its_six_targets_as_expected() {
+    drop(fixtures::check_golden("fleet"));
+}
+
+#[test]
+fn a_lab_spec_does_not_change_when_a_production_file_does() {
+    const LAB: &[u8] = b"carbon-lab";
+    let mut files = fixtures::budgets::fleet();
+    let before = protocol::run(&fixtures::render_targets(&files, &[LAB], false), fixtures::SIMULATION_SEED);
+    let edit = fixtures::CARBON_PRODUCTION_EDIT;
+    *files.iter_mut().find(|file| file.path == edit.path).expect("production file") = edit;
+    let after = protocol::run(&fixtures::render_targets(&files, &[LAB], false), fixtures::SIMULATION_SEED);
+    let specs = golden::Golden::targets(&fixtures::text(&before));
+    assert_eq!(fixtures::only(&specs).0.as_bytes(), LAB);
+    assert_eq!(after.stdout, before.stdout);
+}
+
+#[test]
+fn the_container_has_no_hearth_task_and_its_host_has_one() {
+    let mut files = fixtures::budgets::fleet();
+    files.retain(|file| file.path != "tasks/hearth/task.json");
+    let scenario = fixtures::render_targets(&files, &[b"carbon-prod", b"chat-prod"], false);
+    let rendered = protocol::run(&scenario, fixtures::SIMULATION_SEED);
+    assert_eq!(
+        fixtures::lines_starting(&rendered.stdout, &["target ", "tasks/"]),
+        "target       chat-prod   base chat   environment prod\n\
+tasks/hearth/task.json: carbon-prod: no task hearth under tasks/\n"
+    );
+}
+
+#[test]
+fn the_cluster_renders_its_members_with_their_names() {
+    let stdout = fixtures::check_golden("cluster");
+    let targets = golden::Golden::targets(&stdout);
+    assert_eq!(
+        targets.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>(),
+        ["stoa-1-lab", "stoa-1-prod", "stoa-2-lab", "stoa-2-prod", "stoa-3-lab"]
+    );
+}
+
+#[test]
+fn the_vpn_and_mail_golden_render_with_their_peers_per_environment() {
+    drop(fixtures::check_golden("exports"));
+}
+
+#[test]
+fn each_error_case_prints_its_errors_after_the_healthy_spec() {
+    for name in fixtures::ERROR_CASES {
+        drop(fixtures::check_golden(name));
+    }
+}
+
+#[test]
+fn an_empty_store_prints_every_resolution_needed() {
+    drop(fixtures::check_loaded_golden(&fixtures::resolution_golden(), "", &[]));
+}
+
+#[test]
+fn a_laid_record_prints_known_for_its_targets_alone() {
+    let laid = [fixtures::Laid::Resolution(fixtures::test_min_recorded())];
+    drop(fixtures::check_loaded_golden(&fixtures::resolution_golden(), "known", &laid));
+}
 
 const SYNTAX: &[(&str, &str)] = &[
     ("condition", "{% if "),

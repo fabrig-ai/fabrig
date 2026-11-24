@@ -1,7 +1,7 @@
 //! Channel-wide safety and liveness (protocol/channel/testing.md, 1).
 use crate::{
     processes::Proc,
-    world::{Store, answer_parties, answer_store, check_diagnostics, terminal, turns, worker_wire},
+    world::{Store, answer_parties, answer_store, check_diagnostics, terminal, worker_wire},
 };
 use jig_domain_core as core;
 use jig_fake_parties as parties;
@@ -98,6 +98,9 @@ impl skein_world::Referee<Proc> for Referee {
             .find_map(|proc| if let Proc::Engine(host) = proc { Some(host) } else { None })
             .ok_or("engine")?;
         self.observe_engine(now, engine)?;
+        if matches!(self.story, crate::stories::Story::Resume(_)) {
+            crate::restarts::observe(now, procs, &self.store.borrow(), &mut self.views.borrow_mut().restart)?;
+        }
         let store = self.store.borrow();
         if matches!(self.story, crate::stories::Story::Providers)
             && self.views.borrow().engine_drained
@@ -108,8 +111,8 @@ impl skein_world::Referee<Proc> for Referee {
                 self.views.borrow_mut().providers_after = choices;
             }
         }
-        let turns = turns(&store);
-        if turns.len() > self.expected_turns as usize {
+        let turn_count = store.turns().count();
+        if turn_count > self.expected_turns as usize {
             return Err(String::from("bounded committed turns for the script"));
         }
         let engine = procs
@@ -135,10 +138,7 @@ impl skein_world::Referee<Proc> for Referee {
                 return Err(format!(
                     "acknowledgement follows a durable successful terminal: {task}/{attempt} at {now:?}; replies {:?}; turns {:?}; diagnostics {}",
                     self.party.replies,
-                    crate::world::turns(&store)
-                        .iter()
-                        .map(|turn| (turn.attempt, turn.turn, turn.read))
-                        .collect::<Vec<_>>(),
+                    store.turns().map(|turn| (turn.attempt, turn.turn, turn.read)).collect::<Vec<_>>(),
                     check_diagnostics(procs)?
                 ));
             }
@@ -154,6 +154,7 @@ impl skein_world::Referee<Proc> for Referee {
                     self.story,
                     crate::stories::Story::InvalidCharter
                         | crate::stories::Story::Shutdown
+                        | crate::stories::Story::Resume(_)
                         | crate::stories::Story::Drain
                         | crate::stories::Story::BeyondGrace
                 ) || smith_agent_process_world::fake::replied(peer)
@@ -173,7 +174,7 @@ impl skein_world::Referee<Proc> for Referee {
             worker.acknowledgements.len() == self.expected_answers
         };
         if self.party.quiescent()
-            && turns.len() == self.expected_turns as usize
+            && turn_count == self.expected_turns as usize
             && ended
             && replied
             && self.rules.complete()
@@ -223,6 +224,9 @@ impl skein_world::Referee<Proc> for Referee {
         if self.passed {
             return (!self.stopped).then_some(Time::ZERO);
         }
+        if let Some(at) = self.views.borrow().restart.release_at {
+            return Some(at);
+        }
         if matches!(self.story, crate::stories::Story::HeldCommit) && !self.injected
             || matches!(self.story, crate::stories::Story::Drain) && !self.store.borrow().pending.is_empty()
         {
@@ -234,12 +238,13 @@ impl skein_world::Referee<Proc> for Referee {
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.passed && now >= self.horizon().ok()?).then(|| {
             format!(
-                "story {:?} completes; received hellos {}; replies {:?}, durable turns {}, rules {:?}",
+                "story {:?} completes; received hellos {}; replies {:?}, durable turns {}, rules {:?}; restart {:?}",
                 self.story,
                 self.cut_ready.get(),
                 self.party.replies,
-                turns(&self.store.borrow()).len(),
-                self.rules
+                self.store.borrow().turns().count(),
+                self.rules,
+                self.views.borrow().restart.evidence
             ) + &self.formatted
         })
     }
@@ -695,6 +700,10 @@ impl Referee {
             self.views.borrow_mut().reply.act(procs, &self.store.borrow())?;
         }
 
+        if let crate::stories::Story::Resume(point) = self.story {
+            crate::restarts::act(point, now, procs, &mut self.views.borrow_mut());
+            self.injected = self.views.borrow().restart.drain.is_some();
+        }
         self.shutdown_worker(procs)?;
         let (engine, worker) = match self.story {
             crate::stories::Story::Partition { engine, worker } => (engine, worker),
@@ -711,6 +720,7 @@ impl Referee {
             | crate::stories::Story::Cuts { .. }
             | crate::stories::Story::Reconnect
             | crate::stories::Story::Shutdown
+            | crate::stories::Story::Resume(_)
             | crate::stories::Story::Drain
             | crate::stories::Story::Refusals(_)
             | crate::stories::Story::Opening(_)
@@ -765,7 +775,7 @@ impl Referee {
     fn horizon(&self) -> Result<Time, String> {
         // A cut assignment leaves an unhosted claim adrift until the fleet's grace.
         // Allow one redial plus 30 s for startup, retry placement and the chat's turn.
-        let grace = crate::fixtures::store_limits().root.core.fleet.grace.as_nanos();
+        let grace = crate::fixtures::store_grace().as_nanos();
         let after_grace = grace
             .checked_add(self.redial_ceiling.as_nanos())
             .and_then(|nanos| nanos.checked_add(30_000_000_000))
@@ -974,11 +984,12 @@ impl Referee {
 
 impl Referee {
     fn shutdown_worker(&mut self, procs: &mut [Proc]) -> Result<(), String> {
-        if !matches!(self.story, crate::stories::Story::Shutdown) {
+        if !matches!(self.story, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) {
             return Ok(());
         }
-        if !self.injected
-            && !turns(&self.store.borrow()).is_empty()
+        if matches!(self.story, crate::stories::Story::Shutdown)
+            && !self.injected
+            && self.store.borrow().turns().next().is_some()
             && procs.iter().any(
                 |proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).count() >= 2),
             )
@@ -997,7 +1008,12 @@ impl Referee {
                 && host.service.is_empty()
                 && let Some(root) = host.restart_root.take()
             {
-                let Proc::Worker(replacement) = crate::processes::worker(root) else {
+                let replacement = if matches!(self.story, crate::stories::Story::Resume(_)) {
+                    crate::restarts::worker(root)
+                } else {
+                    crate::processes::worker(root)
+                };
+                let Proc::Worker(replacement) = replacement else {
                     return Err(String::from("replacement worker"));
                 };
                 host.service = replacement.service;
@@ -1273,7 +1289,7 @@ fn transcript_recovered(worker: &crate::processes::Wire, store: &Store) -> Resul
         .iter()
         .find(|message| message.words.as_ref() == b"Continue now")
         .ok_or("the refused resume retains the pending person's message")?;
-    if !turns(store).iter().any(|turn| turn.attempt == 3 && turn.read == Some(message.name)) {
+    if !store.turns().any(|turn| turn.attempt == 3 && turn.read == Some(message.name)) {
         return Err(String::from("the fresh agent takes the pending person's message"));
     }
     if !terminal(store, 1, 2, crate::stories::Story::InvalidTranscript) {
