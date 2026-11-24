@@ -94,7 +94,8 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 
 | Assertion | Holder |
 |---|---|
-| The same attempt: its queries and turns, the released text once, no further query, one interrupted terminal, due with no retry and no hold, the saved branch holding the released write | `temper-one-process-world::suite` `a_drained_service_and_a_stray_agent_signal_commit_the_held_turn_once` (*added*); `smith-agent-process-world::suite` `a_signalled_turn_is_committed_before_the_hosts_drain_ends_it`; `temper-worker-domain` lib `an_agents_signal_is_not_a_workers_cancel`; `temper-worker-domain-world::suite` `a_shutdown_drains_the_turn_saves_its_work_and_waits_for_every_acknowledgement` |
+| The same attempt: its queries and turns, the released text once, no further query, one interrupted terminal, the saved branch holding the released write | `temper-worker-domain-world::suite` `a_drained_worker_and_a_stray_agent_signal_commit_the_held_turn_once` (*added*: the worker alone signalled, `Way::Signalled`, while its agent's model answer is held, the world as the agent reporting a stray signal of its own); `smith-agent-process-world::suite` `a_signalled_turn_is_committed_before_the_hosts_drain_ends_it`; `temper-worker-domain` lib `an_agents_signal_is_not_a_workers_cancel`; `temper-worker-domain-world::suite` `a_shutdown_drains_the_turn_saves_its_work_and_waits_for_every_acknowledgement` |
+| That interrupted attempt due again with no try spent, no retry and no hold | `temper-one-process-world::suite` `a_signal_mid_run_interrupts_a_coding_run_and_the_next_start_takes_it_again` |
 
 ## 3. A deployment restored at its place
 
