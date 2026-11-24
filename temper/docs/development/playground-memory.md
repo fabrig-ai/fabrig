@@ -5,10 +5,11 @@ The playground binary's test holds the service's first-step held bytes from
 the 2026-11-14 worker-wire v8 table below, and its other bounds from the
 2026-11-14 store-shape S4 merge table, each with a quarter's margin rounded
 up to two significant digits;
-nonservice regression bounds retain their 2026-11-12 figures plus a quarter.
-The prepared schemas' bound uses the 2026-11-23 table below, also plus a
-quarter ([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
-the memory's bar itself to the user.
+nonservice regression bounds retain their 2026-11-12 figures plus a quarter,
+except that the prepared schemas' bound uses the 2026-11-23 table and the fake
+disk's start bound uses the 2026-11-24 "Openings' kept wire texts" table, both
+plus a quarter ([playground.md, section 9](../design/playground.md)). Sections 8
+and 11 leave the memory's bar itself to the user.
 
 ## Commands and scope
 
@@ -342,6 +343,33 @@ The test fills the process-wide cache under its own span before either world
 is built, so the service's held bytes no longer carry the cache. Its retained
 heap has a separate ceiling of 832,186 bytes (665,749 plus a quarter, using
 integer division). No existing ceiling moves.
+
+### Openings' kept wire texts
+
+Measured 2026-11-24 21:48:45 UTC (`date -u`) at base commit
+`bfabc197a419b8eae00cd0f40300a099ea8a15c1` in the focused run of
+`story_as_world_at_its_first_step_and_start`. First step takes one world step;
+start takes 174 world steps. Only the fake disk's start comparison failed.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 437,149 | 615,177 | 909,486 | 1,238,362 |
+| 1: fake LLM | 28,193 | 28,193 | 28,929 | 28,929 |
+| 2: fake forge HTTP | 31,098 | 31,098 | 31,839 | 31,883 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: git | not admitted | not admitted | 3,530 | 3,530 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 4,509 | 294,162 |
+| Shared forge before start | 7,453 | not separately measured at start |
+| Prepared schemas before start | 710,148 | not separately measured at start |
+
+The fake disk's retained heap at start grew from 263,690 bytes in the prepared
+schemas table to 294,162 bytes because the openings v2 row keeps each worker's
+wire texts on disk ([records.md, section 3](../../../jig/docs/design/protocol/store/records.md#3-the-format-row)).
+Only the fake disk's start ceiling rises, to 367,702 bytes (294,162 plus a
+quarter, using integer division). No other ceiling moves.
 
 ## Halving the knobs
 
