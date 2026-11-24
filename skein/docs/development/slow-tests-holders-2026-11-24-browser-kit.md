@@ -49,8 +49,20 @@ name.
 
 ### 3.1 The live tree
 
-| Slow test (`browser_stories`) | Held by |
-|---|---|
+In each row the host test checks the operations and each revision's
+HTML, including retained `data-node` ids. The walk checks the live DOM
+and Chromium's accessibility tree in the same revisions.
+
+| Slow test (`browser_stories::live_tree`) | Host (`skein-ui-web-tests::machine::tree`) | Live (`browser_stories::live_tree`) |
+|---|---|---|
+| `the_first_child_gets_a_group_in_the_drawn_tree` | `the_first_child_creates_a_tree_group` | `the_live_tree_applies_each_patch_in_place`: `first`, group creation and backend node identity. |
+| `a_child_is_inserted_between_two_live_keyed_children` | `a_child_is_inserted_before_its_keyed_sibling` | `the_live_tree_applies_each_patch_in_place`: `middle`, sibling order and backend node identity. |
+| `a_keyed_child_moves_within_its_live_group` | `moving_keyed_children_keeps_their_node_ids` | `the_live_tree_applies_each_patch_in_place`: `move`, sibling order and backend node identity. |
+| `a_childs_name_changes_on_the_same_live_node` | `renaming_a_keyed_child_keeps_its_node_id` | `the_live_tree_applies_each_patch_in_place`: `rename`, same backend node found by its new name, old name gone. |
+| `removing_the_last_child_leaves_no_empty_live_group` | `removing_the_last_child_removes_its_group` | `the_live_tree_applies_each_patch_in_place`: `last`, no empty group, child and grandchild gone, stable branch kept. |
+| `a_refreshed_form_removes_its_field_and_companion_label` | `removing_the_refreshed_form_removes_its_label` | `the_live_tree_applies_each_patch_in_place`: `form`, renamed form with its label and input, then no form, label or input and no accessible Name field. |
+| `a_paragraph_splits_two_live_runs_which_grow_and_merge_in_order` | `a_paragraph_splits_then_rejoins_keyed_runs` | `the_live_tree_applies_each_patch_in_place`: `mixed`, paragraph and run placement, child order and backend node identity. |
+| `shown_folded_children_patch_in_the_live_summary` | `the_folded_group_patches_and_moves_through_the_summary` | `the_live_tree_applies_each_patch_in_place`: `shown-folded`, summary order, group placement, meter attributes, caption and Extra, and the disclosure's accessible name. |
 
 ### 3.2 The refused add
 
