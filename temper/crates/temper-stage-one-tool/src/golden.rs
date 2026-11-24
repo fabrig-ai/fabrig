@@ -545,11 +545,20 @@ pub fn profile() -> Result<SettingsFile, GoldenError> {
     decode_settings(include_bytes!("../golden/profile.json"))
 }
 
+pub(crate) fn obligations_arguments(args: &[String]) -> Result<bool, String> {
+    match args {
+        [] => Ok(false),
+        [flag] if flag == "--json" => Ok(true),
+        _ => Err(crate::TABLE.refusal(&crate::cli::OBLIGATIONS, "invalid arguments")),
+    }
+}
+
 /// Print the obligations, or the whole golden as JSON.
 pub fn main(args: &[String]) -> ExitCode {
-    if !(args.is_empty() || args == ["--json"]) {
-        return crate::cli::refuse(&crate::TABLE.refusal(&crate::cli::OBLIGATIONS, "invalid arguments"));
-    }
+    let as_json = match obligations_arguments(args) {
+        Ok(as_json) => as_json,
+        Err(error) => return crate::cli::refuse(&error),
+    };
     let golden = match reference() {
         Ok(golden) => golden,
         Err(e) => {
@@ -557,7 +566,9 @@ pub fn main(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    if args.is_empty() {
+    if as_json {
+        print!("{}", include_str!("../golden/reference.json"));
+    } else {
         for obligation in &golden.obligations {
             let (kind, detail) = match &obligation.kind {
                 ObligationKind::Setting(s) => {
@@ -568,8 +579,6 @@ pub fn main(args: &[String]) -> ExitCode {
             };
             println!("{}  {kind}  {}: {detail}", obligation.id, obligation.row);
         }
-    } else {
-        print!("{}", include_str!("../golden/reference.json"));
     }
     ExitCode::SUCCESS
 }

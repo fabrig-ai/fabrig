@@ -301,6 +301,99 @@ fn workers_open_failures_keep_the_checks_words_and_fail() {
     );
 }
 
+#[test]
+fn checking_an_empty_deployment_names_the_missing_generation() {
+    use jig_protocol_store::{Generations, OpenRefusal};
+    use temper_engine_service::{End, Stop};
+
+    let why = OpenRefusal::Generations { why: Generations::Unreadable };
+    let mut report = super::tests::report(Event::OpenRefused { owner: Token::new(1), why: why.clone() });
+    report.end = Some(End::Stopped(Stop::StoreOpen { why }));
+    assert_eq!(
+        lines("temper-engine", &report, &directories(), b"/state"),
+        (concat!(
+            "temper-engine upgrade: whole rehearsal/tool time: 1000000000 ns\n",
+            "temper-engine serve: The `active` file in /state does not name a generation, and this start has changed nothing in it. ",
+            "Restore /state from a backup, or write `active` again to name a generation under `generations/` that stands, and start again.\n",
+            "temper-engine upgrade: workers may stay: unknown; the copy keeps no wires\n",
+        ).into(), 1)
+    );
+}
+
+#[test]
+fn going_back_on_an_empty_deployment_names_the_unreadable_directory() {
+    let report = super::tests::report(Event::BackRefused { owner: Token::new(1), why: BackRefusal::Unreadable });
+    assert_eq!(
+        lines("temper-engine", &report, &directories(), b"/state"),
+        (concat!(
+            "temper-engine upgrade: the deployment could not be read; check its directory and permissions, or restore a backup\n",
+            "temper-engine upgrade: whole rehearsal/tool time: 1000000000 ns\n",
+        ).into(), 1)
+    );
+}
+
+#[test]
+fn checking_and_starting_name_the_same_restore_refusals() {
+    use jig_domain_core::{
+        HeldLimit, Key,
+        settings::Setting,
+        start::{Failure, LiveSet, Numbered, Phase},
+    };
+    use jig_domain_people::{Key::Person, RestoreBound::IdentityBytes};
+    use temper_engine_service::{End, Stop};
+
+    // The simulated fixtures hold an eight-byte identity at a seven-byte limit,
+    // and one version above the standard profile's sixteen.
+    const HELD_IDENTITY: u64 = 8;
+    const IDENTITY_LIMIT: u64 = 7;
+    const PERSON: u64 = 1;
+    const STOCK_VERSIONS: u32 = 16;
+    const HELD_VERSIONS: u32 = STOCK_VERSIONS + 1;
+    const FIRST_PAST_OWN: u32 = 65;
+    const FIRST_STOCK_CHARTER: u32 = 1;
+    let dirs = directories();
+    for (failure, words) in [
+        (
+            Failure::LiveSet {
+                set: LiveSet::PeopleBound(IdentityBytes),
+                key: Key::People(Person(PERSON)),
+                held: HELD_IDENTITY,
+                limit: IDENTITY_LIMIT,
+            },
+            "PeopleBound(IdentityBytes), key People(Person(1)), held 8, limit 7",
+        ),
+        (
+            Failure::Numbers {
+                settings: Box::new([Numbered { setting: Setting::Charter(FIRST_PAST_OWN), changed: true }]),
+            },
+            "settings out of their numbers (the stock's 1 to 32, a deployment's own 33 to 64): changed charter 65",
+        ),
+        (
+            Failure::Taken { settings: Box::new([Setting::Charter(FIRST_STOCK_CHARTER)]) },
+            "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): charter 1; move each to 33 to 64 on the build that runs now, then start this one",
+        ),
+        (
+            Failure::HeldPastLimit { which: HeldLimit::Versions, held: HELD_VERSIONS, limit: STOCK_VERSIONS },
+            "Versions, held 17, limit 16",
+        ),
+    ] {
+        let expected = format!("temper-engine serve: restart refused during core restore: {words}\n");
+        let mut report = rehearsal();
+        report.end = Some(End::Stopped(Stop::StartRefused { phase: Some(Phase::LoadCore), failure }));
+        assert_eq!(
+            crate::lines::ending_with_binary("temper-engine", report.end.as_ref(), false, &dirs, b"/state", &[]),
+            (expected.clone(), 1)
+        );
+        let (text, exit) = lines("temper-engine", &report, &dirs, b"/state");
+        assert_eq!(exit, 1);
+        assert_eq!(
+            text.split_inclusive('\n').filter(|line| line.contains("restart refused")).collect::<String>(),
+            expected
+        );
+        assert!(!text.contains("registry commit, jobs and restores pass"), "{text}");
+    }
+}
+
 fn directories() -> Directories {
     Directories {
         config: b"/config".as_slice().into(),
