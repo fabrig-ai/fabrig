@@ -1,7 +1,7 @@
 # Secrets
 
 - **A second skein-kv store,** in `secrets/`, opened as a private
-  directory (skein's `runtime/io/files.md`, 3): the directory `0o700`, its files
+  directory (skein's `runtime/io/files.md`, 11): the directory `0o700`, its files
   `0o600`, owned by the engine's user. The store, its snapshots and its
   logs hold no secret.
 

@@ -24,7 +24,7 @@ variable, else its default.
   missing parents, are made private (0o700) when absent; an existing one
   must be the process's user's, private, and not reached through a link
   at its name, or the start is refused, naming it (skein's `runtime/io/files.md`,
-  3). A linked parent is accepted, as the programs directory's is
+  11). A linked parent is accepted, as the programs directory's is
   (`worker.md`, section 2). The configuration directory must hold the document; only
   `temper-box init` makes it.
 - **Each path member's kind:**

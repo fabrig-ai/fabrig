@@ -674,10 +674,10 @@ a service copies that.
   its stylesheet, loaded after `skein-ui.css`, styling its tokens and
   placing its regions (ui/web/README.md, section 10). Its page is the
   bundler's (ui/web/bundle.md, 3).
-- **An element of its own** (ui/web/elements.md, 1): a region carrying
+- **An element of its own** (ui/web/elements.md, 5): a region carrying
   `notes-card` is an `<article>`, which keeps the region's role and
   name.
-- **A component** (ui/README.md, section 10; ui/web/elements.md, 1): the body's text
+- **A component** (ui/README.md, section 10; ui/web/elements.md, 5): the body's text
   area carries the token `notes-grow`, which the look's component table
   maps, for a text area, to a text area that grows with its words. It
   keeps its node's role and name, reports only the input acts a text

@@ -64,7 +64,7 @@ it. A checkpoint inside it, laid out as a stopped deployment's directory
 
 - **Left out:** a snapshot still being written and the temporary of a
   durable replace (skein's `data/kv.md`, 5; skein's
-  `runtime/io/files.md`, 2); a segment no hold names (skein's
+  `runtime/io/files.md`, 10); a segment no hold names (skein's
   `data/kv.md`, 2.3); a transcript's or a log's bytes past what the map
   at C names; a log or a transcript no row at C names; every other
   generation and every other checkpoint.
@@ -270,7 +270,7 @@ and no serving request behind more than one of its own.
 1. **The temporary** made: `checkpoints/<name>.skein-<16 hex>/`, then
    `generations/1/`, `store/`, `store/logs/` and `transcripts/` in it,
    each `0o700`, and `secrets/` opened private (skein's
-   `runtime/io/files.md`, 3); each directory durable as io makes it.
+   `runtime/io/files.md`, 11); each directory durable as io makes it.
 2. **Each name checked** in the active generation's `store/` and
    `secrets/`, a page at a time: `snapshot`, a segment's name, `logs`
    (the store's alone), and the temporaries of 2.2 are known; any other

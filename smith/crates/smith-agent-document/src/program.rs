@@ -31,7 +31,7 @@ pub enum Refusal {
     Io { path: PathBuf, error: std::io::Error },
 }
 
-/// What makes an existing directory unsafe (`skein/docs/design/runtime/io/files.md`, 3).
+/// What makes an existing directory unsafe (`skein/docs/design/runtime/io/files.md`, 11).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unsafe {
     /// A symbolic link, not a directory reached directly.

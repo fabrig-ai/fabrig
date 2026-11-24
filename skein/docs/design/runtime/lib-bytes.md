@@ -60,7 +60,7 @@
   that holds one prints, logs and traces without it (../data/codec/README.md, section 3).
   Its owner reads the bytes with `expose`, which makes each use visible in
   review. Clone, equality and `Hash` are over its bytes, as a record's
-  derives need; it neither zeroes nor locks memory (io/files.md, 3).
+  derives need; it neither zeroes nor locks memory (io/files.md, 11).
 - **A carrier prints lengths.** A record carrying a peer's bytes prints them
   as their length in `Debug`, never a byte of them, and a header prints its
   name and its value's length, so a credential passing through prints and

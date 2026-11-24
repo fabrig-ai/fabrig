@@ -176,7 +176,7 @@ stop timeout are unchanged.
   until `temper-box program-login` makes it; one that exists must be a
   directory of the user's own with no group or other bits, not reached
   through a link at its name, or the start is refused, naming it
-  (skein's `runtime/io/files.md`, 3). A linked parent is accepted. temper reads
+  (skein's `runtime/io/files.md`, 11). A linked parent is accepted. temper reads
   nothing inside it and creates no missing programs directory at serve.
 - **The same names as the engine's** hold by construction: the agent's
   endpoints are `engine.llm`'s, under the same names (`figures.md`,

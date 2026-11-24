@@ -398,7 +398,7 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   switch's rename, `A` stays active and unchanged,
   and the next start removes `A + 1` and begins again from a fresh
   copy. A switch answered `Failed` with its rename made (`committed`:
-  skein's `runtime/io/files.md`, 2) may leave `A + 1` active, whole and checked,
+  skein's `runtime/io/files.md`, 10) may leave `A + 1` active, whole and checked,
   which the next start opens.
 - **Room.** On disk, what the two generations do not share, never the
   transcripts (temper's `draft/store-shape.md`, section 5): at the

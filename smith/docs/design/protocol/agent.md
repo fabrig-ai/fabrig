@@ -256,7 +256,7 @@ spawns one (host.md, section 5.2).
   A fact taken by one sink is never taken from the other.
 - **Written through io, as an append stream.** The shell opens the trace
   file for appending, beneath its root, and io adopts it as a write
-  stream with the configured `write_deadline` (skein's `runtime/io/files.md`, 1). A
+  stream with the configured `write_deadline` (skein's `runtime/io/files.md`, 9). A
   destination that is a pipe or a redirected standard output is adopted
   the same way. Each record is encoded at its final length into the
   stream's output, within its cap. A write that outstays the deadline
@@ -408,7 +408,7 @@ run has.
   - process groups, signalled whole (skein's `runtime/io/processes.md`), and
     contained trees (skein's `runtime/io/processes.md`, 2–4);
   - append streams on files, with write and close deadlines (skein's
-    `runtime/io/files.md`, 1);
+    `runtime/io/files.md`, 9);
   - owner close, with a closed terminal, for every component the agent
     owns, the LLM connection pool's included (programming-model.md,
     section 5.2; skein's `llm/connection.md`);

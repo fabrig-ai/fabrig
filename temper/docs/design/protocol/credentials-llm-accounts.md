@@ -119,7 +119,7 @@ sources in its holder's order. temper configures the LLM providers
     `protocol/agent.md`, section 4); a programs directory, or a
     `<directory>/NAME`, that exists and is not a directory of the
     user's own with no group or other bits, or is a link at its name
-    (skein's `runtime/io/files.md`, 3). Linked parent directories are accepted.
+    (skein's `runtime/io/files.md`, 11). Linked parent directories are accepted.
   - It makes the programs directory and `<directory>/NAME`, each
     `0o700`, when missing, then replaces itself with the program's own
     sign-in, `claude auth login`, at the configured path. The
