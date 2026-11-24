@@ -1,23 +1,18 @@
-//! GitHub stories share one forge and its authenticated git route (testing/real-loop.md).
-use crate::{
-    Exit, Ran, argv,
-    calls::{D1, Step, browse, call, file, github_app, number, sign_in},
-    fixtures, forge, landing,
-};
+//! Connected GitHub fixture for the startup teardown story (testing/real-loop.md).
+use crate::{fixtures, forge, landing};
 use serde_json::{Value, json};
-use skein_fake_forge_domain::{self as domain, Observation, api};
+use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_forge_github::{
     self as layer,
     installations::{Kind, Reach},
 };
 use skein_fake_peers::forge::{Forge, Peer};
 use skein_lib::{Duration, List, Secret, Wall};
-use std::{cell::RefCell, collections::BTreeMap, fmt::Write as _, net::SocketAddr, path::Path, rc::Rc};
+use std::{cell::RefCell, net::SocketAddr, path::Path, rc::Rc};
 use temper_github_app::APP;
 
-pub const INSTALLATION: u64 = 1;
-pub const OLD_STRAY_AGE_MS: u64 = 2000;
-pub const REPOSITORY: u32 = 1;
+pub(crate) const INSTALLATION: u64 = 1;
+const REPOSITORY: u32 = 1;
 const ACME: u64 = 10;
 const UMBRA: u64 = 20;
 // The layer retains at most this many git calls; a full ring fails the story.
@@ -36,52 +31,12 @@ pub(crate) fn protocol_limits() -> skein_fake_forge_forgejo::Limits {
     limits
 }
 
-#[derive(Clone, Copy)]
-#[expect(clippy::struct_excessive_bools, reason = "independent switches select the fake GitHub setup scenario")]
-pub struct Fixture {
-    /// Seeded App records and acme installation; false exercises a person connecting.
-    pub connected: bool,
-    /// Connect through the browser instead of preparing a pasted App.
-    pub manifest: bool,
-    /// Seed an unaccepted umbra installation before the person's paste.
-    pub old_stray: bool,
-    /// Add an unaccepted account once the browser has installed acme.
-    pub unaccepted_after_install: bool,
-    /// The person's App hook, which paste and reconcile may need to repair.
-    pub pasted_hook: &'static [u8],
-    /// Repository contents, CI and notifications; the world supplies ids and names.
-    pub setup: fn() -> api::Setup,
-    /// Keep HTTP heads when the story asserts on App requests.
-    pub keep_heads: bool,
-    /// Fake timings and history capacity, before the domain allocates them.
-    pub configure_domain: fn(&mut domain::Config),
-    /// Seed repository history before the peer starts; setup itself starts no CI.
-    pub prepare: fn(&mut domain::Domain, &skein_lib::Env<domain::Config>),
-    pub config: fn() -> layer::Config,
-    pub configure: fn(&mut temper_playground::documents::Configuration, &mut Value, SocketAddr),
-}
-#[must_use]
-pub fn fixture() -> Fixture {
-    Fixture {
-        connected: true,
-        manifest: false,
-        old_stray: false,
-        unaccepted_after_install: false,
-        pasted_hook: b"https://temper-test.invalid/",
-        setup,
-        keep_heads: false,
-        configure_domain: |_| {},
-        prepare: |_, _| {},
-        config,
-        configure: |_, _, _| {},
-    }
-}
 fn setup() -> api::Setup {
     let mut setup = (forge::fixture().setup)();
     setup.hooked = false;
     setup
 }
-fn config() -> layer::Config {
+fn layer_config() -> layer::Config {
     let mut accounts = List::with_capacity(2);
     let mut repositories = List::with_capacity(2);
     for (login, id, name, repository) in [("acme", ACME, "app", REPOSITORY), ("umbra", UMBRA, "tool", 2)] {
@@ -149,7 +104,6 @@ pub(crate) fn write(
     path: &Path,
     address: SocketAddr,
     clients: SocketAddr,
-    fixture: Fixture,
     value: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
     value["world_settings"] = serde_json::from_slice(&std::fs::read(path.join("world-settings.json"))?)?;
@@ -173,124 +127,17 @@ pub(crate) fn write(
         broaden(&mut project["policy"]["roles"][0]["authority"]["grants"]);
         broaden(&mut project["policy"]["projections"]);
     }
-    (fixture.configure)(value, &mut agent, address);
     fixtures::turn_bounds::apply(value, fixtures::turn_bounds::turn_body(&agent));
     temper_agent_fixtures::apply(value, path, &agent);
     fixtures::finish_configuration(path, value)?;
     fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }
 
-#[derive(Debug)]
-pub struct Branch {
-    pub head: u64,
-    pub tree: BTreeMap<Vec<u8>, Vec<u8>>,
-}
-/// The App returned to the person by the fake's conversion, never a real key.
-pub struct MadeApp {
-    pub id: u64,
-    pub pem: Secret,
-}
-
-#[derive(Default)]
-pub struct Seen {
-    observations: Vec<domain::Observation>,
-    pub app: Option<MadeApp>,
-    pub git_calls: Vec<layer::GitCall>,
-    /// Total successful mints; the pin exposes no per-installation mint counters.
-    pub minted: u64,
-    pub unaccepted: Option<u64>,
-    pub installations: Vec<(u64, u64, Vec<u8>)>,
-    /// App request methods and targets from the peer's redacted HTTP heads.
-    pub app_calls: Vec<(skein_http::Method, Vec<u8>)>,
-    pub installation_created: Vec<(u64, Wall)>,
-    /// The git-call count when each recorded ctl call first completed.
-    pub git_after_call: Vec<usize>,
-    pub branches: BTreeMap<Vec<u8>, Branch>,
-    /// Pull creation and merging on acme/app, retained in the layer's order.
-    pub pulls: Vec<domain::Observation>,
-}
-impl Seen {
-    /// Domain records in order, including CI reports at each pushed head.
-    #[must_use]
-    pub fn observations(&self) -> &[domain::Observation] {
-        &self.observations
-    }
-
-    pub(crate) fn seed_unaccepted(&mut self, peer: &mut Peer) -> Result<(), String> {
-        if self.unaccepted.is_some() {
-            return Ok(());
-        }
-        let layer = peer.github_layer_mut().ok_or("GitHub layer")?;
-        if !layer.installations().iter().any(|row| row.account == ACME) {
-            return Ok(());
-        }
-        let id = layer
-            .installations_mut()
-            .install(UMBRA, b"umbra", Kind::Organization, Reach::All, Wall::EPOCH)
-            .map_err(|error| format!("unaccepted installation beside acme: {error:?}"))?;
-        self.unaccepted = Some(id);
-        Ok(())
-    }
-
-    pub(crate) fn checkpoint(&mut self, peer: &Peer, calls: &[crate::calls::Called]) -> Result<(), String> {
-        let count = peer.git_calls().ok_or("GitHub git records")?.len();
-        if count >= GIT_RECORDS {
-            return Err("git record ring never filled".into());
-        }
-        while calls.get(self.git_after_call.len()).is_some_and(|call| call.exit.is_some()) {
-            self.git_after_call.push(usize::try_from(count).map_err(|error| format!("git count: {error:?}"))?);
-        }
-        Ok(())
-    }
-    pub(crate) fn collect(&mut self, peer: &Peer, handle: &Rc<RefCell<Forge>>) -> Result<(), String> {
-        let layer = peer.github_layer().ok_or("GitHub layer")?;
-        self.git_calls = layer.git_calls().iter().copied().collect();
-        self.minted = layer.installations().minted();
-        self.installations =
-            layer.installations().iter().map(|row| (row.id, row.account, row.login.to_vec())).collect();
-        self.installation_created = layer.installations().iter().map(|row| (row.id, row.created)).collect();
-        self.app_calls = peer
-            .observations()
-            .iter()
-            .filter_map(|record| {
-                let skein_fake_peers::forge::Observation::Head { call, .. } = record else { return None };
-                (call.target.as_ref() == b"/app" || call.target.starts_with(b"/app/"))
-                    .then(|| (call.method, call.target.to_vec()))
-            })
-            .collect();
-        let mut forge = handle.borrow_mut();
-        while let Some(observation) = forge.domain.pop_observation() {
-            self.observations.push(observation.clone());
-            if matches!(&observation,
-                domain::Observation::Opened { repository, .. } | domain::Observation::Merged { repository, .. }
-                if repository.as_ref() == b"acme/app")
-            {
-                self.pulls.push(observation);
-                continue;
-            }
-            if let domain::Observation::Moved { repository, branch, to: head, .. } = observation
-                && repository.as_ref() == b"acme/app"
-            {
-                // A landed topic branch may already be deleted. Its move records
-                // the pushed object, which remains available after that cleanup.
-                let object = forge.domain.object(head).ok_or("pushed object")?;
-                self.branches.insert(
-                    branch.to_vec(),
-                    Branch {
-                        head,
-                        tree: object.tree.iter().map(|(path, bytes)| (path.to_vec(), bytes.to_vec())).collect(),
-                    },
-                );
-            }
-        }
-        Ok(())
-    }
-}
 pub(crate) struct State {
     pub(crate) handle: Rc<RefCell<Forge>>,
 }
 impl State {
-    pub(crate) fn new(fixture: Fixture) -> (Self, Peer) {
+    pub(crate) fn new() -> (Self, Peer) {
         let mut config = temper_worker_checkout_world::hosted::config();
         // These smoke repositories have two small files each. The GitHub
         // layer pads every API response to its admitted wire capacity, so
@@ -303,7 +150,6 @@ impl State {
         // Mergeability settles on the smoke story's clock, not the checkout world's two seconds.
         config.settle_min = Duration::ZERO;
         config.settle_max = Duration::ZERO;
-        (fixture.configure_domain)(&mut config);
         assert!(skein_fake_forge_http::git::fits(&protocol_limits().git(), &config.limits), "bounded git trees fit");
         let clock = skein_shell::Clock::new().now();
         config.skew = domain::Skew::Ahead(Duration::from_nanos(
@@ -311,14 +157,13 @@ impl State {
         ));
         let mut domain = domain::Domain::new(&config, fixtures::SEED);
         for (id, name) in [(REPOSITORY, b"acme/app".as_slice()), (2, b"umbra/tool".as_slice())] {
-            let mut setup = (fixture.setup)();
+            let mut setup = setup();
             setup.id = id;
             setup.name = name.into();
             domain::repository(&mut domain, &config, setup);
         }
         domain::grant(&mut domain, b"acme/app", APP.bot, api::Permission::Admin);
         let env = clock.with(config);
-        (fixture.prepare)(&mut domain, &env);
         let handle = Rc::new(RefCell::new(Forge::new(domain, env.limits)));
         let wire = protocol_limits();
         let limits = layer::Limits {
@@ -349,329 +194,20 @@ impl State {
             ([127, 0, 0, 1], 0).into(),
             ([127, 0, 0, 1], 0).into(),
             hosted,
-            (fixture.config)(),
+            layer_config(),
             limits,
             handle.clone(),
             fixtures::SEED,
         )
         .expect("GitHub peer")
-        // Domain changes, git calls and installation facts have their own
-        // observers. Freeze no read replies or connection churn, and keep
-        // HTTP heads only for stories that assert on App requests.
-        .keeping(skein_fake_peers::forge::Kept { heads: fixture.keep_heads, ..skein_fake_peers::forge::Kept::NONE });
-        if fixture.connected {
-            let id = peer
-                .github_layer_mut()
-                .expect("GitHub layer")
-                .installations_mut()
-                .install(ACME, b"acme", Kind::Organization, Reach::All, Wall::EPOCH)
-                .expect("acme installed");
-            assert_eq!(id, INSTALLATION, "layer's first installation");
-        }
+        .keeping(skein_fake_peers::forge::Kept::NONE);
+        let id = peer
+            .github_layer_mut()
+            .expect("GitHub layer")
+            .installations_mut()
+            .install(ACME, b"acme", Kind::Organization, Reach::All, Wall::EPOCH)
+            .expect("acme installed");
+        assert_eq!(id, INSTALLATION, "layer's first installation");
         (Self { handle }, peer)
     }
-}
-
-/// Stand in for the person's developer-settings work, before any ctl call.
-pub(crate) fn make_app(peer: &mut Peer, clients: SocketAddr, path: &Path, fixture: Fixture) -> MadeApp {
-    use skein_forge::github::{pin, request::Method, setup};
-    use skein_lib::{ReplyTo, Token};
-    use std::fmt::Write as _;
-    let origin = format!("http://{clients}");
-    let setup_url = format!("{origin}/forges/1/github/setup");
-    let redirect = format!("{origin}/forges/1/github/redirect");
-    let manifest = setup::manifest(
-        &setup::Values {
-            name: b"temper-person",
-            url: origin.as_bytes(),
-            hook_url: fixture.pasted_hook,
-            redirect_url: redirect.as_bytes(),
-            setup_url: setup_url.as_bytes(),
-        },
-        &protocol_limits().documents.writer,
-    )
-    .expect("temper manifest");
-    // Percent-encode the form value, including JSON punctuation and URL queries.
-    let mut form = String::from("manifest=");
-    for byte in &manifest {
-        write!(form, "%{byte:02X}").expect("form byte");
-    }
-    let layer = peer.github_layer_mut().expect("GitHub layer");
-    assert_eq!(layer.installations().iter().count(), 0, "person starts with no installation");
-    let now = skein_shell::Clock::new().now().wall;
-    let page = layer.page(
-        &layer::pages::Page { method: Method::Post, target: b"/settings/apps/new?state=person", body: form.as_bytes() },
-        now,
-    );
-    assert_eq!(page.status, 200, "developer settings accepts temper's manifest");
-    let html = std::str::from_utf8(&page.body).expect("creation page");
-    let code = html.split_once("?code=").expect("conversion link").1.split('&').next().expect("code");
-    let target = format!("/app-manifests/{code}/conversions");
-    let layer::service::Outcome::Reply(reply) = layer.request(
-        &layer::service::Request {
-            validator: None,
-            method: Method::Post,
-            target: target.as_bytes(),
-            authorization: None,
-            version: Some(pin::API_VERSION.as_bytes()),
-            agent: true,
-            body: b"",
-        },
-        now,
-        ReplyTo::new(Token::new(1)),
-    ) else {
-        panic!("conversion replies without domain I/O")
-    };
-    assert_eq!(reply.status, 201, "fake converts the person's App");
-    let value: Value = serde_json::from_slice(&reply.body).expect("conversion JSON");
-    let app = MadeApp {
-        id: value["id"].as_u64().expect("converted App id"),
-        pem: Secret::new(value["pem"].as_str().expect("converted PEM").as_bytes().into()),
-    };
-    fixtures::private(&path.join("github-app.pem"), app.pem.expose()).expect("private downloaded key");
-    if fixture.old_stray {
-        let created = Wall::from_nanos(
-            now.as_nanos().checked_sub(Duration::from_millis(OLD_STRAY_AGE_MS).as_nanos()).expect("old stray time"),
-        );
-        let id = layer
-            .installations_mut()
-            .install(UMBRA, b"umbra", Kind::Organization, Reach::All, created)
-            .expect("old stray installed");
-        assert_eq!(id, INSTALLATION, "stray precedes the person's accepted installation");
-    }
-    app
-}
-
-// Call positions in connect_adopt_and_ask_for_a_change.
-const INSTALL: usize = 5;
-const CHANGE: usize = 11;
-const CHAT: usize = 12;
-const CHAT_TASK: u64 = 1;
-const CHANGE_TASK: u64 = 2;
-
-/// Connect the App, adopt acme/app and ask a chat to deliver a change.
-#[must_use]
-pub fn connect_adopt_and_ask_for_a_change() -> Vec<Step> {
-    vec![
-        sign_in(D1),
-        call(D1, argv!["account", "add-key", "1", file("fixture.key"), "--deployment", "--key", "github-llm"]),
-        call(D1, argv!["account", "list", "--until", "usable"]),
-        call(
-            D1,
-            argv!["forge", "connect", "1", "github-app", github_app(), file("github-app.pem"), "--key", "github-app"],
-        ),
-        call(D1, argv!["forge", "list", "--until", "connected:1"]),
-        call(D1, argv!["forge", "install", "1", "--key", "github-install"]),
-        browse(INSTALL),
-        call(D1, argv!["forge", "list", "--until", "settled"]),
-        call(
-            D1,
-            argv![
-                "repository",
-                "adopt",
-                "--project",
-                "1",
-                "--forge",
-                "1",
-                "--owner",
-                "acme",
-                "--name",
-                "app",
-                "--landing",
-                "main",
-                "--key",
-                "adopt-app"
-            ],
-        ),
-        call(D1, argv!["chat", "start", "--project", "1", "--key", "github-land", "@forge_chat Update README"]),
-        // The first reply follows delegate creation. Join that change before
-        // starting the chat's final wait: its report follows the landing.
-        call(D1, argv!["task", "show", number(CHAT_TASK), "--until", "replied"]),
-        call(D1, argv!["task", "show", number(CHANGE_TASK), "--until", "ended", "--json"]),
-        call(D1, argv!["task", "show", number(CHANGE_TASK), "--json"]),
-        call(D1, argv!["task", "show", number(CHAT_TASK), "--until", "ended", "--json"]),
-    ]
-}
-
-/// Every client call succeeds and the installation visit confirms setup.
-pub fn check_connection(ran: &Ran) {
-    for (index, result) in ran.calls().iter().enumerate() {
-        assert_eq!(result.exit, Some(Exit::Code(0)), "call {index}: {result:?}");
-    }
-    let [visit] = ran.browsed() else { panic!("one installation visit") };
-    assert_eq!(visit.call, INSTALL);
-    assert_eq!(visit.hops, [302, 200]);
-    assert!(
-        skein_lib::bytes::find(&visit.body, b"temper has the installation; you may close this tab.").is_some(),
-        "the setup page says so"
-    );
-}
-
-/// Check the single landing and return its merge commit as hex.
-#[must_use]
-pub fn check_landing(ran: &Ran) -> String {
-    check_landing_at(ran, CHANGE)
-}
-
-/// Check the landing using the story's plain change-document read.
-#[must_use]
-pub fn check_landing_at(ran: &Ran, change_call: usize) -> String {
-    let seen = ran.github();
-    let opened: Vec<_> =
-        seen.pulls.iter().filter(|row| matches!(row, Observation::Opened { kind: api::Kind::Pull, .. })).collect();
-    let merged: Vec<_> = seen.pulls.iter().filter(|row| matches!(row, Observation::Merged { .. })).collect();
-    let [Observation::Opened { repository, number: pull, by: author, .. }] = opened.as_slice() else {
-        panic!("one opened pull: {opened:?}")
-    };
-    let [Observation::Merged { repository: merged_repository, number, base, head, commit, by }] = merged.as_slice()
-    else {
-        panic!("one merge: {merged:?}")
-    };
-    assert_eq!(repository.as_ref(), b"acme/app");
-    assert_eq!(merged_repository, repository);
-    assert_eq!(number, pull);
-    assert_eq!(base.as_ref(), b"main");
-    assert_eq!(*by, temper_github_app::APP.bot);
-    assert_eq!(author, by);
-    let branches: Vec<_> = seen.branches.iter().filter(|(name, _)| name.as_slice() != b"main").collect();
-    let [(_, branch)] = branches.as_slice() else { panic!("one pushed branch: {branches:?}") };
-    assert_eq!(*head, branch.head, "merge at the coder's pushed head");
-    let main = seen.branches.get(b"main".as_slice()).expect("main moved by merge");
-    assert_eq!(main.head, *commit);
-    assert_eq!(main.tree.get(b"README.md".as_slice()).expect("README"), &[landing::README, landing::EDIT].concat());
-    let task: Value = serde_json::from_slice(&ran.calls()[change_call].stdout).expect("change document");
-    assert_eq!(task["chip"]["task"], 2);
-    assert_eq!(task["chip"]["phase"], "ended");
-    let result = &task["result"]["value"]["change"];
-    assert_eq!(result["kind"], 1, "landed change");
-    assert_eq!(result["part"]["key"]["number"], *pull);
-    let mut hex = String::new();
-    for byte in domain::object_bytes(*commit) {
-        write!(hex, "{byte:02x}").expect("commit hex");
-    }
-    let words = result["words"]["bytes"].as_str().expect("landing words");
-    let mut lines = words.lines();
-    assert_eq!(lines.next(), Some(hex.as_str()), "first result line names the merge commit");
-    assert!(
-        lines.next().expect("landed pull line").starts_with(&format!("pull request #{pull} of acme/app on ")),
-        "second result line names the landed pull: {words}"
-    );
-    hex
-}
-
-/// The chat receives the landed change result before reporting to the person.
-pub fn check_chat_heard_the_landing(ran: &Ran, hex: &str) {
-    check_chat_heard_the_landing_at(ran, hex, CHANGE, CHAT);
-}
-
-/// Check the result delivery using this story's change and completed-chat reads.
-pub fn check_chat_heard_the_landing_at(ran: &Ran, hex: &str, change_call: usize, chat_call: usize) {
-    let chat: Value = serde_json::from_slice(&ran.calls()[chat_call].stdout).expect("chat document");
-    assert_eq!(chat["task"]["result"]["value"]["report"]["bytes"], "The change landed.");
-    let change: Value = serde_json::from_slice(&ran.calls()[change_call].stdout).expect("change document");
-    let words = change["result"]["value"]["change"]["words"]["bytes"].as_str().expect("landing words");
-    assert_eq!(words.lines().next(), Some(hex), "the chat's result begins with the merge id");
-    let told = format!("Result from task 2:\n{words}");
-    let chat_queries: Vec<_> = ran
-        .llm()
-        .iter()
-        .filter_map(|seen| {
-            let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { return None };
-            query.system.windows(b"@forge_chat".len()).any(|word| word == b"@forge_chat").then_some(query)
-        })
-        .collect();
-    let received: Vec<_> = chat_queries
-        .iter()
-        .map(|query| {
-            query
-                .messages
-                .iter()
-                .flat_map(|message| message.parts.iter())
-                .filter_map(|part| match part {
-                    skein_fake_llm_domain::api::Part::Text { text }
-                    | skein_fake_llm_domain::api::Part::ToolOutput { output: text, .. } => {
-                        Some(String::from_utf8_lossy(text).into_owned())
-                    }
-                    skein_fake_llm_domain::api::Part::Opaque { .. }
-                    | skein_fake_llm_domain::api::Part::ToolCall { .. } => None,
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        })
-        .collect();
-    assert!(received.iter().any(|words| words.contains(&told)), "chat heard the landing before replying: {received:?}");
-}
-
-/// Landing scripts that delegate the change by its GitHub repository name.
-#[must_use]
-pub fn scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]> {
-    let mut scripts = landing::scripts(at, u64::from(REPOSITORY), landing::README);
-    scripts[0].turns[0].lines = Box::new([skein_fake_llm_domain::api::Line::Call {
-        name: b"change".as_slice().into(),
-        arguments: br#"{"words":"@coding Fix","repository":"acme/app"}"#.as_slice().into(),
-    }]);
-    scripts
-}
-
-/// Scan scratch files and client output for tokens and the supplied fake App key.
-/// Return the scanned paths so callers can inspect local git objects without another walk.
-#[must_use]
-pub fn check_secrets(ran: &Ran, pem: &[u8], downloaded: Option<&Path>) -> Vec<std::path::PathBuf> {
-    use skein_lib::{
-        Writer,
-        base64::{self, Alphabet},
-    };
-    use std::os::unix::fs::PermissionsExt;
-    let secrets = ran.path().join("state/generations/1/secrets");
-    assert!(secrets.is_dir(), "the excluded directory is jig's secrets store");
-    if let Some(downloaded) = downloaded {
-        // The person's original download is the sole deliberate plaintext input.
-        assert_eq!(std::fs::metadata(downloaded).expect("download").permissions().mode() & 0o777, 0o600);
-    } else {
-        assert!(!ran.path().join("github-app.pem").exists(), "manifest flow has no downloaded paste input");
-    }
-    // Walk once for both checks, never following a symlink into the secrets store.
-    let mut files = Vec::new();
-    let mut pending = vec![ran.path().to_path_buf()];
-    while let Some(path) = pending.pop() {
-        if path == secrets || downloaded == Some(path.as_path()) {
-            continue;
-        }
-        let metadata = std::fs::symlink_metadata(&path).expect("scratch metadata");
-        if metadata.is_dir() {
-            pending.extend(
-                std::fs::read_dir(path).expect("scratch directory").map(|entry| entry.expect("scratch entry").path()),
-            );
-        } else if metadata.is_file() {
-            files.push(path);
-        }
-    }
-    let text = std::str::from_utf8(pem).expect("PEM text");
-    let compact: String = text.lines().filter(|line| !line.starts_with("-----")).collect();
-    let key = base64::decode(Alphabet::Standard, compact.as_bytes(), 4096).expect("converted key DER");
-    let size = base64::encoded_len(Alphabet::Standard, u32::try_from(key.len()).expect("test key length"))
-        .expect("base64 length");
-    let mut encoded = Writer::new(usize::try_from(size).expect("base64 size"));
-    base64::encode(Alphabet::Standard, &key, &mut encoded).expect("base64 key");
-    let encoded = encoded.finish();
-    let clean = |bytes: &[u8]| {
-        assert!(
-            !bytes.windows(40).any(|part| part.starts_with(b"ghs_") && part[4..].iter().all(u8::is_ascii_alphanumeric)),
-            "minted-token pattern outside jig's secrets store"
-        );
-        assert!(skein_lib::bytes::find(bytes, pem).is_none(), "App PEM outside jig's secrets store");
-        assert!(skein_lib::bytes::find(bytes, &key).is_none(), "App DER outside jig's secrets store");
-        assert!(skein_lib::bytes::find(bytes, &encoded).is_none(), "App base64 outside jig's secrets store");
-    };
-    for path in &files {
-        clean(&std::fs::read(path).expect("scratch file"));
-    }
-    for visit in ran.browsed() {
-        clean(&visit.body);
-    }
-    for call in ran.calls() {
-        clean(&call.stdout);
-        clean(&call.stderr);
-    }
-    files
 }

@@ -170,10 +170,7 @@ pub(crate) fn processes(procs: &mut [Proc], now: Time, out: &mut String) {
         | Kind::Ctl(_)
         | Kind::Terminal(_)
         | Kind::Agent(_)
-        | Kind::Git(_)
-        | Kind::GitRoute(_)
-        | Kind::Claude(_)
-        | Kind::Relay(_) => None,
+        | Kind::Git(_) => None,
     });
     for (id, proc) in procs.iter_mut().enumerate() {
         describe(id, proc, now, out);
@@ -214,10 +211,7 @@ pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) 
             writeln!(out, "ctl call={} setup={}", recorded.call, recorded.setup).expect("string writer");
         }
         Kind::Agent(host) => header(id, "smith agent", host.as_ref(), 0, now, out),
-        Kind::Claude(host) => header(id, "fake Claude", host.as_ref(), 0, now, out),
-        Kind::Relay(host) => header(id, "smith relay", host.as_ref(), 0, now, out),
         Kind::Git(host) => header(id, "hosted git", host.as_ref(), 0, now, out),
-        Kind::GitRoute(host) => header(id, "git route", host.as_ref(), 0, now, out),
         Kind::Issuer(host) => header(id, "issuer", host.as_ref(), 0, now, out),
         Kind::Terminal(host) => {
             header(id, "terminal", host.as_ref(), 0, now, out);
@@ -398,7 +392,6 @@ mod tests {
             Fd::new(0),
             Fd::new(1),
             Fd::new(2),
-            false,
         );
         let caller = crate::calls::Caller::new(Vec::new(), std::path::PathBuf::new(), Fd::new(4));
         let mut procs = [Proc::new(Kind::Caller(Box::new(caller))), Proc::new(Kind::Terminal(Box::new(host)))];

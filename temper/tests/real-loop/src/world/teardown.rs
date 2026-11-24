@@ -47,8 +47,7 @@ pub fn startup(
     receipt: Rc<Receipt>,
 ) -> Result<skein_world::real::Outcome<Proc>, String> {
     let patience = crate::PATIENCE;
-    let fixture = crate::github::fixture();
-    let (state, peer) = crate::github::State::new(fixture);
+    let (state, peer) = crate::github::State::new();
     let mut world = World::new_controlled(|controls| {
         let mut judge = cluster_judge(controls, &[], None, patience);
         judge.github = Some(state);
@@ -59,8 +58,6 @@ pub fn startup(
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred LLM"),
             scripts: Some(|_| Box::new([])),
-            groups: None,
-            recipe: None,
             rules: None,
             cue: false,
             placement_hold: true,
@@ -70,7 +67,7 @@ pub fn startup(
         })))
     });
     world.spawn_signals(|signals| {
-        let mut service = ServiceHost::github(scratch.path().into(), signals, fixture);
+        let mut service = ServiceHost::github(scratch.path().into(), signals);
         if let Some(listener) = occupied {
             service.clients_occupied_by(listener);
         }

@@ -22,13 +22,9 @@ const TRANSCRIPT_BYTES: usize = 1_048_576;
 /// A person's act at the terminal, each one a story's step.
 pub enum Act {
     /// Open on its DIRECTORY by the link the service printed last.
-    Open { welcome: bool },
-    /// Open with a small conversation window, so scrolling crosses its byte bound.
-    OpenReading,
+    Open,
     /// Type the last page's numbered control with this label, then the words.
     TypeOn { label: &'static [u8], words: &'static [u8] },
-    /// Type a complete unnumbered command line.
-    Line { words: &'static [u8] },
     /// Type the kept redirect into the labelled secret field. Its value never
     /// enters the act or a formatted diagnostic.
     TypeKept { label: &'static [u8] },
@@ -39,15 +35,7 @@ pub enum Act {
 }
 #[must_use]
 pub fn open() -> crate::calls::Step {
-    crate::calls::Step::Terminal(Act::Open { welcome: false })
-}
-#[must_use]
-pub fn open_reading() -> crate::calls::Step {
-    crate::calls::Step::Terminal(Act::OpenReading)
-}
-#[must_use]
-pub fn line(words: &'static [u8]) -> crate::calls::Step {
-    crate::calls::Step::Terminal(Act::Line { words })
+    crate::calls::Step::Terminal(Act::Open)
 }
 #[must_use]
 pub fn type_on(label: &'static [u8], words: &'static [u8]) -> crate::calls::Step {
@@ -71,8 +59,6 @@ pub struct Read {
     pub lines: Vec<Box<[u8]>>,
     /// The last open's exit, once it ended.
     pub exit: Option<Exit>,
-    /// How many times the harness opened it (two when the first link was spent).
-    pub opens: u32,
 }
 pub struct Page {
     pub bytes: Box<[u8]>,
@@ -95,17 +81,13 @@ pub(crate) fn host(spawn: &Spawn, inherited: &skein_world::Inherited) -> crate::
     let directory = Path::new(std::ffi::OsStr::from_bytes(&spawn.args[0]));
     let target = temper_box_shell::open::target(&spawn.args[1]).expect("printed terminal link");
     let pipe = |child| inherited.pipes.iter().find(|(number, _)| *number == child).expect("terminal pipe").1;
-    crate::world::Proc::new(crate::world::Kind::Terminal(Box::new(compose_with_reading(
+    crate::world::Proc::new(crate::world::Kind::Terminal(Box::new(compose(
         directory,
         target,
         inherited.roots[0].1,
         pipe(0),
         pipe(1),
         inherited.signal,
-        (
-            spawn.args.get(2).is_some_and(|arg| arg.as_ref() == b"welcome"),
-            spawn.args.get(2).is_some_and(|arg| arg.as_ref() == b"reading"),
-        ),
     ))))
 }
 pub(crate) fn compose(
@@ -115,18 +97,6 @@ pub(crate) fn compose(
     stdin: Fd,
     stdout: Fd,
     signals: Fd,
-    welcome: bool,
-) -> Terminal {
-    compose_with_reading(directory, target, parent, stdin, stdout, signals, (welcome, false))
-}
-fn compose_with_reading(
-    directory: &Path,
-    target: temper_box_shell::open::Target,
-    parent: Fd,
-    stdin: Fd,
-    stdout: Fd,
-    signals: Fd,
-    (welcome, reading): (bool, bool),
 ) -> Terminal {
     let (engine, link, start) = match target {
         temper_box_shell::open::Target::Link { engine, link } => {
@@ -135,17 +105,9 @@ fn compose_with_reading(
         }
         temper_box_shell::open::Target::Address { engine } => (engine, None, Start::Token),
     };
-    let mut bounds = limits::native();
-    if reading {
-        let domain = &mut bounds.client.client.domain;
-        // The document admits opening context; turn_text bounds the conversation window.
-        domain.text = 256;
-        domain.long_text = 1024;
-        domain.turn_text = 1024;
-        bounds.client.window_bytes = Some(2048);
-    }
+    let bounds = limits::native();
     let (view, _) = limits::view(&bounds).expect("native view bounds");
-    let mut client = NativeClient::new(
+    let client = NativeClient::new(
         Settings {
             engine: skein_io::Addr::Ip(engine),
             directory: directory.file_name().expect("terminal directory leaf").as_bytes().into(),
@@ -157,9 +119,6 @@ fn compose_with_reading(
         start,
     )
     .expect("native terminal client");
-    if welcome {
-        client.go(temper_client_domain::Address::Welcome { step: temper_client_domain::Step::Welcome });
-    }
     let settings = limits::Terminal { interval: PRINT_INTERVAL, ..limits::terminal() };
     let state = Loop::new(&settings, &view.tree, directory.as_os_str().as_bytes().into(), link);
     Terminal::new(client, state, stdin, stdout, signals).expect("terminal descriptors")
@@ -174,7 +133,6 @@ pub(crate) fn operations() -> u32 {
         Fd::new(0),
         Fd::new(1),
         Fd::new(2),
-        false,
     )
     .operations()
 }
@@ -201,7 +159,6 @@ pub struct Printed {
 #[expect(clippy::struct_excessive_bools, reason = "independent pipe, command and terminal lifecycles")]
 pub(crate) struct Typist {
     pub(crate) read: Read,
-    pub(crate) refused: std::cell::Cell<bool>,
     stdin: Option<Fd>,
     active: bool,
     pending: u32,
@@ -211,8 +168,6 @@ pub(crate) struct Typist {
     cursor: usize,
     opening: bool,
     acted: bool,
-    attempts: u8,
-    link_count: u32,
     partial: Vec<u8>,
     page: Vec<u8>,
     bytes: usize,
@@ -254,25 +209,11 @@ impl Typist {
     fn read_pipe(&mut self, fd: Fd, out: &mut Queue<Submit>) {
         self.submit(Op::PipeRead { fd, buf: vec![0; PAGE_BYTES].into_boxed_slice() }, out);
     }
-    fn launch(&mut self, scratch: &Path, root: Fd, links: u32, act: &Act, out: &mut Queue<Submit>) {
+    fn launch(&mut self, scratch: &Path, root: Fd, out: &mut Queue<Submit>) {
         let link = std::fs::read(scratch.join("link")).expect("last printed link").trim_ascii().to_vec();
-        self.link_count = links;
-        self.read.opens += 1;
-        self.attempts += 1;
         self.read.exit = None;
-        self.refused.set(false);
         self.active = true;
-        let mut args = vec![directory(scratch).as_os_str().as_bytes().into(), link.into()];
-        match act {
-            Act::Open { welcome: true } => args.push(b"welcome".as_slice().into()),
-            Act::OpenReading => args.push(b"reading".as_slice().into()),
-            Act::Open { welcome: false }
-            | Act::TypeOn { .. }
-            | Act::TypeKept { .. }
-            | Act::Line { .. }
-            | Act::See { .. }
-            | Act::Close => {}
-        }
+        let args = vec![directory(scratch).as_os_str().as_bytes().into(), link.into()];
         self.submit(
             Op::Spawn {
                 spawn: Box::new(Spawn {
@@ -388,16 +329,12 @@ impl Typist {
     fn fresh(&self) -> impl Iterator<Item = &Page> {
         self.read.pages[self.cursor..].iter().filter(|page| page.commands == self.commands)
     }
-    fn live(&self, welcome: bool) -> bool {
-        self.fresh().any(|page| {
-            page.bytes.split(|byte| *byte == b'\n').next().is_some_and(|s| s.ends_with(b"== Live"))
-                || welcome && control(&page.bytes, b"Ready").is_some()
-        })
+    fn live(&self) -> bool {
+        self.fresh().any(|page| page.bytes.split(|byte| *byte == b'\n').next().is_some_and(|s| s.ends_with(b"== Live")))
     }
-    pub(crate) fn ready(&self, act: &Act, links: u32) -> bool {
+    pub(crate) fn ready(&self, act: &Act) -> bool {
         match act {
-            Act::Open { welcome } => !self.opening || self.live(*welcome) || !self.active && links > self.link_count,
-            Act::OpenReading => !self.opening || self.live(false) || !self.active && links > self.link_count,
+            Act::Open => !self.opening || self.live() || !self.active,
             Act::TypeOn { label, .. } | Act::TypeKept { label } => {
                 if self.acted {
                     !self.writing && self.fresh().next().is_some()
@@ -410,10 +347,6 @@ impl Typist {
             Act::See { holds, lacks } => self
                 .fresh()
                 .any(|page| contains(&page.bytes, holds) && lacks.is_none_or(|lacks| !contains(&page.bytes, lacks))),
-            Act::Line { .. } => {
-                !self.acted
-                    || !self.writing && self.fresh().last().is_some_and(|page| !contains(&page.bytes, b" (busy)"))
-            }
             Act::Close => !self.acted || !self.active,
         }
     }
@@ -422,29 +355,21 @@ impl Typist {
         act: &Act,
         scratch: &Path,
         root: Fd,
-        links: u32,
         kept: Option<&skein_lib::Secret>,
         out: &mut Queue<Submit>,
     ) -> bool {
         match act {
-            Act::Open { .. } | Act::OpenReading => {
-                let welcome = matches!(act, Act::Open { welcome: true });
+            Act::Open => {
                 if !self.opening {
                     assert!(!self.active, "one open terminal");
                     self.opening = true;
-                    self.attempts = 0;
                     self.cursor = self.read.pages.len();
-                    self.launch(scratch, root, links, act, out);
-                } else if self.live(welcome) {
+                    self.launch(scratch, root, out);
+                } else if self.live() {
                     self.opening = false;
                     return true;
-                } else if !self.active {
-                    assert_eq!(self.read.exit, Some(Exit::Code(1)), "terminal sign-in exit");
-                    assert!(self.refused.get(), "only a spent link permits another open");
-                    assert_eq!(self.attempts, 1, "retry a spent link only once");
-                    if links > self.link_count {
-                        self.launch(scratch, root, links, act, out);
-                    }
+                } else {
+                    assert!(self.active, "terminal exited before Live: {:?}", self.read.exit);
                 }
                 false
             }
@@ -478,19 +403,7 @@ impl Typist {
                     false
                 }
             }
-            Act::Line { words } => {
-                if !self.acted {
-                    self.acted = true;
-                    self.type_line(words.to_vec(), out);
-                    false
-                } else if self.ready(act, links) {
-                    self.acted = false;
-                    true
-                } else {
-                    false
-                }
-            }
-            Act::See { .. } => self.ready(act, links),
+            Act::See { .. } => self.ready(act),
             Act::Close => {
                 if !self.acted {
                     assert!(self.active, "close an open terminal");
@@ -619,7 +532,7 @@ mod tests {
         typist.printed(print.text.as_slice());
         let mut out = Queue::with_capacity(8);
         let act = Act::TypeKept { label };
-        assert!(!typist.act(&act, Path::new("unused"), Fd::new(3), 0, Some(&kept), &mut out));
+        assert!(!typist.act(&act, Path::new("unused"), Fd::new(3), Some(&kept), &mut out));
         let submit = out.pop().expect("secret input command");
         let Op::PipeWrite { bytes, .. } = submit.kind else { panic!("secret field pipe write") };
         let command = skein_ui_text::command(
@@ -657,12 +570,12 @@ mod tests {
         typist.commands = 1;
         typist.cursor = typist.read.pages.len();
         let see = Act::See { holds: b"answer", lacks: Some("▍".as_bytes()) };
-        assert!(!typist.ready(&see, 1), "the old page is not a new observation");
+        assert!(!typist.ready(&see), "the old page is not a new observation");
         typist.printed(b"== Chat == Live\n\xe2\x96\x8d\nanswer\n== Chat == Live\nConversation:\n");
-        assert!(!typist.ready(&see, 1), "absence and presence belong to the same page");
+        assert!(!typist.ready(&see), "absence and presence belong to the same page");
         typist.printed(b"== Chat == Li");
         typist.printed(b"ve\nConversation:\n  answer\ntemper: closed\n");
-        assert!(typist.ready(&see, 1));
+        assert!(typist.ready(&see));
         assert_eq!(typist.read.pages.len(), 4);
         assert_eq!(typist.read.pages[0].commands, 0);
         assert!(typist.read.pages[1..].iter().all(|page| page.commands == 1));
@@ -679,21 +592,21 @@ mod tests {
         for act in [Act::TypeOn { label, words: b"" }, Act::TypeKept { label }] {
             let mut typist = Typist::default();
             typist.printed(b"== Accounts == Live\n[1] Accounts\n");
-            assert!(!typist.ready(&act, 1), "the last page has not offered the control yet");
+            assert!(!typist.ready(&act), "the last page has not offered the control yet");
 
             typist.printed(b"== Accounts == Live\n[2] + Connect a model\n");
             typist.cursor = typist.read.pages.len();
-            assert!(!typist.ready(&act, 1), "a page before the cursor is stale");
+            assert!(!typist.ready(&act), "a page before the cursor is stale");
 
             typist.printed(b"== Accounts == Live\n[2] + Connect a model\n");
             typist.commands += 1;
-            assert!(!typist.ready(&act, 1), "a page from an older command is stale");
+            assert!(!typist.ready(&act), "a page from an older command is stale");
 
             typist.printed(b"== Accounts == Live\n[3] + Connect a model\n");
-            assert!(typist.ready(&act, 1), "the last fresh page offers the control");
+            assert!(typist.ready(&act), "the last fresh page offers the control");
 
             typist.printed(b"== Accounts == Live\n[1] Accounts\n");
-            assert!(!typist.ready(&act, 1), "only the last page supplies the control's number");
+            assert!(!typist.ready(&act), "only the last page supplies the control's number");
         }
     }
 

@@ -158,9 +158,7 @@ impl Operations {
         }
         let child = match kind {
             Kind::Agent(_) => Some("smith-agent"),
-            Kind::Git(_) | Kind::GitRoute(_) => Some("git"),
-            Kind::Claude(_) => Some("claude"),
-            Kind::Relay(_) => Some("relay"),
+            Kind::Git(_) => Some("git"),
             Kind::Ctl(_) => Some("ctl"),
             Kind::Terminal(_) => Some("terminal"),
             Kind::Llm(_) | Kind::Forge(_) | Kind::Issuer(_) | Kind::Service(_) | Kind::Caller(_) => None,

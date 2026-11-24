@@ -641,7 +641,6 @@ impl Judge {
             .enumerate()
             .map(|(position, arg)| {
                 Ok(match arg {
-                    calls::Arg::GithubApp => return Err("GithubApp unsupported".into()),
                     calls::Arg::Lit(word) => (*word).into(),
                     calls::Arg::Number(_)
                         if position > 0 && matches!(&argv.0[position - 1], calls::Arg::Lit("--project")) =>
@@ -661,28 +660,6 @@ impl Judge {
                         .next()
                         .ok_or("task")?
                         .into(),
-                    calls::Arg::Delegate(n) => {
-                        let v = call_json(&self.calls[*n])?;
-                        let tree = &v["tree"];
-                        let root = &tree["root"]["task"];
-                        let children: Vec<_> = tree["rows"]
-                            .as_array()
-                            .ok_or("tree rows")?
-                            .iter()
-                            .filter(|row| &row["parent"] == root)
-                            .collect();
-                        if children.len() != 1 {
-                            return Err(format!(
-                                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                                children.len(),
-                                1
-                            ));
-                        }
-                        children[0]["chip"]["task"].as_u64().ok_or("child")?.to_string()
-                    }
-                    calls::Arg::Digest(n) => {
-                        call_json(&self.calls[*n])?["task"]["digest"].as_str().ok_or("digest")?.into()
-                    }
                     calls::Arg::ActivityBefore(n) => {
                         let v = call_json(&self.calls[*n])?;
                         v.pointer("/activity/before/value")
@@ -878,20 +855,13 @@ impl Judge {
                 self.members.restart(name);
                 self.stage = Stage::Starting { target };
             }
-            Step::EndsLeaving(_) => return Err("EndsLeaving requires the real-loop completion judge".into()),
             Step::FixtureReady => return Err("FixtureReady unsupported".into()),
-            Step::Advance => return Err("Advance unsupported".into()),
             Step::Push { .. } => return Err("Push unsupported".into()),
             Step::ReleaseHold { .. } => return Err("ReleaseHold unsupported".into()),
-            Step::StopEngine | Step::StartEngine { .. } | Step::WorkerCancelled { .. } => {
-                return Err("engine restart steps unsupported".into());
-            }
             Step::Probe { .. } => return Err("Probe unsupported".into()),
             Step::Release { .. } => return Err("Release unsupported".into()),
             Step::Contended { .. } => return Err("Contended unsupported".into()),
-            Step::SameParty { .. } => return Err("SameParty unsupported".into()),
             Step::Held { .. } => return Err("Held unsupported".into()),
-            Step::Kill { .. } => return Err("Kill unsupported".into()),
             Step::Watching { call } => {
                 let slot = *self.slots.get(*call).ok_or("Watching names a started call")?;
                 if batch.ends()[slot].exit.is_some() {
@@ -900,9 +870,7 @@ impl Judge {
                 // No delivery barrier: ended documents are retained (testing/process-tier.md).
             }
             Step::Terminal(_) => return Err("Terminal unsupported".into()),
-            Step::Browse { .. } => return Err("Browse unsupported".into()),
             Step::Authorize => return Err("Authorize unsupported".into()),
-            Step::TrialEnded => return Err("TrialEnded unsupported".into()),
             Step::Return => return Err("Return unsupported".into()),
         }
         // The oracle's commands are the acts' verbs (Observed::with_commands).
@@ -1141,29 +1109,20 @@ impl Referee<cluster::Root> for Judge {
 fn describe(step: &calls::Step) -> String {
     use calls::Step;
     match step {
-        Step::EndsLeaving(leftovers) => format!("EndsLeaving {leftovers:?}"),
         Step::FixtureReady => "FixtureReady".into(),
-        Step::Browse { call } => format!("Browse call {call}"),
         Step::Authorize => "Authorize".into(),
-        Step::TrialEnded => "TrialEnded".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
         Step::ReleaseHold { name, .. } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
-        Step::Advance => "Advance".into(),
         Step::Push { path, .. } => format!("Push {}", String::from_utf8_lossy(path)),
         Step::AddWorker { name } => format!("AddWorker {name}"),
-        Step::StopEngine => "StopEngine".into(),
-        Step::StartEngine { .. } => "StartEngine".into(),
-        Step::WorkerCancelled { name } => format!("WorkerCancelled {name}"),
         Step::StopWorker { name } => format!("StopWorker {name}"),
         Step::StartWorker { name } => format!("StartWorker {name}"),
         Step::Probe { at } => format!("Probe at {}", at.0),
         Step::Release { at } => format!("Release at {}", at.0),
         Step::Contended { calls } => format!("Contended {calls:?}"),
         Step::SignIn { at } => format!("SignIn at {}", at.0),
-        Step::SameParty { at } => format!("SameParty at {}", at.0),
         Step::Held { name } => format!("Held {}", String::from_utf8_lossy(name)),
-        Step::Kill { call } => format!("Kill call {call}"),
         Step::Call { at, argv } => format!("Call at {}: {}", at.0, describe_argv(argv)),
         Step::Start { at, argv } => format!("Start at {}: {}", at.0, describe_argv(argv)),
         Step::Join { call } => format!("Join call {call}"),
@@ -1182,12 +1141,9 @@ fn describe_argv(argv: &calls::Argv) -> String {
         .iter()
         .map(|arg| match arg {
             calls::Arg::Lit(word) => (*word).into(),
-            calls::Arg::GithubApp => "github-app".into(),
             calls::Arg::Number(number) => number.to_string(),
             calls::Arg::File(name) => format!("file({name})"),
             calls::Arg::Task(call) => format!("task(call {call})"),
-            calls::Arg::Delegate(call) => format!("delegate(call {call})"),
-            calls::Arg::Digest(call) => format!("digest(call {call})"),
             calls::Arg::ActivityBefore(call) => format!("activity-before(call {call})"),
         })
         .collect::<Vec<_>>()

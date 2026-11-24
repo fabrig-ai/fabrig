@@ -2,13 +2,12 @@
 #![forbid(unsafe_code)]
 
 pub mod case;
-pub mod claude;
 pub mod cluster;
 pub use cluster::{Cluster, run_cluster_forge};
 pub mod fixtures;
 pub mod forge;
-pub mod git;
-pub mod github;
+mod git;
+mod github;
 pub mod green_light;
 pub mod issuer;
 pub mod landing;
@@ -22,7 +21,7 @@ mod agent;
 pub mod calls;
 mod cancel_kills;
 mod deadline;
-pub mod ending;
+mod ending;
 mod patience;
 pub mod service;
 pub mod world;
@@ -59,21 +58,12 @@ impl Ran {
         &self.service().seen
     }
     #[must_use]
-    pub fn github(&self) -> &github::Seen {
-        &self.service().github_seen
-    }
-    #[must_use]
     pub fn calls(&self) -> &[calls::Called] {
         let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
         for call in &caller.calls {
             call.assert_no_timeout();
         }
         &caller.calls
-    }
-    #[must_use]
-    pub fn browsed(&self) -> &[calls::Browsed] {
-        let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
-        &caller.browsed
     }
     /// What the person read from the hosted terminal.
     #[must_use]
@@ -102,10 +92,6 @@ impl Ran {
     #[must_use]
     pub fn number(&self, call: usize) -> u64 {
         calls::task_number(&self.calls()[call].stdout)
-    }
-    fn requested_kills(&self) -> usize {
-        let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
-        caller.requested_kills()
     }
     fn service(&self) -> &service::ServiceHost {
         let world::Kind::Service(service) = &self.outcome.procs[1].kind else { panic!("service root") };
@@ -174,7 +160,7 @@ impl Ran {
                 cancel_kills::Kill { root, at: kill.at, reason: kill.reason, exit: kill.exit }
             })
             .collect();
-        cancel_kills::judge(&kills, &notes, &self.service().cancel_history, self.requested_kills())
+        cancel_kills::judge(&kills, &notes, &self.service().cancel_history, 0)
     }
     fn kill_finding(&self, heading: &str, details: &[String]) -> String {
         use std::fmt::Write;
@@ -254,87 +240,9 @@ pub fn run_forge(
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Ran {
     let scratch = Scratch::new("real-forge");
-    run_forge_on(scratch, fixture, scripts, steps)
-}
-
-/// Run a configured report story without hosting a forge peer.
-#[must_use]
-pub fn run_configured(
-    recipe: impl FnOnce() -> llm::Recipe,
-    configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Ran {
-    let scratch = Scratch::new("real-configured");
-    let outcome = world::run_configured(&scratch, recipe, configure, steps);
-    checked(Ran { outcome: Outcome::Checked(outcome), scratch })
-}
-
-/// Run a forge story on a scratch with a privately laid program source.
-#[must_use]
-pub fn run_forge_on(
-    scratch: Scratch,
-    fixture: forge::Fixture,
-    scripts: fn(std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]>,
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Ran {
-    let outcome = world::run_forge(&scratch, fixture, scripts, None, None, steps);
-    checked(Ran { outcome: Outcome::Forge(outcome), scratch })
-}
-
-/// A deferred recipe, built once the forge's kernel-assigned address is known.
-/// Its source directory belongs to a stopped story retained by the caller.
-pub struct ForgeRecipe {
-    pub source: std::path::PathBuf,
-    pub build: fn(std::net::SocketAddr, &std::path::Path) -> llm::Recipe,
-}
-
-/// Run a forge story on a recipe derived from a stopped source deployment.
-#[must_use]
-pub fn run_forge_with(fixture: forge::Fixture, recipe: ForgeRecipe, steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
-    let scratch = Scratch::new("real-forge-twin");
-    let outcome = world::run_forge(&scratch, fixture, no_scripts, None, Some(recipe), steps);
-    checked(Ran { outcome: Outcome::Forge(outcome), scratch })
-}
-fn no_scripts(_: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]> {
-    Box::new([])
-}
-
-/// Run a forge story whose scripts pick each turn by their input rules (skein's testing/fakes/llm.md, 2.4).
-#[must_use]
-pub fn run_forge_by_input(
-    fixture: forge::Fixture,
-    scripts: fn(std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]>,
-    rules: fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>,
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Ran {
-    let scratch = Scratch::new("real-forge");
-    let outcome = world::run_forge(&scratch, fixture, scripts, Some(rules), None, steps);
-    checked(Ran { outcome: Outcome::Forge(outcome), scratch })
-}
-
-/// Run a GitHub story on the layer's authenticated HTTP git route.
-#[must_use]
-pub fn run_github(
-    fixture: github::Fixture,
-    scripts: fn(std::net::SocketAddr) -> skein_fake_llm_domain::api::Scripts,
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Ran {
-    let scratch = Scratch::new("real-github");
-    let outcome = world::run_github(&scratch, fixture, scripts, steps);
+    let outcome = world::run_forge(&scratch, fixture, scripts, steps);
     checked(Ran { outcome: Outcome::Forge(outcome), scratch })
 }
 
 pub mod settings;
 pub mod settings_items;
-
-/// Run a story's deferred peer recipe on its privately prepared scratch.
-#[must_use]
-pub fn run_forge_with_on(
-    scratch: Scratch,
-    fixture: forge::Fixture,
-    recipe: ForgeRecipe,
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Ran {
-    let outcome = world::run_forge(&scratch, fixture, no_scripts, None, Some(recipe), steps);
-    checked(Ran { outcome: Outcome::Forge(outcome), scratch })
-}

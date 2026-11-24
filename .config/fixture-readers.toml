@@ -978,8 +978,8 @@ reason = "Settled story, rewrite command and image file descriptions."
 paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/scripts.json"]
 [[fixture.reader]]
 pair = "default"
-package = "temper-real-loop-world"
-filter = "binary(=suite) & test(=turn_landing::a_failing_member_turns_the_dispatched_top_red)"
+package = "temper-box"
+filter = "binary(=domain) & test(=configuration::turn_landing::the_turn_landing_scripts_are_the_real_loops_bytes_in_scripts_form)"
 
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/turn-landing/README.md"]

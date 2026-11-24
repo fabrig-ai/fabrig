@@ -7,7 +7,7 @@ pub mod kept;
 #[path = "../../../testing/landing_story.rs"]
 mod story;
 use story::{CODING_WORDS, REVIEW_WORDS, change_result, delegate_input, readme_text, verdict};
-pub use story::{ChangeAuthority, EDIT, LANDED, README, REQUESTED, program_story};
+pub use story::{ChangeAuthority, EDIT, LANDED, README, REQUESTED};
 
 // A created member owns all ten grants, their segment boxes and executor kinds.
 const MEMBER_BYTES: u32 = 2048;

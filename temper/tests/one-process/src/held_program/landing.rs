@@ -10,7 +10,10 @@ use smith_fake_claude::{Seen, Selection};
 
 #[path = "../../../../testing/landing_story.rs"]
 mod story;
-use story::{EDIT, LANDED, README, REQUESTED, program_story};
+use story::{
+    CODING_WORDS, ChangeAuthority, EDIT, LANDED, README, REQUESTED, REVIEW_WORDS, change_result, delegate_input,
+    readme_text, verdict,
+};
 
 const WORDS: &str = "Land a small change";
 const ACCOUNT_LIST: usize = 3;
@@ -324,4 +327,58 @@ fn check_program(bytes: &[u8]) {
             Seen::Acted { tool: "Edit".into(), path: "README.md".into(), error: false },
         ]
     );
+}
+
+/// The program twin uses built-in file acts and an Open chat's text replies.
+fn program_story(repository: u64, readme: &[u8]) -> smith_fake_claude::Story {
+    use smith_fake_claude::{Script, Step, Story, Turn};
+    let call = |tool: &str, input| Step::Call { tool: tool.into(), input };
+    let (original, changed) = readme_text(readme, EDIT);
+    Story {
+        // The Open system cue keeps the session cursor when a refreshed brief repeats the request.
+        cued: vec![
+            Script {
+                cue: "## Replying\n\nEnd your turn with text to reply".into(),
+                turns: vec![
+                    Turn {
+                        steps: vec![
+                            call(
+                                "delegate",
+                                delegate_input(
+                                    ChangeAuthority { coding_kind: 1, scope: None },
+                                    repository,
+                                    CODING_WORDS,
+                                ),
+                            ),
+                            Step::Text(REQUESTED.into()),
+                        ],
+                        ..Turn::default()
+                    },
+                    Turn { steps: vec![Step::Text(LANDED.into())], ..Turn::default() },
+                ],
+            },
+            Script {
+                cue: format!("## Task\n\n{CODING_WORDS}"),
+                turns: vec![Turn {
+                    steps: vec![
+                        Step::Act { tool: "Read".into(), input: json!({"file_path":"README.md"}) },
+                        Step::Act {
+                            tool: "Edit".into(),
+                            input: json!({"file_path":"README.md","old_string":original,"new_string":changed}),
+                        },
+                        Step::Outcome { input: json!({"outcome":change_result()}) },
+                    ],
+                    ..Turn::default()
+                }],
+            },
+            Script {
+                cue: REVIEW_WORDS.into(),
+                turns: vec![Turn {
+                    steps: vec![Step::Outcome { input: json!({"outcome":verdict()}) }],
+                    ..Turn::default()
+                }],
+            },
+        ],
+        ..Story::default()
+    }
 }

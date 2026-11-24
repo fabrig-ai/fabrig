@@ -6,7 +6,7 @@ pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file};
 use std::{
     io::Write,
     net::SocketAddr,
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+    os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::Path,
 };
 use temper_client_protocol_wire::v1::Record;
@@ -127,15 +127,6 @@ pub fn write(
     llm: SocketAddr,
     forge: SocketAddr,
 ) -> std::io::Result<temper_playground::documents::Configuration> {
-    write_configured(directory, llm, forge, None)
-}
-
-pub(crate) fn write_configured(
-    directory: &Path,
-    llm: SocketAddr,
-    forge: SocketAddr,
-    configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
-) -> std::io::Result<temper_playground::documents::Configuration> {
     for name in ["", "accounts", "secrets", "state", "clients"] {
         std::fs::create_dir_all(directory.join(name))?;
         std::fs::set_permissions(directory.join(name), std::fs::Permissions::from_mode(0o700))?;
@@ -149,19 +140,7 @@ pub(crate) fn write_configured(
     private(&directory.join("worker.secret"), b"worker-secret")?;
     private(&directory.join("fixture.key"), jig_channel_kit::fixtures::KEY)?;
     private(&directory.join("second.key"), SECOND_KEY)?;
-    let (mut agent, mut config) = documents(directory, llm, forge);
-    if crate::claude::configured(directory) {
-        std::fs::DirBuilder::new().mode(0o700).recursive(true).create(directory.join("bin"))?;
-        std::os::unix::fs::symlink(
-            std::ffi::OsStr::new(std::str::from_utf8(crate::claude::PROGRAM).expect("fake program path")),
-            directory.join("bin/claude"),
-        )?;
-        program_documents(directory, &mut agent, &mut config);
-    }
-    if let Some(configure) = configure {
-        configure(&mut config, &mut agent);
-        turn_bounds::apply(&mut config, turn_bounds::turn_body(&agent));
-    }
+    let (agent, mut config) = documents(directory, llm, forge);
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
     temper_service_shell::providers::write(
         &directory.join("providers.setting"),
@@ -190,42 +169,6 @@ pub(crate) fn environment(directory: &Path) -> Vec<EnvironmentEntry> {
         "/usr/bin:/bin".into()
     };
     vec![(b"PATH".as_slice().into(), path.into_bytes().into())]
-}
-/// Program stories retain the direct provider and add Claude Code on its own source.
-fn program_documents(
-    directory: &Path,
-    agent: &mut serde_json::Value,
-    config: &mut temper_playground::documents::Configuration,
-) {
-    agent["programs"] = serde_json::json!({"claude_code": {
-        "path": directory.join("bin/claude"),
-        "directory": directory.join("programs")
-    }});
-    let mut endpoint = agent["endpoints"][0].clone();
-    endpoint["name"] = "fake-claude".into();
-    endpoint["number"] = 2.into();
-    endpoint["dialect"] = 2.into();
-    endpoint["provider"] = "anthropic".into();
-    endpoint["program"] = "claude_code".into();
-    agent["endpoints"].as_array_mut().expect("agent endpoints").push(endpoint);
-    let llm = &mut config["world_settings"]["llm"];
-    let mut endpoint = llm["endpoints"][0].clone();
-    endpoint["name"] = "fake-claude".into();
-    endpoint["number"] = 2.into();
-    endpoint["dialect"] = 2.into();
-    endpoint["provider"] = "anthropic".into();
-    endpoint["program"] = "claude_code".into();
-    llm["endpoints"].as_array_mut().expect("engine endpoints").push(endpoint);
-    let mut model = llm["models"][0].clone();
-    model["name"] = "claude-opus-5-5".into();
-    model["endpoint"] = "fake-claude".into();
-    llm["models"].as_array_mut().expect("engine models").push(model);
-    llm["providers"].as_array_mut().expect("providers").push(serde_json::json!({
-        "name":"anthropic", "number":2, "signed_in_plan":false,
-        "manage_usage":"https://claude.ai/settings/usage", "models":["claude-opus-5-5"],
-        "sources":{"programs":["claude_code"]}
-    }));
-    turn_bounds::apply(config, turn_bounds::turn_body(agent));
 }
 /// Keep the configured documents and their derived bounds; only assigned endpoints change.
 pub(crate) fn bind(
@@ -482,10 +425,6 @@ fn stock_document(value: &mut temper_playground::documents::Configuration) {
 pub fn requester(value: &mut serde_json::Value) {
     value["world_settings"]["requester"] = true.into();
 }
-/// The QA person follows the chat on their page.
-pub fn listed(value: &mut serde_json::Value) {
-    value["world_settings"]["listed"] = true.into();
-}
 pub(crate) fn finish_configuration(
     directory: &Path,
     value: &mut temper_playground::documents::Configuration,
@@ -547,25 +486,6 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
     template["budget"]["as_allowed"]["cap"] = flags["cap"].as_u64().unwrap_or(64).into();
     if flags["requester"] != true {
         template["flags"]["ended_by"] = "result".into();
-    }
-    if crate::claude::configured(directory) {
-        // Bind delegates too: a template's choice alone leaves its charter's
-        // direct-model alternative available to the coder and reviewer.
-        let model = std::iter::once(&charter["model"])
-            .chain(charter["alternatives"].as_array().expect("charter alternatives"))
-            .find(|model| model["name"] == "claude-opus-5-5")
-            .expect("program model offered by stock")
-            .clone();
-        charter["model"] = model;
-        charter["alternatives"] = serde_json::json!([]);
-        charter["rest"] = false.into();
-        template["flags"]["ended_by"] = "requester".into();
-        template["llm"] = serde_json::json!({
-            "account":null, "main":{"model":"claude-opus-5-5","effort":null}, "subagents":[]
-        });
-    }
-    if flags["listed"] == true {
-        template["flags"]["listed"] = true.into();
     }
     let mut items = vec![crate::settings::item("charter", 1, charter), crate::settings::item("template", 1, template)];
     if let Some(places) = flags["local_places"].as_u64() {
@@ -630,33 +550,6 @@ pub fn given_and_projects(
         });
         *forge = values.into_boxed_slice();
     }
-    if crate::claude::configured(directory) {
-        let temper_service::stock::Given::Own { jig: defaults, .. } = &mut given else {
-            panic!("the real loop supplies its own defaults")
-        };
-        let model = engine
-            .llm
-            .models
-            .iter()
-            .position(|model| model.model.name.as_ref() == b"claude-opus-5-5")
-            .expect("program fixture model");
-        // A template's choice does not bind the charters of its delegated coder and reviewer.
-        for charter in &mut defaults.charters {
-            charter.policy.model = engine.llm.models[model].model.clone();
-            charter.rest = false;
-            charter.policy.alternatives = Box::new([]);
-        }
-        defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Requester;
-        defaults.templates[0].llm = Some(jig_domain_tasks::LlmChoice {
-            later: None,
-            account: None,
-            main: jig_domain_tasks::ModelEffort {
-                model: u8::try_from(model).expect("configured model index"),
-                effort: None,
-            },
-            subagents: Box::new([]),
-        });
-    }
     (given, engine.projects)
 }
 
@@ -686,9 +579,6 @@ fn defaults_for(values: &serde_json::Value, engine: &jig_protocol_config::Engine
         jig_domain_people::TemplateBudget::AsAllowed { cap: Some(flags["cap"].as_u64().unwrap_or(64)) };
     if flags["requester"] != true {
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
-    }
-    if flags["listed"] == true {
-        defaults.templates[0].flags.listed = true;
     }
     if let Some(seed) = engine.projects.first() {
         if flags["own_policy"] == true {
