@@ -29,6 +29,28 @@ never here (`../draft/slow-tests-down.md`, 4).
   (`fakes.md`, 3); other external programs, such as sh, run as real child
   processes. Launching the `temper-box internal agent` executable, with its
   own loop and ring, is checked by the process tier (`process-tier.md`).
+- **The hosted agent starts as the shipped one.** It reads the
+  document the worker wrote as the shipped `temper-agent` reads it
+  (`../protocol/binaries.md`, 3), and hands smith's shell every resource
+  the shipped start hands it. Where the document configures a program,
+  as the worker's always does, those include the program's shell
+  resources (smith's `protocol/programs-claude-code.md`, 1.1): the relay
+  is the agent executable the worker spawned, since the shipped
+  process's relay is its own executable; its 32 bytes of entropy come
+  from the world's seed; and the programs directory is checked and
+  opened as the shipped start does it: opened when it is private,
+  absent when it is missing, and the start refused when it is unsafe.
+  The hosted agent is not a process of its own, so it names no parent
+  for the program's child mode. A program it started would start
+  directly, as where no parent-death signal exists, but no story
+  here runs one: a program's run is the one-process world's (below).
+  **A step test holds this start at the gate.** The world's library
+  starts its hosted agent on the document the shipped worker writes
+  for the tier's fixture, with no real file or descriptor, so smith's
+  shell refuses it just as it would refuse the real loop's. A resource
+  the shell starts to require then reddens the gate, not the real
+  pairs after landing. The shell's refusals of a start are smith's to
+  test (smith's `protocol/agent.md`, 8).
 - **Reuse across worlds.** The host composition, fake state machines,
   scenario scripts and outside referee observations are shared with
   the one-process world wherever they apply. Backend setup supplies
@@ -294,13 +316,17 @@ never here (`../draft/slow-tests-down.md`, 4).
     a story waits on what the pages say, never on the interval. The
     shipped interval's pacing is skein's text shell's to test (skein's
     `ui/text.md`, section 8).
-  - **Signed in by the printed link,** as `temper-box open DIRECTORY LINK`
+  - **Signed in by a link no client has spent,** as `temper-box open DIRECTORY LINK`
     is (../client/line.md, 1), on a DIRECTORY of its own in the
     scratch directory, never one of `temper ctl`'s
     (../client/ctl/README.md, section 12). A story's key comes first
-    through `ctl`, as for the tier's other stories (above). Where `ctl`
-    spent the printed link first, the terminal's sign-in on the fresh
-    link the service prints is the one-process world's (above).
+    through `ctl`, as for the tier's other stories (above), and that
+    `ctl` spends the printed link. The terminal therefore opens on a
+    fresh link that the signed-in `ctl` asks for the same person
+    (`link --out FILE`, ../client/ctl/command-line.md, 1.1), a private
+    file in the scratch directory, never on the printed one. A terminal
+    refused on the spent link, then signed in on the fresh link the
+    service prints, is the one-process world's (above).
   - **The typist** stands where a person sits. It types whole commands
     to the shell's input, as the person would (../client/line.md,
     section 5): a control's number from the last printed page, found
