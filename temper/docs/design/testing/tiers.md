@@ -96,7 +96,97 @@ temper's client does. Once the turn goes, it commits, and its text is
 the text the watch read. smith's own producer, the fake LLM's named
 holds and the bytes between the roots are jig's channel story's (jig's
 `protocol/channel/testing.md`, section 1); the same reply in temper's client is
-`checks.md`, 3's and `real-loop.md`'s.
+`checks.md`, 3's and the client world's (below).
+
+Two workers have their story there (../protocol/cluster.md, 6): two
+one-slot workers, each a lane of its own routed by its channel and
+position, never a second slot of one worker, take two keyed chats of
+one party, one each, their replies held until both run, and run each
+to its end: each chat's reply and close, and the runs' identities
+exactly the chats', none twice. Their figures, links and drains are
+the one-process world's (1.5).
+
+A person's latch has its story there (`qa/setups.md`, 6): a goal's run
+delegates one batch of a person task, the latch, a report contract,
+and two report tasks that wait on it. Before the answer, each waits on
+the latch alone, pending, with no run started and no attempt; the
+person's one answer at the latch's revision releases both, with no
+other act: each starts at or after the latch's end and ends with its
+own result, and the goal ends with its report. It opens no change.
+The landing of the setup's red top is the forge connector's world's
+(`tests/engine/forge`): a failing member turns the dispatched top of
+two red, its job failed, its tree holding both members' files, the
+history's forming decision of two and its gate ended failed, and main
+holding neither its commit nor its content.
+
+A chat's note rewritten whole has its story there
+(`../domain/agent/agents.md`, 3): the chat writes its note in parts,
+then its person's message wakes the parked chat, whose next run
+replaces the note whole; the new attempt, both committed replies and
+the whole second revision are read back. So does a chat hearing its
+change land: its reply commits only after the landed result, naming
+the pull and its merge commit, reached its run.
+
+A chat made after its home's adoption, delivering its edit to its own
+run branch before its reply, is one story there, ignored until a
+chat's `deliver` before its end is built (`../domain/agent/tools.md`).
+
+The ladder's twins, B0 and B1, have their stories there, fuzzy
+(`../draft/v0.1.0.md`, section 3): each rung's passing walk replayed on
+the first run's cast.
+
+- **Its scripts are the walk's,** a fake LLM document made from the
+  passing run's transcripts by `bin/temper-twin` (`fakes.md`, 1), never
+  invented by hand: each agent says what the real model said, turn by
+  turn. A structured adaptation preserves every other turn, is
+  validated by the twin, and has its provenance recorded in the
+  fixtures' README. The world hands the composed provider that
+  document whole with its configuration, its cues, rules and takes
+  choosing each turn and its peer's state kept across activations,
+  never translated into hand-written calls.
+- **Its forge is the fake's,** seeded as the walk's box seeded
+  `playground/widget`, with any commit the walk's person made on it,
+  and a CI cue that judges as the walk's CI did: for B1, a head passes
+  only when it holds the second change note, which the walk's repair
+  wrote. The person's acts are the walk's,
+  in the same words, as the world's reads and answers at the same
+  points.
+- **Its takes,** for QA's twin setups (`qa/setups.md`, 4): each
+  fixture names the tasks, pull requests and heads of its walk's box
+  as takes (skein's `testing/fakes/llm.md`, 2.6), from a `takes.json`
+  beside it, applied by `temper-twin --takes` (`fakes.md`, 1), and its
+  `regenerate.sh` passes it. Each take finds the value the walk
+  recorded, so the story reaches the same end, and that proves each
+  take's pattern is in the conversation smith writes.
+- **Its data is the playground's story** of the rung
+  (`../playground.md`, 5.3), one source, which QA's setups and the
+  box's opening read too; until that crate holds it, the fixtures the
+  walk's recording made.
+- **What a twin cannot hold** is what only a real model shows: the
+  words it reads. A change to them is rechecked by the rung's live
+  story (`live-tier.md`), and its twin made again from that run's
+  transcripts, `temper-twin --replace` covering assistant text as well
+  as call arguments.
+- **B0, the green light:** the chat opens one agreed goal, which asks
+  for approval before any change. The question waits in the person's
+  inbox, on the chat, its plan in the chat's activity, while the
+  chat's tree holds the goal alone and no branch or pull exists; the
+  person answers it there. The chat hears the numbered answer notice
+  after the question and relays nothing; the goal hears the exact
+  approval as the chat's answer before its one change call. The
+  reviewer reads the pull and approves; one pull merges to main with
+  CI green at its head, main holding the walk's edit whole; the goal's
+  report and the chat's last reply name the pull and the merge; no
+  question is left.
+- **B1, the repair:** the same approval; the change's first head fails
+  CI for its content and its second passes, the branch moving once on
+  one pull; the change's one repair has a spec naming the failed head
+  and check, and a brief holding the failed step and its log's end
+  whole; the reviewer approves the second head, which merges, main
+  holding the producer's edit and the repair's note; the landed
+  result names the pull, the merge and its one repair, its evidence
+  cut as its bound says; the goal and the chat cite them and claim no
+  test passed.
 
 A chat's reply of text alone has its story there, with its Finite
 sibling. The chat, Open, is answered by skein's fake LLM with text and
@@ -114,7 +204,12 @@ temper's client joined to the engine's root, `tests/client`
 view, skein's fake person reading the view's tree, jig's client worlds'
 faults and jig's check, and temper's engine root on the engine world's
 store, hosts and forge (../client/testing.md). `checks.md`, section 3 says
-why it is joined. GitHub's three routes on the clients' listener (the
+why it is joined. The line terminal's pages are its too
+(../client/line.md): a chat started from Chats by the printed controls,
+its reply's first piece read before its `▍` while the rest is held,
+each page's text a prefix of the next and of the committed turn, never
+shorter, and the committed turn printed under `Conversation:` and
+`Temper` with its clock and no marker on any later page. GitHub's three routes on the clients' listener (the
 manifest page, the redirect and the setup address; ../client/forge/served.md,
 1) are not tested here: they are `temper-service`'s own tests, as
 requests through `fixtures::http::Peer` to the service's routes: each
@@ -211,7 +306,7 @@ terminal client, the captures and the faults.
     git program;
   - a merge in progress is resolved and pushed with both parents;
   - on GitHub's layer (skein's `testing/fakes/github.md`, section 1), its App
-    seeded as the real loop's are (`real-loop.md`): a goal's change cloned by its
+    seeded as GitHub's stories' are (below): a goal's change cloned by its
     installation's token, the token renewed `renew_before` ahead of
     GitHub's hour on the simulator's clock while the run holds its
     workspace, git's generation changing under it, and the push
@@ -229,6 +324,95 @@ terminal client, the captures and the faults.
     among what it finds;
   - those `../protocol/channel.md`, 9, `../client/testing.md` and
     `../protocol/sign-in.md`, 2.5 place here;
+  - on the line terminal, a person signing in by the fresh link the
+    service prints once `ctl` spent the first: the first open refused,
+    the second signed in, and after the close, its exit 0, its
+    DIRECTORY `0700` and its token `0600`, the user's, the token kept;
+  - `temper ctl sign-in` leaving DIRECTORY's files `0700` and `0600`,
+    the user's, on the fake machine; two end waits on one chat still
+    open while `me` answers, both ending once the chat closes;
+  - a hooked repository's one signed push answered by one `204` from
+    the engine's webhooks' listener, through the service's dispatch
+    (../protocol/forge/README.md, section 4); `temper ctl repository
+    adopt` adopting the forge's repository as owned, printed in the
+    forge's words;
+  - a private file's key, its one final newline stripped, carried by
+    the chat's model request, as the scripted peer's credential
+    observation shows;
+  - a call whose answer is lost after its commit, its caller ended
+    before it prints, asked again under its name from a second
+    DIRECTORY signed in by a fresh link as the same party: answered
+    the first answer, the party's one chat, its reply read;
+  - a welcome's model check on a program's source: one stock `claude`
+    print on its chosen model, the trial ended before the stop, its
+    seconds on the simulator's clock, the login's email on Ready, and
+    no direct peer's traffic (`../domain/trial.md`);
+  - a service started again on its disk keeping a replied chat, its
+    reply read cold with no model asked, and a `ctl` setting kept
+    across the provider's rebinding at that start;
+  - a model's request held by its provider after a shell call (smith's
+    `protocol/llm.md`, 6): held once, cut at its endpoint's `idle_ms`,
+    asked again with the same input and answered; held on every
+    attempt, the run held as its run's failure, one run try and no
+    agent try, well before the worker's no-progress bound, and no agent
+    stopped; on the simulator's clock, the cut and retries the protocol
+    world's (smith's `protocol/llm.md`, 10);
+  - a chat on a program's source whose reviewed change lands: four
+    `claude` prints, the fourth resuming the first's session, the
+    coder's read and edit of the README, no direct peer's traffic
+    (smith's `protocol/programs-claude-code.md`);
+  - two workers alone, each on its own directories, taking their
+    figures once, linking once at their positions and draining with
+    the engine at a stop (../protocol/cluster.md, 6);
+  - **GitHub's stories,** on the fake's GitHub layer (skein's
+    `testing/fakes/github.md`, section 1), which the forge peer hosts
+    beside its Forgejo face over the same forge as the fake git
+    program. The configuration points `application.test.github`'s
+    `api`, `transport`, `remote` and `web` at the peer
+    (../protocol/configuration/engine.md). A story that starts
+    connected has its App seeded before the service starts by
+    `testing/temper-github-app`: the App on the layer's first fixed
+    test key, its six records (../protocol/credentials.md, 2.1) in
+    jig's secrets' store; the process tier seeds the same
+    (`process-tier.md`). A browser's steps are plain HTTP requests,
+    following each `302` and the one link (skein's
+    `testing/fakes/github.md`, 1.1), and every git call goes through the
+    layer's git route, which checks its installation's token. One story
+    per feature:
+    1. a direct landing: the App connected by the paste and installed
+       on `acme`, `acme/app` adopted, and a chat's change whose coder
+       edits it and whose reviewer approves, checked by its head's check
+       run and merged there; every git request by a token minted for
+       `acme`'s installation, one of them a write; the protocol world
+       holds the one pull opened and merged by the App's bot at the
+       checked head, the engine's domain world the landed result read
+       twice the same, and the system world the chat's reply after it
+       (1.1, 1.2);
+    2. GitHub connected through the manifest flow from `temper ctl`,
+       story 6's start: one visit's statuses as GitHub answers them,
+       the close-tab page, the forge connected as the App's bot, and no
+       App key downloaded;
+    3. a repository added to a project later, from the picker;
+    4. a landing through GitHub's merge queue, with an ejection
+       repaired;
+    5. an approval rule waiting on a person, then the App on the
+       bypass list;
+    6. git on GitHub's tokens: two accounts, `acme` installed on all
+       its repositories and accepted, `umbra` holding an installation
+       of its own the deployment never accepted; the picker lists only
+       `acme`'s repositories; `acme/app` adopted, and a chat's change
+       whose coder edits it, its clone and its one push each by a token
+       minted for `acme`'s installation, the branch's head the coder's
+       one new commit; `umbra/tool`'s adoption refused (`NoAccess` on
+       the client's wire until it names `NotInstalled`:
+       ../domain/forge/adoption.md, 3), with no git call and no token
+       for `umbra`;
+    7. a repository granted on GitHub appearing in the picker;
+    8. Forgejo connected, managed and owned from the client.
+
+    After each, no secret outside jig's secrets' store
+    (../protocol/credentials.md, section 7), by the observer of saved
+    artifacts (below).
   - **through an upgrade** (`../draft/upgrades.md`, section 13): a
     project, a person and an account; a goal's change landed; a chat
     paused and a task mid-run on the in-process worker; a forge write
