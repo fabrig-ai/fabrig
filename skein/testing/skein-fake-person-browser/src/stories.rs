@@ -59,6 +59,13 @@ impl Play for Sequence<'_> {
     fn at(&self) -> u32 {
         self.before.at().saturating_add(self.person.at())
     }
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        if self.began {
+            self.person.check_deadline(face, now);
+        } else {
+            self.before.check_deadline(face, now);
+        }
+    }
     fn server_action(&mut self) -> Option<crate::harness::ServerAction> {
         self.person.server_action()
     }
@@ -73,6 +80,11 @@ impl Play for After<'_> {
     }
     fn at(&self) -> u32 {
         self.person.at()
+    }
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        if self.ready.get() {
+            self.person.check_deadline(face, now);
+        }
     }
 }
 /// A refused write stays absent in a second person's fully loaded page.
@@ -128,6 +140,9 @@ impl Play for Field {
         self.typed = true;
         self.script = Script::new(Box::new([Step::Type { find: self.find.clone(), words: b"abc".as_slice().into() }]));
         Next::Wait { until: None }
+    }
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        self.script.check_deadline(face, now);
     }
 }
 /// A live patch preserves the field's composition, focus and insertion point.

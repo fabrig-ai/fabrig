@@ -27,6 +27,7 @@ skein-forge.workspace = true
 jig-test-domain.workspace = true
 jig-conformance.workspace = true
 skein-world.workspace = true
+temper-faults.workspace = true
 jig-test-store-files.workspace = true
 jig-protocol-store.workspace = true
 jig-protocol-config.workspace = true

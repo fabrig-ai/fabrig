@@ -25,6 +25,7 @@ use std::{
 use temper_engine_domain as root;
 #[derive(Default)]
 pub(crate) struct Run {
+    pub(crate) restart_faults: Option<Rc<RefCell<crate::restarts::Injector>>>,
     pub(crate) forge: Option<temper_fake_git_hosted::Typed>,
     pub(crate) disk: Option<Rc<RefCell<skein_fake_machine::Machine>>>,
     rules: Option<Rc<RefCell<rules::Referee>>>,
@@ -49,6 +50,7 @@ pub(crate) struct Referee {
     pub(crate) store: Rc<RefCell<Store>>,
     rules: Rc<RefCell<rules::Referee>>,
     run: Rc<RefCell<Run>>,
+    restart_faults: Option<Rc<RefCell<crate::restarts::Injector>>>,
     phase: crate::world::Phase,
     attached: Option<()>,
     cold: Option<()>,
@@ -73,6 +75,7 @@ pub(crate) struct Referee {
     ended: bool,
     hold_released: bool,
     forge: Rc<RefCell<forge::Forge>>,
+    landing_at_cut: Option<client::Landing>,
     story: crate::world::Story,
 }
 impl Referee {
@@ -112,7 +115,7 @@ impl Referee {
             scope.tools = 3;
             scope.depth = 3;
             scope.executors.insert((1, 2));
-            for kind in [3, 11] {
+            for kind in crate::stories::grant_kinds() {
                 scope.grants.push(rules::Grant {
                     connector: 1,
                     kind,
@@ -157,12 +160,15 @@ impl Referee {
         let adopted = crate::stories::adopted(&store.borrow().rows);
         let acknowledged = restart::forge(&run.borrow().rows);
         run.borrow_mut().rules = Some(rules.clone());
+        // The injector is fixed for a phase; ordinary iterations need no Run borrow.
+        let restart_faults = run.borrow().restart_faults.clone();
         Self {
             finding: None,
             controls,
             store,
             rules,
             run,
+            restart_faults,
             phase,
             attached: None,
             cold: (applied > 0).then_some(()),
@@ -187,6 +193,7 @@ impl Referee {
             ended: false,
             hold_released: false,
             forge,
+            landing_at_cut: None,
             story: scenario,
         }
     }
@@ -363,6 +370,34 @@ impl Referee {
         self.held_at = Some((store.applied, held));
         held
     }
+    fn landing_recovered(&mut self, other: &[Proc]) -> Result<bool, String> {
+        use crate::stories::recovery;
+        let Some(landing) = other.iter().find_map(|proc| match proc {
+            Proc::Other(HarnessProcess::Client(person)) if person.is_empty() => person.wire.landing().copied(),
+            _ => None,
+        }) else {
+            return Ok(false);
+        };
+        if let Some(before) = self.landing_at_cut {
+            if self.cold.is_some() || self.run.borrow().restarts == 0 {
+                return Ok(false);
+            }
+            if landing != before {
+                return Err(format!("the saved sign-in found a different landing: {landing:?}, was {before:?}"));
+            }
+            return Ok(true);
+        }
+        if !self.forge.borrow().complete() {
+            return Ok(false);
+        }
+        recovery::check_landing(landing, &self.forge.borrow_mut().take_ledger())?;
+        recovery::keep_forge(other)?;
+        self.landing_at_cut = Some(landing);
+        // The first watch after the cut precedes attachment of the new service.
+        self.agent_seen = 0;
+        self.controls.cut(0, skein_world::Cut::PowerLoss);
+        Ok(false)
+    }
     fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
@@ -372,6 +407,7 @@ impl Referee {
                 crate::world::Phase::SignIn => other
                     .iter()
                     .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
+                crate::world::Phase::LandedRestart => self.landing_recovered(other)?,
                 crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other)?,
                 crate::world::Phase::Restart => {
                     self.cold.is_none()
@@ -406,6 +442,7 @@ impl Referee {
     }
 }
 impl Referee {
+    #[expect(clippy::too_many_lines, reason = "the phase coordinates its peers, restart observer and stop boundary")]
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (service, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut service[0] else { return Err(String::from("service first")) };
@@ -487,7 +524,18 @@ impl Referee {
             }
             return Ok(());
         }
-        let complete = self.phase_complete(other)?;
+        if let Some(injector) = &self.restart_faults
+            && service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready)
+        {
+            injector.borrow_mut().opening(now);
+        }
+        let mut complete = self.phase_complete(other)?;
+        if complete
+            && matches!(self.phase, crate::world::Phase::Drain)
+            && let Some(injector) = &self.restart_faults
+        {
+            complete = injector.borrow_mut().ready();
+        }
         if self.done.is_none()
             && (done || !matches!(self.phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }))
             && complete
@@ -499,7 +547,9 @@ impl Referee {
                 }
             }
             self.stopping()?;
-            self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
+            if !matches!(self.phase, crate::world::Phase::Drain) || self.restart_faults.is_none() {
+                self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
+            }
             self.done = Some(());
         }
         self.stop_peers(other)?;
@@ -528,6 +578,9 @@ impl skein_world::Referee<Proc> for Referee {
         }
 
         self.forge.borrow_mut().observe(procs)?;
+        if self.landing_at_cut.is_some() {
+            crate::stories::recovery::no_writes(&self.forge.borrow_mut().take_ledger())?;
+        }
         let Proc::Service(service) = &procs[0] else { return Err(String::from("service first")) };
         self.adoption_window(service);
         // Each service incarnation owns its commit vector. Check every new
@@ -654,6 +707,9 @@ impl skein_world::Referee<Proc> for Referee {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
+        if self.restart_faults.as_ref().is_some_and(|injector| injector.borrow().waiting()) {
+            return Some(Time::ZERO);
+        }
         if matches!(self.story, crate::world::Story::HeldChange) && matches!(self.phase, crate::world::Phase::SignIn) {
             return None;
         }

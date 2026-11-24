@@ -8,4 +8,3 @@ mod browser_pages;
 mod browser_playground;
 mod browser_public;
 mod browser_sign_in;
-mod browser_workers;

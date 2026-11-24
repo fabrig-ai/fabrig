@@ -136,7 +136,11 @@ The live suite (`skein-llm-world`'s `live`) lends the public route a Codex
 `tokens.access_token`. The daily live run lends an API key's, which
 `codex login --with-api-key` writes and which holds `api.responses.write`.
 A lent file is read once, within 64 KiB, only at mode 0600; no refusal
-holds a value read.
+holds a value read. What the suite admits it decides over what its read
+hands it: whether the named path is a directory, the opened entry's kind
+and mode, and the bytes. Each admission and refusal, a Codex login's and
+an Anthropic key file's, is checked in the focused suite over such facts
+(`skein-llm-world`'s `suite`); only the providers' calls are live.
 
 The contracts of `vocabulary.md`, section 1, and `wire.md`, section 1 add these, all in the focused suite
 unless marked:

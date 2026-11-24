@@ -17,6 +17,7 @@ use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::P
 const POLL: Duration = Duration::from_millis(10);
 const DEFAULT_HORIZON: Duration = Duration::from_secs(40);
 const CLOSE_WINDOW: Duration = Duration::from_secs(4);
+const CAPTURE_WINDOW: Duration = Duration::from_secs(5);
 pub(crate) const SERVER: Token = Token::new(10);
 pub(crate) const PROCESS: Token = Token::new(11);
 pub(crate) const BROWSER: Token = Token::new(12);
@@ -100,7 +101,6 @@ pub struct Asked {
 }
 pub trait Play {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>>;
-    /// Current zero-based script position, for diagnostics.
     fn expected(&self) -> Vec<Box<[u8]>> {
         Vec::new()
     }
@@ -108,15 +108,20 @@ pub trait Play {
         None
     }
     fn answered(&mut self, _status: u16) {}
+    /// Current zero-based script position. A step's account stays armed until the next step begins.
     fn at(&self) -> u32 {
         0
     }
+    /// Also called while an operation is pending. Report unanswered waits through `face.expire`.
     fn check_deadline(&mut self, _face: &mut BrowserFace<'_>, _now: Time) {}
     fn server_action(&mut self) -> Option<ServerAction> {
         None
     }
 }
 mod commands;
+mod step_deadline;
+use closing::{Capture, CloseWindow};
+use step_deadline::{StepAccount, StepFailure, face_failure, step_failure};
 mod request;
 mod script;
 pub mod session;
@@ -284,11 +289,13 @@ struct Runtime {
     // The last request asked of the browser, for a deadline's report.
     asked: String,
     outcome: Option<Outcome>,
-    capturing: u8,
-    snapshot: String,
+    capture: Option<Capture>,
+    snapshot: Option<String>,
     screenshot: Option<PathBuf>,
     closing: closing::Closing,
+    close_window: Option<CloseWindow>,
     deadline: Option<Deadline>,
+    step_accounts: Vec<Option<StepAccount>>,
     starved: Option<Starved>,
     spawned_pids: VecDeque<Option<u32>>,
     server_pid: Option<u32>,
@@ -415,11 +422,13 @@ impl Runtime {
             opened: vec![false; people.len()],
             asked: String::new(),
             outcome: None,
-            capturing: 0,
-            snapshot: String::new(),
+            capture: None,
+            snapshot: None,
             screenshot: None,
             closing: closing::Closing::new(),
+            close_window: None,
             deadline: None,
+            step_accounts: (0..people.len()).map(|_| None).collect(),
             starved: None,
             spawned_pids: VecDeque::new(),
             server_pid: None,
@@ -484,23 +493,21 @@ impl Runtime {
             Expired::Failed(figures) => (figures, false),
             Expired::Starved(starved) => (starved.figures(), true),
         };
-        self.outcome = Some(deadline_outcome(
+        let decision = deadline_outcome(
             self.outcome.take(),
             u32::try_from(person).expect("person fits"),
             step,
             report,
             figures,
             starved,
-        ));
-        match expired {
-            Expired::Failed(_) => {}
-            Expired::Starved(starved) => {
-                if self.starved.is_none() {
-                    self.starved = Some(starved);
-                }
-                if !self.closing.active() {
-                    self.close();
-                }
+        );
+        self.outcome = Some(decision.outcome);
+        if decision.close_starved
+            && let Expired::Starved(starved) = expired
+        {
+            self.starved = Some(starved);
+            if !self.closing.active() {
+                self.close();
             }
         }
     }
@@ -514,14 +521,23 @@ impl Runtime {
             }
             if let Some(pid) = pid {
                 self.deadline.as_mut().expect("run deadline armed").watch_process(pid);
+                for account in self.step_accounts.iter_mut().flatten() {
+                    account.deadline.watch_process(pid);
+                }
                 for command in self.commands.iter_mut().flatten() {
                     command.watch_process(pid);
                 }
             }
-        } else if let Some(command) = self.commands.iter_mut().flatten().find(|command| command.owner == owner) {
+        } else if let Some(index) =
+            self.commands.iter().position(|command| command.as_ref().is_some_and(|command| command.owner == owner))
+        {
+            let command = self.commands[index].as_mut().expect("matching command");
             command.pid = pid;
             if let Some(pid) = pid {
                 command.watch_process(pid);
+                if let Some(account) = &mut self.step_accounts[index] {
+                    account.deadline.watch_process(pid);
+                }
             }
         }
     }
@@ -657,12 +673,14 @@ impl Runtime {
                     self.fail(0, 0, format!("child {owner:?} exited: {exit:?}"));
                 }
                 if owner == PROCESS {
+                    self.browser_pid = None;
                     if let Some(pipes) = self.pipes {
                         for entity in pipes {
                             self.requests.push_back(io::Request::Close { entity });
                         }
                     }
                 } else {
+                    self.server_pid = None;
                     for entity in &self.server_pipes {
                         self.requests.push_back(io::Request::Close { entity: *entity });
                     }
@@ -715,28 +733,21 @@ impl Runtime {
                     self.fail(person, step, trouble_report(*trouble, text, url));
                 }
             }
-            Event::Snapshot { op: SNAPSHOT, text } => {
-                self.snapshot = String::from_utf8_lossy(text).into_owned();
-                self.capturing = 2;
-                self.ask(Request::Screenshot { page: self.failure_page(), op: IMAGE });
+            Event::Snapshot { op: SNAPSHOT, text } if self.capture_answer(SNAPSHOT) => {
+                self.snapshot = Some(String::from_utf8_lossy(text).into_owned());
             }
-            Event::Screenshot { op: IMAGE, png } => {
+            Event::Screenshot { op: IMAGE, png } if self.capture_answer(IMAGE) => {
                 let path = std::env::temp_dir().join(format!(
                     "skein-ui-failure-{}-{}.png",
                     std::process::id(),
                     self.clock.now().now.as_nanos()
                 ));
-                match std::fs::write(&path, png) {
-                    Ok(()) => self.screenshot = Some(path),
-                    Err(error) => {
-                        write!(self.snapshot, "\nscreenshot failed: {error}").expect("string write");
-                    }
+                if std::fs::write(&path, png).is_ok() {
+                    self.screenshot = Some(path);
                 }
-                self.capturing = 3;
             }
-            Event::Refused { op, why, .. } if *op == SNAPSHOT || *op == IMAGE => {
-                write!(self.snapshot, "\ncapture refused: {why:?}").expect("string write");
-                self.capturing = 3;
+            Event::Refused { op, .. } if *op == SNAPSHOT || *op == IMAGE => {
+                self.capture_answer(*op);
             }
             Event::Closed { owner } => self.closing.browser_closed(*owner, &mut self.requests),
             Event::Sent { .. }
@@ -755,11 +766,8 @@ impl Runtime {
             | Event::Screenshot { .. } => {}
         }
     }
-    fn failure_page(&self) -> Token {
-        match &self.outcome {
-            Some(Outcome::Failed { person, .. }) => page(usize::try_from(*person).expect("person fits")),
-            Some(Outcome::Done) | None => page(0),
-        }
+    fn capture_answer(&mut self, op: Token) -> bool {
+        !self.closing.active() && self.capture.as_mut().is_some_and(|capture| capture.answer(op, self.benv.now))
     }
     fn close_root(&mut self, index: usize) {
         if !self.roots_closing[index] {
@@ -769,6 +777,7 @@ impl Runtime {
         }
     }
     fn close(&mut self) {
+        self.close_window = Some(CloseWindow::new(self.benv.now, self.ienv.limits.close_timeout));
         let close = self.closing.begin(!self.startup.is_empty());
         for pages in &mut self.origins {
             pages.stop();
@@ -835,12 +844,6 @@ impl Runtime {
         if matches!(self.server_state, ServerState::Stopping | ServerState::Starting) {
             return;
         }
-        for exchange in &mut self.exchanges {
-            if let Some(status) = exchange.status.take() {
-                people[exchange.person].answered(status);
-            }
-        }
-        self.exchanges.retain(|exchange| !exchange.closed);
         for (index, (play, face)) in people.iter_mut().zip(faces).enumerate() {
             if !self.opened[index] || done[index] {
                 continue;
@@ -848,20 +851,25 @@ impl Runtime {
             if self.exchanges.iter().filter(|exchange| exchange.person == index).count() >= 2 {
                 continue;
             }
-            if let Some((step, why)) = step_failure(*play, face, now) {
-                self.fail(index, step, why);
-                break;
-            }
             for request in face.requests() {
                 self.ask(request);
             }
             if face.pending() {
                 continue;
             }
-            match play.next(face, now) {
+            let step = play.at();
+            let command =
+                self.commands[index].as_ref().filter(|command| !command.settled).and_then(|command| command.pid);
+            StepAccount::begin(&mut self.step_accounts[index], step, [self.server_pid, self.browser_pid, command]);
+            let next = play.next(face, now);
+            if let Some(failure) = face_failure(face, step) {
+                self.step_failed(index, failure);
+                break;
+            }
+            match next {
                 Next::Do(doing) => {
                     if let Err(why) = face.perform(doing) {
-                        self.fail(index, play.at().saturating_sub(1), why);
+                        self.fail(index, step, why);
                         break;
                     }
                 }
@@ -883,7 +891,7 @@ impl Runtime {
                 }
             }
             if let Some(action) = face.command_action() {
-                self.command_action(index, action, face, play.at());
+                self.command_action(index, action, face, step);
             }
             if let Some(asked) = play.request() {
                 self.exchanges.push(request::Exchange::new(
@@ -901,7 +909,7 @@ impl Runtime {
             for request in face.requests() {
                 self.ask(request);
             }
-            if matches!(self.server_state, ServerState::Stopping | ServerState::Starting) {
+            if self.outcome.is_some() || matches!(self.server_state, ServerState::Stopping | ServerState::Starting) {
                 break;
             }
         }
@@ -1005,7 +1013,7 @@ impl Runtime {
     fn close_point(&mut self, report: &str, classified: &mut bool) {
         if !*classified {
             *classified = true;
-            if self.starved.is_none() {
+            if self.starved.is_none() && !matches!(self.outcome, Some(Outcome::Failed { .. })) {
                 self.expire(0, 0, report, self.deadline.as_ref().expect("run deadline armed").expired());
             }
         }
@@ -1014,17 +1022,99 @@ impl Runtime {
         }
         self.closing.force(&mut self.requests);
     }
-    fn capture_or_close(&mut self, opening_page: bool) {
-        if self.outcome.is_some() && !self.closing.active() {
-            if matches!(self.outcome, Some(Outcome::Failed { .. }))
-                && self.opened.iter().any(|open| *open)
-                && self.capturing == 0
-            {
-                self.capturing = 1;
-                self.ask(Request::Snapshot { page: self.failure_page(), op: SNAPSHOT });
-            } else if (self.capturing == 0 && !opening_page) || self.capturing == 3 {
-                self.close();
+    fn capture_or_close(&mut self, opening_page: bool, now: Time) {
+        if self.closing.active() {
+            return;
+        }
+        match self.outcome {
+            Some(Outcome::Failed { person, .. }) => {
+                let index = usize::try_from(person).expect("person fits");
+                if self.opened.get(index) != Some(&true)
+                    || self.capture.as_ref().is_some_and(|capture| capture.done(now))
+                {
+                    self.close();
+                } else if self.capture.is_none() {
+                    self.capture = Some(Capture::new(now));
+                    let page = page(index);
+                    self.ask(Request::Snapshot { page, op: SNAPSHOT });
+                    self.ask(Request::Screenshot { page, op: IMAGE });
+                }
             }
+            Some(Outcome::Done) if !opening_page => self.close(),
+            Some(Outcome::Done) | None => {}
+        }
+    }
+    fn read_statuses(&mut self, people: &mut [&mut dyn Play]) {
+        for exchange in &mut self.exchanges {
+            if let Some(status) = exchange.status.take() {
+                people[exchange.person].answered(status);
+            }
+        }
+        self.exchanges.retain(|exchange| !exchange.closed);
+    }
+    fn check_steps(
+        &mut self,
+        people: &mut [&mut dyn Play],
+        faces: &mut [BrowserFace<'_>],
+        done: &[bool],
+        now: Time,
+    ) -> Option<(usize, StepFailure)> {
+        let mut expiry = None;
+        for (index, (play, face)) in people.iter_mut().zip(faces).enumerate() {
+            if done[index] {
+                continue;
+            }
+            let Some(account) = &self.step_accounts[index] else { continue };
+            if let Some(failure) = step_failure(*play, face, now, account.step) {
+                if failure.bound.is_some() {
+                    expiry.get_or_insert((index, failure));
+                } else {
+                    self.fail(index, failure.step, failure.why);
+                    break;
+                }
+            }
+        }
+        expiry
+    }
+    fn step_failed(&mut self, index: usize, failure: StepFailure) {
+        let account = self.step_accounts[index].as_ref().expect("failed step has an account");
+        if let Some(expired) = failure.classify(|bound| account.deadline.expired_for("the browser step", bound)) {
+            self.expire(index, failure.step, &failure.why, expired);
+        } else {
+            self.fail(index, failure.step, failure.why);
+        }
+    }
+    fn judge_steps(
+        &mut self,
+        setup: &Harness,
+        people: &mut [&mut dyn Play],
+        faces: &mut [BrowserFace<'_>],
+        done: &[bool],
+        now: Time,
+    ) {
+        self.read_statuses(people);
+        let command_expiry = self.drive_commands(faces, people, now, &setup.page_query, setup.page_addresses);
+        if self.outcome.is_none() {
+            let step_expiry = self.check_steps(people, faces, done, now);
+            if self.outcome.is_none() {
+                if let Some((index, failure)) = step_expiry {
+                    self.step_failed(index, failure);
+                } else if let Some(expiry) = command_expiry {
+                    self.expire(expiry.person, expiry.step, &expiry.report, expiry.deadline.expired());
+                }
+            }
+        }
+    }
+    fn close_window_passed(&mut self, now: Time) -> bool {
+        if (self.starved.is_some() || matches!(self.outcome, Some(Outcome::Failed { .. })))
+            && let Some(window) = &self.close_window
+        {
+            if window.force(now) {
+                self.closing.force(&mut self.requests);
+            }
+            window.done(now)
+        } else {
+            false
         }
     }
     fn run(
@@ -1069,14 +1159,7 @@ impl Runtime {
             if self.tick(setup, &mut faces, people, time.now) {
                 opening_page = false;
             }
-            self.drive_commands(&mut faces, people, time.now, &setup.page_query, setup.page_addresses);
-            if self.outcome.is_none() {
-                for (index, face) in faces.iter_mut().enumerate() {
-                    if let Some((step, why)) = step_failure(people[index], face, time.now) {
-                        self.fail(index, step, why);
-                    }
-                }
-            }
+            self.judge_steps(setup, people, &mut faces, &done, time.now);
             if !started
                 && self.outcome.is_none()
                 && let Some(startup) = &startup
@@ -1093,11 +1176,9 @@ impl Runtime {
                     format!("lent peer startup deadline: {}", peers.waiting())
                 };
                 self.close_point(&report, &mut classified);
-                if time.now >= deadline {
-                    break;
-                }
             }
             if !began
+                && self.outcome.is_none()
                 && !self.closing.active()
                 && self.ready
                 && self.address.is_some()
@@ -1120,7 +1201,9 @@ impl Runtime {
             if began && self.outcome.is_none() {
                 self.play(people, &mut faces, &mut done, time.now, setup);
             }
-            self.capture_or_close(opening_page);
+            self.capture_or_close(opening_page, time.now);
+            let close_passed = self.close_window_passed(time.now);
+            let ending = close_passed || time.now >= deadline;
             self.flush(started, time.now, time.wall);
             if self.closing.active()
                 && self.closed == self.spawned
@@ -1132,7 +1215,10 @@ impl Runtime {
             {
                 break;
             }
-            self.submit(peers, time.now);
+            self.submit(peers, time.now, ending);
+            if ending {
+                break;
+            }
         }
         self.report()
     }
@@ -1159,7 +1245,7 @@ impl Runtime {
         }
         self.io.reclaim();
     }
-    fn submit(&mut self, peers: &peers::Peers<'_, '_>, now: Time) {
+    fn submit(&mut self, peers: &peers::Peers<'_, '_>, now: Time, ending: bool) {
         let pending = self.io.is_ready()
             || !self.complete.is_empty()
             || !self.io_events.is_empty()
@@ -1184,7 +1270,7 @@ impl Runtime {
             let record = self.ring.register(host, record);
             self.ring.queue(record);
         }
-        self.ring.enter(if pending { Wait::No } else { Wait::Until(until) });
+        self.ring.enter(if pending || ending { Wait::No } else { Wait::Until(until) });
     }
     fn reap(&mut self, peers: &mut peers::Peers<'_, '_>) {
         while let Some(complete) = self.ring.reap().pop() {
@@ -1232,7 +1318,7 @@ impl Runtime {
             write!(
                 report,
                 "\nSnapshot:\n{}\nScreenshot: {}\nChromium stderr:\n{}\nServer stderr:\n{}",
-                self.snapshot,
+                self.snapshot.as_deref().unwrap_or("unavailable"),
                 self.screenshot.as_ref().map_or_else(|| "unavailable".into(), |p| p.display().to_string()),
                 String::from_utf8_lossy(&self.stderr),
                 String::from_utf8_lossy(&self.server_stderr)
@@ -1253,11 +1339,10 @@ impl Runtime {
         (outcome, self.kept, self.starved)
     }
 }
-fn step_failure(play: &mut dyn Play, face: &mut BrowserFace<'_>, now: Time) -> Option<(u32, String)> {
-    face.tick(now);
-    // A completed Keep advances the script before its failure names that step.
-    play.check_deadline(face, now);
-    face.failure().map(|why| (play.at().saturating_sub(1), why))
+#[derive(Debug, PartialEq, Eq)]
+struct DeadlineDecision {
+    outcome: Outcome,
+    close_starved: bool,
 }
 fn deadline_outcome(
     current: Option<Outcome>,
@@ -1266,16 +1351,14 @@ fn deadline_outcome(
     report: &str,
     figures: &skein_world::Figures,
     starved: bool,
-) -> Outcome {
-    match current {
-        Some(failed @ Outcome::Failed { .. }) => failed,
-        Some(Outcome::Done) | None => {
-            if starved {
-                Outcome::Done
-            } else {
-                Outcome::Failed { person, step, report: format!("{report}\n{figures}") }
-            }
-        }
+) -> DeadlineDecision {
+    if let Some(failed @ Outcome::Failed { .. }) = current {
+        DeadlineDecision { outcome: failed, close_starved: false }
+    } else if starved {
+        DeadlineDecision { outcome: Outcome::Done, close_starved: true }
+    } else {
+        let outcome = Outcome::Failed { person, step, report: format!("{report}\n{figures}") };
+        DeadlineDecision { outcome, close_starved: false }
     }
 }
 

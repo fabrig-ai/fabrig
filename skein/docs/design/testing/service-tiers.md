@@ -243,7 +243,11 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   (`Closed`), `forced after its grace` (`Grace`), `at its deadline`
   (`Deadline`) and `cancelled` (`Cancelled`). A test that fails on a
   kill it didn't ask for prints its records with it. The simulated
-  world's `Killed` stays as it is.
+  world's `Killed` stays as it is. The records, their fields and their
+  words, are checked without a kernel, on the real loop's own state with
+  the admissions, the kill's clock reading, and the cancelled records
+  and cleanup completions handed in: none is made before they settle,
+  and each is stamped with its kill's submission, not its cleanup.
 - **It tells a starved run from a slow one** in the real loop
   by `Deadline`, the same real-clock deadline every harness uses
   (../../foundation/testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,
@@ -254,7 +258,13 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   after arming counts from zero only when its process provably began
   after arming. Unreadable or vanished threads contribute nothing.
   `passed`, `remaining` and `until` let the loop wait; `expired` classifies
-  an unanswered wait once it passes. The largest single runnable wait
+  an unanswered wait once it passes. `expired_for(what, bound)` classifies
+  one of the waits an account armed for several covers, as a browser
+  story's step account does (../ui/web/testing.md, 2): a wait of `bound`
+  that passed now, its patience the longer of `bound` and the time since
+  arming, so that an account armed before the wait began measures it as
+  a wait from the arming, and one armed after it never judges a bound by
+  a shorter span. The largest single runnable wait
   decides, never the sum of waits from separate sources. At least half
   the patience spent runnable is starved; absent accounting cannot prove
   starvation. `Figures` records the patience, elapsed time, CPU time and

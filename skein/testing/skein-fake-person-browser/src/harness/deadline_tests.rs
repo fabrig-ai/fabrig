@@ -1,6 +1,10 @@
 //! Close-point diagnostics consume the deadline's verdict, without host starvation.
-use super::{DEFAULT_HORIZON, Outcome, bounds, deadline_outcome, parse_pidfd_pid};
-use skein_lib::Duration;
+use super::{
+    CLOSE_WINDOW, DEFAULT_HORIZON, DeadlineDecision, IMAGE, Outcome, SNAPSHOT, StepFailure, bounds,
+    closing::{Capture, CloseWindow},
+    deadline_outcome, parse_pidfd_pid,
+};
+use skein_lib::{Duration, Time};
 use skein_world::Figures;
 
 #[test]
@@ -26,14 +30,17 @@ fn figures() -> Figures {
 
 #[test]
 fn a_starved_close_point_does_not_make_a_failure_report() {
-    assert_eq!(deadline_outcome(None, 0, 0, "browser harness deadline passed", &figures(), true), Outcome::Done);
+    assert_eq!(
+        deadline_outcome(None, 2, 3, "step expiry", &figures(), true),
+        DeadlineDecision { outcome: Outcome::Done, close_starved: true },
+    );
 }
 
 #[test]
 fn a_failed_close_point_keeps_the_report_and_appends_the_figures() {
     let figures = Figures { thread_waited: None, thread_cpu: None, ..figures() };
     let Outcome::Failed { person, step, report } =
-        deadline_outcome(Some(Outcome::Done), 2, 3, "browser harness deadline passed", &figures, false)
+        deadline_outcome(Some(Outcome::Done), 2, 3, "browser harness deadline passed", &figures, false).outcome
     else {
         panic!("a failed close point fails")
     };
@@ -48,9 +55,50 @@ fn a_known_failure_survives_either_deadline_verdict() {
         let failed = Outcome::Failed { person: 2, step: 3, report: "wrong answer".into() };
         assert_eq!(
             deadline_outcome(Some(failed), 0, 0, "browser harness deadline passed", &figures(), starved),
-            Outcome::Failed { person: 2, step: 3, report: "wrong answer".into() },
+            DeadlineDecision {
+                outcome: Outcome::Failed { person: 2, step: 3, report: "wrong answer".into() },
+                close_starved: false,
+            },
         );
     }
+}
+
+#[test]
+fn an_immediate_failure_does_not_read_scheduler_accounting() {
+    let failure = StepFailure { step: 3, why: "wrong answer".into(), bound: None };
+    assert!(failure.classify(|_| panic!("an immediate failure was classified")).is_none());
+    let failure = StepFailure { bound: Some(Duration::from_secs(1)), ..failure };
+    let deadline = failure.classify(|bound| skein_world::Expired::Failed(Figures { patience: bound, ..figures() }));
+    let Some(skein_world::Expired::Failed(figures)) = deadline else { panic!("a bound is classified") };
+    assert_eq!(figures.patience, Duration::from_secs(1));
+}
+
+#[test]
+fn missing_captures_and_unfinished_closes_have_failure_local_cutoffs() {
+    let start = Time::from_nanos(42);
+    let cutoff = start.saturating_add(Duration::from_secs(5));
+    let before = Time::from_nanos(cutoff.as_nanos() - 1);
+    for (arrived, missing) in [(SNAPSHOT, IMAGE), (IMAGE, SNAPSHOT)] {
+        let mut capture = Capture::new(start);
+        assert!(capture.answer(arrived, before));
+        assert!(!capture.answer(arrived, before), "one capture cannot complete twice");
+        assert!(!capture.done(before));
+        assert!(capture.done(cutoff));
+        assert!(!capture.answer(missing, cutoff), "the other capture stays unavailable");
+    }
+    let mut capture = Capture::new(start);
+    assert!(capture.answer(SNAPSHOT, before));
+    assert!(capture.answer(IMAGE, before));
+    assert!(capture.done(before), "capture need not spend its entire window");
+
+    let drain = Duration::from_secs(2);
+    let closing = CloseWindow::new(cutoff, drain);
+    let force = cutoff.saturating_add(Duration::from_secs(2));
+    let end = cutoff.saturating_add(CLOSE_WINDOW);
+    assert!(!closing.force(Time::from_nanos(force.as_nanos() - 1)));
+    assert!(closing.force(force), "force with room for io to drain");
+    assert!(!closing.done(Time::from_nanos(end.as_nanos() - 1)));
+    assert!(closing.done(end), "return without waiting for the horizon");
 }
 
 #[test]

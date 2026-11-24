@@ -15,3 +15,11 @@ fn story_a_is_walked_from_the_welcome_to_the_csv_change_landed() {
     assert_eq!(playground.answered, 3, "all three template replies were seen in chat");
     assert!(outcome.drained);
 }
+
+#[test]
+fn a_landed_change_is_found_after_a_crash_of_every_process() {
+    let outcome = world::restart_landed_change(fixtures::calm(fixtures::SEED));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.restarts, 1, "the landed task was read after one crash");
+    assert!(outcome.drained);
+}

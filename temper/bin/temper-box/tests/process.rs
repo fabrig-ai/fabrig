@@ -29,8 +29,7 @@ use skein_io::kernel::Exit;
 use skein_io::kernel::Signal;
 use skein_lib::Duration;
 use support::forge_land::{
-    assert_cached_binary_unchanged, assert_forgejo_setup, assert_plan_box, cache_forgejo_binaries, deployment_flags,
-    forgejo_setup_steps, plan_change_steps,
+    assert_cached_binary_unchanged, assert_forgejo_setup, cache_forgejo_binaries, deployment_flags, forgejo_setup_steps,
 };
 
 use support::boxed::BOX_DEADLINE;
@@ -144,7 +143,7 @@ fn temper_open_adopts_a_repository_by_commands() {
 }
 
 #[test]
-fn a_push_is_delivered_signed_with_the_secret_reconcile_drew() {
+fn a_push_and_its_jobs_end_are_delivered_signed_with_the_secret_reconcile_drew() {
     let scratch = support::Scratch::new("hook_delivery");
     let (forgejo, listener) = support::forgejo::Throwaway::start_receiving(&scratch);
     assert_eq!(
@@ -154,22 +153,34 @@ fn a_push_is_delivered_signed_with_the_secret_reconcile_drew() {
         std::io::ErrorKind::AddrInUse
     );
     forgejo.push("hook.txt");
-    let delivery = loop {
+    let head = forgejo.branch_head(b"main").expect("pushed head");
+    let head = std::str::from_utf8(&head).expect("commit SHA");
+    let repository = forgejo.repository();
+    let secret = forgejo.secret();
+    let (mut pushed, mut ended) = (false, false);
+    while !pushed || !ended {
         let delivery = support::webhooks::receive(&listener, support::WITHIN);
-        if skein_lib::bytes::find(&delivery.body, b"Add hook.txt").is_some() {
-            break delivery;
+        let body: serde_json::Value = serde_json::from_slice(&delivery.body).expect("delivery JSON");
+        if skein_lib::bytes::find(&delivery.body, b"Add hook.txt").is_some() && body["after"] == head {
+            assert_eq!(delivery.event, "push", "Forgejo names the event");
+            assert_eq!(body["ref"], "refs/heads/main", "a push to main");
+            assert_eq!(body["repository"]["id"], repository);
+            pushed = true;
+        } else if body["run"]["commit_sha"] == head {
+            assert_eq!(delivery.event, "workflow_job_success");
+            assert_eq!(body["action"], "job_completed");
+            assert_eq!(body["job"]["name"], "check");
+            assert_eq!(body["job"]["status"], "success");
+            assert_eq!(body["run"]["event"], "push");
+            assert_eq!(body["run"]["repository"]["id"], repository);
+            ended = true;
+        } else {
+            continue;
         }
-    };
-    assert_eq!(delivery.event, "push", "Forgejo names the event");
-    assert!(skein_lib::bytes::find(&delivery.body, b"refs/heads/main").is_some(), "a push to main");
-    assert_eq!(delivery.signature, support::webhooks::signature(&forgejo.secret(), &delivery.body));
+        assert_eq!(delivery.signature, support::webhooks::signature(&secret, &delivery.body));
+    }
     forgejo.stop();
     scratch.remove();
-}
-
-#[test]
-fn a_persons_change_lands_on_the_forge_and_is_found_after_a_restart() {
-    landing("landed", true);
 }
 
 #[test]
@@ -270,37 +281,6 @@ fn turn_gate_runs(forge: &support::forgejo::Throwaway, commit: &str, passed_run:
     assert_eq!(status["target_url"], receipt["address"]);
 }
 
-/// The landing story; the hinted case raises four limits and pushes the slow job marker.
-fn landing(case: &str, raised: bool) {
-    let scratch = support::Scratch::new(case);
-    let forgejo = if raised {
-        support::forgejo::Throwaway::start_with_job_sleep(&scratch, 5)
-    } else {
-        support::forgejo::Throwaway::start(&scratch)
-    };
-    if raised {
-        forgejo.push("slow");
-    }
-    support::configuration(scratch.path(), &forgejo.forge());
-    if raised {
-        support::raise_paces(scratch.path());
-    }
-    let peer = support::fake_llm(support::landing_scripts(support::ANSWER, &forgejo));
-    let clock = skein_shell::Clock::new();
-    let began = clock.now().now;
-    let first = support::run_until_landed(scratch.path(), support::person::adopt_and_change(&forgejo), peer, &forgejo);
-    assert_eq!((first.signed_in, first.finished), (1, true), "{}", String::from_utf8_lossy(&first.stderr));
-    eprintln!("stage job: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
-    let merged = forgejo.merged_pull().expect("the change's pull request is merged");
-    assert_eq!(forgejo.job_state(merged), "success");
-    assert!(forgejo.main_readme().ends_with(support::EDIT), "main holds the agent's edit");
-    let second = support::run(scratch.path(), support::person::found(), None, Duration::from_secs(120));
-    assert!(second.finished, "the work is found after the restart");
-    assert_eq!(forgejo.merged_pull(), Some(merged), "the forge's state is unchanged by the restart");
-    forgejo.stop();
-    scratch.remove();
-}
-
 #[test]
 fn forge_prepare_makes_an_owned_forge_then_remakes_nothing() {
     let scratch = support::Scratch::new("forge_prepare_real");
@@ -387,23 +367,6 @@ fn an_older_recorded_forgejo_is_dumped_then_upgraded() {
         fs::metadata(&backup).expect("upgrade fixture").modified().expect("upgrade fixture"),
         meta.modified().expect("upgrade fixture")
     );
-    scratch.remove();
-}
-#[test]
-fn an_older_recorded_runner_has_its_files_prepared_again_without_a_dump() {
-    use std::fs;
-    use support::owned;
-    use temper_forge_setup::place::File;
-    let scratch = support::Scratch::new("runner_upgrade_real");
-    let _port = owned::prepared_processes(scratch.path());
-    owned::record_versions(scratch.path(), None, Some(b"13.1.0"));
-    let configuration = owned::file(scratch.path(), 1, File::RunnerConfiguration);
-    let before = fs::read(&configuration).expect("connection");
-    fs::remove_file(&configuration).expect("remove configuration");
-    let upgraded = owned::prepare(scratch.path(), 1);
-    assert!(upgraded.status.success(), "{}", String::from_utf8_lossy(&upgraded.stderr));
-    assert_eq!(fs::read(configuration).expect("configuration remade"), before);
-    assert_eq!(fs::read_dir(scratch.path().join("forge-1/backups")).expect("upgrade fixture").count(), 0);
     scratch.remove();
 }
 
@@ -529,6 +492,7 @@ fn temper_box_restarts_a_killed_forgejo_while_the_engine_serves() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "keep both sittings and the independent Forgejo reads in the same story")]
 fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart() {
     use skein_forge::forgejo::pin::VERSION;
     use std::{fs, os::unix::fs::PermissionsExt};
@@ -571,6 +535,9 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             BOX_DEADLINE,
             |_| {
                 let evidence = support::first_repository::live_from_hands(&paths[0], &paths[1], &client_root);
+                if run == "first" {
+                    support::csv_repair::landed(&paths, &client_root, &support::ctl::json(&evidence.panel), began);
+                }
                 support::first_repository::probe_admin_handover(&paths, &client_root, &mut older_admin);
                 evidence
             },
@@ -656,105 +623,95 @@ fn replace_admin_handover(paths: &[std::path::PathBuf; 3]) {
 }
 
 #[test]
-fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-    use support::forge_land::{self, Plan};
+fn a_persons_plan_is_connected_and_answers_a_chat_with_its_bearer_on_every_request() {
+    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use support::{
+        ctl::{Call, Step},
+        forge_land,
+    };
 
-    let scratch = support::Scratch::new("forgejo-plan-change");
+    let scratch = support::Scratch::new("plan-model-face");
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    let mut issuer = Some(forge_land::fake_deployment(&paths));
-    let flags = support::boxed::echo_steps(deployment_flags(&paths));
-    let (cached, sources) = cache_forgejo_binaries(&paths[2]);
+    let issuer = forge_land::fake_deployment(&paths);
+    let flags = deployment_flags(&paths);
     let clock = skein_shell::Clock::new();
-    let addition = format!("Plan change at {}-{}", std::process::id(), clock.now().now.as_nanos());
-    let words = format!("Please append this line to work/hello README.md: {addition}");
-    let mut bot = None;
-    let mut landed = None;
-    let mut ended_tasks = None;
-    for run in ["first", "second"] {
-        let first = run == "first";
-        let client = scratch.path().join(run);
-        fs::create_dir(&client).expect("fresh client root");
-        fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client root");
-        let mut steps = forgejo_setup_steps(run);
-        let setup_calls = if first { 7 } else { 4 };
-        let (account_at, found_at) = plan_change_steps(&mut steps, first, setup_calls, &words);
-        let scripts = if first {
-            forge_land::plan_scripts(&Plan {
-                words: words.as_bytes(),
-                line: addition.as_bytes(),
-                repository: temper_engine_domain_forge::tag(3, 1),
-                readme: b"# hello\n\n",
-            })
-        } else {
-            // A fresh fake has no request cursor from the old process. Its
-            // first turn answers Close's finish request with text, which parks
-            // the Open run. Its system cue remains the original task's words.
-            forge_land::restart_script(words.as_bytes())
-        };
-        let issuer = issuer.take().unwrap_or_else(|| support::sign_in::restart_issuer(&paths[0]));
-        let clock = skein_shell::Clock::new();
-        let began = clock.now().now;
-        let (outcome, seen) = support::boxed::run_ctl_with_face(
-            scratch.path(),
-            flags.clone(),
-            &client,
-            steps,
-            BOX_DEADLINE,
-            || support::first_repository::live(&paths[0], &paths[1], &client),
-            forge_land::plan_face(issuer, scripts, first),
-        );
-        eprintln!("{run} plan Forgejo box: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
-        let stderr = String::from_utf8_lossy(&outcome.stderr);
-        eprintln!(
-            "{run} peer: {} requests; answers {:?}; schemes {:?}",
-            seen.requests.len(),
-            seen.answers,
-            seen.schemes
-        );
-        assert_plan_box(run, first, &outcome, &stderr);
-        assert!(outcome.calls.len() > found_at + 3, "all story reads ran: {stderr}");
-        bot = Some(assert_forgejo_setup(run, &outcome.calls[..setup_calls], &stderr, bot, &paths[1]));
-        support::sign_in::assert_plan_account(&outcome.calls[setup_calls], &outcome.calls[account_at]);
-        let evidence = outcome.checked.expect("live check ran");
-        support::first_repository::assert_task(run, &outcome.calls[found_at..found_at + 3], &stderr, &evidence);
-        forge_land::assert_landed_chat_pull(run, &evidence);
-        let task = String::from_utf8(outcome.calls[found_at + 1].stdout.clone()).expect("landed task UTF-8");
-        let identity = forge_land::landed_identity(&task, &evidence.page);
-        let closing_at = outcome.calls.len() - if first { 0 } else { 4 };
-        let (tasks_at, tasks) = forge_land::plan_ended_tasks(&outcome.calls[..closing_at]);
-        if first {
-            landed = Some(identity);
-            ended_tasks = Some(tasks);
-        } else {
-            assert_eq!(Some(identity), landed, "same pull and merge commit");
-            assert_eq!(Some(tasks), ended_tasks, "no second change or producer");
-            let ended = support::ctl::json(&outcome.calls[closing_at + 1]);
-            assert_eq!(ended["met"], true);
-            assert_eq!(ended["task"]["chip"]["phase"], "ended");
-            forge_land::assert_no_live_roots(&support::ctl::json(&outcome.calls[closing_at + 2]));
-            let unknown = &outcome.calls[closing_at + 3];
-            assert_eq!(unknown.exit, Some(Exit::Code(2)), "no task 5: {stderr}");
-            assert_eq!(unknown.stderr.trim_ascii_end(), b"{\"error\":\"unknown\"}", "no task 5: {stderr}");
-        }
-        forge_land::assert_reply(&outcome.calls[found_at + 4..tasks_at], first);
-        // One reviewer turn follows CI. Four coder turns include the workflow read;
-        // three chat turns delegate, wait, then reply after the procedure ends.
-        // After the restart, the chat's lost attempt answers again, then Close's
-        // finish request takes its last text.
-        forge_land::assert_requests(&seen, if first { 8 } else { 2 }, words.as_bytes(), first);
-        support::assert_one_printed_link(run, &outcome.stdout, &outcome.stderr);
-        assert_eq!(support::boxed::status(evidence.address, "/api/v1/version"), None);
-        assert_eq!(
-            evidence.version.expect("live Forgejo")["version"].as_str().expect("version").split('+').next(),
-            Some(skein_forge::forgejo::pin::VERSION)
-        );
-        let wrote =
-            format!("First run: wrote the configuration, {}\n", paths[0].join(temper_config_shell::FILE).display());
-        assert!(!support::boxed::box_log(&paths[1]).contains(&wrote), "init wrote configuration before either box");
-        assert_cache_untouched(&cached, &sources);
-    }
+    let reply = format!("Plan reply {}-{}", std::process::id(), clock.now().now.as_nanos());
+    let words = format!("Answer with this line: {reply}");
+    let scripts = support::llm::requested(Box::new([Script {
+        cue: words.as_bytes().into(),
+        turns: Box::new([Turn {
+            lines: Box::new([Line::Text { text: reply.as_bytes().into() }]),
+            finish: Finish::Stop,
+            tokens: 20,
+        }]),
+    }]));
+    let steps = vec![
+        Step::Run(Call::sign_in()),
+        Step::Run(Call::new(&["me", "--json"])),
+        Step::Run(Call::new(&["account", "connect", "1", "--key", "connect-plan"])),
+        Step::Run(Call::new(&["account", "list", "--until", "settled", "--json"])),
+        Step::Run(Call::new(&["project", "make", "Plan chat", "--key", "plan-project"])),
+        Step::Run(Call::new(&[
+            "chat",
+            "start",
+            "--project",
+            "1",
+            "--model",
+            "gpt-6-luna",
+            "--key",
+            "chat-on-plan",
+            &words,
+            "--json",
+        ])),
+        Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
+        Step::Run(Call::new(&["chat", "show", "1", "--json"])),
+    ];
+    let (outcome, seen) = support::boxed::run_ctl_with_plan_chat(
+        scratch.path(),
+        flags,
+        scratch.path(),
+        steps,
+        BOX_DEADLINE,
+        forge_land::fake_face(issuer, scripts),
+    );
+    ctl_assert_success(&outcome.calls);
+    let [_, me, _, ready, _, _, waited, chat] = outcome.calls.as_slice() else { panic!("all plan chat reads ran") };
+    support::sign_in::assert_plan_account(me, ready);
+    assert_eq!(support::ctl::json(waited)["met"], true);
+    assert_plan_chat_reply(&support::ctl::json(chat), &reply);
+
+    let [query] = seen.requests.as_slice() else { panic!("one plan model request") };
+    assert_eq!(query.model.as_ref(), b"gpt-6-luna");
+    assert!(support::llm::request_has(query, words.as_bytes()));
+    assert_eq!(seen.answers, [Ok(())], "the model request was answered");
+    let requests = 1 + seen.lists;
+    assert_eq!(seen.schemes, vec![Some(skein_llm::Scheme::Bearer); requests], "model and catalogue use bearer");
+    assert_eq!(seen.credential_indexes, vec![Some(0); requests], "every request matched the plan's bearer");
+    assert_eq!(outcome.exit, Some(Exit::Code(0)), "{}", support::without_secrets(&outcome.stderr));
+    assert_eq!(outcome.left, Some(Vec::new()), "nothing outlives the box");
+    support::assert_one_printed_link("plan chat", &outcome.stdout, &outcome.stderr);
     scratch.remove();
+}
+
+fn assert_plan_chat_reply(chat: &serde_json::Value, reply: &str) {
+    assert_eq!(chat["activity"]["cut"], false, "whole activity page");
+    let rows = chat["activity"]["rows"].as_array().expect("chat activity");
+    let mut replies = Vec::new();
+    for turn in rows.iter().filter_map(|row| row.pointer("/event/owner/decoded/turn/decoded")) {
+        assert_eq!(turn["cut"], false, "whole committed turn");
+        for message in turn["messages"].as_array().expect("turn messages") {
+            if message["speaker"] == "assistant" {
+                replies.extend(
+                    message["blocks"]
+                        .as_array()
+                        .expect("assistant blocks")
+                        .iter()
+                        .filter_map(|block| block["text"]["text"].as_str()),
+                );
+            }
+        }
+    }
+    assert_eq!(replies, [reply], "the run's reply is committed once");
 }
 
 // protocol/cluster.md, 6: the description's first process stories.
@@ -2600,13 +2557,7 @@ fn a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click() {
 }
 
 #[test]
-fn an_owned_forgejo_accepts_a_public_source_once_and_exchanges_its_code() {
-    let scratch = support::Scratch::new("forgejo_public_source");
-    support::forgejo_sign_in::public(scratch.path());
-    scratch.remove();
-}
-#[test]
-fn an_owned_forgejo_signs_its_member_in_through_temper() {
+fn an_owned_forgejo_signs_its_people_in_through_temper() {
     let scratch = support::Scratch::new("forgejo_sign_in");
     support::forgejo_sign_in::run(scratch.path());
     scratch.remove();
@@ -2615,8 +2566,7 @@ fn an_owned_forgejo_signs_its_member_in_through_temper() {
 // The capture witness uses Linux's abstract Unix sockets.
 #[cfg(target_os = "linux")]
 #[test]
-fn a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart()
- {
+fn a_forgejo_elsewhere_connected_as_its_admin_makes_its_first_repository_and_is_found_after_a_restart() {
     support::forgejo_elsewhere::restart();
 }
 
@@ -2688,93 +2638,6 @@ fn ctl_assert_success(calls: &[support::Ended]) {
         assert_eq!(call.exit, Some(Exit::Code(0)), "call {index}: {}", String::from_utf8_lossy(&call.stderr));
         assert!(call.stderr.is_empty(), "call {index}: {}", String::from_utf8_lossy(&call.stderr));
     }
-}
-
-#[test]
-fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_forge() {
-    use support::{
-        boxed::CtlLlm,
-        ctl::{Call, Step},
-        first_repository,
-    };
-    let scratch = support::Scratch::new("forgejo-playground-copy");
-    let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    support::forge_land::initialize(&paths);
-    support::own_listener_files(&paths[0]);
-    let CtlLlm { peer, expected_exits, on_link } = first_repository::playground_read_llm(&paths[0]);
-    // The worker pins its agent at startup. Route it to the fake before the
-    // box starts, not at the sign-in link after the worker has kept its copy.
-    on_link();
-    let llm = CtlLlm { peer, expected_exits, on_link: Box::new(|| {}) };
-    let flags = support::boxed::echo_steps(deployment_flags(&paths));
-    let _cached = cache_forgejo_binaries(&paths[2]);
-    let mut steps = vec![
-        Step::Run(Call::sign_in()),
-        Step::Run(Call::new(&["forge", "setup", "--playground"])),
-        Step::Run(Call::new(&["forge", "list", "--json"])),
-    ];
-    steps.extend(first_repository::playground_read_steps(scratch.path()));
-    steps.push(Step::Run(Call::new(&["project", "show", "1", "--json"])));
-    let ended = support::boxed::run_ctl_with_llm(
-        scratch.path(),
-        flags,
-        scratch.path(),
-        steps,
-        BOX_DEADLINE,
-        |_| first_repository::playground_read_evidence(&paths[1], scratch.path()),
-        llm,
-    );
-    let stderr = String::from_utf8_lossy(&ended.stderr);
-    assert_eq!(ended.exit, Some(Exit::Code(0)), "box drained: {stderr}");
-    assert_eq!(ended.left, Some(Vec::new()), "no processes outlive the box");
-    assert_eq!(ended.calls.len(), 9, "setup, reads and pull completed: {stderr}");
-    for call in &ended.calls {
-        assert_eq!(
-            call.exit,
-            Some(Exit::Code(0)),
-            "stdout: {}; stderr: {}; box: {stderr}",
-            String::from_utf8_lossy(&call.stdout),
-            String::from_utf8_lossy(&call.stderr)
-        );
-    }
-    assert_playground_setup(&ended);
-    scratch.remove();
-}
-
-fn assert_playground_setup(ended: &support::boxed::CtlOutcome<support::first_repository::PlaygroundReads>) {
-    let adoption = String::from_utf8_lossy(&ended.calls[1].stdout);
-    assert!(adoption.lines().any(|line| line == "project: 1 · widget"), "{adoption}");
-    assert!(adoption.contains("Adopted playground/widget on forge 1 as owned."), "{adoption}");
-    assert!(adoption.contains("It is the project's home."), "{adoption}");
-    let rows = support::ctl::json(&ended.calls[2]);
-    let row = rows["forges"].as_array().expect("forge rows").iter().find(|row| row["number"] == 1).expect("forge 1");
-    assert_eq!(row["first"]["state"], "made");
-    assert_eq!(row["state"], "connected");
-    assert_eq!(row["first"]["org"], "playground");
-    assert_eq!(row["first"]["repository"], "widget");
-    assert_eq!(row["first"]["playground"], true);
-    let evidence = ended.checked.as_ref().expect("live worker reads");
-    assert_eq!(evidence.panel.exit, Some(Exit::Code(0)), "pull panel read succeeded");
-    assert!(evidence.producer.contains("\"path\":\".forgejo/workflows/ci.yml\"}\nRead "), "{}", evidence.producer);
-    assert!(evidence.producer.contains("\"path\":\"src/main.rs\"}\nRead "), "{}", evidence.producer);
-    // ctl prints read counts; the service test compares every source byte.
-    assert!(evidence.producer.contains("Read 7 of 7 lines; skipped 0"), "{}", evidence.producer);
-    let panel = support::ctl::json(&evidence.panel);
-    assert_eq!(panel["landing"], "main", "{panel}");
-    assert_eq!(panel["pull"]["address"], format!("http://{}/playground/widget/pulls/1", evidence.address));
-    let project = support::ctl::json(&ended.calls[8]);
-    assert_eq!(project["number"], 1);
-    assert_eq!(project["name"]["bytes"], "widget");
-    let resources = project["resources"].as_array().expect("project repositories");
-    assert_eq!(resources.len(), 1);
-    assert_eq!(
-        resources[0]["part"],
-        serde_json::json!({
-            "connector":1, "kind":"resource", "key":{"path":["0001", "00000001"]}
-        })
-    );
-    assert_eq!(resources[0]["role"], "owned");
-    assert_eq!(resources[0]["home"], true);
 }
 
 // The move uses a fake issuer and no forge or model work.

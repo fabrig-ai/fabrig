@@ -337,14 +337,26 @@ pub struct Options {
 pub struct Landed { /* the base's files under patches/ and schema/kept/, by path */ }
 impl Landed {
     pub fn new(files: BTreeMap<PathBuf, Vec<u8>>) -> Landed;  // paths relative to the crate
-    pub fn read(owner: &Path) -> Result<Landed, Error>;       // the tree's own, as if landed
     pub fn none() -> Landed;                                  // nothing landed
 }
-pub fn run(owner: &Path, landed: &Landed, options: &Options) -> Result<Report, Error>;
-pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error>;
-pub fn module(owner: &Path) -> Result<String, Error>;  // patches/mod.rs's text
-pub fn current(owner: &Path) -> Result<(), Error>;     // mod.rs as generated
-pub fn goldens<C: Default>(owner: &Path, patch: u32, written: Written<C>) -> Result<(), Error>;
+pub struct Tree { /* the crate's files: its directory, or files in memory */ }
+impl Tree {
+    pub fn disk(owner: &Path) -> Tree;                        // the crate's directory, read and written as the command goes
+    pub fn new(files: BTreeMap<PathBuf, Vec<u8>>) -> Tree;    // in memory, paths relative to the crate
+    pub fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, Error>;  // a file's bytes, none where absent
+    pub fn files(&self) -> Result<BTreeMap<PathBuf, Vec<u8>>, Error>;  // every file under schema/ and patches/
+    pub fn write(&mut self, path: &Path, bytes: &[u8]) -> Result<(), Error>;  // an author's edit
+    pub fn remove(&mut self, path: &Path) -> Result<(), Error>;
+    pub fn landed(&self) -> Result<Landed, Error>;            // its own patches/, schema/kept/ and schema/wires, as if landed
+}
+pub fn run(tree: &mut Tree, landed: &Landed, options: &Options) -> Result<Report, Error>;
+pub fn check(tree: &Tree, landed: &Landed) -> Result<Vec<Finding>, Error>;
+pub fn module(tree: &Tree) -> Result<String, Error>;     // patches/mod.rs's text
+pub fn current_in(tree: &Tree) -> Result<(), Error>;     // mod.rs as generated
+pub fn golden<C: Default>(tree: &mut Tree, patch: u32, written: Written<C>, mode: Mode) -> Result<(), Error>;
+pub enum Mode { Check, Write }                           // fail on a golden missing, different or stale; or write them
+pub fn current(owner: &Path) -> Result<(), Error>;       // current_in over the owner's directory: its drift test
+pub fn goldens<C: Default>(owner: &Path, patch: u32, written: Written<C>) -> Result<(), Error>;  // golden there, writing where SKEIN_PATCH_WRITE=1
 pub type Written<C> = fn(Site, &Old, &mut Build, Node, &mut C) -> Result<(), Halt>;
 
 pub struct Report {
@@ -384,6 +396,25 @@ pub enum Error {
 
 - **The library reads no git:** what is landed is its input, so that
   its tests and the story pass it in memory.
+- **The crate's files are its tree** (`Tree`): every read, write and
+  removal of the table in 1 goes through it, in the order 2 and 6 give,
+  so that a run, a check or a golden run over a tree in memory makes the
+  same changes and stops in the same state as over the crate's
+  directory. On the directory it does what the command did on disk; in
+  memory a file written makes its directories, a directory is there
+  while it holds a file, and a golden directory a run empties is gone.
+  The binary and the owner's own tests, `current` and the golden
+  tests (3), whose generated text names them by the owner's path, take
+  the directory; tests and the story take a tree in
+  memory. A refusal names the same variant either way; a path it or a
+  golden failure names is the directory's where the command named it
+  so, and relative to the crate in memory.
+- **Why a tree, beside `Landed`:** what is landed is the base's, read
+  once and never written; the tree is the branch's, which the command
+  writes. A tree that read the whole directory first and wrote it back
+  after was turned down: the owner's golden tests would read every
+  golden for each patch they check, and an error would leave other
+  files than the command leaves on disk.
 - **The binary:** `skein-codegen patch <crate> [--baseline]
   [--owner <name>] [--after <upstream> <level>]… [--rename <family>
   <old> <new>]… [--base <ref>] [--check]`. It reads the landed files with `git
@@ -400,10 +431,15 @@ pub enum Error {
 
 ## 9. Tests
 
-Step tests in skein-codegen, the story in `tests/codec-patches`; no
-world, no cargo inside a test.
+Step tests in skein-codegen and the story in `tests/codec-patches`,
+each over a tree in memory (8), its schema texts supplied, so that the
+gate runs them; the binary's witnesses and the tree on disk in
+skein-codegen's suite, after landing; no world, no cargo inside a
+test. A test reads the checkout's committed files only as its inputs
+and expected texts, and writes them only where `SKEIN_PATCH_WRITE=1`
+regenerates them.
 
-- **Step tests,** each over a crate in a scratch directory, its files
+- **Step tests,** each over a crate's tree in memory, its files
   compared as whole text: each outcome's files (a run before the
   baseline refused, the baseline, a refresh, a rename waiting, a
   derived patch with its `?`, a written one with its skeleton), the
@@ -422,14 +458,28 @@ world, no cargo inside a test.
   written and no finding; its version moved, a branch kept text or
   renames, or a block of the branch's patch naming it, found
   `Registered`; a name `schema/registered` lists that is no family
-  refused.
-- **The story,** `tests/codec-patches`, an owner crate whose history the
-  command makes: the baseline, by `--baseline`; a field added, its patch
+  refused. "No file written" is the tree unchanged, and a directory
+  gone is no file under it. The maps refusals (`maps.md`, 6) are a
+  step table too: each row's line and reason as `translate` returns
+  them, and the line the binary prints, `line N: schema refusal`, as
+  the error displays it.
+- **What only the binary or the disk shows,** in skein-codegen's suite:
+  the maps command over split schema texts, writing its first stem's
+  file alone; one maps refusal, printed on stderr, its exit failing and
+  no output written; the patch command over a git base, its baseline
+  (0), its planner's refusal (1), a check that writes nothing (1), an
+  argument error and an unreadable input (2); and a tree on the
+  crate's directory, written, removed and emptied as a tree in memory
+  is, its files then the same, and an emptied golden directory gone
+  from the disk.
+- **The story,** `tests/codec-patches`, a step test over trees in
+  memory, an owner crate whose history the command makes: the baseline, by `--baseline`; a field added, its patch
   asking `?`, refused when planned, then filled, planned and its goldens
   written; a rename refreshed in a family no patch names, and one
   waiting in a frozen one; a written change, its skeleton's golden test
   failing with `NoSite` naming the site, then its function written;
   another branch's patch landing first, and the story's renumbered. The
   check at each step. Each step is checked as text against its expected
-  files; the crate's final files are the last step's, built and tested
-  by the gate as any member: `current` and the golden tests.
+  files, read from its `story/` inputs; the crate's committed `schema/`
+  and `patches/` are the last step's tree, built and tested by the gate
+  as any member: `current` and the golden tests.

@@ -409,13 +409,12 @@ operation as section 4's sweeps do; where a crash has two branches
 (going back, or recovering forward), each branch is a child forked from
 the held prefix that takes the crash itself, rather than a prefix built
 again for each; a fixture drawn from the cut's own seed is built per
-cut. These are component-world scenarios, not a separate tier. `jig-test::process` also
-runs in focused: three paths through the shipped binary against fakes,
-including its bundle page under the reference policy. Startup, HTTP and
-child-exit waits use the shared real loop's `Deadline`, with the measured
-starvation verdict (testing-strategy.md, 2.10). Offline live-configuration
-and refused-plan diagnostics run in focused; real live stories remain
-opt-in.
+cut. These are component-world scenarios, not a separate tier. `jig-test::process`
+runs after landing: the process tier's paths through the shipped binary
+against fakes, and nothing a step or world test can show
+(`../protocol/service-testing.md`, 1). Startup and child-exit waits use
+the shared real loop's `Deadline`, with the measured starvation verdict
+(testing-strategy.md, 2.10); real live stories remain opt-in.
 
 Settings' tests are priced so (engine/settings.md). Their step tests
 are pure functions over a few settings, each well under a millisecond.

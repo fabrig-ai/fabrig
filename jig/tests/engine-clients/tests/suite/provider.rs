@@ -1,7 +1,3 @@
-#![expect(
-    clippy::disallowed_types,
-    reason = "the task requires real elapsed measurements; protocol deadlines use only the injected world clock"
-)]
 //! The application's page and endpoint routes around the real clients' component (protocol/client/openid.md).
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
@@ -18,53 +14,17 @@ use skein_lib::{
     Duration, Env, Queue, Reader, ReplyTo, Secret, Time, Token, Wall, Writer,
     base64::{self, Alphabet},
 };
-use std::{
-    collections::BTreeMap,
-    fs,
-    os::unix::fs::{OpenOptionsExt, PermissionsExt},
-    process::Command,
-    sync::OnceLock,
-    time::Instant,
-};
+use std::collections::BTreeMap;
 const REDIRECT: &str = "https://app.example.com/callback";
 const VERIFIER: &str = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 const CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 const PERSON_PROVIDER: u16 = 3;
 // Two code slots, and two token slots: the story reaches both admission bounds independently.
 const ROOM: u32 = 2;
-struct Keys {
-    pem: Secret,
-    secret: Secret,
-}
-fn keys() -> &'static Keys {
-    static KEYS: OnceLock<Keys> = OnceLock::new();
-    KEYS.get_or_init(|| {
-        let scratch = tempfile::tempdir().expect("private provider scratch");
-        let path = scratch.path().join("provider.pem");
-        fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).expect("private key file");
-        let started = Instant::now();
-        let result = Command::new("openssl")
-            .args(["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:3072", "-out"])
-            .arg(&path)
-            .output()
-            .expect("openssl installed");
-        assert!(result.status.success(), "key generation succeeds");
-        eprintln!("provider world RSA 3072 key generation: {:?}", started.elapsed());
-        assert_eq!(fs::metadata(&path).expect("key metadata").permissions().mode() & 0o777, 0o600);
-        let pem = Secret::new(fs::read(path).expect("key file").into_boxed_slice());
-        let path = scratch.path().join("client.secret");
-        fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).expect("private secret file");
-        let result = Command::new("openssl")
-            .args(["rand", "-hex", "-out"])
-            .arg(&path)
-            .arg("32")
-            .output()
-            .expect("openssl installed");
-        assert!(result.status.success(), "client secret generation succeeds");
-        let secret = jig_protocol_config::secret(fs::read(path).expect("client secret file").into_boxed_slice());
-        Keys { pem, secret }
-    })
-}
+// A fixed public key made for tests, never a deployment's.
+const RSA_3072_PKCS8: &[u8] = include_bytes!("rsa-3072-pkcs8.pem");
+// A test-only secret: 64 hex digits and a newline, like the output of `openssl rand -hex 32`.
+const CLIENT_SECRET_FILE: &[u8] = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n";
 fn urls() -> ProviderUrls {
     ProviderUrls {
         issuer: Box::from(b"https://app.example.com".as_slice()),
@@ -117,14 +77,15 @@ impl World {
         settings.addresses = Box::new([PERSON_PROVIDER]);
         settings.providers = skein_lib::List::with_capacity(1);
         settings.providers.push(PERSON_PROVIDER).expect("application provider room");
+        let secret = jig_protocol_config::secret(Box::from(CLIENT_SECRET_FILE));
         let key_set = if provider {
             let configuration =
                 Provider { key: Box::from(b"provider.pem".as_slice()), clients, addresses: settings.addresses.clone() };
             let issuer = provider_issuer(
                 &configuration,
                 &[
-                    (configuration.key.clone(), keys().pem.clone()),
-                    (Box::from(b"client.secret".as_slice()), keys().secret.clone()),
+                    (configuration.key.clone(), Secret::new(Box::from(RSA_3072_PKCS8))),
+                    (Box::from(b"client.secret".as_slice()), secret.clone()),
                 ],
                 urls(),
                 &limits,
@@ -157,7 +118,7 @@ impl World {
             changed: None,
             next: 1,
             key_set,
-            secret: keys().secret.clone(),
+            secret,
         }
     }
     fn send(&mut self, event: Event) {
@@ -401,8 +362,6 @@ fn refused(answer: w::AuthorizeAnswer, why: &w::AuthorizeWhy) {
 }
 #[test]
 fn provider_codes_tokens_and_claims_follow_one_signed_in_person() {
-    keys();
-    let started = Instant::now();
     let mut world = World::new(true);
     refused(world.authorize("https://other.example.com/callback"), &w::AuthorizeWhy::UnknownRedirect);
     refused(world.query(b"%invalid"), &w::AuthorizeWhy::Malformed);
@@ -492,7 +451,6 @@ fn provider_codes_tokens_and_claims_follow_one_signed_in_person() {
     error(&answer, "invalid_client");
     let answer = absent.claims("unknown");
     error(&answer, "invalid_client");
-    eprintln!("provider story excluding key generation: {:?}", started.elapsed());
 }
 
 fn public_client(id: &[u8]) -> ProviderClientChange {
