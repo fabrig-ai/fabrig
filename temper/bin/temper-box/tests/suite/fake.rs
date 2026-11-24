@@ -42,7 +42,6 @@ struct Running {
     child: RefCell<Option<Child>>,
     sockets: RefCell<Vec<Option<TcpStream>>>,
     address: SocketAddr,
-    control: Option<SocketAddr>,
 }
 impl Running {
     fn start(kind: &str, document: &Path, observations: Option<&Path>) -> Result<Self, String> {
@@ -58,50 +57,8 @@ impl Running {
             child: RefCell::new(Some(child)),
             sockets: RefCell::new(Vec::new()),
             address: "127.0.0.1:0".parse().expect("valid fixture"),
-            control: None,
         };
-        let mut bytes = Vec::new();
-        for _ in 0..128 {
-            let mut byte = [0_u8; 1];
-            let read = run
-                .child
-                .get_mut()
-                .as_mut()
-                .expect("running fake")
-                .stdout
-                .as_mut()
-                .expect("stdout pipe")
-                .read_exact(&mut byte);
-            if let Err(why) = read {
-                let mut child = run.child.get_mut().take().expect("running fake");
-                if why.kind() != std::io::ErrorKind::UnexpectedEof {
-                    child.kill().expect("stop fake after readiness failure");
-                }
-                let ended = child.wait_with_output().expect("reap fake after readiness failure");
-                return Err(format!(
-                    "ready line: {why:?}; status {}; stderr {}; partial {:?}; command {command:?}",
-                    ended.status,
-                    String::from_utf8_lossy(&ended.stderr),
-                    String::from_utf8_lossy(&bytes)
-                ));
-            }
-            bytes.push(byte[0]);
-            if byte[0] == b'\n' {
-                break;
-            }
-        }
-        let line = String::from_utf8(bytes).expect("ready line is UTF-8");
-        assert!(line.starts_with("ready "), "ready line: {line}");
-        let mut addresses = line.strip_prefix("ready ").expect("valid fixture").split_whitespace();
-        run.address = addresses.next().expect("provider address").parse().expect("valid fixture");
-        run.control = addresses.next().map(|address| address.parse::<SocketAddr>().expect("control address"));
-        assert!(addresses.next().is_none(), "ready line has only its listeners");
-        if let Some(control) = run.control {
-            assert!(control.ip().is_loopback());
-            assert_ne!(control.port(), 0);
-        }
-        assert!(run.address.ip().is_loopback());
-        assert_ne!(run.address.port(), 0);
+        run.address = temper_box_kit::fake_readiness::child(run.child.get_mut(), &command)?.address;
         Ok(run)
     }
     fn stop(self) {
@@ -161,34 +118,15 @@ impl Drop for Running {
         }
     }
 }
-#[test]
-fn readiness_eof_reports_child_status_and_stderr() {
-    let mut command = Command::new("/bin/sh");
-    command
-        .env_clear()
-        .args(["-c", "printf 'fixture refused' >&2; exit 7"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let finding = Running::command(command, None).err().expect("readiness EOF finding");
-    assert!(finding.contains("status exit status: 7; stderr fixture refused"), "{finding}");
-}
-/// The fake owns its sockets so a starved control request also closes a held query
-/// (skein/docs/foundation/testing-strategy.md, 2.10).
+/// The fake owns its sockets so a failed wait can close them before reaping it.
 struct Socket<'a> {
     run: &'a Running,
     slot: usize,
     deadline: Deadline,
-    nonblocking: bool,
 }
 impl Socket<'_> {
     fn reset(&mut self, what: &'static str) {
         self.deadline = self.run.deadline(what);
-    }
-    fn set_nonblocking(&mut self, value: bool) -> std::io::Result<()> {
-        self.run.sockets.borrow()[self.slot].as_ref().expect("open socket").set_nonblocking(value)?;
-        self.nonblocking = value;
-        Ok(())
     }
 }
 fn timeout(deadline: &Deadline) -> Duration {
@@ -203,7 +141,7 @@ impl Read for Socket<'_> {
             return Ok(0);
         }
         loop {
-            if !self.nonblocking && self.deadline.passed() {
+            if self.deadline.passed() {
                 self.run.expired(&self.deadline);
             }
             let result = {
@@ -213,7 +151,7 @@ impl Read for Socket<'_> {
                 socket.read(bytes)
             };
             match result {
-                Err(why) if !self.nonblocking && timed_out(&why) => {}
+                Err(why) if timed_out(&why) => {}
                 other => return other,
             }
         }
@@ -267,7 +205,7 @@ fn stream(run: &Running, address: SocketAddr) -> Socket<'_> {
     let mut sockets = run.sockets.borrow_mut();
     let slot = sockets.len();
     sockets.push(Some(socket));
-    Socket { run, slot, deadline: run.deadline("the fake socket's request"), nonblocking: false }
+    Socket { run, slot, deadline: run.deadline("the fake socket's request") }
 }
 fn http(method: &str, target: &str, authorization: &str, body: &[u8]) -> Vec<u8> {
     let mut request=format!("{method} {target} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n",body.len()).into_bytes();
@@ -338,13 +276,11 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
         .stderr(Stdio::piped());
     command
 }
-fn forge_setup(directory: &Path, listen: &str) -> Value {
-    let config = support::configuration::check_document(directory);
+fn forge_setup(directory: &Path, listen: &str) {
     let setup = serde_json::json!({"kind":"fake","listen":{"socket":listen},"remote":format!("http://{listen}"),"git":"demo/bin/git"});
     support::configuration::setup(directory, 1, setup);
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
-    config
 }
 fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, (u32, Option<Vec<u8>>)> {
     let mut found = std::collections::BTreeMap::new();
@@ -377,10 +313,9 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
         Running::command(cmd, None).unwrap_or_else(|why| panic!("{why}"))
     };
     let run = start();
-    assert!(!state.exists(), "startup writes no state");
     let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
     let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
-    let grant = request(
+    let _grant = request(
         &run,
         run.address,
         "PUT",
@@ -388,8 +323,7 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
         &auth,
         br#"{"permission":"admin"}"#,
     );
-    assert!(grant.starts_with(b"HTTP/1.1 204"));
-    let response = request(
+    let _issue = request(
         &run,
         run.address,
         "POST",
@@ -397,8 +331,6 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
         &auth,
         br#"{"title":"Kept across stop","body":"Kept body"}"#,
     );
-    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    assert!(!state.exists(), "API writes do not checkpoint");
     run.stop();
     assert_eq!(fs::metadata(&state).expect("state written at stop").permissions().mode() & 0o777, 0o600);
     let before = fs::read(&state).expect("image");
@@ -411,140 +343,6 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
     let run = start();
     run.end();
     assert!(!state.exists(), "SIGKILL writes no image");
-}
-fn made_gate(run: &Running, auth: &str, branch: &str, expected: &str) {
-    let response =
-        request(run, run.address, "GET", &format!("/api/v1/repos/session/made/branches/{branch}"), auth, b"");
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let head = body(&response)["commit"]["id"].as_str().expect("head").to_owned();
-    let response = request(
-        run,
-        run.address,
-        "POST",
-        "/api/v1/repos/session/made/actions/workflows/gate.yml/dispatches",
-        auth,
-        &serde_json::to_vec(&json!({"ref":branch,"inputs":{}})).expect("dispatch"),
-    );
-    assert!(response.starts_with(b"HTTP/1.1 204"), "{}", String::from_utf8_lossy(&response));
-    for _ in 0..128 {
-        let response = request(
-            run,
-            run.address,
-            "GET",
-            &format!("/api/v1/repos/session/made/actions/runs?workflow_id=gate.yml&head_sha={head}"),
-            auth,
-            b"",
-        );
-        assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-        let runs = body(&response);
-        let latest = &runs["workflow_runs"][0];
-        if latest["status"] == "running" || latest["status"] == "waiting" {
-            continue;
-        }
-        assert_eq!(latest["status"], expected);
-        let id = latest["id"].as_u64().expect("run id");
-        let response =
-            request(run, run.address, "GET", &format!("/api/v1/repos/session/made/actions/runs/{id}/jobs"), auth, b"");
-        assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-        let jobs = body(&response);
-        assert_eq!(jobs[0]["name"], "gate");
-        assert_eq!(jobs[0]["status"], expected);
-        return;
-    }
-    panic!("gate did not complete");
-}
-#[test]
-fn forge_state_keeps_made_workflows_and_manual_merge_settings() {
-    let scratch = support::Scratch::new("made-forge-gates");
-    let doc = scratch.path().join("forge.json");
-    let state = scratch.path().join("forge.state");
-    let mut value = forge_document(scratch.path());
-    value["workflows"] = json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]);
-    value["manual_merges"] = json!({"allow":true,"autodetect":true});
-    document(&doc, &value);
-    let start = || {
-        let mut cmd = command("forge", &doc);
-        cmd.arg("--state").arg(&state);
-        Running::command(cmd, None).unwrap_or_else(|why| panic!("{why}"))
-    };
-    let run = start();
-    let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
-    let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
-    for (target, payload) in [
-        ("/api/v1/admin/users/temper-admin/orgs", json!({"username":"session","visibility":"private"})),
-        ("/api/v1/orgs/session/repos", json!({"name":"made","private":true,"auto_init":true,"default_branch":"main"})),
-    ] {
-        let response = request(&run, run.address, "POST", target, &auth, &serde_json::to_vec(&payload).expect("setup"));
-        assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    }
-    let credentials = format!("temper-admin:{}", std::str::from_utf8(&token).expect("hex token"));
-    let alphabet = skein_lib::base64::Alphabet::Standard;
-    let size = skein_lib::base64::encoded_len(alphabet, u32::try_from(credentials.len()).expect("short credentials"))
-        .expect("base64 length");
-    let mut encoded = skein_lib::Writer::new(usize::try_from(size).expect("short credentials"));
-    skein_lib::base64::encode(alphabet, credentials.as_bytes(), &mut encoded).expect("sized credentials");
-    let git_auth = format!("Basic {}", std::str::from_utf8(&encoded.finish()).expect("base64"));
-    made_gate(&run, &auth, "main", "success");
-    let response =
-        request(&run, run.address, "POST", "/.fake/git/fetch", &git_auth, br#"{"repository":"session/made"}"#);
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let first = body(&response)["commit"].as_u64().expect("main commit");
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/.fake/git/create",
-        &git_auth,
-        &serde_json::to_vec(&json!({"repository":"session/made","branch":"work","commit":first})).expect("branch"),
-    );
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let response = request(&run, run.address, "POST", "/api/v1/repos/session/made/contents/.fake-forge/gate", &auth,
-        br#"{"branch":"work","content":"ZmFpbA==","message":"Fail the gate","author":{"name":"member","email":"member@example.invalid"},"committer":{"name":"member","email":"member@example.invalid"}}"#);
-    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/api/v1/repos/session/made/pulls",
-        &auth,
-        br#"{"title":"A member","body":"","head":"work","base":"main"}"#,
-    );
-    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    let number = body(&response)["number"].as_u64().expect("pull number");
-    run.stop();
-    assert!(state.exists(), "orderly stop keeps an image");
-    // A changed document supplies later creations, not the restored repository.
-    value["workflows"][0]["cue"] = Value::Null;
-    value["manual_merges"] = json!({});
-    document(&doc, &value);
-    let run = start();
-    made_gate(&run, &auth, "work", "failure");
-    let pull = format!("/api/v1/repos/session/made/pulls/{number}");
-    let response = request(&run, run.address, "GET", &pull, &auth, b"");
-    assert_eq!(body(&response)["merged"], false);
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/.fake/git/fetch",
-        &git_auth,
-        br#"{"repository":"session/made","branch":"work"}"#,
-    );
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let head = body(&response)["commit"].as_u64().expect("work head");
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/.fake/git/push",
-        &git_auth,
-        &serde_json::to_vec(&json!({"repository":"session/made","branch":"main","commit":head,"expected":first}))
-            .expect("push"),
-    );
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let response = request(&run, run.address, "GET", &pull, &auth, b"");
-    assert_eq!(body(&response)["merged"], true);
-    run.stop();
 }
 #[test]
 fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
@@ -568,115 +366,20 @@ fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
     scratch.remove();
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "both forge forms serve the same requests and retain their files")]
 fn forge_run() {
-    for from_setup in [false, true] {
-        let scratch = support::Scratch::new("fake_forge_run");
-        let dir = scratch.path();
-        let doc = dir.join("forge.json");
-        let mut config = forge_document(dir);
-        config["repositories"][0]["landing"] = json!("trunk");
-        document(&doc, &config);
-        let observations = dir.join("observations");
-        let (run, token_path, token) = if from_setup {
-            let (listen, path, token) = prepared_forge(dir);
-            let mut command = deployment_command("forge", dir);
-            command.arg("1");
-            let run = Running::command(command, Some(&observations)).unwrap_or_else(|why| panic!("{why}"));
-            assert_eq!(run.address, listen, "ready on fake.listen");
-            (run, path, token)
-        } else {
-            (
-                Running::start("forge", &doc, Some(&observations)).unwrap_or_else(|why| panic!("{why}")),
-                dir.join("forge/admin_token"),
-                temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN).to_vec(),
-            )
-        };
-        private_hex(&token_path, &token);
-        assert_eq!(
-            fs::metadata(token_path.parent().expect("token directory")).expect("valid fixture").permissions().mode()
-                & 0o777,
-            0o700
-        );
-        assert_eq!(fs::metadata(&observations).expect("valid fixture").permissions().mode() & 0o777, 0o600);
-        assert_eq!(
-            fs::read(&observations).expect("valid fixture"),
-            b"{\"observations_lost\":0}\n",
-            "no seed observations"
-        );
-        let owner = if from_setup { "playground" } else { "fake" };
-        let auth = format!("token {}", std::str::from_utf8(&token).expect("valid fixture"));
-        let user = request(&run, run.address, "GET", "/api/v1/user", &auth, b"");
-        assert!(user.starts_with(b"HTTP/1.1 200"));
-        assert_eq!(body(&user)["login"], "temper-admin");
-        let repository = request(&run, run.address, "GET", "/api/v1/repositories/1", &auth, b"");
-        assert!(repository.starts_with(b"HTTP/1.1 200"));
-        let repository = body(&repository);
-        for (member, expected) in [
-            ("default_branch", if from_setup { "main" } else { "trunk" }.to_owned()),
-            ("html_url", format!("http://{}/{owner}/widget", run.address)),
-        ] {
-            assert_eq!(repository[member], expected, "{member}");
-        }
-        let objects = request(&run, run.address, "POST", "/.fake/git/objects", "", br#"{"commits":[1]}"#);
-        assert!(objects.starts_with(b"HTTP/1.1 200"));
-        let objects = body(&objects);
-        assert_eq!(objects["objects"][0]["commit"], 1);
-        assert!(objects["objects"][0]["parent"].is_null());
-        let tree = objects["objects"][0]["tree"].as_array().expect("valid fixture");
-        assert_eq!(tree.len(), temper_fake::forge::FILES.len());
-        let path = b".forgejo/workflows/check.yml";
-        let len = skein_lib::base64::encoded_len(
-            skein_lib::base64::Alphabet::Standard,
-            u32::try_from(path.len()).expect("valid fixture"),
-        )
-        .expect("valid fixture");
-        let mut expected_path = skein_lib::Writer::new(usize::try_from(len).expect("valid fixture"));
-        skein_lib::base64::encode(skein_lib::base64::Alphabet::Standard, path, &mut expected_path)
-            .expect("valid fixture");
-        let expected_path = expected_path.finish();
-        assert!(
-            tree.iter().any(|file| file["path"].as_str().expect("valid fixture").as_bytes() == expected_path.as_ref())
-        );
-        // Setup's admin flag and the domain's repository permission are separate.
-        // Grant through the API, as a runner would, rather than seeding a grant.
-        let grant = request(
-            &run,
-            run.address,
-            "PUT",
-            &format!("/api/v1/repos/{owner}/widget/collaborators/temper-admin"),
-            &auth,
-            br#"{"permission":"admin"}"#,
-        );
-        assert!(grant.starts_with(b"HTTP/1.1 204"), "{}", String::from_utf8_lossy(&grant));
-        let branch = request(
-            &run,
-            run.address,
-            "POST",
-            &format!("/api/v1/repos/{owner}/widget/branches"),
-            &auth,
-            br#"{"new_branch_name":"work","old_ref_name":"910a2dec89025cc1000000000000000100000000"}"#,
-        );
-        assert!(branch.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&branch));
-        let lines = fs::read_to_string(&observations).expect("valid fixture");
-        let records =
-            lines.lines().map(|line| serde_json::from_str::<Value>(line).expect("valid fixture")).collect::<Vec<_>>();
-        assert!(records.iter().any(|line| line["observation"] == "moved" && line["branch"] == "work"));
-        assert!(
-            records.last().expect("valid fixture").get("observations_lost").is_some(),
-            "checkpoint precedes the reply"
-        );
-        run.stop();
-        let lines = fs::read_to_string(&observations).expect("valid fixture");
-        assert_eq!(
-            serde_json::from_str::<Value>(lines.lines().last().expect("valid fixture")).expect("valid fixture"),
-            json!({"observations_lost":0})
-        );
-        assert_eq!(fs::read(&token_path).expect("token kept at stop"), token);
-        assert!(observations.exists());
-        assert!(doc.exists());
-        scratch.remove();
-    }
+    let scratch = support::Scratch::new("fake_forge_run");
+    let dir = scratch.path();
+    let (listen, token_path, token) = prepared_forge(dir);
+    let mut command = deployment_command("forge", dir);
+    command.arg("1");
+    let run = Running::command(command, Some(&dir.join("observations"))).unwrap_or_else(|why| panic!("{why}"));
+    assert_eq!(run.address, listen, "ready on fake.listen");
+    run.stop();
+    let meta = fs::metadata(&token_path).expect("prepared token kept at stop");
+    assert!(meta.is_file());
+    assert_eq!(meta.permissions().mode() & 0o777, 0o600);
+    assert_eq!(fs::read(token_path).expect("prepared token"), token);
+    scratch.remove();
 }
 
 fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>) {
@@ -696,126 +399,72 @@ fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>)
 
 const CHAT:&[u8]=br#"{"model":"qa","store":false,"instructions":"","input":[{"role":"user","content":[{"type":"input_text","text":"say hello"}]}],"stream":true}"#;
 #[test]
-#[expect(clippy::too_many_lines, reason = "all LLM forms serve the same requests and retain their files")]
 fn llm_run() {
-    for (name, tls, demo) in
-        [("fake_llm_plain", false, false), ("fake_llm_tls", true, false), ("fake_llm_demo", false, true)]
+    let scratch = support::Scratch::new("fake_llm_tls");
+    let dir = scratch.path();
+    let doc = dir.join("llm.json");
+    document(&doc, &llm_document(dir, true));
+    let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
+    let key = temper_fake::credential::credential(23, temper_fake::credential::KEY);
+    let key_path = dir.join("key");
+    private_hex(&key_path, &key);
+    let chat: Value = serde_json::from_slice(CHAT).expect("valid fixture");
+    let chat = serde_json::to_vec(&chat).expect("valid fixture");
+    let before = snapshot(dir);
+    let auth = format!("Bearer {}", std::str::from_utf8(&key).expect("valid fixture"));
+    for (credential, status, text) in
+        [(&*auth, b"HTTP/1.1 200", "hello from QA"), ("Bearer wrong", b"HTTP/1.1 401", "invalid_api_key")]
     {
-        let scratch = support::Scratch::new(name);
-        let dir = scratch.path();
-        let doc = dir.join("llm.json");
-        document(&doc, &llm_document(dir, tls));
-        let (run, key_path, key) = if demo {
-            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("box's held scripted listener");
-            let listen = listener.local_addr().expect("chosen scripted address");
-            fs::create_dir(dir.join("demo")).expect("demo directory");
-            let path = dir.join("demo/llm.key");
-            let key = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_vec();
-            support::write_private(&path, &[key.as_slice(), b"\n"].concat());
-            let mut command = crate::listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
-            command.args(["fake", "llm"]).args(support::configuration::flags(dir));
-            let run = Running::command(command, None).unwrap_or_else(|why| panic!("{why}"));
-            assert_eq!(run.address, listen, "ready on the box's inherited scripted listener");
-            (run, path, key)
-        } else {
-            let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
-            let key = temper_fake::credential::credential(23, temper_fake::credential::KEY);
-            private_hex(&dir.join("key"), &key);
-            (run, dir.join("key"), key.to_vec())
-        };
-        let chat: Value = serde_json::from_slice(CHAT).expect("valid fixture");
-        let chat = serde_json::to_vec(&chat).expect("valid fixture");
-        let before = snapshot(dir);
-        let auth = format!("Bearer {}", std::str::from_utf8(&key).expect("valid fixture"));
-        for (credential, status, text) in [
-            (&*auth, b"HTTP/1.1 200".as_slice(), if demo { "I am the scripted model" } else { "hello from QA" }),
-            ("Bearer wrong", b"HTTP/1.1 401", "invalid_api_key"),
-        ] {
-            let response = if tls {
-                assert_eq!(fs::read(dir.join("root.der")).expect("valid fixture"), skein_fake_peers::transport::ROOT);
-                assert_eq!(
-                    fs::metadata(dir.join("root.der")).expect("valid fixture").permissions().mode() & 0o777,
-                    0o600
-                );
-                let mut roots = rustls_std::RootCertStore::empty();
-                roots
-                    .add(rustls_std::pki_types::CertificateDer::from(
-                        fs::read(dir.join("root.der")).expect("valid fixture"),
-                    ))
-                    .expect("valid fixture");
-                let config = rustls_std::ClientConfig::builder_with_provider(Arc::new(
-                    rustls_std::crypto::ring::default_provider(),
-                ))
+        assert_eq!(fs::read(dir.join("root.der")).expect("valid fixture"), skein_fake_peers::transport::ROOT);
+        assert_eq!(fs::metadata(dir.join("root.der")).expect("valid fixture").permissions().mode() & 0o777, 0o600);
+        let mut roots = rustls_std::RootCertStore::empty();
+        roots
+            .add(rustls_std::pki_types::CertificateDer::from(fs::read(dir.join("root.der")).expect("valid fixture")))
+            .expect("valid fixture");
+        let config =
+            rustls_std::ClientConfig::builder_with_provider(Arc::new(rustls_std::crypto::ring::default_provider()))
                 .with_safe_default_protocol_versions()
                 .expect("valid fixture")
                 .with_root_certificates(roots)
                 .with_no_client_auth();
-                let connection = rustls_std::ClientConnection::new(
-                    Arc::new(config),
-                    rustls_std::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),
-                )
-                .expect("valid fixture");
-                let mut stream = rustls_std::StreamOwned::new(connection, stream(&run, run.address));
-                stream.write_all(&http("POST", "/v1/responses", credential, &chat)).expect("valid fixture");
-                let mut response = Vec::new();
-                stream.sock.reset("the fake TLS socket's reply");
-                match stream.read_to_end(&mut response) {
-                    Ok(_) => {}
-                    Err(why) if why.kind() == std::io::ErrorKind::UnexpectedEof => {}
-                    Err(why) => panic!("TLS response: {why}"),
-                }
-                response
-            } else {
-                request(&run, run.address, "POST", "/v1/responses", credential, &chat)
-            };
-            assert!(response.starts_with(status), "{}", String::from_utf8_lossy(&response));
-            assert!(String::from_utf8_lossy(&response).contains(text), "{}", String::from_utf8_lossy(&response));
+        let connection = rustls_std::ClientConnection::new(
+            Arc::new(config),
+            rustls_std::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),
+        )
+        .expect("valid fixture");
+        let mut stream = rustls_std::StreamOwned::new(connection, stream(&run, run.address));
+        stream.write_all(&http("POST", "/v1/responses", credential, &chat)).expect("valid fixture");
+        let mut response = Vec::new();
+        stream.sock.reset("the fake TLS socket's reply");
+        match stream.read_to_end(&mut response) {
+            Ok(_) => {}
+            Err(why) if why.kind() == std::io::ErrorKind::UnexpectedEof => {}
+            Err(why) => panic!("TLS response: {why}"),
         }
-        if !tls {
-            let mut other: Value = serde_json::from_slice(&chat).expect("valid fixture");
-            other["model"] = json!("another-model");
-            let response = request(
-                &run,
-                run.address,
-                "POST",
-                "/v1/responses",
-                &auth,
-                &serde_json::to_vec(&other).expect("valid fixture"),
-            );
-            assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains(if demo {
-                "I am the scripted model"
-            } else {
-                "hello from QA"
-            }));
-        }
-        let mut other: Value = serde_json::from_slice(&chat).expect("valid fixture");
-        other["instructions"] = json!("");
-        other["input"][0]["content"][0]["text"] = json!("another request");
-        if !tls {
-            let response = request(
-                &run,
-                run.address,
-                "POST",
-                "/v1/responses",
-                &auth,
-                &serde_json::to_vec(&other).expect("valid fixture"),
-            );
-            assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains(if demo {
-                "I am the scripted model"
-            } else {
-                "fallback"
-            }));
-        }
-        run.stop();
-        assert_eq!(snapshot(dir), before, "{name}: files and modes retained after stop");
-        assert_eq!(
-            fs::read(&key_path).expect("key retained"),
-            if demo { [key.as_slice(), b"\n"].concat() } else { key }
-        );
-        scratch.remove();
+        assert!(response.starts_with(status), "{}", String::from_utf8_lossy(&response));
+        assert!(String::from_utf8_lossy(&response).contains(text), "{}", String::from_utf8_lossy(&response));
     }
+    run.stop();
+    assert_eq!(snapshot(dir), before, "TLS files and modes retained after stop");
+    assert_eq!(fs::read(key_path).expect("key retained"), key);
+    scratch.remove();
+
+    let scratch = support::Scratch::new("fake_llm_demo");
+    let dir = scratch.path();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("box's held scripted listener");
+    let listen = listener.local_addr().expect("chosen scripted address");
+    fs::create_dir(dir.join("demo")).expect("demo directory");
+    let key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    support::write_private(&dir.join("demo/llm.key"), format!("{key}\n").as_bytes());
+    let mut command = crate::listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+    command.args(["fake", "llm"]).args(support::configuration::flags(dir));
+    let run = Running::command(command, None).unwrap_or_else(|why| panic!("{why}"));
+    assert_eq!(run.address, listen, "ready on the box's inherited scripted listener");
+    let reply = request(&run, run.address, "POST", "/v1/responses", &format!("Bearer {key}"), &chat);
+    assert!(reply.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&reply));
+    assert!(String::from_utf8_lossy(&reply).contains("I am the scripted model"));
+    run.stop();
+    scratch.remove();
 }
 #[test]
 fn ready_write_failure_stops_and_keeps_outputs() {
@@ -921,106 +570,6 @@ fn check_run() {
     );
     assert!(data.join("agents.setting").is_file());
     assert!(!cache.exists());
-    scratch.remove();
-}
-
-#[test]
-fn llm_holds_a_piece_until_control_releases_it() {
-    let scratch = support::Scratch::new("fake_llm_hold");
-    let doc = scratch.path().join("llm.json");
-    let mut value = llm_document(scratch.path(), false);
-    value["control"] = json!({"socket":"127.0.0.1:0"});
-    value["asked"][0]["turns"] = json!([{"lines":[{"pieces":[
-        {"text":"first piece","hold":null}, {"text":"second piece","hold":"gate"}
-    ]}],"finish":"stop","tokens":6}]);
-    document(&doc, &value);
-    let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
-    let control = run.control.expect("control bound before ready");
-    let key = fs::read(scratch.path().join("key")).expect("generated key");
-    let authorization = format!("Bearer {}", std::str::from_utf8(&key).expect("key is hex"));
-    let mut query = stream(&run, run.address);
-    query.write_all(&http("POST", "/v1/responses", &authorization, CHAT)).expect("send query");
-    let mut response = Vec::new();
-    query.reset("the held fake stream's first piece");
-    // Read through the first complete delta event, so the assertion observes
-    // the provider's bytes, without a timer or a sleep.
-    for _ in 0..16_384 {
-        let mut byte = [0];
-        query.read_exact(&mut byte).expect("first piece arrives on the open stream");
-        response.push(byte[0]);
-        if response.windows(b"first piece".len()).any(|part| part == b"first piece") && response.ends_with(b"\n\n") {
-            break;
-        }
-    }
-    assert!(response.starts_with(b"HTTP/1.1 200"));
-    assert!(String::from_utf8_lossy(&response).contains("first piece"));
-    assert!(!String::from_utf8_lossy(&response).contains("second piece"));
-    assert!(!String::from_utf8_lossy(&response).contains("response.completed"));
-    let unknown = request(&run, control, "GET", "/", "", b"");
-    assert!(unknown.starts_with(b"HTTP/1.1 404 "));
-    // The control response is an event barrier. A nonblocking read observes
-    // any bytes already delivered and proves the stream has not ended.
-    query.set_nonblocking(true).expect("nonblocking observation");
-    let mut byte = [0];
-    loop {
-        match query.read(&mut byte) {
-            Ok(0) => panic!("held stream ended before its release"),
-            Ok(_) => response.push(byte[0]),
-            Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => break,
-            Err(why) => panic!("held stream: {why}"),
-        }
-    }
-    query.set_nonblocking(false).expect("blocking event reads");
-    assert!(!String::from_utf8_lossy(&response).contains("second piece"));
-    assert!(!String::from_utf8_lossy(&response).contains("response.completed"));
-    let released = request(&run, control, "POST", "/release/gate", "", b"");
-    assert!(released.starts_with(b"HTTP/1.1 204 No Content\r\n"));
-    query.reset("the released fake stream's reply");
-    query.read_to_end(&mut response).expect("released stream completes");
-    let text = String::from_utf8_lossy(&response);
-    assert!(text.contains("second piece"), "{text}");
-    assert!(text.contains("first piecesecond piece"), "{text}");
-    assert_eq!(text.matches("event: response.completed").count(), 1);
-    assert!(request(&run, control, "POST", "/release/gate", "", b"").starts_with(b"HTTP/1.1 204 No Content\r\n"));
-    let mut after = [0];
-    assert_eq!(query.read(&mut after).expect("stream stays complete"), 0);
-    drop(query);
-    run.stop();
-    scratch.remove();
-}
-#[test]
-fn llm_fails_a_credential_its_line_names_and_accepts_the_added_key() {
-    use temper_fake::credential::{KEY, added_key, credential};
-    let scratch = support::Scratch::new("fake_llm_failing_credentials");
-    let dir = scratch.path();
-    let mut doc = llm_document(dir, false);
-    doc["added_keys"] = json!([dir.join("second.key")]);
-    let turn =
-        |error| json!({"lines":[{"fail":{"error":error,"credentials":[0]}},{"text":"ok"}],"finish":"stop","tokens":1});
-    doc["asked"][0]["turns"] = json!([turn(json!("unauthorized"))]);
-    doc["cued"] = json!([{"cue":"limited","turns":[turn(json!({"exhausted":{"retry_after_ms":1000}}))]}]);
-    let path = dir.join("llm.json");
-    document(&path, &doc);
-    let run = Running::start("llm", &path, None).unwrap_or_else(|why| panic!("{why}"));
-    let primary = credential(23, KEY);
-    let second = credential(23, added_key(0));
-    private_hex(&dir.join("key"), &primary);
-    private_hex(&dir.join("second.key"), &second);
-    assert_ne!(primary, second);
-    let auth = |key: &[u8]| format!("Bearer {}", std::str::from_utf8(key).expect("hex key"));
-    let refused = request(&run, run.address, "POST", "/v1/responses", &auth(&primary), CHAT);
-    assert!(refused.starts_with(b"HTTP/1.1 401 "), "{}", String::from_utf8_lossy(&refused));
-    assert_eq!(body(&refused)["error"]["code"], "invalid_api_key");
-    let accepted = request(&run, run.address, "POST", "/v1/responses", &auth(&second), CHAT);
-    assert!(accepted.starts_with(b"HTTP/1.1 200 "), "{}", String::from_utf8_lossy(&accepted));
-    assert!(String::from_utf8_lossy(&accepted).contains("\"text\":\"ok\""));
-    let mut limited: Value = serde_json::from_slice(CHAT).expect("query");
-    limited["instructions"] = json!("limited");
-    let limited = serde_json::to_vec(&limited).expect("query");
-    let exhausted = request(&run, run.address, "POST", "/v1/responses", &auth(&primary), &limited);
-    assert!(exhausted.starts_with(b"HTTP/1.1 429 "), "{}", String::from_utf8_lossy(&exhausted));
-    assert_eq!(body(&exhausted)["error"]["resets_in_seconds"], 1);
-    run.stop();
     scratch.remove();
 }
 

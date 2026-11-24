@@ -5921,6 +5921,8 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
+ "skein-sim",
+ "skein-sim-world",
  "skein-tls",
  "skein-tls-kit",
  "skein-world",

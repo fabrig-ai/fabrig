@@ -8,6 +8,17 @@ use std::{
 use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
+fn readiness_eof_reports_child_status_and_stderr() {
+    use std::os::unix::process::ExitStatusExt;
+    let finding = temper_box_kit::fake_readiness::read_with(&mut b"".as_slice(), &"fake fixture", |kind| {
+        assert_eq!(kind, std::io::ErrorKind::UnexpectedEof);
+        (std::process::ExitStatus::from_raw(7 << 8), b"fixture refused".to_vec())
+    })
+    .expect_err("readiness EOF finding");
+    assert!(finding.contains("status exit status: 7; stderr fixture refused"), "{finding}");
+}
+
+#[test]
 fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
     support::boxed::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
 }

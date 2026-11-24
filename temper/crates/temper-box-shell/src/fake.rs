@@ -6,7 +6,8 @@ mod control;
 pub(crate) mod created;
 use created::Created;
 mod disk;
-use disk::{Disk, Native};
+use disk::Native;
+pub use disk::{Disk, Metadata};
 pub mod git;
 mod state;
 use skein_fake_peers::{forge as forge_peer, llm as llm_peer, oauth as oauth_peer};
@@ -321,25 +322,14 @@ fn check_command(
 /// Creates the peer outputs before readiness. A refused start rolls
 /// back only what this invocation created; a running peer leaves every file.
 pub fn run(arguments: &Arguments) -> Result<u8, String> {
-    let command = arguments.kind.command();
     let (mut host, mut kernel) = start(arguments)?;
     let clock = skein_shell::Clock::new();
     let exit = skein_shell::drive(&mut kernel, &clock, &mut host);
-    if exit == Exit::Code(0)
-        && host.stopped
-        && !host.failed
-        && let Some(path) = &arguments.state
-    {
-        let Peer::Forge(peer) = &host.peer else { unreachable!("only a forge keeps state") };
-        state::store(&mut Native, path, peer, temper_forge_setup_shell::process::id())
-            .map_err(|why| super::prefixed(command, &why))?;
-    }
-    Ok(match exit {
-        Exit::Code(code) => code,
-        Exit::Signal(_) => 1,
-    })
+    host.finish(arguments, &mut Native, exit, temper_forge_setup_shell::process::id)
 }
-trait Inputs: Disk {
+
+/// File and setup facts for the fake's admission.
+pub trait Inputs: Disk {
     fn document(&mut self, path: &Path, bound: u32) -> Result<Box<[u8]>, skein_shell::Unread>;
     fn private_file(&mut self, path: &Path, bound: u32) -> Result<skein_lib::Secret, skein_shell::Unread>;
     fn forge_entry(
@@ -471,11 +461,38 @@ fn start(arguments: &Arguments) -> Result<(Host, skein_shell::Kernel), String> {
         arguments,
         &mut Native,
         skein_shell::inherited_listeners().map_err(super::listeners_refusal),
-        |admitted, listeners| open_host(arguments, admitted, &listeners),
+        |admitted, listeners| {
+            let admitted = admitted.adopt(&listeners)?;
+            let signals = skein_shell::open_termination_signals().map_err(|why| format!("signals: errno {why}"))?;
+            let host = Host::new(arguments, admitted, signals, Box::new(io::stdout()), Box::new(io::stderr()));
+            let kernel = match skein_shell::Kernel::open(skein_shell::Config { operations: host.operations() }) {
+                Ok(kernel) => kernel,
+                Err(why) => {
+                    super::close(vec![signals]);
+                    return Err(why.to_string());
+                }
+            };
+            Ok((host, kernel))
+        },
     )
 }
 
 type Listeners = Box<[(Fd, std::net::SocketAddr)]>;
+
+/// Admits the fake over supplied file facts, descriptors and writers. The caller
+/// drives the host with the kernel that owns the descriptors.
+pub fn start_host<D: Inputs<File: Write>>(
+    arguments: &Arguments,
+    inputs: &mut D,
+    listeners: Listeners,
+    signals: Fd,
+    ready: Box<dyn Write>,
+    log: Box<dyn Write>,
+) -> Result<Host<D::File>, String> {
+    start_with(arguments, inputs, Ok(listeners), |admitted, listeners| {
+        Ok(Host::new(arguments, admitted.adopt(&listeners)?, signals, ready, log))
+    })
+}
 
 /// A refused start rolls back its own outputs, even when host opening refuses them.
 fn start_with<D: Inputs, T>(
@@ -571,55 +588,18 @@ fn admit<D: Inputs>(
     Ok(Admitted { peer, control_address, shared, observations, writer, buffer })
 }
 
-fn open_host(
-    arguments: &Arguments,
-    Admitted { mut peer, control_address, shared, observations, writer, buffer }: Admitted<File>,
-    listeners: &[(Fd, std::net::SocketAddr)],
-) -> Result<(Host, skein_shell::Kernel), String> {
-    for &(fd, addr) in listeners {
-        let adopted = match &mut peer {
-            Peer::Llm(peer) => peer.adopt_listener(fd, addr),
-            Peer::Forge(peer) => peer.adopt_listener(fd, addr),
-            Peer::Oauth(peer) => peer.adopt_listener(fd, addr),
-        };
-        adopted.map_err(|fd| format!("listener: fd {} at {addr} refused", fd.raw()))?;
-    }
-    let signals = skein_shell::open_termination_signals().map_err(|why| format!("signals: errno {why}"))?;
-    let control = control_address.map(control::Control::new);
-    let operations = host_operations(&peer, control.as_ref());
-    let host = Host {
-        peer,
-        control,
-        shared,
-        signals,
-        signal: Signal::New,
-        cancel: Cancel::Idle,
-        completions: Queue::with_capacity(operations),
-        submissions: Queue::with_capacity(operations),
-        ready: arguments.ready.clone(),
-        observation_path: arguments.observations.clone(),
-        observations,
-        writer,
-        git_calls: forge::observations::GitCalls::new(),
-        installations: forge::observations::Installations::new(temper_fake::ENTRIES, 128),
-        llm_cursor: 0,
-        rejected: 0,
-        buffer,
-        stopped: false,
-        peer_submissions: 0,
-        checkpoint: false,
-        failed: false,
-        command: arguments.kind.command(),
-        seed: arguments.seed,
-    };
-    let kernel = match skein_shell::Kernel::open(skein_shell::Config { operations: host.operations() }) {
-        Ok(kernel) => kernel,
-        Err(why) => {
-            super::close(vec![signals]);
-            return Err(why.to_string());
+impl<F> Admitted<F> {
+    fn adopt(mut self, listeners: &[(Fd, std::net::SocketAddr)]) -> Result<Self, String> {
+        for &(fd, addr) in listeners {
+            let adopted = match &mut self.peer {
+                Peer::Llm(peer) => peer.adopt_listener(fd, addr),
+                Peer::Forge(peer) => peer.adopt_listener(fd, addr),
+                Peer::Oauth(peer) => peer.adopt_listener(fd, addr),
+            };
+            adopted.map_err(|fd| format!("listener: fd {} at {addr} refused", fd.raw()))?;
         }
-    };
-    Ok((host, kernel))
+        Ok(self)
+    }
 }
 #[expect(clippy::large_enum_variant, reason = "one peer lives on the host stack; only one variant is constructed")]
 enum Peer {
@@ -681,7 +661,8 @@ enum Cancel {
     Idle,
     Waiting,
 }
-struct Host {
+/// The fake backend and, when configured, its control listener on one loop.
+pub struct Host<F = File> {
     peer: Peer,
     control: Option<control::Control>,
     shared: Option<Rc<RefCell<forge_peer::Forge>>>,
@@ -692,7 +673,9 @@ struct Host {
     submissions: Queue<Submit>,
     ready: Option<Box<[u8]>>,
     observation_path: Option<PathBuf>,
-    observations: Option<File>,
+    observations: Option<F>,
+    ready_line: Box<dyn Write>,
+    log: Box<dyn Write>,
     writer: Option<skein_fake_forge_forgejo::observations::Writer>,
     buffer: List<u8>,
     git_calls: forge::observations::GitCalls,
@@ -706,12 +689,72 @@ struct Host {
     command: &'static str,
     seed: u64,
 }
-impl Host {
+impl<F: Write> Host<F> {
+    fn new(
+        arguments: &Arguments,
+        Admitted { peer, control_address, shared, observations, writer, buffer }: Admitted<F>,
+        signals: Fd,
+        ready_line: Box<dyn Write>,
+        log: Box<dyn Write>,
+    ) -> Self {
+        let control = control_address.map(control::Control::new);
+        let operations = host_operations(&peer, control.as_ref());
+        Self {
+            peer,
+            control,
+            shared,
+            signals,
+            signal: Signal::New,
+            cancel: Cancel::Idle,
+            completions: Queue::with_capacity(operations),
+            submissions: Queue::with_capacity(operations),
+            ready: arguments.ready.clone(),
+            ready_line,
+            log,
+            observation_path: arguments.observations.clone(),
+            observations,
+            writer,
+            git_calls: forge::observations::GitCalls::new(),
+            installations: forge::observations::Installations::new(temper_fake::ENTRIES, 128),
+            llm_cursor: 0,
+            rejected: 0,
+            buffer,
+            stopped: false,
+            peer_submissions: 0,
+            checkpoint: false,
+            failed: false,
+            command: arguments.kind.command(),
+            seed: arguments.seed,
+        }
+    }
+
+    /// Completes an orderly stop by storing the configured image, if any.
+    pub fn finish(
+        self,
+        arguments: &Arguments,
+        disk: &mut impl Disk,
+        exit: Exit,
+        process: impl FnOnce() -> u32,
+    ) -> Result<u8, String> {
+        if exit == Exit::Code(0)
+            && self.stopped
+            && !self.failed
+            && let Some(path) = &arguments.state
+        {
+            let Peer::Forge(peer) = &self.peer else { unreachable!("only a forge keeps state") };
+            state::store(disk, path, peer, process()).map_err(|why| super::prefixed(self.command, &why))?;
+        }
+        Ok(match exit {
+            Exit::Code(code) => code,
+            Exit::Signal(_) => 1,
+        })
+    }
+
     fn checkpoint_or_llm(&self) -> bool {
         self.shared.is_none() || self.checkpoint
     }
     fn fail(&mut self, name: &str, why: &dyn std::fmt::Display) {
-        eprintln!("{}: {name}: {why}", self.command);
+        writeln!(self.log, "{}: {name}: {why}", self.command).expect("write the fake log");
         self.failed = true;
         self.stopped = true;
         self.peer.shutdown();
@@ -792,7 +835,8 @@ impl Host {
         let Peer::Oauth(peer) = &self.peer else { return };
         let rejected = peer.rejected();
         for _ in self.rejected..rejected {
-            eprintln!("{}: rejected a connection at the cap of {}", self.command, oauth::CONNECTIONS);
+            writeln!(self.log, "{}: rejected a connection at the cap of {}", self.command, oauth::CONNECTIONS)
+                .expect("write the fake log");
         }
         self.rejected = rejected;
     }
@@ -872,7 +916,7 @@ impl Host {
         }
     }
 }
-impl skein_shell::Host for Host {
+impl<F: Write> skein_shell::Host for Host<F> {
     fn iterate(&mut self, now: Time, wall: Wall) {
         for _ in 0..self.completions.len() {
             let mut complete = self.completions.pop().expect("one pass over completions");
@@ -966,17 +1010,17 @@ impl skein_shell::Host for Host {
             && self.control.as_ref().is_none_or(|control| control.address.is_some())
             && let Some(prefix) = self.ready.take()
         {
-            let mut stdout = io::stdout();
-            let result = stdout
+            let ready = &mut self.ready_line;
+            let result = ready
                 .write_all(&prefix)
                 .and_then(|()| {
                     if let Some(control) = &self.control {
-                        writeln!(stdout, "{address} {}", control.address.expect("control bound before ready"))
+                        writeln!(ready, "{address} {}", control.address.expect("control bound before ready"))
                     } else {
-                        writeln!(stdout, "{address}")
+                        writeln!(ready, "{address}")
                     }
                 })
-                .and_then(|()| stdout.flush());
+                .and_then(|()| ready.flush());
             if let Err(why) = result {
                 self.fail("stdout", &why);
             }

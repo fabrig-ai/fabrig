@@ -162,6 +162,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
 "temper-box-shell::real" = "real-loop" # Native sockets, descriptors, terminals, locks, file metadata and child programs.
+"temper-box-shell::simulated" = "simulated" # Fake forge and LLM hosts on the simulated kernel.
 # Step and domain: composed profiles and their admission, the kit's checks over supplied facts,
 # scripted openings, relay framing and routing, the landing kit's decisions and client-tool reads.
 "temper-box::domain" = "domain"

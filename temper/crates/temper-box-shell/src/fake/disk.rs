@@ -10,12 +10,12 @@ use std::{
 pub(super) const UNSAFE_OUTPUT: &str = "expected this user's private single-link regular output";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct Metadata {
+pub struct Metadata {
     pub stat: Stat,
     pub identity: (u64, u64),
 }
 impl Metadata {
-    pub fn safe(self, user: u32) -> bool {
+    pub(super) fn safe(self, user: u32) -> bool {
         self.stat.kind == Kind::File
             && self.stat.owner == user
             && self.stat.mode.trailing_zeros() >= 6
@@ -46,7 +46,7 @@ impl From<fs::Metadata> for Metadata {
     }
 }
 
-pub(super) trait Disk {
+pub trait Disk {
     type File;
     fn user(&self) -> u32;
     fn metadata(&mut self, path: &Path) -> io::Result<Metadata>;
