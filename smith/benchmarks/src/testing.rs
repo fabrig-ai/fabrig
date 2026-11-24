@@ -3,7 +3,7 @@
 pub(crate) mod request_fixture;
 pub use request_fixture::request;
 
-pub use crate::run::testing::record_preparation_refusal;
+pub use crate::run::testing::{record_preparation_refusal, record_scratch_work_with};
 
 pub fn verify_seed_digest(digest: Result<String, crate::Refusal>, expected: &str) -> Result<(), crate::Fault> {
     crate::isolate::verify_seed_digest(digest, expected)

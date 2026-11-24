@@ -179,24 +179,28 @@ pub fn working_directory_with(
 
 /// Delete settled owned scratch, restoring read-only directory modes without following links.
 pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), Fault> {
-    fn writable(guard: &Guard, directory: &Path) -> Result<(), Fault> {
-        let metadata = fs::symlink_metadata(directory)?;
-        if !metadata.is_dir() || metadata.is_symlink() {
+    remove_owned_tree_with(&Native, guard, root)
+}
+
+pub(crate) fn remove_owned_tree_with(files: &dyn Files, guard: &Guard, root: &Path) -> Result<(), Fault> {
+    fn writable(files: &dyn Files, guard: &Guard, directory: &Path) -> Result<(), Fault> {
+        let metadata = files.symlink_metadata(directory)?;
+        if metadata.kind != Kind::Directory {
             return Err(input("owned scratch root must be an ordinary directory"));
         }
-        guard.write_path(directory)?;
-        fs::set_permissions(directory, fs::Permissions::from_mode(metadata.permissions().mode() | 0o700))?;
-        for entry in fs::read_dir(directory)? {
+        guard.write_path_with(files, directory)?;
+        files.set_permissions(directory, metadata.mode | 0o700)?;
+        for entry in files.read_dir(directory)? {
             let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                writable(guard, &entry.path())?;
+            if entry.file_type()? == Kind::Directory {
+                writable(files, guard, &entry.path())?;
             }
         }
         Ok(())
     }
-    writable(guard, root)?;
-    guard.write_path(root)?;
-    Ok(fs::remove_dir_all(root)?)
+    writable(files, guard, root)?;
+    guard.write_path_with(files, root)?;
+    Ok(files.remove_dir_all(root)?)
 }
 
 impl Private {
