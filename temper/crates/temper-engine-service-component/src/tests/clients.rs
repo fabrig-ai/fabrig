@@ -79,7 +79,7 @@ fn before_start_with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::
     let mut seeds = super::fixtures::seeds();
     seeds.link_secret = Some(given_secret());
     seeds.local_secret = local_secret;
-    service.engine.as_mut().expect("engine").clients = crate::clients::Clients::new(
+    *service.engine.as_mut().expect("engine").clients = crate::clients::Clients::new(
         &jig_protocol_config::Directories::working(),
         &settings.jig,
         &settings.clients,
@@ -750,7 +750,7 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
     });
     let mut service = super::fixtures::started();
     let engine = service.engine.as_mut().unwrap();
-    engine.clients = crate::clients::Clients::new(
+    *engine.clients = crate::clients::Clients::new(
         &jig_protocol_config::Directories::working(),
         &config.jig,
         &config.clients,

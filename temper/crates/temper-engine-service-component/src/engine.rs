@@ -23,7 +23,7 @@ pub struct Engine {
     pub(crate) store: crate::store::Store,
     pub(crate) accounts: Option<crate::accounts::Accounts>,
     pub(crate) workers: crate::workers::Workers,
-    pub(crate) clients: crate::clients::Clients,
+    pub(crate) clients: Box<crate::clients::Clients>,
     pub(crate) demo: Option<crate::settings::Demo>,
     pub(crate) providers: Queue<Box<[jig_protocol_config::ProviderSetting]>>,
     pub(crate) providers_path: Box<[u8]>,
@@ -122,7 +122,7 @@ fn release_snapshot(request: &root::Request) -> Box<[u8]> {
 pub(crate) struct Children {
     pub(crate) accounts: Option<crate::accounts::Accounts>,
     pub(crate) workers: crate::workers::Workers,
-    pub(crate) clients: crate::clients::Clients,
+    pub(crate) clients: Box<crate::clients::Clients>,
     pub(crate) demo: Option<crate::settings::Demo>,
     pub(crate) setup: crate::setup::Layer,
     pub(crate) forge: crate::forge::Layer,
