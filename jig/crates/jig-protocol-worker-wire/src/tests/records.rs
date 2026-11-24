@@ -11,9 +11,9 @@ fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
 
-// Wire 22 has eighteen up records and twenty-one down records.
+// Wire 22 has eighteen up records and twenty down records.
 const UP_KINDS: u32 = 18;
-const DOWN_KINDS: u32 = 21;
+const DOWN_KINDS: u32 = 20;
 const CHANNEL_KINDS: u32 = UP_KINDS + DOWN_KINDS;
 fn hello_terms(largest: u32) -> List<Term> {
     let mut terms = List::with_capacity(UP_KINDS);
