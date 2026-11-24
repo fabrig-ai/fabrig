@@ -213,6 +213,7 @@ impl World {
             restart_check: None,
             iteration: 0,
             inspections: 0,
+            fault_ledger: None,
             manual: false,
             public_referee: crate::referee::public::Referee::default(),
             returned: 0,

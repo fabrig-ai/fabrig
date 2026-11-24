@@ -1,7 +1,7 @@
 //! The workload's loop keeps scripts separate from independently paced party inputs.
 use super::{Act, Bound, Expect, Moment, Party, TaskKind, Workload};
 use crate::{
-    fixtures, open, people,
+    bounds, fixtures, open, people,
     world::{Setup, World},
 };
 use jig_domain_core as core;
@@ -16,6 +16,7 @@ use skein_world::{
 };
 
 mod actions;
+mod funds;
 
 #[expect(clippy::struct_excessive_bools, reason = "independent script milestones survive task holds and new attempts")]
 #[derive(Debug)]
@@ -41,7 +42,9 @@ struct Driver {
     workload: Workload,
     progress: Vec<Progress>,
     acts: Vec<DrawnAct>,
-    ledger: FaultLedger,
+    funds: Vec<funds::Draw>,
+    joining: bool,
+    request_margin: usize,
     sign_ins: [u64; 2],
     persons: [u64; 2],
     key: u8,
@@ -56,9 +59,12 @@ struct Driver {
 /// Each person question is a person delegate, answered through `AnswerPerson`
 /// (jig/docs/design/domain/people/README.md, 7); a parked requester receives its
 /// result on its next run, just as it receives any delegate's result.
+/// Funds-edge tasks keep `Ends`: a funds refusal or hold is not silently
+/// accepted as completion (jig/docs/design/domain/authority-budgets.md, 1).
 pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<FaultLedger, String> {
     let workload = Workload::draw(streams);
     let (configuration, limits) = fixture(streams.seed_of(Stream::Scheduling, "core"));
+    let minimum = configuration.core.defaults.rules.minimum_run_spend;
     let mut world = World::new(Setup {
         seed: streams.seed(),
         configuration: Some(configuration),
@@ -68,12 +74,17 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         ..Setup::default()
     });
     let owner = world.sign_in.expect("owner signed in");
-    let member = fixtures::second_party(&mut world, b"workload-member", requests::Role::Member);
+    world.fault_ledger = Some(FaultLedger::new());
+    let funds = funds::draw(streams, configured, &workload, minimum);
+    let joining = funds.iter().any(|draw| draw.kind == open::NEW_PARTY_ASKS_FOR_FUNDS);
+    let member =
+        if joining { 0 } else { fixtures::second_party(&mut world, b"workload-member", requests::Role::Member) };
     let owner_person = person(&world, owner);
-    let member_person = person(&world, member);
+    let member_person = if joining { 0 } else { person(&world, member) };
+    let party_kinds: Vec<_> = configured.iter().copied().filter(|kind| kind.family != bounds::FAMILY).collect();
     let acts = [Party::Owner, Party::Member]
         .into_iter()
-        .flat_map(|party| workload.acts(streams, party, configured))
+        .flat_map(|party| workload.acts(streams, party, &party_kinds))
         .map(|act| DrawnAct { act, seen: None, fired: false })
         .collect();
     let last = (world.clocks().0, world.iterations());
@@ -95,7 +106,9 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         workload,
         progress,
         acts,
-        ledger: FaultLedger::new(),
+        funds,
+        joining,
+        request_margin: if configured.contains(&bounds::KEPT_ANSWERS) { 0 } else { 3 },
         sign_ins: [owner, member],
         persons: [owner_person, member_person],
         key: 1,
@@ -109,9 +122,10 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
     let mut script_turn = true;
     loop {
         driver.refresh(&world);
+        driver.join(&mut world);
         driver.make_request_room(&mut world);
         if script_turn {
-            driver.script(&mut world)?;
+            driver.script(&mut world, sweep)?;
         } else {
             driver.script_target = None;
         }
@@ -129,7 +143,7 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         driver.refresh(&world);
         if driver.finished(&world, bound).inspect_err(|finding| eprintln!("{finding}"))? {
             driver.check_outcomes(&world)?;
-            return Ok(driver.ledger);
+            return Ok(world.fault_ledger.take().expect("workload ledger"));
         }
         // Waiting on a person's choice does not busy-spin the simulator.
         // Each pass still drains and checks every immediate transition first.
@@ -219,8 +233,11 @@ impl Driver {
                 _ => None,
             })
             .collect();
-        // Keep room for a duplicate answer and a script's request without bypassing admission.
-        if answers.len() + 3 < usize::try_from(world.env().limits.core.people.requests).expect("bounded requests") {
+        // Party sweeps keep duplicate-answer room. The bounds sweep lets ordinary
+        // requests fill the table, then expires answers through the owner's timer.
+        if answers.len() + self.request_margin
+            < usize::try_from(world.env().limits.core.people.requests).expect("bounded requests")
+        {
             return;
         }
         let until = answers.into_iter().min().expect("full answer table").as_nanos()
@@ -343,7 +360,10 @@ impl Driver {
         false
     }
 
-    fn create(&mut self, world: &mut World, index: usize) -> Result<bool, String> {
+    fn create(&mut self, world: &mut World, index: usize, sweep: &Sweep) -> Result<bool, String> {
+        if self.joining && self.workload.tasks[index].party == Party::Member {
+            return Ok(false);
+        }
         let task = &self.workload.tasks[index];
         if self.progress[index].submitted {
             return Ok(false);
@@ -397,6 +417,8 @@ impl Driver {
         if live_count(world) >= world.env().limits.core.tasks.tasks {
             return Ok(false);
         }
+        self.fund(world, index, sweep)?;
+        let task = &self.workload.tasks[index];
         let deadline = Wall::from_nanos(world.clocks().1.as_nanos() + task.deadline_ms * 1_000_000);
         let mut request = fixtures::goal(
             world,
@@ -406,6 +428,14 @@ impl Driver {
             jig_test_profile::fixtures::Goal { budget: task.budget, deadline: Some(deadline), priority: 1 },
         );
         if let requests::Ask::Create { batch, .. } = &mut request {
+            if self
+                .funds
+                .iter()
+                .any(|draw| draw.target == index && draw.injected && draw.kind == open::START_WITH_NO_BUDGET)
+            {
+                batch[0].budget = requests::Budget::AsAllowed { cap: None };
+                batch[0].authority.spend = 0;
+            }
             batch[0].authority.delegation.kinds = Box::new([
                 requests::Executor::Charter(1),
                 requests::Executor::Role(match task.party {
@@ -419,7 +449,7 @@ impl Driver {
         Ok(true)
     }
 
-    fn script(&mut self, world: &mut World) -> Result<(), String> {
+    fn script(&mut self, world: &mut World, sweep: &Sweep) -> Result<(), String> {
         self.script_target = None;
         // Every cancellation is acknowledged by the worker, including a held run.
         if let Some(&(task, attempt)) = world.cancellations.get(self.acknowledgements) {
@@ -433,7 +463,7 @@ impl Driver {
                 && !self.progress[index].pruned
             {
                 self.script_target = Some(index);
-                if self.create(world, index)? {
+                if self.create(world, index, sweep)? {
                     return Ok(());
                 }
             }
@@ -443,7 +473,7 @@ impl Driver {
                 continue;
             }
             self.script_target = Some(index);
-            if self.script_task(world, index)? {
+            if self.script_task(world, index, sweep)? {
                 return Ok(());
             }
         }
@@ -451,9 +481,9 @@ impl Driver {
         self.retire_waiting(world)
     }
 
-    fn script_task(&mut self, world: &mut World, index: usize) -> Result<bool, String> {
+    fn script_task(&mut self, world: &mut World, index: usize, sweep: &Sweep) -> Result<bool, String> {
         let Some(number) = self.progress[index].number else {
-            if self.create(world, index)? {
+            if self.create(world, index, sweep)? {
                 return Ok(true);
             }
             return Ok(false);

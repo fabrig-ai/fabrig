@@ -139,6 +139,9 @@ pub struct World {
     restart_check: Option<(u64, bool)>,
     iteration: u64,
     inspections: u64,
+    /// Workload faults, including table saturation at every checked quiet point
+    /// (jig/docs/design/domain/testing-workloads.md, 5).
+    pub fault_ledger: Option<skein_world::faults::FaultLedger>,
     pub(crate) restart_config: (Rc<root::Config>, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
@@ -796,6 +799,17 @@ impl World {
                     self.inspections = self.inspections.checked_add(1).expect("world inspection count fits");
                     skein_world::inspect::check_waits(&[&inspection], moment)?;
                     skein_world::inspect::check_tables(&[&inspection], moment)?;
+                    if let Some(ledger) = &mut self.fault_ledger {
+                        ledger.saturation(
+                            &[
+                                crate::bounds::SUBSCRIPTIONS,
+                                crate::bounds::CREATION_REPORTS,
+                                crate::bounds::KEPT_ANSWERS,
+                            ],
+                            &[&inspection],
+                            env.now,
+                        )?;
+                    }
                 }
                 return Ok(());
             }

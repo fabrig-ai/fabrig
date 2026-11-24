@@ -52,7 +52,8 @@ impl Driver {
                 holding.push("the widening party is the project's owner");
             }
             if let Some(exclusion) = sweep.leaves_out(act.kind, &holding) {
-                self.ledger.leave_out(exclusion.scenario, act.kind, world.clocks().0);
+                let now = world.clocks().0;
+                world.fault_ledger.as_mut().expect("workload ledger").leave_out(exclusion.scenario, act.kind, now);
                 self.acts[index].fired = true;
                 continue;
             }
@@ -64,12 +65,13 @@ impl Driver {
                 self.progress[target].last = (now, world.iterations());
                 affected = self.workload.tasks[target].parent;
             }
-            let entry = self.ledger.inject(
+            let ledger = world.fault_ledger.as_mut().expect("workload ledger");
+            let entry = ledger.inject(
                 act.kind,
                 now,
                 Struck { request: Some(self.workload.tasks[act.target].name.clone()), ..Struck::default() },
             );
-            self.ledger.stop(entry, now)?;
+            ledger.stop(entry, now)?;
             if let Some(request) = request {
                 let key = self.ask(world, act.party, request.clone())?;
                 self.receipts.push(Receipt { kind: act.kind, target: act.target, key, duplicate: false });
