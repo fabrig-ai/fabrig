@@ -8486,6 +8486,7 @@ dependencies = [
  "smith-protocol-llm-world",
  "smith-transcript",
  "temper-agent-fixtures",
+ "temper-blame",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",

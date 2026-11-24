@@ -126,6 +126,24 @@ pub(crate) struct Around<'a> {
 }
 
 impl Process {
+    pub(super) fn outer_time(&self, at: Time) -> Time {
+        self.clock_start.unwrap_or(Time::ZERO).saturating_add(Duration::from_nanos(at.as_nanos()))
+    }
+
+    /// Raw fake-provider failures in the outer world's clock.
+    pub(super) fn provider_faults(&mut self) -> Vec<(Time, Token, u32, skein_fake_llm_domain::api::Error)> {
+        let Some(agent) = &mut self.agent else { return Vec::new() };
+        let Provider::Typed(provider) = agent.backend_mut() else { return Vec::new() };
+        let start = self.clock_start.unwrap_or(Time::ZERO);
+        provider
+            .take_faults()
+            .into_iter()
+            .map(|(at, call, account, error)| {
+                (start.saturating_add(skein_lib::Duration::from_nanos(at.as_nanos())), call, account, error)
+            })
+            .collect()
+    }
+
     pub(super) fn strike(&mut self, credential: u32, strike: skein_fake_llm_domain::api::Strike) {
         if let Some(agent) = &mut self.agent {
             let now = agent.now();

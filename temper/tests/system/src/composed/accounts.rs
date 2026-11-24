@@ -842,18 +842,7 @@ impl World {
     /// Account failures attributed to their causal interval and smith's run table.
     pub fn judge_account_runs(&mut self) -> Result<(), String> {
         let story = self.account_case.as_mut().expect("two accounts");
-        story.runs.judge(&mut story.ledger)?;
-        for fault in story.ledger.entries() {
-            if fault.count(Counter::TaskTries) != 0 {
-                return Err(format!(
-                    "{}/{} spent {} task tries",
-                    fault.kind.family,
-                    fault.kind.name,
-                    fault.count(Counter::TaskTries)
-                ));
-            }
-        }
-        Ok(())
+        judge_account_runs(&mut story.ledger, &mut story.runs)
     }
 
     #[must_use]
@@ -899,6 +888,22 @@ impl World {
         }
         panic!("two account goals did not end: {:?}", self.observed);
     }
+}
+
+/// The same run-table judge for the account case and composed fault workload.
+pub(super) fn judge_account_runs(ledger: &mut FaultLedger, runs: &mut Runs) -> Result<(), String> {
+    runs.judge(ledger)?;
+    for fault in ledger.entries().iter().filter(|fault| fault.kind.family == "provider") {
+        if fault.count(Counter::TaskTries) != 0 {
+            return Err(format!(
+                "{}/{} spent {} task tries",
+                fault.kind.family,
+                fault.kind.name,
+                fault.count(Counter::TaskTries)
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn account(assignment: &engine::Assignment) -> u32 {

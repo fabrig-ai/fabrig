@@ -39,6 +39,7 @@ temper-protocol-worker-wire.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 temper-faults.workspace = true
+temper-blame = { path = "../../testing/temper-blame" }
 skein-llm-kit.workspace = true
 smith-faults.workspace = true
 smith-channel-world = { path = "../../../smith/tests/channel" }

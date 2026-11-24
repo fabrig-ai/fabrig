@@ -203,9 +203,13 @@ impl World {
 
     /// Reopen only the engine root on its store. No worker Ready is generated here.
     pub fn reopen_engine(&mut self) {
+        self.reopen_with_config(open_config(self.seed));
+    }
+
+    pub(super) fn reopen_with_config(&mut self, config: engine::Config) {
         assert!(!self.absence.engine_running);
-        self.replace_root(open_config(self.seed));
-        self.root_events = VecDeque::from([engine::Event::Restart { pending: false }]);
+        self.replace_root(config);
+        self.root_events = super::opening_events();
         self.absence.engine_running = true;
         self.absence.drained = false;
         self.opened = false;
@@ -359,7 +363,7 @@ impl World {
     }
 
     pub(super) fn absence_assignment(&mut self, assignment: &engine::Assignment) {
-        if !self.absence.enabled {
+        if !self.absence.enabled || self.workload.is_some() {
             return;
         }
         if self.assignment.is_some() {

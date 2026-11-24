@@ -208,7 +208,7 @@ impl World {
         }
     }
 
-    fn workload_enqueue(&mut self, party: Party, ask: people::Ask) {
+    pub(super) fn workload_enqueue(&mut self, party: Party, ask: people::Ask) {
         let story = self.workload.as_mut().expect("workload");
         let number = story.next_reply;
         story.next_reply += 1;

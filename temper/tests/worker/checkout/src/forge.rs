@@ -155,8 +155,13 @@ impl Forge {
     /// # Errors
     /// Returns the fake forge's native authentication or operation error.
     pub fn api(&mut self, remote: &[u8], user: u64, op: Op) -> Result<Answer, Error> {
+        self.api_configured(remote, user, op, self.configuration())
+    }
+
+    /// One synchronous call with a world's finite fault settings. Latency must stay zero.
+    pub fn api_configured(&mut self, remote: &[u8], user: u64, op: Op, config: Config) -> Result<Answer, Error> {
         self.calls += 1;
-        let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.configuration() };
+        let env = Env { now: self.now, wall: Wall::EPOCH, limits: config };
         let mut out = Queue::uncapped();
         let reply_to = ReplyTo::new(Token::new(self.calls));
         skein_fake_forge_domain::step(
@@ -185,6 +190,22 @@ impl Forge {
         }
         assert_eq!(self.domain.calls(), 0);
         answer.expect("the forge answers a call at once")
+    }
+
+    /// The synchronous face's settings, including its admitted room.
+    #[must_use]
+    pub fn config(&self) -> Config {
+        self.configuration()
+    }
+
+    /// Scenario entrances on the same domain that serves API and git.
+    pub fn domain_mut(&mut self) -> &mut Domain {
+        &mut self.domain
+    }
+
+    /// Read scenario evidence without making another API call.
+    pub fn inspect(&self, remote: &[u8], read: &Read) -> Result<Answer, Error> {
+        self.domain.inspect(&self.configuration(), remote, read)
     }
 
     /// Configure the authenticated identity used by an engine's adoption.

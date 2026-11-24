@@ -1,4 +1,4 @@
-//! The composed workload, without faults (temper/docs/design/testing/workloads.md, 5).
+//! The composed workload and finite faults (temper/docs/design/testing/workloads.md, 5 and 8.2).
 use super::{Key, Process, Script, Token, World, engine, host, link, parties, people, tasks};
 use skein_lib::Duration;
 use skein_world::streams::{Stream, Streams};
@@ -10,6 +10,7 @@ use temper_workload::{
     names::Names,
 };
 
+pub mod faults;
 mod questions;
 mod scripts;
 mod setup;
@@ -42,6 +43,10 @@ impl World {
     /// Draw the kit's three goals independently of the world's scheduling.
     #[must_use]
     pub fn composed_workload(seed: u64) -> Self {
+        Self::workload_with_faults(seed, &[])
+    }
+
+    fn workload_with_faults(seed: u64, kinds: &[skein_world::faults::Kind]) -> Self {
         let streams = Streams::new(seed);
         let workload = Workload::draw(&streams, &COMPOSED);
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
@@ -68,6 +73,10 @@ impl World {
             linked: BTreeSet::new(),
         });
         setup::forge(&mut world);
+        if !kinds.is_empty() {
+            world.absence.enabled = true;
+            world.workload_faults = Some(faults::Faults::new(seed, world.workload(), kinds));
+        }
         world.start_workload();
         world
     }
@@ -262,6 +271,7 @@ impl World {
                 self.process.resume(script);
             }
             self.workload.as_mut().expect("workload").assignments.push(assignment.clone());
+            self.workload_fault_assignment(assignment);
             return true;
         } else if let Some(mut parked) = self.parked.remove(&assignment.task) {
             if !parked.prepared() {
@@ -282,6 +292,7 @@ impl World {
             self.parked.insert(previous_assignment.task, previous);
         }
         self.workload.as_mut().expect("workload").assignments.push(assignment.clone());
+        self.workload_fault_assignment(assignment);
         true
     }
 
@@ -303,10 +314,12 @@ impl World {
     /// End only after all goals landed and the tier caught main's final head.
     pub fn run_workload(&mut self) {
         for _ in 0..GOAL_BOUND.steps {
-            self.try_move_to(self.env.now.saturating_add(Duration::from_millis(100)))
-                .and_then(|()| self.tick_at_now())
-                .unwrap_or_else(|finding| panic!("{finding}\n{}", self.workload_state()));
-            if self.workload_finished() {
+            self.try_move_to(self.env.now.saturating_add(Duration::from_millis(
+                if self.workload_faults.as_ref().is_some_and(faults::Faults::needs_small_steps) { 1 } else { 100 },
+            )))
+            .and_then(|()| self.tick_at_now())
+            .unwrap_or_else(|finding| panic!("{finding}\n{}", self.workload_state()));
+            if self.workload_finished() && self.workload_faults_stopped() {
                 self.ends.close(self.env.now, &self.store).expect("all goal bounds met");
                 return;
             }
@@ -315,7 +328,13 @@ impl World {
                     self.root.next_deadline(&self.env),
                     self.worker.next_deadline(),
                     self.process.wake_at(),
-                    Some(self.env.now.saturating_add(Duration::from_secs(1))),
+                    Some(self.env.now.saturating_add(
+                        if self.workload_faults.as_ref().is_some_and(faults::Faults::needs_small_steps) {
+                            Duration::from_millis(1)
+                        } else {
+                            Duration::from_secs(1)
+                        },
+                    )),
                 ]
                 .into_iter()
                 .flatten()
@@ -528,11 +547,10 @@ impl World {
                 engine::Record::Core(_) => None,
             })
             .chain(
-                self.process
-                    .agent()
-                    .prompts()
-                    .last()
+                (!self.process.prepared())
+                    .then(|| self.process.agent())
                     .into_iter()
+                    .filter_map(|agent| agent.prompts().last())
                     .flat_map(|prompt| &prompt.messages)
                     .flat_map(|message| &message.parts)
                     .filter_map(|part| match part {
