@@ -427,6 +427,14 @@ fn room(view: &View<'_>, task: u64) -> Vec<Wake> {
             })
         })
         .collect();
+    for owner in view.forge.inspection_reservations() {
+        if owner != task {
+            wakes.push(view.waiter(owner));
+        } else if view.root.is_some_and(|root| root.tasks().procedure_due(task).is_some()) {
+            // The line has already offered this task its next procedure step.
+            wakes.push(Wake::Party("root".into()));
+        }
+    }
     // The place remains while an asked waiter reads afresh, before its next
     // decision keeps an entry or leaves the line (domain/forge/room.md, 3;
     // testing/engine-checks.md, 2.2). Those reads still wake their owner.

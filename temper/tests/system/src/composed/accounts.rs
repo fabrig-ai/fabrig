@@ -243,7 +243,7 @@ impl World {
     /// Two independently funded parties, each with its own key account.
     #[must_use]
     pub fn two_accounts(seed: u64) -> Self {
-        let mut world = Self::configured_limits(seed, script(), false, config, |limits| {
+        let world = Self::configured_limits(seed, script(), false, config, |limits| {
             limits.accounts.accounts = ACCOUNT_COUNT;
             limits.accounts.holder_accounts = ACCOUNT_COUNT;
             limits.accounts.sign_ins = ACCOUNT_COUNT;
@@ -251,6 +251,11 @@ impl World {
             // Each account may contribute its binding and its credential.
             limits.fleet.grants = ACCOUNT_COUNT * 2;
         });
+        Self::with_two_accounts(world)
+    }
+
+    /// The same people and key accounts on a differently configured composed world.
+    pub(super) fn with_two_accounts(mut world: Self) -> Self {
         let erases = world
             .store
             .rows
@@ -840,18 +845,7 @@ impl World {
     /// Account failures attributed to their causal interval and smith's run table.
     pub fn judge_account_runs(&mut self) -> Result<(), String> {
         let story = self.account_case.as_mut().expect("two accounts");
-        story.runs.judge(&mut story.ledger)?;
-        for fault in story.ledger.entries() {
-            if fault.count(Counter::TaskTries) != 0 {
-                return Err(format!(
-                    "{}/{} spent {} task tries",
-                    fault.kind.family,
-                    fault.kind.name,
-                    fault.count(Counter::TaskTries)
-                ));
-            }
-        }
-        Ok(())
+        judge_account_runs(&mut story.ledger, &mut story.runs)
     }
 
     #[must_use]
@@ -897,6 +891,22 @@ impl World {
         }
         panic!("two account goals did not end: {:?}", self.observed);
     }
+}
+
+/// The same run-table judge for the account case and composed fault workload.
+pub(super) fn judge_account_runs(ledger: &mut FaultLedger, runs: &mut Runs) -> Result<(), String> {
+    runs.judge(ledger)?;
+    for fault in ledger.entries().iter().filter(|fault| fault.kind.family == "provider") {
+        if fault.count(Counter::TaskTries) != 0 {
+            return Err(format!(
+                "{}/{} spent {} task tries",
+                fault.kind.family,
+                fault.kind.name,
+                fault.count(Counter::TaskTries)
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn account(assignment: &engine::Assignment) -> u32 {

@@ -379,6 +379,12 @@ landing's or a change's wait and a task's resolve across inspections.
   state, at the moment the fault would be injected.
 - **The restart family** (the draft's 4.8): its kinds, the world each
   falls in, how each is drawn and its sweeps are `restarts.md`.
+- **The workloads** (the draft's section 5): the workload each root's
+  world draws from `Workload`, the parties' acts from `Parties`, each
+  family's kinds and where they live, the bounds reached as faults that
+  fall, the comparison of a run with restarts and one without, and the
+  sweeps, one per family and one in the composed workload mixing every
+  family, are `workloads.md`.
 
 ### 6.3 Blame for runs, and an account's faults, in the system world
 

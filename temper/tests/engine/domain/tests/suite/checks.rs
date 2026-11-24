@@ -7,6 +7,21 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{checks::Checks, direct::Driver, forge_routes::World, store::Store};
 
 #[test]
+fn a_composed_quiet_point_checks_its_other_roots() {
+    let driver = Driver::new(Store::new());
+    let mut other = Inspection::new("worker", &["queued"]);
+    other.wait(skein_world::inspect::Wait {
+        waiter: "task 2".into(),
+        kind: "queued".into(),
+        wakes: Vec::new(),
+        bound: None,
+    });
+    let finding =
+        Checks::new(91).quiet_with(&driver.root, driver.env.now, 1, &[&other]).expect_err("the worker has no wake");
+    assert!(finding.contains("worker task 2: waits on queued with no live wake"), "{finding}");
+}
+
+#[test]
 fn an_unopened_world_without_a_refusal_is_found_at_close() {
     use temper_engine_domain_world::ends::{Ends, OPENING};
 
@@ -1514,6 +1529,16 @@ fn a_room_wait_keeps_its_in_flight_read_wake() {
             Ok(())
         );
     }
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_reserved_room_wait_keeps_its_due_procedure_wake() {
+    let (world, task) = room_read(true);
+    assert!(world.root.tasks().procedure_due(task).is_some(), "reserved procedure is due");
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("room wait");
+    assert!(wait.wakes.contains(&Wake::Party("root".into())), "the reserved step wakes its owner");
     assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
 }
 

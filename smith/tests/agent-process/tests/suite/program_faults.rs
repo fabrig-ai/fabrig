@@ -1,7 +1,10 @@
 //! Focused observations behind the program sweeps, including unconfigured faults.
 
 use skein_lib::{Duration, Time};
-use skein_world::faults::{Counter, FaultLedger, Struck};
+use skein_world::{
+    faults::{Counter, FaultLedger, Struck},
+    streams::{Stream, Streams},
+};
 use smith_agent_process_world::{
     charter, program,
     program_world::{self, Case},
@@ -17,6 +20,16 @@ fn run(turns: Vec<Turn>, case: Case) -> program_world::Run {
 
 fn finish() -> Turn {
     Turn::new(vec![Step::Outcome { input: serde_json::json!({"outcome":{"form":"report","text":"done","fields":{}}}) }])
+}
+
+#[test]
+fn program_workload_is_independent_of_prior_fault_draws() {
+    let streams = Streams::new(0);
+    let mut faults = streams.rng(Stream::Faults, "program");
+    let (expected, _) = program_world::faults::provider_draw(streams, &mut faults);
+    faults.next_u64();
+    let (after_faults, _) = program_world::faults::provider_draw(streams, &mut faults);
+    assert_eq!(after_faults, expected, "fault draws cannot change the session's read turns");
 }
 
 #[test]

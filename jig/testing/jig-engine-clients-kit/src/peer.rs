@@ -139,7 +139,10 @@ impl Exchange {
                     self.read();
                 }
                 http::Event::Body(Up::End) | http::Event::Closed => {}
-                http::Event::Done(_) => self.done = true,
+                http::Event::Done(_) => {
+                    assert!(!self.done, "an exchange is answered only once");
+                    self.done = true;
+                }
                 http::Event::Failed(error) => panic!("client failed: {error:?}"),
                 http::Event::Upload(Up::Failed(_) | Up::End | Up::Bytes(_))
                 | http::Event::Body(Up::Failed(_) | Up::Room) => panic!("unexpected body event"),
@@ -183,6 +186,7 @@ pub struct Peer {
     env: Env<Limits>,
     seed: u64,
     pump_passes: u64,
+    pub(crate) workload_ledger: Option<skein_world::faults::FaultLedger>,
     out: Queue<Request>,
     sockets: BTreeMap<Token, Exchange>,
     next_socket: u64,
@@ -255,6 +259,7 @@ impl Peer {
             env,
             seed: 1,
             pump_passes: 0,
+            workload_ledger: None,
             out,
             sockets: BTreeMap::new(),
             next_socket: 100,
@@ -512,6 +517,13 @@ impl Peer {
             quiet = if active { 0 } else { quiet + 1 };
             if quiet == 16 {
                 self.check_inspection().unwrap_or_else(|finding| panic!("{finding}"));
+                if let Some(mut ledger) = self.workload_ledger.take() {
+                    let inspection = self.inspection();
+                    ledger
+                        .saturation(&[crate::bounds::PENDING_EXCHANGES], &[&inspection], self.env.now)
+                        .unwrap_or_else(|finding| panic!("{finding}"));
+                    self.workload_ledger = Some(ledger);
+                }
                 break;
             }
         }
@@ -842,6 +854,15 @@ impl Peer {
         record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("encoded link");
         out.finish()
     }
+    pub(crate) fn start_workload(&mut self, seed: u64) {
+        self.seed = seed;
+        self.workload_ledger = Some(skein_world::faults::FaultLedger::new());
+    }
+
+    pub(crate) fn use_bearer(&mut self, bearer: Box<[u8]>) {
+        self.bearer = Some(bearer);
+    }
+
     pub fn post_signed(&mut self, target: &[u8], body: Box<[u8]>) -> Token {
         let bearer = self.bearer.clone().expect("signed in");
         self.post(target, body, Some(&bearer))

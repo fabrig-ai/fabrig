@@ -14,9 +14,11 @@ mod restarts;
 mod runtime;
 mod runtime_memory;
 mod whole;
+mod workload;
 
 mod fuzzy {
     mod restarts;
     mod runtime;
     mod whole;
+    mod workload;
 }

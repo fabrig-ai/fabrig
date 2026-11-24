@@ -53,6 +53,296 @@ fn at(env: &mut Env<Limits>, seconds: u64) {
         crate::tests::env().wall.as_nanos().saturating_add(Duration::from_secs(seconds).as_nanos()),
     );
 }
+fn full_outbox() -> (Domain, Env<Limits>) {
+    // One retained entry fills the only outbox place; reads have spare room.
+    let (mut d, env) = setup(1, 4);
+    keep(&mut d, 7, 1);
+    update(&mut d, &env, &mut Queue::uncapped());
+    (d, env)
+}
+
+fn published_outbox() -> (Domain, Env<Limits>) {
+    let (mut d, mut env) = full_outbox();
+    at(&mut env, 30);
+    update(&mut d, &env, &mut Queue::uncapped());
+    (d, env)
+}
+
+fn waiting_change(d: &mut Domain, task: u64, order: u64) {
+    let mut row = crate::tests::fixtures::opening_row();
+    row.task = task;
+    row.change.task = task;
+    row.room = Some(order);
+    d.changes.insert(task, row).unwrap();
+}
+
+fn waiting_making(d: &mut Domain, env: &Env<Limits>, task: u64, order: u64) -> Token {
+    let name = crate::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: crate::What::Branch(Box::new([
+            b"temper".as_slice().into(),
+            task.to_string().into_bytes().into_boxed_slice(),
+            format!("g{task}").into_bytes().into_boxed_slice(),
+        ])),
+    };
+    d.holds
+        .insert(
+            name.clone(),
+            crate::Hold {
+                name: name.clone(),
+                task,
+                writer: None,
+                design_writers: Box::new([]),
+                beside: None,
+                drift: None,
+            },
+        )
+        .unwrap();
+    domain::goal_branch::start(d, env, name, None, &mut Queue::uncapped());
+    let owner = *d.makings.iter().find(|(_, pending)| pending.task == task).unwrap().0;
+    d.makings.get_mut(&owner).unwrap().outbox_wait = Some(domain::goal_branch::RoomWait { order });
+    owner
+}
+
+#[test]
+fn a_waiter_leaving_between_updates_prunes_its_reservation_on_resume() {
+    let (mut d, env) = setup(1, 4);
+    let waiter = crate::room::Waiter::Change(7);
+    waiting_change(&mut d, 7, 1);
+    d.room.asked.insert(waiter).unwrap();
+    d.full.reserve(Reservation::Asked(waiter), 7);
+    update(&mut d, &env, &mut Queue::uncapped());
+    assert_eq!(d.inspection_reservations().as_ref(), &[7]);
+    d.room.asked.remove(&waiter);
+    domain::resume(&mut d, &env, &mut Queue::uncapped());
+    assert!(d.inspection_reservations().is_empty());
+    assert!(!d.full.reservations.contains_key(&Reservation::Asked(waiter)));
+    assert_eq!(d.full.sequence, 1);
+    assert!(d.full.outbox.is_none());
+}
+
+#[test]
+fn pruning_inside_ask_reports_room_before_admitting_the_next_waiter() {
+    let (mut d, mut env) = setup(1, 4);
+    let owner = waiting_making(&mut d, &env, 7, 1);
+    let waiter = crate::room::Waiter::Making(owner);
+    d.room.asked.insert(waiter).unwrap();
+    d.full.reserve(Reservation::Asked(waiter), 7);
+    waiting_change(&mut d, 8, 2);
+    d.room.ready = true;
+    update(&mut d, &env, &mut Queue::uncapped());
+    // The first update in ask still sees the reservation. Its stale-making
+    // pruning frees it before the next waiter fills the only place again.
+    let name = d.makings.get(&owner).unwrap().name.clone();
+    d.holds.remove(&name);
+    at(&mut env, 30);
+    let mut out = Queue::uncapped();
+    crate::room::ask(&mut d, &env, &mut out);
+    let expected = [
+        Request::MarkedForges,
+        Request::FullTableFact {
+            words: b"the forge's outbox full for 30 s: 1 of 1, held by room asked for task 7; 2 waiting for room"
+                .as_slice()
+                .into(),
+        },
+        Request::FullTableFact { words: b"the forge's outbox has room again".as_slice().into() },
+        Request::MarkedForges,
+        Request::WakeProcedure { task: 8 },
+    ];
+    assert!(out.iter().eq(&expected), "{out:?}");
+    assert!(!d.makings.contains_key(&owner));
+    assert_eq!(d.inspection_reservations().as_ref(), &[8]);
+    assert_eq!(d.full.sequence, 2);
+    assert!(d.forges().full.is_empty(), "the new full interval has not reached its bound");
+    let full = d.full.outbox.as_ref().unwrap();
+    assert_eq!(full.wall, env.wall.as_nanos());
+    assert_eq!(full.clock.deadline(), env.now.saturating_add(crate::WAIT_REPORT));
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "The FIFO and eligibility checks share one queue setup")]
+fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
+    use crate::room::Waiter;
+    use temper_engine_domain_forge_change as change;
+    use temper_engine_domain_forge_landing as landing;
+    for globally_held in [false, true] {
+        let (mut d, env) = setup(4, 4);
+        d.room.ready = true;
+        d.landing.held = globally_held;
+        d.landing
+            .rows
+            .insert(
+                50,
+                crate::LandingRow {
+                    read_hold: None,
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
+                    follows: None,
+                    flake_reruns: Box::new([]),
+                    room: Some(1),
+                    job: None,
+                    landing: landing::Landing {
+                        last_left: None,
+                        searched: None,
+                        round: landing::Round::new(b"temper/1/l50".as_slice().into()),
+                        task: 50,
+                        project: 5,
+                        phase: if globally_held {
+                            landing::Phase::Preparing
+                        } else {
+                            landing::Phase::Held {
+                                was: Box::new(landing::Phase::Preparing),
+                                why: landing::Hold::Faults { member: 0, gate: 0 },
+                            }
+                        },
+                        members: Box::new([]),
+                        preparation: 0,
+                        stale_proofs: 0,
+                        last_prepare: None,
+                        branch: b"main".as_slice().into(),
+                    },
+                    asks: Box::new([]),
+                    entries: Box::new([]),
+                },
+            )
+            .unwrap();
+        waiting_change(&mut d, 20, 2);
+        d.room.asked.insert(Waiter::Change(20)).unwrap();
+        d.full.reserve(Reservation::Asked(Waiter::Change(20)), 20);
+        waiting_change(&mut d, 21, 3);
+        crate::room::pass(&mut d, 21);
+        waiting_change(&mut d, 22, 4);
+        d.changes.get_mut(&22).unwrap().change.state = change::State::Ended;
+        waiting_change(&mut d, 23, 5);
+        d.changes.get_mut(&23).unwrap().change.state = change::State::Held {
+            was: Box::new(change::State::Opening { requested: false }),
+            why: change::Hold::Failed,
+        };
+        waiting_change(&mut d, 30, 6);
+        d.releases
+            .insert(
+                10,
+                crate::ReleaseRow {
+                    room: Some(7),
+                    task: 10,
+                    root: 10,
+                    ending: crate::ReleaseEnding::Cancelled,
+                    close_pull: None,
+                    comment: None,
+                    pending: None,
+                    failed: false,
+                    effects_settled: true,
+                    releasing: true,
+                },
+            )
+            .unwrap();
+        let owner = waiting_making(&mut d, &env, 40, 8);
+        let mut out = Queue::uncapped();
+        crate::room::ask(&mut d, &env, &mut out);
+        let expected = [
+            Request::WakeProcedure { task: 30 },
+            Request::ContinueRelease { task: 10 },
+            Request::ContinueGoalBranch { task: 40 },
+        ];
+        assert!(out.iter().eq(&expected), "{out:?}");
+        assert_eq!(
+            d.room.asked.iter().copied().collect::<Vec<_>>(),
+            [Waiter::Change(20), Waiter::Change(30), Waiter::Making(owner), Waiter::Release(10),]
+        );
+        for (waiter, sequence) in [(Waiter::Change(30), 2), (Waiter::Release(10), 3), (Waiter::Making(owner), 4)] {
+            assert_eq!(d.full.reservations.get(&Reservation::Asked(waiter)).unwrap().0, sequence);
+        }
+        assert_eq!(crate::room::free(&d, &env.limits), 0);
+        out.clear();
+        crate::room::leave(&mut d, Waiter::Release(10));
+        d.releases.get_mut(&10).unwrap().room = None;
+        d.landing.held = false;
+        d.landing.rows.get_mut(&50).unwrap().landing.phase = landing::Phase::Preparing;
+        crate::room::ask(&mut d, &env, &mut out);
+        assert!(out.iter().eq(&[Request::WakeProcedure { task: 50 }]), "{out:?}");
+        assert_eq!(d.full.reservations.get(&Reservation::Asked(Waiter::Landing(50))), Some(&(5, 50)));
+    }
+}
+
+#[test]
+fn saturated_report_deadlines_keep_each_update_observable() {
+    let (mut d, mut env) = full_outbox();
+    d.room.ready = true;
+    env.now = Time::from_nanos(u64::MAX);
+    let mut out = Queue::uncapped();
+    domain::resume(&mut d, &env, &mut out);
+    // One at drive's entrance, then three in each ask. The second ask's
+    // repeated reports spend this turn's output burst, so drive returns there.
+    let lines = facts(&out);
+    assert_eq!(lines.len(), 7);
+    assert!(lines.iter().all(|line| line == &lines[0]));
+    assert_eq!(d.full.outbox.as_ref().unwrap().clock.deadline(), env.now);
+}
+
+#[test]
+fn a_full_table_stays_unpublished_before_its_report_bound() {
+    let (mut d, mut env) = full_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 29);
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty());
+    assert!(d.forges().full.is_empty());
+    assert_eq!(d.next_deadline(), Some(crate::tests::env().now.saturating_add(crate::WAIT_REPORT)));
+}
+
+#[test]
+fn a_full_table_reports_once_at_its_report_bound() {
+    let (mut d, mut env) = full_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 30);
+    update(&mut d, &env, &mut out);
+    assert_eq!(facts(&out), ["the forge's outbox full for 30 s: 1 of 1, held by entry 7 (task 1)"]);
+    assert_eq!(d.forges().full[0].words.as_ref(), b"1 of 1, held by entry 7 (task 1)");
+    out.clear();
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty(), "the same instant cannot report twice");
+}
+
+#[test]
+fn a_published_table_marks_only_changed_holders_between_reports() {
+    let (mut d, mut env) = published_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 31);
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty(), "unchanged holders need no new census");
+    d.entries.get_mut(&7).unwrap().entry.task = 2;
+    update(&mut d, &env, &mut out);
+    assert_eq!(out.len(), 1);
+    assert!(out.iter().any(|request| matches!(request, Request::MarkedForges)));
+    assert_eq!(d.forges().full[0].words.as_ref(), b"1 of 1, held by entry 7 (task 2)");
+}
+
+#[test]
+fn clearing_a_published_table_reports_room_again() {
+    let (mut d, mut env) = published_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 31);
+    d.entries.remove(&7);
+    update(&mut d, &env, &mut out);
+    assert_eq!(facts(&out), ["the forge's outbox has room again"]);
+    assert!(out.iter().any(|request| matches!(request, Request::MarkedForges)));
+    assert!(d.forges().full.is_empty());
+}
+
+#[test]
+fn clearing_an_unpublished_table_stays_silent() {
+    let (mut d, mut env) = full_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 29);
+    d.entries.remove(&7);
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty());
+    assert!(d.forges().full.is_empty());
+    assert_eq!(d.full.deadline(), None);
+}
+
 #[test]
 fn outbox_reports_bound_doublings_recovery_and_document_changes_without_inputs() {
     let (mut d, mut env) = setup(2, 4);

@@ -114,10 +114,14 @@ impl World {
 
     /// A person's stop, amendment or release, using the same acts as ctl.
     pub fn notes_act(&mut self, ask: people::Ask, key: [u8; 16]) -> people::Reply {
+        self.notes_act_as(self.party.sign_in.expect("authenticated party"), ask, key)
+    }
+
+    pub(super) fn notes_act_as(&mut self, sign_in: u64, ask: people::Ask, key: [u8; 16]) -> people::Reply {
         self.root_events.push_back(engine::Event::Party(engine::PartyInput::Ask {
             models: Box::new([]),
             reply_to: ReplyTo::new(ACT),
-            sign_in: self.party.sign_in.expect("authenticated party"),
+            sign_in,
             key,
             ask,
         }));
