@@ -1,4 +1,4 @@
-use super::{File, Form, Rendered, Repository, render, thin_with};
+use super::File;
 pub const VPN: &[File] = &[
     File { path: "envs/lab.json", body: b"{}", mode: 0o644 },
     File { path: "tasks/vpn/task.json", mode: 0o644, body: br#"{"settings":{"address":{"type":"string","doc":"Address."},"endpoint":{"type":"string","optional":true,"doc":"Endpoint."},"mtu":{"type":"int","default":1420,"doc":"MTU."}},"reads":{"vpn":{"exports":true}},"exports":{"address":{"type":"string","value":"{{ settings.address }}","doc":"Address."},"endpoint":{"type":"string","optional":true,"value":"{{ settings.endpoint }}","doc":"Endpoint."}}}"# },
@@ -16,20 +16,6 @@ pub const VPN_BAD: File = File {
     mode: 0o644,
     body: br#"{"placement": {"kind": "vm", "firmware": "bios", "hardware": "provider-b"}, "vpn": {"endpoint": 7}}"#,
 };
-#[must_use]
-pub fn vpn(broken: bool) -> Rendered {
-    let repository = Repository::make("vpn", &thin_with(VPN));
-    if broken {
-        drop(repository.next(&[VPN_BAD], &[]));
-    }
-    let names: &[&[u8]] = if broken {
-        &[b"carbon-lab", b"carbon-prod", b"west-lab", b"west-prod"]
-    } else {
-        &[b"carbon-lab", b"carbon-prod"]
-    };
-    render(&repository, names, Form::Text)
-}
-
 pub const VPN_MOVED: File = File {
     path: "hosts/west/west-prod.json",
     mode: 0o644,
@@ -45,12 +31,3 @@ pub const VPN_NO_ENDPOINT: File = File {
     mode: 0o644,
     body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b"}}"#,
 };
-#[must_use]
-pub fn vpn_diff(file: File, form: Form) -> Rendered {
-    let repository = Repository::make("vpn-diff", &thin_with(VPN));
-    let from = repository.head();
-    let to = repository.next(&[file], &[]);
-    let mut asked = super::Asked::new(&from, &to);
-    asked.form = form;
-    super::diff(&repository, &asked)
-}

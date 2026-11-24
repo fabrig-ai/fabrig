@@ -172,6 +172,15 @@ pub fn store_files(shared: &Shared) -> StoreFiles {
     machine.call(pid, Op::Exit { exit: linux::Exit::Code(0) }).expect("snapshot reader exits");
     snapshot
 }
+#[must_use]
+pub fn staging_is_empty(shared: &Shared) -> bool {
+    let mut fake = shared.borrow_mut();
+    let machine = fake.behind.machine_mut();
+    let pid = machine.linux_mut().login(BUILDER, STORE);
+    let entries = snapshot_directory(machine, pid, b"/srv/store/staging");
+    machine.call(pid, Op::Exit { exit: linux::Exit::Code(0) }).expect("snapshot reader exits");
+    entries.is_empty()
+}
 fn snapshot_directory(
     machine: &mut hearth_fake_machine::Machine,
     pid: Pid,
