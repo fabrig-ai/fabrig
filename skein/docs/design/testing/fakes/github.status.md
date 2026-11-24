@@ -2,6 +2,7 @@
 
 2026-11-23. Where the tree's code lags or departs from [github.md](github.md).
 
+
 - **Not yet:** 1.1: an issue's comments ignore `since`, on the Forgejo
   layer (`skein-forge/src/forgejo/server/items.rs`) and the GitHub layer.
  
