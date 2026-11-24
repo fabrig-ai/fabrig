@@ -236,7 +236,7 @@ record HoldReasonUncertain { entry: u64 }
 record HoldReasonPoolLost { pool: u64 }
 enum Bound { reasoning, metadata, items, answer, tools, history_items, history, window, output }
 record Exceeded { bound: Bound value: u64 }
-enum HoldReason { failures: HoldReasonFailures, stalled, dependency: HoldReasonDependency, stopped, placed: HoldReasonPlaced, drift, effects, effect_failed, uncertain: HoldReasonUncertain, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost: HoldReasonPoolLost, procedure, circle, exceeded: Exceeded }
+enum HoldReason { failures: HoldReasonFailures, stalled, dependency: HoldReasonDependency, stopped, placed: HoldReasonPlaced, drift, effects, effect_failed, uncertain: HoldReasonUncertain, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost: HoldReasonPoolLost, procedure, circle, exceeded: Exceeded, waited }
 record MovedHold { revision: u64 reason: HoldReason }
 record MovedSpec { revision: u64 }
 record MovedPerson { revision: u64 }

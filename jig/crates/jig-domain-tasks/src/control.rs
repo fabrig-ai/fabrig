@@ -939,7 +939,8 @@ fn own_hold(task: &crate::TaskRecord) -> bool {
             | crate::Hold::ResourceUnavailable
             | crate::Hold::ResourceAccess
             | crate::Hold::PoolLost { .. }
-            | crate::Hold::Circle => false,
+            | crate::Hold::Circle
+            | crate::Hold::Waited => false,
         },
         Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => false,
     }
@@ -1084,6 +1085,12 @@ pub(crate) fn check_release(
     };
     let next = match &task.phase {
         Phase::Held { was: Was::Waiting, .. } => Phase::Waiting,
+        // A wait at its bound can begin again without starting another activation.
+        Phase::Held {
+            was: Was::Active(Active::Idle),
+            why: crate::Hold::Waited | crate::Hold::Deadline,
+            source: Some(source),
+        } if let crate::HoldSource::Wait { .. } = source.as_ref() => Phase::Active(Active::Idle),
         Phase::Held {
             was: Was::Active(Active::Idle | Active::Due | Active::Preparing | Active::BackingOff { .. }),
             ..

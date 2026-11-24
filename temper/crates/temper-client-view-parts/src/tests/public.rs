@@ -7,7 +7,7 @@ use crate::{
     public::{PublicView, build_public},
     sign_in::Ways,
 };
-use jig_client_protocol_wire::public_v1 as j;
+use jig_client_protocol_wire::public_v2 as j;
 use skein_lib::{Duration, List, Queue, Time, Wall};
 use skein_ui::{Node, Role};
 use temper_client_domain::{

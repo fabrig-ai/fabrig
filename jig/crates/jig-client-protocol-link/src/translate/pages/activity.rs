@@ -139,7 +139,7 @@ pub(crate) fn run_end_fields(value: &w::RunEnd) -> c::RunEnd {
         w::RunEnd::Finished => c::RunEnd::Finished,
         w::RunEnd::Cancelled => c::RunEnd::Cancelled,
         w::RunEnd::Failed(row) => c::RunEnd::Failed {
-            class: crate::translate::answers::hold_failure(&row.class),
+            class: crate::translate::facts::hold_failure(&row.class),
             invalid_reason: match &row.invalid_reason {
                 Some(reason) => Some(invalid_reason(reason)),
                 None => None,

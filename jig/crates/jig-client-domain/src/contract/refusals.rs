@@ -143,6 +143,7 @@ pub enum HoldCategory {
     HoldsWaited,
     /// Joining a queue would close a circle of waits (domain/tasks/holds.md, 7).
     Circle,
+    Waited,
     ResourceUnavailable,
     ResourceAccess,
     PoolLost {

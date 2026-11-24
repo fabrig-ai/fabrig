@@ -170,7 +170,8 @@ fn filled(why: Refusal) -> bool {
                 | HoldReason::ResourceUnavailable
                 | HoldReason::ResourceAccess
                 | HoldReason::Procedure
-                | HoldReason::Circle => true,
+                | HoldReason::Circle
+                | HoldReason::Waited => true,
             },
             Moved::Spec { .. } | Moved::Person { .. } => true,
             Moved::PlacedHold { revision } => revision != 0,

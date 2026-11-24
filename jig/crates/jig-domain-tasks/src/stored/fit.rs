@@ -181,6 +181,7 @@ fn phase(value: &Phase, limits: &Limits) -> Result<(), RestoreCause> {
             HoldSource::Account { words, .. } => {
                 count(RestoreBound::AccountOriginBytes, words.len(), crate::hold_origin::ACCOUNT_BYTES)?;
             }
+            HoldSource::Wait { words } => count(RestoreBound::WaitOriginBytes, words.len(), crate::WAIT_WORDS)?,
             HoldSource::Circle(circle) => count(RestoreBound::Circle, circle.tasks.len(), limits.circle)?,
             HoldSource::Resource(resource) => name(resource, limits)?,
             HoldSource::Effect { .. } => {}

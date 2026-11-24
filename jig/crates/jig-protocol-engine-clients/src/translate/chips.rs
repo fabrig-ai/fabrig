@@ -68,6 +68,7 @@ pub fn hold(value: t::Hold) -> w::HoldCategory {
         t::Hold::ResourceAccess => w::HoldCategory::ResourceAccess,
         t::Hold::Procedure => w::HoldCategory::Procedure,
         t::Hold::Circle => w::HoldCategory::Circle,
+        t::Hold::Waited => w::HoldCategory::Waited,
     }
 }
 #[must_use]

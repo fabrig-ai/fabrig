@@ -598,6 +598,7 @@ fn returned_circle(number: u64, phase: Phase) -> Option<(u64, crate::Circle)> {
         Phase::Held { why: crate::Hold::Circle, source: Some(source), .. } => match *source {
             crate::HoldSource::Circle(circle) => Some((number, circle)),
             crate::HoldSource::Preparation { .. }
+            | crate::HoldSource::Wait { .. }
             | crate::HoldSource::Resource(_)
             | crate::HoldSource::Effect { .. }
             | crate::HoldSource::Account { .. } => {

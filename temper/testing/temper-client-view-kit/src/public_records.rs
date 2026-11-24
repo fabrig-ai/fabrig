@@ -1,5 +1,5 @@
 //! Public wire records used by the anonymous view (temper/docs/design/client/web/public.md, 4).
-use jig_client_protocol_wire::public_v1 as j;
+use jig_client_protocol_wire::public_v2 as j;
 use skein_lib::{List, Queue, Time, Writer};
 use temper_client_domain::{
     address::Public,
@@ -44,10 +44,10 @@ pub fn card_line(own: j::PublicLine) -> Box<[u8]> {
 pub fn card_with(own: j::PublicLine, lineage: List<u64>, delegate: j::PublicLine) -> Box<[u8]> {
     let card = j::PublicCard { line: own, lineage, delegates: List::from_boxed(Box::new([delegate])), folded: 0 };
     let mut writer = Writer::new(
-        usize::try_from(card.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+        usize::try_from(card.measure(&jig_client_protocol_wire::public_v2::CEILINGS).expect("bounded fixture"))
             .expect("small card"),
     );
-    card.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("card");
+    card.write(&jig_client_protocol_wire::public_v2::CEILINGS, &mut writer).expect("card");
     writer.finish()
 }
 #[must_use]
@@ -91,10 +91,10 @@ pub fn change_with_step(step: f::PublicStep, head: Option<[u8; 32]>, merge: Opti
 pub fn application(record: Box<[u8]>) -> Box<[u8]> {
     let app = j::PublicApplication { tasks: List::from_boxed(Box::new([TASK, PROJECT])), record };
     let mut writer = Writer::new(
-        usize::try_from(app.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+        usize::try_from(app.measure(&jig_client_protocol_wire::public_v2::CEILINGS).expect("bounded fixture"))
             .expect("small application"),
     );
-    app.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("application");
+    app.write(&jig_client_protocol_wire::public_v2::CEILINGS, &mut writer).expect("application");
     writer.finish()
 }
 #[must_use]
@@ -246,10 +246,10 @@ pub fn projects_named(named: &[(u64, &[u8])]) -> Box<[u8]> {
     }
     let projects = j::PublicProjects { projects, max_age: 8 };
     let mut writer = Writer::new(
-        usize::try_from(projects.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+        usize::try_from(projects.measure(&jig_client_protocol_wire::public_v2::CEILINGS).expect("bounded fixture"))
             .expect("small projects"),
     );
-    projects.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("projects");
+    projects.write(&jig_client_protocol_wire::public_v2::CEILINGS, &mut writer).expect("projects");
     writer.finish()
 }
 
@@ -285,9 +285,9 @@ pub fn board_with(line: j::PublicLine, delegate: j::PublicLine) -> Box<[u8]> {
         ended: List::with_capacity(0),
     };
     let mut writer = Writer::new(
-        usize::try_from(board.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+        usize::try_from(board.measure(&jig_client_protocol_wire::public_v2::CEILINGS).expect("bounded fixture"))
             .expect("small board"),
     );
-    board.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("board");
+    board.write(&jig_client_protocol_wire::public_v2::CEILINGS, &mut writer).expect("board");
     writer.finish()
 }

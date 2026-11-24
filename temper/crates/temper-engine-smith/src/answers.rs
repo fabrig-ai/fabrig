@@ -1992,6 +1992,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
         },
         HoldReason::Exceeded(_) => b"for its configured model allowance",
         HoldReason::Circle => b"for a circle of waits",
+        HoldReason::Waited => b"because a wait passed its bound",
         HoldReason::Stalled => b"because it stalled",
         HoldReason::Dependency { .. } => b"for its dependency",
         HoldReason::Stopped => b"because it was stopped",
@@ -2185,6 +2186,7 @@ fn task_hold_reason(text: &mut Text, reason: jig_domain_tasks::Hold) -> Result<(
         Hold::HoldsWaited => (b"hold wait exceeded", None),
         Hold::Procedure => (b"procedure held", None),
         Hold::Circle => (b"circle of waits", None),
+        Hold::Waited => (b"wait past its bound", None),
     };
     text.add(label)?;
     match number {

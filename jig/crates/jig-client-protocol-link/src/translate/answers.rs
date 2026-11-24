@@ -1,6 +1,6 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 use crate::Limits;
-use crate::translate::{classify, text_problem};
+use crate::translate::{classify, facts::hold_category, text_problem};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
@@ -412,54 +412,6 @@ pub(crate) fn limit(value: &w::Limit) -> c::Limit {
 
 fn hold_reason(value: &w::HoldReason, limits: &Limits) -> Result<c::HoldReason, w::Problem> {
     super::facts::hold_reason(value, limits)
-}
-
-pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
-    match value {
-        w::HoldFailure::Transient => c::HoldFailure::Transient,
-        w::HoldFailure::Permanent => c::HoldFailure::Permanent,
-        w::HoldFailure::Run => c::HoldFailure::Run,
-        w::HoldFailure::Agent => c::HoldFailure::Agent,
-        w::HoldFailure::Lost => c::HoldFailure::Lost,
-        w::HoldFailure::Invalid => c::HoldFailure::Invalid,
-        w::HoldFailure::Infrastructure => c::HoldFailure::Infrastructure,
-    }
-}
-
-pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
-    match value {
-        w::HoldCategory::Exceeded(value) => c::HoldCategory::Exceeded(c::Exceeded {
-            bound: match &value.bound {
-                w::Bound::Reasoning => c::Bound::Reasoning,
-                w::Bound::Metadata => c::Bound::Metadata,
-                w::Bound::Items => c::Bound::Items,
-                w::Bound::Answer => c::Bound::Answer,
-                w::Bound::Tools => c::Bound::Tools,
-                w::Bound::HistoryItems => c::Bound::HistoryItems,
-                w::Bound::History => c::Bound::History,
-                w::Bound::Window => c::Bound::Window,
-                w::Bound::Output => c::Bound::Output,
-            },
-            value: value.value,
-        }),
-        w::HoldCategory::Failures(row) => c::HoldCategory::Failures { class: hold_failure(&row.class) },
-        w::HoldCategory::Stalled => c::HoldCategory::Stalled,
-        w::HoldCategory::Dependency(row) => c::HoldCategory::Dependency { task: row.task },
-        w::HoldCategory::Stopped => c::HoldCategory::Stopped,
-        w::HoldCategory::Placed(row) => c::HoldCategory::Placed { hold: row.hold },
-        w::HoldCategory::Drift => c::HoldCategory::Drift,
-        w::HoldCategory::Effects => c::HoldCategory::Effects,
-        w::HoldCategory::EffectFailed => c::HoldCategory::EffectFailed,
-        w::HoldCategory::Uncertain(row) => c::HoldCategory::Uncertain { entry: row.entry },
-        w::HoldCategory::Budget => c::HoldCategory::Budget,
-        w::HoldCategory::Deadline => c::HoldCategory::Deadline,
-        w::HoldCategory::HoldsWaited => c::HoldCategory::HoldsWaited,
-        w::HoldCategory::ResourceUnavailable => c::HoldCategory::ResourceUnavailable,
-        w::HoldCategory::ResourceAccess => c::HoldCategory::ResourceAccess,
-        w::HoldCategory::PoolLost(row) => c::HoldCategory::PoolLost { pool: row.pool },
-        w::HoldCategory::Procedure => c::HoldCategory::Procedure,
-        w::HoldCategory::Circle => c::HoldCategory::Circle,
-    }
 }
 
 pub(crate) fn current_hold(value: &w::CurrentHold, limits: &Limits) -> Result<c::CurrentHold, w::Problem> {

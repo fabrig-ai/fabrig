@@ -33,6 +33,7 @@ pub(super) fn encode_hold_reason(value: &p::HoldReason, l: &w::Limits) -> w::Hol
             w::HoldReason::Failures(w::HoldReasonFailures { class: encode_failure_class(*class, l) })
         }
         p::HoldReason::Circle => w::HoldReason::Circle,
+        p::HoldReason::Waited => w::HoldReason::Waited,
         p::HoldReason::Stalled => w::HoldReason::Stalled,
         p::HoldReason::Dependency { task } => w::HoldReason::Dependency(w::HoldReasonDependency { task: *task }),
         p::HoldReason::Stopped => w::HoldReason::Stopped,
@@ -57,6 +58,7 @@ pub(super) fn decode_hold_reason(value: w::HoldReason) -> p::HoldReason {
         }
         w::HoldReason::Failures(value) => p::HoldReason::Failures { class: decode_failure_class(value.class) },
         w::HoldReason::Circle => p::HoldReason::Circle,
+        w::HoldReason::Waited => p::HoldReason::Waited,
         w::HoldReason::Stalled => p::HoldReason::Stalled,
         w::HoldReason::Dependency(value) => p::HoldReason::Dependency { task: value.task },
         w::HoldReason::Stopped => p::HoldReason::Stopped,

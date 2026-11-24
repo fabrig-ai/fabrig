@@ -1,6 +1,6 @@
 //! Public HTTP integration (jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::public_v1;
+use jig_client_protocol_wire::public_v2;
 use jig_client_protocol_world::public;
 use skein_lib::Reader;
 
@@ -12,7 +12,7 @@ fn a_public_board_is_read_over_http_bytes_through_the_service() {
         let [shown, hidden] = replies.as_slice() else { panic!("two HTTP reads seed {seed}") };
         assert_eq!(shown.status, 200, "seed {seed}");
         let mut bytes = Reader::new(&shown.body);
-        let board = public_v1::PublicBoard::decode(&public_v1::CEILINGS, &mut bytes).expect("public board body");
+        let board = public_v2::PublicBoard::decode(&public_v2::CEILINGS, &mut bytes).expect("public board body");
         assert_eq!(bytes.remaining(), 0);
         assert_eq!(board.project, project);
         assert_eq!(board.live.len(), 1);

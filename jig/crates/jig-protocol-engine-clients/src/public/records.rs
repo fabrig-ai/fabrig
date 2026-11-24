@@ -2,7 +2,7 @@
 use super::{Names, PublicKind};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::{self as wire, public_v1 as w};
+use jig_client_protocol_wire::{self as wire, public_v2 as w};
 use jig_domain_core_vocabulary as c;
 use skein_lib::{List, Writer};
 
@@ -192,6 +192,7 @@ fn hold_kind(value: c::PublicHold) -> w::PublicHold {
         c::PublicHold::Deadline => w::PublicHold::Deadline,
         c::PublicHold::HoldsWaited => w::PublicHold::HoldsWaited,
         c::PublicHold::Circle => w::PublicHold::Circle,
+        c::PublicHold::Waited => w::PublicHold::Waited,
         c::PublicHold::ResourceUnavailable => w::PublicHold::ResourceUnavailable,
         c::PublicHold::ResourceAccess => w::PublicHold::ResourceAccess,
         c::PublicHold::PoolLost => w::PublicHold::PoolLost,

@@ -3,7 +3,7 @@ use super::{checks::PROXY, observation::Observer, proxy::Proxy, requests, servic
 use crate::fixtures;
 use jig_client::contract as c;
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::public_v1 as p;
+use jig_client_protocol_wire::public_v2 as p;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
 
@@ -41,7 +41,7 @@ impl Walk {
             self.calls.push(visitor.send(
                 address,
                 Method::Get,
-                format!("/jig/v1/public/0/1/2/{project:016x}").as_bytes(),
+                format!("/jig/v1/public/0/2/2/{project:016x}").as_bytes(),
                 &[(b"Host", b"one.example")],
             ));
         }
@@ -132,7 +132,7 @@ impl Walk {
                 self.calls.push(visitor.send(
                     fixtures::CLIENTS,
                     Method::Get,
-                    b"/jig/v1/public/0/1/1",
+                    b"/jig/v1/public/0/2/1",
                     &[(b"Host", b"one.example")],
                 ));
             }
@@ -252,7 +252,7 @@ impl Walk {
                 self.calls.push(visitor.send(
                     fixtures::CLIENTS,
                     Method::Get,
-                    format!("/jig/v1/public/0/1/2/{:016x}", self.projects[self.race_project]).as_bytes(),
+                    format!("/jig/v1/public/0/2/2/{:016x}", self.projects[self.race_project]).as_bytes(),
                     &[(b"Host", b"one.example")],
                 ));
                 self.stage = 21;

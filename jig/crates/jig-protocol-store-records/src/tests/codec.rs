@@ -1051,7 +1051,11 @@ mod cases;
 #[test]
 fn a_moved_call_part_round_trips_through_the_core_family() {
     use jig_domain_people::{HoldReason, Moved};
-    for now in [Moved::Spec { revision: 2 }, Moved::Hold { revision: 3, reason: HoldReason::Budget }] {
+    for now in [
+        Moved::Spec { revision: 2 },
+        Moved::Hold { revision: 3, reason: HoldReason::Budget },
+        Moved::Hold { revision: 3, reason: HoldReason::Waited },
+    ] {
         core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::Moved { task: 1, now }));
     }
 }

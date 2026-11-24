@@ -13,7 +13,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 pub(super) const PROXY: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 42000));
 const UPSTREAM: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 42001));
 const SECOND: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 42002));
-const PATH: &[u8] = b"/jig/v1/public/0/1/1";
+const PATH: &[u8] = b"/jig/v1/public/0/2/1";
 pub(super) fn config(address: SocketAddr) -> ProxyConfig {
     ProxyConfig {
         upstreams: vec![
@@ -310,7 +310,7 @@ impl Judge {
             return Ok(());
         }
         let (status, control, reached) = ROWS[row];
-        let path = format!("/jig/v1/public/0/1/{row}");
+        let path = format!("/jig/v1/public/0/2/{row}");
         match self.stage % 3 {
             0 => {
                 upstream.answer = document(
@@ -366,7 +366,7 @@ impl Judge {
             self.stage = usize::MAX;
             return Ok(());
         }
-        let path = format!("/jig/v1/public/0/1/{row}");
+        let path = format!("/jig/v1/public/0/2/{row}");
         match self.stage % 3 {
             0 => {
                 let mut headers: Vec<(&[u8], &[u8])> = vec![
@@ -514,9 +514,9 @@ impl Judge {
                 visitor,
                 b"one.example",
                 match self.stage {
-                    6 => b"/jig/v1/public/0/1/%31",
-                    7 => b"/jig/v1/public/0/1/./1",
-                    _ => b"/jig/v1/public/0/1%2F1",
+                    6 => b"/jig/v1/public/0/2/%31",
+                    7 => b"/jig/v1/public/0/2/./1",
+                    _ => b"/jig/v1/public/0/2%2F1",
                 },
             ),
             9 => {

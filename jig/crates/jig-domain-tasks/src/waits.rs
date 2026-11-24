@@ -1100,6 +1100,7 @@ fn circle_held(phase: &Phase) -> Option<(&Circle, &Was)> {
         Phase::Held { why: Hold::Circle, source: Some(source), was } => match source.as_ref() {
             HoldSource::Circle(circle) => Some((circle, was)),
             HoldSource::Preparation { .. }
+            | HoldSource::Wait { .. }
             | HoldSource::Resource(_)
             | HoldSource::Effect { .. }
             | HoldSource::Account { .. } => None,

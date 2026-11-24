@@ -641,3 +641,23 @@ fn a_task_line_reads_the_descendants_wait_and_the_separate_nearest() {
         Some(c::Nearest { at: Wall::from_nanos(59), then: c::AtBound::Hold, kind: c::WaitKind::Resource })
     );
 }
+
+#[test]
+fn wait_hold_chips_decode_with_their_words() {
+    const WORDS: &[u8] = b"Waited 24 h for a reply";
+    let limits = fixtures::limits();
+    let mut held = jig_client_test_records::hold_record();
+    held.words = Some(w::DocumentText { bytes: WORDS.into(), cut: false });
+    for (reason, expected) in
+        [(w::HoldCategory::Waited, c::HoldCategory::Waited), (w::HoldCategory::Deadline, c::HoldCategory::Deadline)]
+    {
+        held.reason = reason;
+        let mut task = fixtures::task_record();
+        task.hold = Some(held.clone());
+        let read = documents::task(task, &limits).unwrap().hold.expect("decoded hold");
+        assert_eq!(read.reason, expected);
+        let words = read.words.expect("wait source's words");
+        assert_eq!(words.bytes.bytes(), WORDS);
+        assert!(!words.cut);
+    }
+}

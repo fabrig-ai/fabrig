@@ -118,7 +118,7 @@ enum Ending { done: Done, failed: FailureResult, cancelled: Cancelled }
 record FailedClass { class: Class }
 enum Bound { reasoning, metadata, items, answer, tools, history_items, history, window, output }
 record Exceeded { bound: Bound value: u64 }
-enum Hold { failures: FailedClass, stalled, dependency: Number, stopped, placed: Number, drift, effects, effect_failed, uncertain: Effect, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost: Number, procedure, circle, exceeded: Exceeded }
+enum Hold { failures: FailedClass, stalled, dependency: Number, stopped, placed: Number, drift, effects, effect_failed, uncertain: Effect, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost: Number, procedure, circle, exceeded: Exceeded, waited }
 enum Active { idle, due, preparing, claimed: Number, running: Number, backing_off: Number }
 enum Stage { run: Number, delegates, effects, releases, settled }
 record Closing { stage: Stage ending: Ending }
@@ -128,7 +128,8 @@ record HoldEffect { connector: u16 entry: u64 }
 record Circle { tasks: list 32 Number cut: bool }
 record HoldAccount { connector: u16 entry: option u64 words: bytes 512 }
 record HoldPreparation { words: bytes 128 }
-enum HoldSource { resource: Name, effect: HoldEffect, circle: Circle, account: HoldAccount, preparation: HoldPreparation }
+record HoldWait { words: bytes 512 }
+enum HoldSource { resource: Name, effect: HoldEffect, circle: Circle, account: HoldAccount, preparation: HoldPreparation, wait: HoldWait }
 record Held { was: Was why: Hold source: option HoldSource }
 record Final { ending: Ending }
 enum Phase { waiting, active: Activation, closing: Closing, held: Held, ended: Final }

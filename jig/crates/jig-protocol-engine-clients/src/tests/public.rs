@@ -6,7 +6,7 @@ use crate::{
     public::{Names, Of},
 };
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::{self as wire, public_v1 as w};
+use jig_client_protocol_wire::{self as wire, public_v2 as w};
 use jig_domain_core_vocabulary as c;
 use skein_lib::{Env, List, Queue, Reader, ReplyTo, Rng, Secret, Time, Token, Wall, length::len_u64};
 #[path = "public/fixtures.rs"]
@@ -125,7 +125,7 @@ fn an_unknown_kind_a_wrong_id_count_and_an_unserved_version_reach_no_engine() {
         let exchange = step.send(request);
         assert_eq!(step.reply(exchange), PublicReply::Unknown);
     }
-    for version in [0, 2] {
+    for version in [0, 1] {
         let exchange = step.send(PublicRead { version, ..read(2, &[1]) });
         let PublicReply::NotServed { record } = step.reply(exchange) else {
             panic!("not served");
@@ -133,7 +133,7 @@ fn an_unknown_kind_a_wrong_id_count_and_an_unserved_version_reach_no_engine() {
         let record = wire::NotServed::decode(&step.env.limits.wire, &mut Reader::new(&record)).unwrap();
         assert_eq!(record.served.len(), 1);
         let served = record.served.get(0).unwrap();
-        assert_eq!((served.first, served.last), (1, 1));
+        assert_eq!((served.first, served.last), (2, 2));
     }
     assert_eq!(step.bytes(), BURST);
 }
@@ -146,7 +146,13 @@ fn every_well_formed_read_is_handed_on_alike() {
         let (reply, mapped) = step.admitted();
         assert_eq!(
             mapped,
-            c::PublicRead { owner: 0, version: 1, kind: 2, project: Some(names().number(id, Of::Project)), task: None }
+            c::PublicRead {
+                owner: 0,
+                version: wire::PUBLIC_VERSION,
+                kind: 2,
+                project: Some(names().number(id, Of::Project)),
+                task: None
+            }
         );
         step.answer(reply, c::PublicAnswer::Unknown);
         step.out.pop().unwrap();
@@ -361,14 +367,14 @@ fn abort_returns_every_public_reservation() {
     assert_eq!(step.bytes(), BURST);
 }
 #[test]
-fn jig_kinds_reserve_the_configured_index_in_public_version_one() {
+fn jig_kinds_reserve_the_configured_index_in_public_version_two() {
     // The proposed index figures, including the 64-project public-wire measurement.
     let bounds = wire::PublicIndexBounds { goals: 20, ended: 20, lines: 50, depth: 16, projects: 64 };
     let kinds = crate::jig_kinds(&bounds);
     for (kind, expected) in kinds.into_iter().zip([
-        crate::PublicKind { owner: 0, kind: 1, first: 1, last: 1, task: false, bound: 4_872 },
-        crate::PublicKind { owner: 0, kind: 2, first: 1, last: 1, task: false, bound: 716_448 },
-        crate::PublicKind { owner: 0, kind: 3, first: 1, last: 1, task: true, bound: 18_041 },
+        crate::PublicKind { owner: 0, kind: 1, first: 2, last: 2, task: false, bound: 4_872 },
+        crate::PublicKind { owner: 0, kind: 2, first: 2, last: 2, task: false, bound: 716_448 },
+        crate::PublicKind { owner: 0, kind: 3, first: 2, last: 2, task: true, bound: 18_041 },
     ]) {
         assert_eq!(kind, expected);
     }
@@ -406,4 +412,19 @@ fn a_me_watch_maps_its_public_project_identifier() {
         panic!("me value");
     };
     assert_eq!(frame_public_identifiers(&value, &exchange.env.limits.wire), [Some(names().project(3)), None]);
+}
+
+#[test]
+fn a_wait_hold_is_named_on_the_public_wire() {
+    let c::PublicDocument::Card(mut card) = card() else { panic!("card fixture") };
+    card.line.phase = c::PublicPhase::Held;
+    card.line.hold = Some(c::PublicHold::Waited);
+    let mut step = Step::new();
+    let names = names();
+    let exchange = step.send(read(wire::PUBLIC_CARD, &[names.project(PROJECT), names.task(TASK)]));
+    let (reply, _) = step.admitted();
+    step.document(reply, c::PublicDocument::Card(card));
+    let bytes = bytes(step.reply(exchange));
+    let decoded = w::PublicCard::decode(&wire::public_limits(&INDEX).unwrap(), &mut Reader::new(&bytes)).unwrap();
+    assert_eq!(decoded.line.hold, Some(w::PublicHold::Waited));
 }

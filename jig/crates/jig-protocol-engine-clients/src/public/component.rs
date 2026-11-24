@@ -8,7 +8,7 @@ use crate::{
     public::{Names, Of, PublicKind},
 };
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::{self as wire, public_v1};
+use jig_client_protocol_wire::{self as wire, public_v2};
 use skein_lib::{List, Secret, Wall, Writer, length::len_u64};
 #[path = "records.rs"]
 mod records;
@@ -27,7 +27,7 @@ struct Reservation {
 #[derive(Debug)]
 pub(super) struct State {
     key: Key,
-    wire: Option<public_v1::Limits>,
+    wire: Option<public_v2::Limits>,
     pending: Map<Token, Reservation>,
     reads: Bucket,
     bytes: Bucket,

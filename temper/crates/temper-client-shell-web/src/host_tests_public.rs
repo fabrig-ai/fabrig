@@ -3,9 +3,9 @@ use super::*;
 use temper_client_view_kit::public_records as records;
 
 const TASK_PATH: &[u8] = b"/public/projects/3f2a9c0176543210/tasks/9abcdef076543210";
-const CARD_GET: &[u8] = b"/jig/v1/public/0/1/3/3f2a9c0176543210/9abcdef076543210";
+const CARD_GET: &[u8] = b"/jig/v1/public/0/2/3/3f2a9c0176543210/9abcdef076543210";
 const CHANGE_GET: &[u8] = b"/jig/v1/public/2/4/1/3f2a9c0176543210/9abcdef076543210";
-const PROJECTS_GET: &[u8] = b"/jig/v1/public/0/1/1";
+const PROJECTS_GET: &[u8] = b"/jig/v1/public/0/2/1";
 
 fn fixture(path: &[u8]) -> (PublicHost, Duties) {
     let mut host = PublicHost::new(Time::ZERO, Wall::EPOCH, Ways::parse("", b"https://temper.example"));

@@ -2,7 +2,7 @@
 use super::Draw;
 use crate::words::{TimeForm, Word};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::public_v1::{PublicExecutor, PublicLine, PublicPhase};
+use jig_client_protocol_wire::public_v2::{PublicExecutor, PublicLine, PublicPhase};
 use skein_lib::Wall;
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::address::Public;

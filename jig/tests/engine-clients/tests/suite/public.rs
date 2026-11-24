@@ -1,6 +1,6 @@
 //! Public component stories (jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::{self as wire, public_v1 as w};
+use jig_client_protocol_wire::{self as wire, public_v2 as w};
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{PublicKind, PublicLimits, PublicRead, PublicReply, Settings, public::Names};
@@ -50,7 +50,7 @@ fn names() -> Names {
     Names::new(&Secret::new(Box::new(key)))
 }
 fn read(kind: u16, ids: &[u64]) -> PublicRead {
-    PublicRead { owner: 0, version: 1, kind, ids: Box::from(ids) }
+    PublicRead { owner: 0, version: wire::PUBLIC_VERSION, kind, ids: Box::from(ids) }
 }
 fn admitted(peer: &mut Peer) -> (ReplyTo, core::PublicRead) {
     let Some(core::Event::PublicRead { reply, read }) = peer.take_core() else {
@@ -148,7 +148,13 @@ fn an_unknown_kind_a_private_project_an_identifier_naming_nothing_and_a_task_not
         let (reply, message) = admitted(&mut peer);
         assert_eq!(
             message,
-            core::PublicRead { owner: 0, version: 1, kind: 3, project: Some(u64::from(project)), task: Some(task) }
+            core::PublicRead {
+                owner: 0,
+                version: wire::PUBLIC_VERSION,
+                kind: 3,
+                project: Some(u64::from(project)),
+                task: Some(task)
+            }
         );
         peer.public_answer(reply, core::PublicAnswer::Unknown);
         assert!(matches!(peer.public_reply(exchange), Some(PublicReply::Unknown)));
@@ -220,9 +226,12 @@ fn public_reads_with_no_credential_cookie_bearer_and_both_are_answered_alike() {
         (None, Some(bearer.as_ref())),
         (Some(cookie.as_slice()), Some(bearer.as_ref())),
     ] {
-        let socket = peer.http(Method::Get, b"/jig/v1/public/0/1/1", Box::new([]), headers(cookie, bearer));
+        let socket = peer.http(Method::Get, b"/jig/v1/public/0/2/1", Box::new([]), headers(cookie, bearer));
         let (reply, got) = admitted(&mut peer);
-        assert_eq!(got, core::PublicRead { owner: 0, version: 1, kind: 1, project: None, task: None });
+        assert_eq!(
+            got,
+            core::PublicRead { owner: 0, version: wire::PUBLIC_VERSION, kind: 1, project: None, task: None }
+        );
         peer.public_answer(reply, projects());
         assert!(peer.take_core().is_none(), "only the public read reaches the core");
         assert_eq!(peer.response(socket).0, Some(200));

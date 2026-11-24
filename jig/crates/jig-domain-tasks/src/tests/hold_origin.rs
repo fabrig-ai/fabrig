@@ -15,11 +15,8 @@ fn origin(phase: &Phase) -> Option<&HoldSource> {
     }
 }
 
-#[test]
-fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
-    let mut h = Harness::new();
-    h.make([task(1, &[])].into());
-    h.send(Event::Prepare { reply_to: to(), task: 1 });
+fn claim(h: &mut Harness, number: u64) {
+    h.send(Event::Prepare { reply_to: to(), task: number });
     h.send(Event::Claim {
         fresh: None,
         session_end: None,
@@ -27,12 +24,19 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
         reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
-        task: 1,
+        task: number,
         attempt: 1,
         resumed: false,
         budget: 10,
         writes: Box::new([]),
     });
+}
+
+#[test]
+fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
+    let mut h = Harness::new();
+    h.make([task(1, &[])].into());
+    claim(&mut h, 1);
     h.env.wall = Wall::from_nanos(10);
     h.send(Event::HoldFrom { task: 1, why: Hold::Drift, source: Box::new(resource(b"original")) });
     let first = h.domain.task(1).unwrap().clone();
@@ -125,4 +129,71 @@ fn hold_origin_admission_checks_semantics_and_restore_checks_bytes() {
     h.route(1, crate::EscalationHolder::Person(9), 1);
     h.restart();
     assert_eq!(origin(&h.domain.task(1).unwrap().phase), Some(&HoldSource::Effect { connector: 7, entry: 3 }));
+}
+
+const WAITER: u64 = 7;
+const INPUT: u64 = 6;
+const HOLDER: u64 = 9;
+const ESCALATION: u64 = 1;
+const WORDS_AT_BOUND: usize = 512; // engine/contracts.md, 1
+const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z: subscriptions 3 and 5.";
+
+#[test]
+fn wait_holds_raise_escalation_and_restore_before_release() {
+    use crate::{Escalation, EscalationHolder, Was};
+    let at_bound = [b'x'; WORDS_AT_BOUND];
+    for why in [Hold::Waited, Hold::Deadline] {
+        for (was, released, dependencies, words) in [
+            (Was::Waiting, Phase::Waiting, &[INPUT][..], &at_bound[..]),
+            (Was::Active(Active::Due), Phase::Active(Active::Due), &[][..], WORDS),
+            (Was::Active(Active::Idle), Phase::Active(Active::Idle), &[][..], WORDS),
+        ] {
+            let mut h = Harness::new();
+            h.make([task(INPUT, &[]), task(WAITER, dependencies)].into());
+            if was == Was::Active(Active::Idle) {
+                claim(&mut h, WAITER);
+                h.send(Event::Activation {
+                    reply_to: to(),
+                    task: WAITER,
+                    attempt: 1,
+                    end: End::Parked,
+                    saved: None,
+                    cause: Cause::Unpriced,
+                });
+            }
+            let source = Box::new(HoldSource::Wait { words: words.into() });
+            h.send(Event::HoldFrom { task: WAITER, why, source: source.clone() });
+            let held = Phase::Held { was, why, source: Some(source) };
+            let row = h.domain.task(WAITER).unwrap();
+            assert_eq!(row.phase, held);
+            assert_eq!(row.escalation, Escalation::Routing { revision: row.revisions.hold });
+            h.route(WAITER, EscalationHolder::Person(HOLDER), ESCALATION);
+            h.restart();
+            assert_eq!(h.domain.task(WAITER).unwrap().phase, held);
+            h.send(Event::Release {
+                reply_to: to(),
+                by: Party::Person(HOLDER),
+                operation: Release { task: WAITER, again: None, message: None },
+            });
+            assert_eq!(h.domain.task(WAITER).unwrap().phase, released);
+        }
+    }
+}
+
+#[test]
+fn invalid_wait_sources_leave_the_task_and_store_unchanged() {
+    let mut h = Harness::new();
+    h.make([task(WAITER, &[])].into());
+    let before = h.domain.task(WAITER).unwrap().clone();
+    let stored = h.stored.clone();
+    let oversized = [b'x'; WORDS_AT_BOUND + 1];
+    for (why, words) in
+        [(Hold::Budget, WORDS), (Hold::Waited, &[][..]), (Hold::Waited, &oversized[..]), (Hold::Waited, &[0xff][..])]
+    {
+        let out =
+            h.send(Event::HoldFrom { task: WAITER, why, source: Box::new(HoldSource::Wait { words: words.into() }) });
+        assert!(out.is_empty(), "{why:?}: {out:?}");
+        assert_eq!(h.domain.task(WAITER), Some(&before));
+        assert_eq!(h.stored, stored);
+    }
 }

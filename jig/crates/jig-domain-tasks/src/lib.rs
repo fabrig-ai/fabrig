@@ -164,7 +164,7 @@ pub use boundary::{
     SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
     WriterSlot,
 };
-pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken};
+pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{

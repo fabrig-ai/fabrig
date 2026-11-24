@@ -529,7 +529,8 @@ pub fn own_hold(task: &tasks::TaskRecord) -> bool {
             | tasks::Hold::ResourceUnavailable
             | tasks::Hold::ResourceAccess
             | tasks::Hold::PoolLost { .. }
-            | tasks::Hold::Circle => false,
+            | tasks::Hold::Circle
+            | tasks::Hold::Waited => false,
         },
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     }

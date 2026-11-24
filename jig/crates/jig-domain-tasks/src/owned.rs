@@ -369,7 +369,9 @@ fn held_bytes(was: &Was, source: Option<&crate::HoldSource>) -> Option<u64> {
                 }
             }
             crate::HoldSource::Effect { .. } => {}
-            crate::HoldSource::Preparation { words } | crate::HoldSource::Account { words, .. } => {
+            crate::HoldSource::Preparation { words }
+            | crate::HoldSource::Account { words, .. }
+            | crate::HoldSource::Wait { words } => {
                 total = total.checked_add(bytes(words.len())?)?;
             }
             crate::HoldSource::Circle(circle) => {

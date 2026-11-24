@@ -689,3 +689,18 @@ fn a_held_chip_shows_its_preparation_reason() {
     );
     Goldens::new("tree/fragments/chip/a_held_chip_shows").check(&tree);
 }
+
+#[test]
+fn wait_hold_chips_and_refusals_name_the_bound() {
+    const LABEL: &[u8] = b"A wait passed its bound";
+    const ACCOUNT: &[u8] = b"Waited 24 h for news";
+    let mut value = details();
+    value.hold = Some(ChipHold { reason: HoldCategory::Waited, words: Some(doc(ACCOUNT, false)), ..hold() });
+    let (chip, _, _) = build(&value, words());
+    let mut builder = Builder::new(&crate::tests::kit::limits());
+    words().hold_category(&mut builder, HoldCategory::Waited);
+    let refusal = builder.finish();
+    for (tree, text) in [(&chip, LABEL), (&chip, ACCOUNT), (&refusal, LABEL)] {
+        assert!(tree.nodes().iter().flat_map(|node| node.text.iter()).any(|run| run.text.as_ref() == text));
+    }
+}

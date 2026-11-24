@@ -1,7 +1,7 @@
 //! Anonymous page reading and freshness (temper/docs/design/client/web/public.md, 2).
 use crate::address::Public;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::public_v1 as jig;
+use jig_client_protocol_wire::public_v2 as jig;
 use skein_lib::{Duration, Queue, Time};
 use temper_client_protocol_wire::public_v1 as forge;
 

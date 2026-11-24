@@ -774,6 +774,8 @@ pub enum Hold {
     /// Joining a queue, or the waits a release gives back, would close a circle of waits; the
     /// hold's source names the circle, and the hold lifts once it breaks (domain/tasks/holds.md, 7).
     Circle,
+    /// A wait reached its bound.
+    Waited,
 }
 
 impl Hold {
@@ -798,7 +800,8 @@ impl Hold {
             | Self::ResourceAccess
             | Self::PoolLost { .. }
             | Self::Procedure
-            | Self::Circle => None,
+            | Self::Circle
+            | Self::Waited => None,
         }
     }
 
@@ -821,7 +824,8 @@ impl Hold {
             | Hold::Deadline
             | Hold::HoldsWaited
             | Hold::Procedure
-            | Hold::Circle => true,
+            | Hold::Circle
+            | Hold::Waited => true,
         }
     }
 }
@@ -918,8 +922,8 @@ pub enum Phase {
     Ended(/** Final ending; this phase is excluded from the live restore arena. */ Ending),
 }
 
-/// What explains a hold beyond its reason: a connector account, a failure cause, or a
-/// circle of waits (client/domain/objects.md, 5; domain/tasks/lifecycle-holds.md, 1, and domain/tasks/holds.md, 7).
+/// What explains a hold beyond its reason: a connector account, a failure cause,
+/// a circle of waits, or the waits at a bound (client/domain/objects.md, 5; domain/tasks/lifecycle-holds.md, 1, and domain/tasks/holds.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HoldSource {
     /// Why preparation or activation failed past its allowance, only on `Hold::Failures`.
@@ -938,7 +942,14 @@ pub enum HoldSource {
         entry: Option<u64>,
         words: Box<[u8]>,
     },
+    /// What the task waited for at its bound, in UTF-8.
+    Wait {
+        words: Box<[u8]>,
+    },
 }
+
+/// The most bytes a wait source can carry.
+pub const WAIT_WORDS: u32 = 512;
 
 /// A circle of waits: tasks each waiting for the next, the last for the first, so that none of
 /// them could end (domain/tasks/holds.md, 7).

@@ -506,7 +506,10 @@ pub fn hold_source(limits: &Limits, source: Option<&tasks::HoldSource>) -> Resul
             Some(entry) => Some(Part { connector: *connector, kind: PartKind::Outbox, key: PartKey::Number(*entry) }),
             None => None,
         }),
-        None | Some(tasks::HoldSource::Preparation { .. } | tasks::HoldSource::Circle(_)) => Ok(None),
+        None
+        | Some(tasks::HoldSource::Preparation { .. } | tasks::HoldSource::Circle(_) | tasks::HoldSource::Wait { .. }) => {
+            Ok(None)
+        }
         Some(tasks::HoldSource::Resource(name)) => {
             Ok(Some(part_path(limits, name.connector, PartKind::Resource, &name.path)?))
         }
@@ -528,7 +531,12 @@ fn hold_account(task: u64, reason: tasks::Hold, source: Option<&tasks::HoldSourc
                 Some(tasks::HoldSource::Effect { connector, .. } | tasks::HoldSource::Account { connector, .. }) => {
                     *connector
                 }
-                None | Some(tasks::HoldSource::Preparation { .. } | tasks::HoldSource::Circle(_)) => return None,
+                None
+                | Some(
+                    tasks::HoldSource::Preparation { .. }
+                    | tasks::HoldSource::Circle(_)
+                    | tasks::HoldSource::Wait { .. },
+                ) => return None,
             };
             Some(Part { connector, kind: PartKind::Hold, key: PartKey::Number(task) })
         }
@@ -546,6 +554,7 @@ fn hold_account(task: u64, reason: tasks::Hold, source: Option<&tasks::HoldSourc
         | tasks::Hold::ResourceAccess
         | tasks::Hold::PoolLost { .. }
         | tasks::Hold::Circle
+        | tasks::Hold::Waited
         | tasks::Hold::Procedure => None,
     }
 }
@@ -554,6 +563,7 @@ pub fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldPhase
         tasks::Phase::Held { was, why, source } => Ok(Some(HoldPhaseLine {
             placed: None,
             words: match source.as_deref() {
+                Some(tasks::HoldSource::Wait { words }) => Some(super::small::text(words, tasks::WAIT_WORDS)),
                 Some(tasks::HoldSource::Preparation { words }) => Some(super::small::text(words, tasks::REASON_BYTES)),
                 Some(tasks::HoldSource::Account { words, .. }) => {
                     Some(super::small::text(words, tasks::HOLD_ACCOUNT_BYTES))
@@ -579,7 +589,8 @@ pub fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldPhase
                     tasks::HoldSource::Resource(_)
                     | tasks::HoldSource::Effect { .. }
                     | tasks::HoldSource::Account { .. }
-                    | tasks::HoldSource::Preparation { .. },
+                    | tasks::HoldSource::Preparation { .. }
+                    | tasks::HoldSource::Wait { .. },
                 ) => None,
             },
             account: hold_account(row.number, *why, source.as_deref()),

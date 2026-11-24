@@ -196,6 +196,7 @@ pub(super) fn hold_reason(value: people::HoldReason) -> application::HoldReason 
         people::HoldReason::PoolLost { pool } => application::HoldReason::PoolLost { pool },
         people::HoldReason::Procedure => application::HoldReason::Procedure,
         people::HoldReason::Circle => application::HoldReason::Circle,
+        people::HoldReason::Waited => application::HoldReason::Waited,
     }
 }
 

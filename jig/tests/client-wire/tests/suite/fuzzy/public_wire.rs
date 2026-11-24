@@ -1,6 +1,6 @@
 //! Seeded public decoders (jig/docs/design/client/domain/contract/README.md, section 10;
 //! jig/docs/design/protocol/client/public-reads.md).
-use jig_client_protocol_wire::{PublicIndexBounds, public_limits, public_v1::*};
+use jig_client_protocol_wire::{PublicIndexBounds, public_limits, public_v2::*};
 use skein_lib::{Reader, Rng, Writer};
 use std::fmt::Arguments;
 

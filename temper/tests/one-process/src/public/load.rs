@@ -71,10 +71,10 @@ impl Walk {
         let path = if self.phase == 2 {
             format!("/jig/v1/public/2/4/2/{project:016x}")
         } else if self.phase == 0 {
-            "/jig/v1/public/0/1/1".to_owned()
+            "/jig/v1/public/0/2/1".to_owned()
         } else {
             format!(
-                "/jig/v1/public/0/1/2/{:016x}",
+                "/jig/v1/public/0/2/2/{:016x}",
                 project.wrapping_add(u64::try_from(self.phase * 100 + self.calls.len()).expect("few reads"))
             )
         };

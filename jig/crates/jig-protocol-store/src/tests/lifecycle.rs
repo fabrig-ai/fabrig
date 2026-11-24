@@ -177,3 +177,15 @@ fn saved_tasks(row: &jig_domain_tasks::Stored) -> Result<jig_domain_tasks::Store
     }
     tasks::decode(&bytes, &limits, &names)
 }
+
+#[test]
+fn a_task_held_at_a_wait_bound_round_trips() {
+    let mut record = fixtures::task_record();
+    record.phase = d::Phase::Held {
+        was: d::Was::Active(d::Active::Idle),
+        why: d::Hold::Waited,
+        source: Some(Box::new(d::HoldSource::Wait { words: b"Waited 24 h for news".as_slice().into() })),
+    };
+    let row = d::Stored::Live(Box::new(record));
+    assert_eq!(saved_tasks(&row), Ok(row));
+}

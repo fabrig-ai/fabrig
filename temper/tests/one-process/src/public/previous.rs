@@ -7,7 +7,7 @@ use crate::{
 };
 use jig_client::contract as c;
 use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire::public_v1 as p;
+use jig_client_protocol_wire::public_v2 as p;
 use skein_http::Method;
 use skein_lib::Reader;
 use std::{
@@ -149,7 +149,7 @@ impl Walk {
             4 => self.calls.push(visitor.send(
                 fixtures::CLIENTS,
                 Method::Get,
-                b"/jig/v1/public/0/1/1",
+                b"/jig/v1/public/0/2/1",
                 &[(b"Host", b"one.example")],
             )),
             5 => {
@@ -185,7 +185,7 @@ impl Walk {
             self.calls.push(visitor.send(
                 fixtures::CLIENTS,
                 Method::Get,
-                b"/jig/v1/public/0/1/1",
+                b"/jig/v1/public/0/2/1",
                 &[(b"Host", b"one.example")],
             ));
         } else if self.stage == 1 {
@@ -208,7 +208,7 @@ impl Walk {
                     self.calls.push(visitor.send(
                         address,
                         Method::Get,
-                        format!("/jig/v1/public/0/1/2/{project:016x}").as_bytes(),
+                        format!("/jig/v1/public/0/2/2/{project:016x}").as_bytes(),
                         &[(b"Host", b"one.example")],
                     ));
                 }

@@ -1551,3 +1551,20 @@ fn a_worker_wait_keeps_its_worker_and_window_in_text_and_json() {
         assert!(skein_lib::bytes::find(&answer.stdout, expected).is_some(), "{:?}", answer.stdout);
     }
 }
+
+#[test]
+fn ctl_names_a_wait_hold_and_prints_its_words_when_supplied() {
+    use jig_client::contract as c;
+    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z";
+    for (words, expected) in [(None, b"A wait passed its bound".as_slice()), (Some(WORDS), WORDS)] {
+        let (_, _, task) = fixtures::task_read();
+        let mut task = fixtures::held_task(task, c::HoldCategory::Waited);
+        task.hold.as_mut().unwrap().words = match words {
+            Some(words) => Some(c::DocumentText::complete(c::Text::new(words.into(), 64).expect("account fits"))),
+            None => None,
+        };
+        let printed = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(task));
+        assert_eq!(printed.status, 0);
+        assert!(skein_lib::bytes::find(&printed.stdout, expected).is_some(), "{:?}", printed.stdout);
+    }
+}

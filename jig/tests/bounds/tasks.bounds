@@ -129,6 +129,7 @@ HoldPreparation: ceilings encoded=132 decoded=128; at_most(3) encoded=7 decoded=
 HoldRow: ceilings encoded=2162776 decoded=2162688; at_most(3) encoded=128 decoded=33
 HoldScope: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 HoldSource: ceilings encoded=65543 decoded=65536; at_most(3) encoded=30 decoded=24
+HoldWait: ceilings encoded=516 decoded=512; at_most(3) encoded=7 decoded=3
 Holding: ceilings encoded=65545 decoded=65536; at_most(3) encoded=12 decoded=3
 HotDefinition: ceilings encoded=67120303 decoded=67120512; at_most(3) encoded=407 decoded=189
 HotHistory: ceilings encoded=531902 decoded=532608; at_most(3) encoded=367 decoded=198

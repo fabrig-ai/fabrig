@@ -218,6 +218,7 @@ pub(in crate::codec) fn wire_hold_category(value: &c::HoldCategory) -> w::HoldCa
         c::HoldCategory::Deadline => w::HoldCategory::Deadline,
         c::HoldCategory::HoldsWaited => w::HoldCategory::HoldsWaited,
         c::HoldCategory::Circle => w::HoldCategory::Circle,
+        c::HoldCategory::Waited => w::HoldCategory::Waited,
         c::HoldCategory::ResourceUnavailable => w::HoldCategory::ResourceUnavailable,
         c::HoldCategory::ResourceAccess => w::HoldCategory::ResourceAccess,
         c::HoldCategory::PoolLost { pool } => w::HoldCategory::PoolLost(w::HoldCategoryPoolLost { pool: *(pool) }),

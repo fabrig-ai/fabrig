@@ -1218,6 +1218,7 @@ pub fn hold_to_record(value: &jig_domain_tasks::Hold) -> crate::tasks_v13::Hold 
         jig_domain_tasks::Hold::Procedure => crate::tasks_v13::Hold::Procedure,
         jig_domain_tasks::Hold::Circle => crate::tasks_v13::Hold::Circle,
         jig_domain_tasks::Hold::Exceeded(held) => crate::tasks_v13::Hold::Exceeded(exceeded_to_record(held)),
+        jig_domain_tasks::Hold::Waited => crate::tasks_v13::Hold::Waited,
     }
 }
 
@@ -1263,6 +1264,7 @@ pub fn hold_to_domain(record: crate::tasks_v13::Hold) -> jig_domain_tasks::Hold 
         crate::tasks_v13::Hold::Procedure => jig_domain_tasks::Hold::Procedure,
         crate::tasks_v13::Hold::Circle => jig_domain_tasks::Hold::Circle,
         crate::tasks_v13::Hold::Exceeded(held) => jig_domain_tasks::Hold::Exceeded(exceeded_to_domain(held)),
+        crate::tasks_v13::Hold::Waited => jig_domain_tasks::Hold::Waited,
     }
 }
 
@@ -1435,6 +1437,9 @@ pub fn hold_source_to_record(value: &jig_domain_tasks::HoldSource, context: &cra
         jig_domain_tasks::HoldSource::Preparation { words: field_000000 } => crate::tasks_v13::HoldSource::Preparation(crate::tasks_v13::HoldPreparation {
             words: field_000000.clone()
         }),
+        jig_domain_tasks::HoldSource::Wait { words: field_000000 } => crate::tasks_v13::HoldSource::Wait(crate::tasks_v13::HoldWait {
+            words: field_000000.clone()
+        }),
     })
 }
 
@@ -1466,6 +1471,12 @@ pub fn hold_source_to_domain(record: crate::tasks_v13::HoldSource, context: &cra
         crate::tasks_v13::HoldSource::Preparation(held) => {
             let crate::tasks_v13::HoldPreparation { words: field_000000 } = held;
             jig_domain_tasks::HoldSource::Preparation {
+                words: field_000000
+            }
+        },
+        crate::tasks_v13::HoldSource::Wait(held) => {
+            let crate::tasks_v13::HoldWait { words: field_000000 } = held;
+            jig_domain_tasks::HoldSource::Wait {
                 words: field_000000
             }
         },

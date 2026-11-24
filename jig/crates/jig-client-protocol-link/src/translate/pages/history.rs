@@ -254,7 +254,7 @@ pub(crate) fn hold_line_fields(value: &w::HoldLine, limits: &Limits) -> Result<c
         position: value.position,
         at: Wall::from_nanos(value.at),
         before: crate::translate::facts::prior_phase(&value.before),
-        why: crate::translate::answers::hold_category(&value.why),
+        why: crate::translate::facts::hold_category(&value.why),
         source: match &value.source {
             Some(part) => Some(crate::translate::facts::part(part)),
             None => None,

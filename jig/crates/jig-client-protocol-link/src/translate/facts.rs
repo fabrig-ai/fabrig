@@ -19,7 +19,7 @@ use chips::{
 };
 #[expect(unused_imports, reason = "The facts root keeps its translation names reachable.")]
 pub(crate) use chips::{chip_phase, closing_stage};
-pub(crate) use holds::{chip_hold, failure_class, hold_category, retry_notice};
+pub(crate) use holds::{chip_hold, failure_class, hold_category, hold_failure, retry_notice};
 use holds::{held_runtime_fields, hold_reason_fields};
 pub(crate) use parties::{escalation_holder, party, person_address, person_wait, recipient, requester};
 pub(crate) use parts::{

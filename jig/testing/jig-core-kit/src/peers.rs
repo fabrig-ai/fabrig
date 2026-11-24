@@ -759,6 +759,7 @@ fn party_hold(value: people::HoldReason) -> parties::HoldReason {
         people::HoldReason::PoolLost { pool } => parties::HoldReason::PoolLost { pool },
         people::HoldReason::Procedure => parties::HoldReason::Procedure,
         people::HoldReason::Circle => parties::HoldReason::Circle,
+        people::HoldReason::Waited => parties::HoldReason::Waited,
     }
 }
 

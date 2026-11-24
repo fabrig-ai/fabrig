@@ -132,7 +132,8 @@ fn person_release(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
         | tasks::Hold::ResourceUnavailable
         | tasks::Hold::ResourceAccess
         | tasks::Hold::PoolLost { .. }
-        | tasks::Hold::Circle => false,
+        | tasks::Hold::Circle
+        | tasks::Hold::Waited => false,
     };
     let wake = Wake::Party("person".into());
     if released && !wakes.contains(&wake) {

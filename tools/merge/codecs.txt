@@ -1,6 +1,6 @@
 # Module path, then schema texts in command order and optional maps file last. Repository-relative paths.
-jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v44.schema jig/crates/jig-client-protocol-wire/schema/client-v44-part1.schema
-jig/crates/jig-client-protocol-wire/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema
+jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v45.schema jig/crates/jig-client-protocol-wire/schema/client-v45-part1.schema
+jig/crates/jig-client-protocol-wire/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v2.schema
 jig/crates/jig-client-view-codec/src/generated/records.rs jig/crates/jig-client-view/schema/records-v1.schema
 jig/crates/jig-protocol-accounts-codec/src/generated/moved.rs jig/crates/jig-protocol-accounts/schema/moved-v1.schema
 jig/crates/jig-protocol-engine-clients-codec/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema

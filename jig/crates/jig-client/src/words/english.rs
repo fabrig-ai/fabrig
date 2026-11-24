@@ -102,6 +102,7 @@ impl Word {
             Self::Hold(HoldWord::Uncertain) => (22, b"Uncertain outbox entry ", &[HoleKind::Number]),
             Self::Hold(HoldWord::Budget) => (23, b"Insufficient activation budget", &[]),
             Self::Hold(HoldWord::Deadline) => (24, b"Deadline passed", &[]),
+            Self::Hold(HoldWord::Waited) => (135, b"A wait passed its bound", &[]),
             Self::Hold(HoldWord::HoldsWaited) => (25, b"Resource holds waited too long", &[]),
             Self::Hold(HoldWord::ResourceUnavailable) => (26, b"A required connector resource is unavailable", &[]),
             Self::Hold(HoldWord::ResourceAccess) => (27, b"Current resource access forbids this action", &[]),

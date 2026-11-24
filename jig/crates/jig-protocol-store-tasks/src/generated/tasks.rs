@@ -52,6 +52,7 @@ pub struct Limits {
     pub circle_tasks: u32,
     pub hold_account_words: u32,
     pub hold_preparation_words: u32,
+    pub hold_wait_words: u32,
     pub rejected_proposal_reason: u32,
     pub amendment_instructions_some: u32,
     pub amendment_dependencies_some: u32,
@@ -155,6 +156,7 @@ pub const CEILINGS: Limits = Limits {
     circle_tasks: 32,
     hold_account_words: 512,
     hold_preparation_words: 128,
+    hold_wait_words: 512,
     rejected_proposal_reason: 524_288,
     amendment_instructions_some: 524_288,
     amendment_dependencies_some: 64,
@@ -258,6 +260,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "circle_tasks",
     "hold_account_words",
     "hold_preparation_words",
+    "hold_wait_words",
     "rejected_proposal_reason",
     "amendment_instructions_some",
     "amendment_dependencies_some",
@@ -365,6 +368,7 @@ impl Limits {
             self.circle_tasks,
             self.hold_account_words,
             self.hold_preparation_words,
+            self.hold_wait_words,
             self.rejected_proposal_reason,
             self.amendment_instructions_some,
             self.amendment_dependencies_some,
@@ -473,6 +477,7 @@ impl Limits {
             circle_tasks: self.circle_tasks.min(most),
             hold_account_words: self.hold_account_words.min(most),
             hold_preparation_words: self.hold_preparation_words.min(most),
+            hold_wait_words: self.hold_wait_words.min(most),
             rejected_proposal_reason: self.rejected_proposal_reason.min(most),
             amendment_instructions_some: self.amendment_instructions_some.min(most),
             amendment_dependencies_some: self.amendment_dependencies_some.min(most),
@@ -578,6 +583,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CIRCLE_TASKS,
     paths::HOLD_ACCOUNT_WORDS,
     paths::HOLD_PREPARATION_WORDS,
+    paths::HOLD_WAIT_WORDS,
     paths::REJECTED_PROPOSAL_REASON,
     paths::AMENDMENT_INSTRUCTIONS,
     paths::AMENDMENT_DEPENDENCIES,
@@ -956,6 +962,8 @@ pub mod paths {
     pub const HOLD_ACCOUNT_TAIL: Path = Path::new("HoldAccount (tail)");
     pub const HOLD_PREPARATION_WORDS: Path = Path::new("HoldPreparation.words");
     pub const HOLD_PREPARATION_TAIL: Path = Path::new("HoldPreparation (tail)");
+    pub const HOLD_WAIT_WORDS: Path = Path::new("HoldWait.words");
+    pub const HOLD_WAIT_TAIL: Path = Path::new("HoldWait (tail)");
     pub const HOLD_SOURCE_TAG: Path = Path::new("HoldSource (tag)");
     pub const HELD_WAS: Path = Path::new("Held.was");
     pub const HELD_WHY: Path = Path::new("Held.why");
@@ -7482,6 +7490,7 @@ pub enum Hold {
     Procedure,
     Circle,
     Exceeded(Exceeded),
+    Waited,
 }
 
 // Record: Hold.
@@ -7505,7 +7514,8 @@ impl Hold {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("Exceeded"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -7553,6 +7563,7 @@ impl Record for Hold {
             Self::Procedure => field::put(out, &[15], paths::HOLD_TAG),
             Self::Circle => field::put(out, &[16], paths::HOLD_TAG),
             Self::Exceeded(value) => { field::put(out, &[17], paths::HOLD_TAG)?; value.write(limits, out) },
+            Self::Waited => field::put(out, &[18], paths::HOLD_TAG),
         }
     }
 
@@ -7577,7 +7588,8 @@ impl Record for Hold {
             15 => Ok(Self::Procedure),
             16 => Ok(Self::Circle),
             17 => Ok(Self::Exceeded(Exceeded::read(limits, reader)?)),
-            18..=u8::MAX => Err(Problem { path: paths::HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            18 => Ok(Self::Waited),
+            19..=u8::MAX => Err(Problem { path: paths::HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -8107,6 +8119,56 @@ impl Record for HoldPreparation {
     }
 }
 
+// Type: HoldWait.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldWait {
+    pub words: Box<[u8]>,
+}
+
+// Record: HoldWait.
+impl HoldWait {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, hold_wait_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for HoldWait {
+    type Limits = Limits;
+    const TAIL: Path = paths::HOLD_WAIT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HoldWait")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HoldWait")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.hold_wait_words.min(CEILINGS.hold_wait_words) }, &self.words, limits, out, paths::HOLD_WAIT_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            words: field::read(field::Bytes { limit: limits.hold_wait_words.min(CEILINGS.hold_wait_words) }, limits, reader, paths::HOLD_WAIT_WORDS)?,
+        })
+    }
+}
+
 // Type: HoldSource.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum HoldSource {
@@ -8115,6 +8177,7 @@ pub enum HoldSource {
     Circle(Circle),
     Account(HoldAccount),
     Preparation(HoldPreparation),
+    Wait(HoldWait),
 }
 
 // Record: HoldSource.
@@ -8125,7 +8188,8 @@ impl HoldSource {
         skein_codec::bounds::Node::Named("Circle"),
         skein_codec::bounds::Node::Named("HoldAccount"),
         skein_codec::bounds::Node::Named("HoldPreparation"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+        skein_codec::bounds::Node::Named("HoldWait"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -8160,6 +8224,7 @@ impl Record for HoldSource {
             Self::Circle(value) => { field::put(out, &[2], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
             Self::Account(value) => { field::put(out, &[3], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
             Self::Preparation(value) => { field::put(out, &[4], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
+            Self::Wait(value) => { field::put(out, &[5], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -8171,7 +8236,8 @@ impl Record for HoldSource {
             2 => Ok(Self::Circle(Circle::read(limits, reader)?)),
             3 => Ok(Self::Account(HoldAccount::read(limits, reader)?)),
             4 => Ok(Self::Preparation(HoldPreparation::read(limits, reader)?)),
-            5..=u8::MAX => Err(Problem { path: paths::HOLD_SOURCE_TAG, reason: skein_codec::Reason::Tag }),
+            5 => Ok(Self::Wait(HoldWait::read(limits, reader)?)),
+            6..=u8::MAX => Err(Problem { path: paths::HOLD_SOURCE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -22633,6 +22699,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "HoldRow", nodes: HoldRow::SHAPE },
     skein_codec::bounds::Declaration { name: "HoldScope", nodes: HoldScope::SHAPE },
     skein_codec::bounds::Declaration { name: "HoldSource", nodes: HoldSource::SHAPE },
+    skein_codec::bounds::Declaration { name: "HoldWait", nodes: HoldWait::SHAPE },
     skein_codec::bounds::Declaration { name: "Holding", nodes: Holding::SHAPE },
     skein_codec::bounds::Declaration { name: "HotDefinition", nodes: HotDefinition::SHAPE },
     skein_codec::bounds::Declaration { name: "HotHistory", nodes: HotHistory::SHAPE },
@@ -22882,6 +22949,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.circle_tasks,
     CEILINGS.hold_account_words,
     CEILINGS.hold_preparation_words,
+    CEILINGS.hold_wait_words,
     CEILINGS.rejected_proposal_reason,
     CEILINGS.amendment_instructions_some,
     CEILINGS.amendment_dependencies_some,

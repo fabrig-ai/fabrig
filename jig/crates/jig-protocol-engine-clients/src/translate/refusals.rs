@@ -249,6 +249,7 @@ fn hold(value: p::HoldReason) -> w::HoldCategory {
         p::HoldReason::ResourceAccess => w::HoldCategory::ResourceAccess,
         p::HoldReason::Procedure => w::HoldCategory::Procedure,
         p::HoldReason::Circle => w::HoldCategory::Circle,
+        p::HoldReason::Waited => w::HoldCategory::Waited,
         p::HoldReason::Dependency { task } => w::HoldCategory::Dependency(w::HoldCategoryDependency { task }),
         p::HoldReason::Placed { hold } => w::HoldCategory::Placed(w::HoldCategoryPlaced { hold }),
         p::HoldReason::Uncertain { entry } => w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry }),

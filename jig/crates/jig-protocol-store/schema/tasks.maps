@@ -165,6 +165,7 @@ record HoldEffect
 record Circle = d::Circle { tasks slice }
 record HoldAccount
 record HoldPreparation
+record HoldWait
 enum HoldSource = d::HoldSource { resource tuple, circle tuple }
 record Held = d::Held { source boxed }
 record Final stands for ending

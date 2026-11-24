@@ -322,6 +322,7 @@ fn held(
         Hold::PoolLost { .. } => "held: pool lost",
         Hold::Procedure => "held: procedure",
         Hold::Circle => "held: circle",
+        Hold::Waited => "held: wait past its bound",
     };
     let mut wakes = Vec::new();
     if let Hold::Placed { hold } = why {
@@ -376,7 +377,7 @@ fn held(
         Some(HoldSource::Effect { connector, .. } | HoldSource::Account { connector, .. }) => {
             wakes.push(Wake::Party(format!("connector {connector}")));
         }
-        Some(HoldSource::Preparation { .. }) | None => {}
+        Some(HoldSource::Preparation { .. } | HoldSource::Wait { .. }) | None => {}
     }
     emit(
         domain,

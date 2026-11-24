@@ -3887,3 +3887,16 @@ mod record_words;
 mod wire;
 
 mod forge_reads;
+
+#[test]
+fn task_reads_name_the_wait_hold_with_its_words() {
+    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z";
+    let mut read = held_task_read();
+    let hold = read.hold.as_mut().expect("held task fixture");
+    hold.reason = tasks::Hold::Waited;
+    hold.words = Some(WORDS.into());
+    let result = crate::answer_bounded(&engine::CallAnswer::TaskRead(Box::new(Ok(read))), 1024);
+    assert!(!result.error());
+    assert!(skein_lib::bytes::find(result.text(), b"Hold revision 9: wait past its bound\n").is_some());
+    assert!(skein_lib::bytes::find(result.text(), WORDS).is_some());
+}
