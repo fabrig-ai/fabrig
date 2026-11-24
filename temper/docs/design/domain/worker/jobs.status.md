@@ -1,6 +1,6 @@
 # jobs: status
 
-2026-11-13. Where the tree's code lags or departs from [jobs.md](jobs.md).
+2026-11-24. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,
@@ -46,6 +46,12 @@ deployment's lines, which no record shows.
   `result missing or past its bound`, where `jobs.md` has the why say which: the
   job capability's `Read` answers no bytes for both
   (`temper-worker-domain-tooling/src/boundary.rs`, `Event::Read`).
+- **Not yet:** "A command is a process": a merge left in conflict brings
+  no contents for its sides' histories' comparison
+  (`../../protocol/git-operations.md`, 1.6), so a merge job's command
+  that compares a commit with rename detection fails `fatal: unable to
+  read <object>` where the commit's parent held a copy no step fetched
+  [in flight: change 15504].
 - **Not yet:** the whole document: the key kind, and the prepare kind's
   project command: the worker's hello declares the prepare, merge and
   close kinds (`temper-worker-service/src/worker_settings.rs`,
