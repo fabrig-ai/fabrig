@@ -56,6 +56,11 @@ pub enum Ending {
     Report(Vec<u8>),
     /// A report after workspace reads, with no repository change.
     ReadReport(Vec<u8>),
+    /// A report on a program account: Claude, not the provider peer, answered.
+    ProgramReport {
+        text: Vec<u8>,
+        workspace: bool,
+    },
     Cancelled,
     /// A headless answer failed because its turn budget ran out.
     Budget,
@@ -173,7 +178,7 @@ impl Meeting {
         let borrowed = self.borrowed_notice.as_deref();
         let borrowed_text = borrowed.and_then(|line| line.strip_prefix(b"smith: "));
         let expected = match &self.ending {
-            Ending::Report(text) | Ending::ReadReport(text) => text.as_slice(),
+            Ending::Report(text) | Ending::ReadReport(text) | Ending::ProgramReport { text, .. } => text.as_slice(),
             Ending::Cancelled => b"interrupted: the run was cancelled",
             Ending::Budget => b"run failed: out of turns",
             Ending::Headless { .. } => b"", // The scenario judges its own stdout and stderr.
@@ -206,7 +211,11 @@ impl Meeting {
         judge.check(
             if matches!(
                 self.ending,
-                Ending::Unavailable | Ending::AgentEnded | Ending::OlderStore | Ending::UnreadableHead
+                Ending::Unavailable
+                    | Ending::AgentEnded
+                    | Ending::OlderStore
+                    | Ending::UnreadableHead
+                    | Ending::ProgramReport { .. }
             ) {
                 queries == 0
             } else {
@@ -352,7 +361,7 @@ impl Meeting {
                 "commit contains the agent's change",
             );
         } else if matches!(self.ending, Ending::HostFailureBeforeAnswer | Ending::Budget | Ending::UnreadableHead)
-            || matches!(self.ending, Ending::ReadReport(_))
+            || matches!(self.ending, Ending::ReadReport(_) | Ending::ProgramReport { workspace: true, .. })
         {
             judge.check(
                 head.as_deref() == Some(b"0000000000000000000000000000000000000001"),
@@ -637,6 +646,8 @@ impl Run {
             | Proc::Browser(_)
             | Proc::Ended(_)
             | Proc::Git(_)
+            | Proc::Claude(_)
+            | Proc::Relay(_)
             | Proc::LingeringAgent(_) => false,
         });
         let line = if wait { self.line_on_wait.take() } else { None };
@@ -690,7 +701,13 @@ impl Run {
                         browser.shutdown();
                     }
                 }
-                Proc::Local(_) | Proc::Agent(_) | Proc::Ended(_) | Proc::Git(_) | Proc::LingeringAgent(_) => {}
+                Proc::Local(_)
+                | Proc::Agent(_)
+                | Proc::Ended(_)
+                | Proc::Git(_)
+                | Proc::Claude(_)
+                | Proc::Relay(_)
+                | Proc::LingeringAgent(_) => {}
             }
         }
         Ok(())
@@ -772,6 +789,8 @@ impl skein_world::Referee<crate::process::Proc> for Run {
             | Proc::Browser(_)
             | Proc::Ended(_)
             | Proc::Git(_)
+            | Proc::Claude(_)
+            | Proc::Relay(_)
             | Proc::LingeringAgent(_) => false,
         });
         if (self.line_on_wait.is_some() && wait)

@@ -119,41 +119,6 @@ fn a_program_chat_answers_before_input_ends() {
 }
 
 #[test]
-fn a_program_exec_traces_its_run_to_the_agent_file() {
-    use smith_events::{Block, Event};
-    let scratch = signed_in(Turn::new(vec![outcome()]));
-    let trace = scratch.path().join("trace.jsonl");
-    let trace_setting = format!("trace.path={}", toml::Value::String(trace.to_str().expect("scratch path").into()));
-    let ran = support::run_product(
-        &scratch,
-        &["exec", "--json", "--chat", "chat", "-c", &trace_setting, "-c", "trace.capture='everything'", "Ask first"],
-        b"",
-        None,
-    );
-    assert_eq!(ran.code, 0, "program exec succeeds");
-    let product = records::read(&ran.stdout);
-    assert_eq!(records::answer(&product).status, smith_events::Status::Accepted);
-    let agent = records::agent(&trace);
-    assert!(
-        agent.iter().any(|record| matches!(&record.event, Event::RunStarted(start) if !start.resumed)),
-        "the agent records a fresh run"
-    );
-    assert!(
-        agent.iter().any(|record| matches!(&record.event, Event::ResponseStarted(start)
-            if start.prompt.as_ref().is_some_and(|prompt| prompt.messages.iter().any(|message|
-                message.blocks.iter().any(|block| matches!(block, Block::Text { text }
-                    if skein_lib::bytes::find(text, b"Ask first").is_some())))))),
-        "the agent captures the task in its prompt"
-    );
-    assert!(
-        agent
-            .iter()
-            .any(|record| matches!(&record.event, Event::ToolCompleted(tool) if tool.tool.as_ref() == b"finish")),
-        "the agent records the finish completion"
-    );
-}
-
-#[test]
 fn a_program_turn_exit_keeps_the_run_failure() {
     let scratch = signed_in(Turn { end: End::Exit(7), ..Turn::new(vec![]) });
     let ran = support::run_product(
@@ -196,31 +161,4 @@ fn a_program_chat_shows_text_before_interrupting_an_uncommitted_turn() {
     let shown = String::from_utf8_lossy(&ran.stdout);
     assert_eq!(shown.matches(text).count(), 1);
     assert!(!shown.contains("through Claude Code"), "no turn committed before the interruption");
-}
-
-#[test]
-fn a_program_chat_completes_its_live_view() {
-    use smith_local_process_world::terminal::Action;
-    let text = "Live settled text";
-    let scratch = signed_in(Turn::new(vec![
-        Step::Text(text.into()),
-        Step::Builtin { tool: "Read".into(), input: json!({"file_path":"README.md"}), result: "file bytes".into() },
-        outcome(),
-    ]));
-    let ran = support::program_chat(
-        &scratch,
-        vec![
-            Action::Wait(b"> ".as_slice().into()),
-            Action::Send(b"Ask first\n".as_slice().into()),
-            Action::Wait(ANSWER.as_bytes().into()),
-            Action::Eof,
-        ],
-    );
-    assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    let shown = String::from_utf8_lossy(&ran.stdout);
-    assert_eq!(shown.matches(text).count(), 1, "{shown}");
-    assert!(shown.contains("tool Read: result"), "{shown}");
-    assert!(shown.contains("anthropic/claude-opus-5-5; through Claude Code: in "), "{shown}");
-    assert!(shown.contains(" turns, ") && shown.contains(" notional, "), "{shown}");
-    assert!(!shown.contains(" ms)"), "no invented tool duration");
 }

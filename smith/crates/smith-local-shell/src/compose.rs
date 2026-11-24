@@ -14,6 +14,7 @@ pub(crate) use placement::{host_limits, program_account, service_limits};
 
 use skein_lib::Wall;
 use skein_shell::{Clock, Config, Kernel};
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
 /// Kernel operations held by the result file owner.
@@ -227,7 +228,7 @@ fn compose(
     }
     .launch(kernel, clock)?;
     let endpoints = resolved.agent.service.channel_endpoints.clone();
-    let rechecks = recheck_programs(&prepared, &resolved.agent.service);
+    let rechecks = recheck_programs(&prepared, &resolved.agent.service).map(|programs| (programs, environment.clone()));
     let (lower, producer) = match kind {
         AgentKind::Inline => (Some(resolved.agent.service), None),
         AgentKind::Spawned { .. } => (None, Some(resolved.agent.service)),
@@ -246,12 +247,29 @@ fn compose(
         lower,
         resources,
         Box::new(std::io::stderr()),
-        crate::local_host::Admission { handed: Some(prepared), front: Some(front), producer, programs: rechecks },
+        crate::local_host::Admission { handed: Some(prepared), front: Some(front), producer },
     )
     .map_err(Refused::Local)?;
     start_stream(&mut local, trace, header, now)?;
+    if let Some((programs, environment)) = rechecks {
+        open_program_root(&mut local, programs, environment)?;
+    }
     files.composed();
     Ok(local)
+}
+
+fn open_program_root(
+    local: &mut crate::Local,
+    programs: smith_protocol_program::Programs,
+    environment: Box<[Box<[u8]>]>,
+) -> Result<(), Refused> {
+    let path = Path::new(std::ffi::OsStr::from_bytes(&programs.directory));
+    let root = credentials::program_source::open_root(path)
+        .map_err(|detail| Refused::Local(startup::Failure::Host { detail }))?;
+    local.adopt_programs(programs, root, environment, true).map_err(|why| {
+        skein_shell::close_startup_fd(root);
+        Refused::Local(why)
+    })
 }
 
 // The run's channel, provider and stdout are composed only after preflight succeeds.

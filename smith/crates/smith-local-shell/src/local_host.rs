@@ -147,13 +147,7 @@ impl Local {
         handed: Option<crate::credentials::Prepared>,
         front: Option<Front>,
     ) -> Result<Self, crate::startup::Failure> {
-        Self::with_admission(
-            config,
-            lower,
-            resources,
-            errors,
-            Admission { handed, front, producer: None, programs: None },
-        )
+        Self::with_admission(config, lower, resources, errors, Admission { handed, front, producer: None })
     }
 
     #[expect(
@@ -167,7 +161,7 @@ impl Local {
         errors: Box<dyn Write>,
         admission: Admission,
     ) -> Result<Self, crate::startup::Failure> {
-        let Admission { handed, front, producer, programs } = admission;
+        let Admission { handed, front, producer } = admission;
         let mut front = front.or_else(|| match &config.local.mode {
             domain::Mode::Headless { .. } => Some(Front::Headless(crate::front::headless::Headless::new(
                 false,
@@ -251,14 +245,6 @@ impl Local {
         }
         let (credential_locations, lendable) = match handed {
             Some(prepared) => {
-                if let Some(programs) = programs {
-                    credentials::programs::hand(
-                        &mut service,
-                        programs,
-                        &prepared.locations,
-                        resources.delivery_environment.clone(),
-                    )?;
-                }
                 service
                     .handed_accounts(prepared.sources, prepared.limits, resources.oauth_entropy)
                     .map_err(|error| configuration_failure(format!("account driver: {error:?}")))?;
@@ -346,6 +332,26 @@ impl Local {
             .adopt_delivery_roots(resources.delivery_roots, resources.delivery_environment)
             .map_err(|error| host_failure(format!("delivery directories: {error:?}")))?;
         Ok(local)
+    }
+
+    /// Adopt a programs directory for the prepared program accounts, once before driving.
+    /// `startup_checked` covers each account's first request with a check already made.
+    /// On refusal the caller retains the descriptor.
+    pub fn adopt_programs(
+        &mut self,
+        programs: smith_protocol_program::Programs,
+        root: kernel::Fd,
+        environment: Box<[Box<[u8]>]>,
+        startup_checked: bool,
+    ) -> Result<(), crate::startup::Failure> {
+        credentials::programs::hand(
+            &mut self.service,
+            programs,
+            &self.credential_locations,
+            environment,
+            root,
+            startup_checked,
+        )
     }
 
     /// Configure the spawned product's bounded trace producer.

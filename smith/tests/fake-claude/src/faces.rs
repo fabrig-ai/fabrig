@@ -68,6 +68,26 @@ pub fn observation_append(spawn: &Spawn) -> Option<StartupAppend> {
     })
 }
 
+/// Resolve a simulated print invocation's descriptor-relative directory into the
+/// fake machine's namespace. An empty directory is relative to the workspace;
+/// otherwise the launch is relative to the programs directory.
+pub fn simulated_launch(spawn: &Spawn, programs: &[u8], workspace: &[u8]) -> Spawn {
+    let directory = if spawn.args.first().is_some_and(|argument| argument.as_ref() == b"-p") {
+        if spawn.dir.is_empty() { workspace.into() } else { [programs, b"/", &spawn.dir].concat().into() }
+    } else {
+        spawn.dir.clone()
+    };
+    Spawn {
+        reach: None,
+        program: spawn.program.clone(),
+        args: spawn.args.clone(),
+        env: spawn.env.clone(),
+        root: spawn.root,
+        dir: directory,
+        pipes: spawn.pipes.clone(),
+    }
+}
+
 /// A hosted factory; register it with [`config_root`] and [`observation_append`]
 /// and [`mcp_root`] through `World::host_startup`. Its default limit is one simultaneous invocation.
 /// Scenario adapters resolve a descriptor-relative `Spawn::dir` into the

@@ -25,6 +25,7 @@ mod checked;
 mod composition;
 mod key;
 mod lending;
+mod program;
 pub use key::provider as key_provider;
 pub(crate) use lending::login_token;
 pub use lending::{Lending, login_at};
@@ -50,12 +51,13 @@ pub enum Authentication {
 /// Files surviving separate invocations of the shared shell.
 pub struct Files {
     scratch: skein_scratch::Scratch,
+    programs: Rc<RefCell<program::Files>>,
 }
 
 impl Files {
     #[must_use]
     pub fn new() -> Self {
-        Self { scratch: skein_scratch::Scratch::new("smith-local-process") }
+        Self { scratch: skein_scratch::Scratch::new("smith-local-process"), programs: Rc::default() }
     }
     #[must_use]
     pub fn path(&self) -> &Path {
@@ -369,7 +371,11 @@ impl skein_world::Machine for Machine {
             self.files.close(file);
             Ok(skein_sim::Handle::new(root.raw()))
         } else {
-            let path = if path == self.chat_path.as_os_str().as_encoded_bytes() { b"chat" } else { path };
+            let path = if path == self.chat_path.as_os_str().as_encoded_bytes() {
+                b"chat"
+            } else {
+                path.strip_prefix(b"/").unwrap_or(path)
+            };
             self.files
                 .open(self.master, path, How::Directory)
                 .map(|root| skein_sim::Handle::new(root.raw()))
@@ -383,7 +389,7 @@ impl skein_world::Machine for Machine {
         mode: u32,
     ) -> Result<skein_sim::Handle, kernel::Error> {
         self.files
-            .open(Opened::new(root.raw()), path, How::Create { mode })
+            .open(Opened::new(root.raw()), path, How::Append { mode })
             .map(|file| skein_sim::Handle::new(file.raw()))
             .map_err(|_| kernel::Error::NotFound)
     }
@@ -473,6 +479,8 @@ pub struct World {
     commit_message: Vec<u8>,
     first_post: Option<Wall>,
     saved_before_query: Rc<Cell<bool>>,
+    programs: Rc<RefCell<program::Files>>,
+    program_story: Option<smith_fake_claude::Story>,
 }
 impl World {
     /// Check the ending using the invocation's retained seed.
@@ -870,6 +878,8 @@ impl World {
                     choices: false,
                     budget_failure: false,
                     plain: None,
+                    program: None,
+                    headless_prompt: None,
                     placement,
                     keep_facts,
                     traced: false,
@@ -906,6 +916,8 @@ impl World {
             commit_message: Vec::new(),
             first_post: None,
             saved_before_query: Rc::new(Cell::new(false)),
+            programs: files.programs.clone(),
+            program_story: None,
         }
     }
     #[must_use]
@@ -1062,6 +1074,9 @@ impl World {
                 machine.files.close(file);
             }
         }
+        if let Some(story) = &self.program_story {
+            self.programs.borrow().plant(&mut machine, story);
+        }
         let opened = machine.files.open_handles();
         assert_eq!(opened, 1);
         let terminal_root = machine.files.open(machine.master, b".", How::Directory).expect("terminal root");
@@ -1103,6 +1118,8 @@ impl World {
             process::local_roots,
             process::local_appends,
         );
+        let agent_routes =
+            if launch.program.is_some() { program::host_children(&mut world, launch) } else { lower.limits.routes };
         if matches!(self.scenario.ending, Ending::AgentEnded) {
             world.host(HostedProgram {
                 program: b"smith-agent".as_slice().into(),
@@ -1117,7 +1134,7 @@ impl World {
                     make: if self.scenario.linger_agent { process::make_lingering_agent } else { process::make_agent },
                     instances: 8,
                     // Workspace root, stderr and its capture, plus the extra plain root's close when present.
-                    operations: process::lower_configuration().limits.routes + 3 + u32::from(launch.plain.is_some()),
+                    operations: agent_routes + 3 + u32::from(launch.plain.is_some()),
                 },
                 process::agent_roots,
                 process::agent_appends,
@@ -1174,6 +1191,10 @@ impl World {
         }
         self.outcome = Some(world.run());
         let machine = &mut self.outcome.as_mut().expect("settled").machine;
+        if launch.program.is_some() {
+            self.programs.borrow_mut().remember(machine);
+            assert_eq!(machine.files.open_handles(), 1, "only the machine's master root remains");
+        }
         let (path, outside) = if launch.interactive {
             (b"chat/main".as_slice(), machine.chat_path.join("main"))
         } else {

@@ -100,6 +100,11 @@ pub(super) fn configuration_for_launch(
             model.dialect = 2;
         }
     }
+    if launch.program.is_some() && launch.interactive {
+        let model = &mut local.local.models[0];
+        model.model = b"claude-opus-5-5".as_slice().into();
+        model.dialect = 2;
+    }
     if let Some(plain) = &launch.plain {
         let workspace = local.local.workspace.as_mut().expect("plain workspace");
         let mut directories = workspace.directories.to_vec();
@@ -364,6 +369,8 @@ fn fixture_launch(tls: bool) -> Launch {
         choices: false,
         budget_failure: false,
         plain: None,
+        program: None,
+        headless_prompt: None,
         placement: crate::Placement::InProcess,
         keep_facts: false,
         traced: false,
@@ -398,6 +405,14 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         endpoint["server_name"] = serde_json::json!("skein.test");
         endpoint["trust_der"] = serde_json::json!(launch.trust_der);
     }
+    if launch.program.is_some() {
+        endpoint["program"] = serde_json::json!("claude_code");
+        if launch.interactive {
+            endpoint["name"] = serde_json::json!("anthropic");
+            endpoint["provider"] = serde_json::json!("anthropic");
+            endpoint["dialect"] = serde_json::json!(2);
+        }
+    }
     let mut document = serde_json::json!({"profile":{"name":"standard","declared":{
         "conversations":declared.conversations,"calls_per_response":declared.calls_per_response,
         "tool_payload":declared.tool_payload,"file_bytes":declared.file_bytes,"shell_output":declared.shell_output,
@@ -409,9 +424,19 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         "check_timeout":policy.check_timeout.as_millis(),"unacknowledged":policy.unacknowledged,
         "group_stop":policy.group_stop.as_millis(),"exit_grace":policy.exit_grace.as_millis()}},
         "endpoints":[endpoint],"environment":[]});
+    let mut environment = Vec::new();
     if let Some(path) = &launch.commands_path {
-        document["environment"] = serde_json::json!([{"name":"PATH", "value":path}]);
+        environment.push(serde_json::json!({"name":"PATH", "value":path}));
     }
+    if let Some(program) = &launch.program {
+        document["programs"] = serde_json::json!({"claude_code":{
+            "directory": std::str::from_utf8(super::PROGRAMS).expect("programs path"),
+            "path": std::str::from_utf8(super::CLAUDE).expect("Claude path"),
+        }});
+        environment
+            .extend(program.environment.iter().map(|(name, value)| serde_json::json!({"name":name,"value":value})));
+    }
+    document["environment"] = environment.into();
     if launch.traced {
         document["trace"] =
             serde_json::json!({"path":launch.root_path.join("events.jsonl.agent"),"capture":"everything"});

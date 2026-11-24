@@ -24,7 +24,10 @@ use std::{os::unix::ffi::OsStrExt, path::PathBuf};
 
 mod agent_process;
 mod configuration;
+mod program;
 pub use agent_process::AgentProcess;
+pub use program::ProgramLaunch;
+pub(super) use program::{ACCOUNT, CLAUDE, PROGRAMS, RELAY, fake_appends, fake_roots, make_fake, make_relay};
 
 use configuration::{Parsed, configuration_for_launch, launch_limits};
 pub use configuration::{
@@ -80,6 +83,11 @@ pub struct Launch {
     pub budget_failure: bool,
     /// A named plain directory whose write authority crosses the local/agent boundary.
     pub plain: Option<PlainDirectory>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub program: Option<ProgramLaunch>,
+    /// An explicit headless task in place of the sharing fixture's default prompt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headless_prompt: Option<Box<[u8]>>,
     pub placement: crate::Placement,
     pub keep_facts: bool,
     pub traced: bool,
@@ -463,6 +471,10 @@ pub enum Proc {
     Browser(Box<BrowserProcess>),
     /// The simulated fake-checkout child; real worlds execute git externally.
     Git(Box<crate::git::Prepared>),
+    /// The same fake Claude command used by the agent process world.
+    Claude(Box<smith_fake_claude::Fake>),
+    /// The shipped agent's stdio-to-loopback relay.
+    Relay(Box<smith_agent_shell::relay::Process>),
 }
 impl Delegate for Proc {
     fn host(&self) -> &dyn Host {
@@ -476,6 +488,8 @@ impl Delegate for Proc {
             Self::Issuer(p) => p.as_ref(),
             Self::Browser(p) => p.as_ref(),
             Self::Git(p) => p.as_ref(),
+            Self::Claude(p) => p.as_ref(),
+            Self::Relay(p) => p.as_ref(),
         }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
@@ -489,6 +503,8 @@ impl Delegate for Proc {
             Self::Issuer(p) => p.as_mut(),
             Self::Browser(p) => p.as_mut(),
             Self::Git(p) => p.as_mut(),
+            Self::Claude(p) => p.as_mut(),
+            Self::Relay(p) => p.as_mut(),
         }
     }
 }
@@ -515,6 +531,9 @@ pub fn local_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
         }
     }
     roots.push(startup_root(b"state", store));
+    if launch.program.is_some() {
+        roots.push(program::program_root());
+    }
     if launch.authenticated {
         roots.push(StartupRoot { name: b"credential".as_slice().into(), path: path.into() });
     }
@@ -565,7 +584,7 @@ fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
     config.limits.local.models = 2;
 }
 
-/// Adopt local startup resources without any backend-specific operations.
+/// Adopt local startup descriptors supplied by the shared harness.
 #[must_use]
 pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let launch = Launch::read(spawn);
@@ -580,7 +599,9 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         configure_choices(&mut config, &mut lower);
     }
     if launch.headless {
-        config.local.mode = local::Mode::Headless { prompt: b"hello".as_slice().into() };
+        config.local.mode = local::Mode::Headless {
+            prompt: launch.headless_prompt.clone().unwrap_or_else(|| b"hello".as_slice().into()),
+        };
     }
     if let Some(files) = &launch.finalizer {
         config.local.chat = files.chat.as_bytes().into();
@@ -621,24 +642,36 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let (writer, capture) = skein_world::PipeWriter::new(fd, 4096);
     use smith_local_shell::front::{Front, headless::Headless, interactive::Interactive};
     let front = if launch.interactive {
-        Some(Front::Interactive(Interactive::new(true, &lower.limits).expect("bounded screen")))
+        let plain = !launch.program.as_ref().is_some_and(|program| program.live_view);
+        Some(Front::Interactive(Interactive::new(plain, &lower.limits).expect("bounded screen")))
     } else if launch.finalizer.is_some() {
         Some(Front::Headless(Headless::new(json, skein_shell::OutputKind::Pipe, config.limits.local.show_bytes)))
     } else {
         None
     };
     let files = product_files(&launch, inherited, &config.limits, lower.limits.file_timeout);
-    let (lower, spawned) =
-        if launch.placement == crate::Placement::InProcess { (Some(lower), None) } else { (None, Some(lower)) };
-    let mut handed = lending_accounts(&launch, spawn, config.limits.process.io).unwrap_or_else(|| {
-        prepared_accounts(
-            &launch.token_directory,
-            launch.authenticated,
-            launch.tls,
-            launch.authenticated.then(|| root(inherited, b"credential")),
-            config.limits.process.io,
+    let programs = lower.program.as_ref().map(|backend| {
+        let binding = &backend.program;
+        (
+            smith_protocol_program::Programs { directory: binding.directory.clone(), claude: binding.claude.clone() },
+            lower.environment.command_entries(),
         )
     });
+    let (lower, spawned) =
+        if launch.placement == crate::Placement::InProcess { (Some(lower), None) } else { (None, Some(lower)) };
+    let mut handed = if launch.program.is_some() {
+        program::prepared_accounts(config.limits.process.io)
+    } else {
+        lending_accounts(&launch, spawn, config.limits.process.io).unwrap_or_else(|| {
+            prepared_accounts(
+                &launch.token_directory,
+                launch.authenticated,
+                launch.tls,
+                launch.authenticated.then(|| root(inherited, b"credential")),
+                config.limits.process.io,
+            )
+        })
+    };
     if let Some(lead) = launch.refresh_lead_ms {
         handed.limits.refresh_lead = Duration::from_millis(lead);
     }
@@ -675,6 +708,9 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         front,
     )
     .expect("shared local shell");
+    if let Some((programs, environment)) = programs {
+        local.adopt_programs(programs, root(inherited, b"programs"), environment, false).expect("hosted programs root");
+    }
     if let Some(configuration) = &spawned
         && launch.traced
     {
@@ -766,20 +802,21 @@ fn product_header(
 #[must_use]
 pub fn agent_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
     let launch = agent_launch(spawn);
+    let mut roots = Vec::new();
     if launch.change {
         let path = launch.root_path.join("repo");
-        let mut roots =
-            vec![StartupRoot { name: b"repo".as_slice().into(), path: path.as_os_str().as_encoded_bytes().into() }];
+        roots.push(StartupRoot { name: b"repo".as_slice().into(), path: path.as_os_str().as_encoded_bytes().into() });
         if launch.plain.is_some() {
             roots.push(StartupRoot {
                 name: b"extra".as_slice().into(),
                 path: launch.root_path.join("extra").as_os_str().as_encoded_bytes().into(),
             });
         }
-        roots
-    } else {
-        vec![]
     }
+    if launch.program.is_some() {
+        roots.push(program::program_root());
+    }
+    roots
 }
 /// Construct the agent service with the local scenario's settings.
 #[must_use]
@@ -788,12 +825,12 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(fd);
     let document = std::path::Path::new(std::ffi::OsStr::from_bytes(&spawn.args[0]));
-    let parsed = smith_agent_shell::config::read(document).expect("generated child JSON");
-    let mut configuration = launch_limits(&launch, parsed.service);
-    let trace = if launch.traced {
-        configuration.limits.events = Some(
+    let mut parsed = smith_agent_shell::config::read(document).expect("generated child JSON");
+    parsed.service = launch_limits(&launch, parsed.service);
+    if launch.traced {
+        parsed.service.limits.events = Some(
             smith_agent_service::event_limits(
-                &configuration.limits,
+                &parsed.service.limits,
                 smith_protocol_events::sinks::Capture::Everything,
                 1,
                 0,
@@ -802,26 +839,15 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             )
             .expect("trace limits"),
         );
-        Some(smith_agent_shell::trace::TraceConfig {
-            path: launch.root_path.join("events.jsonl.agent"),
-            capture: smith_protocol_events::sinks::Capture::Everything,
-            delivery: smith_protocol_events::sinks::Delivery::Complete,
-        })
-    } else {
-        None
-    };
+    }
     let agent = smith_agent_shell::Agent::new(
-        smith_agent_shell::config::Configuration {
-            program: None,
-            program_endpoints: std::collections::BTreeSet::new(),
-            service: configuration,
-            memory: parsed.memory,
-            trace,
-            profile: parsed.profile,
-            declarations: parsed.declarations,
-        },
+        parsed,
         smith_agent_shell::Resources {
-            programs: None,
+            programs: launch.program.as_ref().map(|_| smith_agent_shell::ProgramResources {
+                directory: Some(root(inherited, b"programs")),
+                relay: std::path::Path::new(std::ffi::OsStr::from_bytes(program::RELAY)).into(),
+                entropy: skein_lib::Secret::new(Box::new([7; 32])),
+            }),
             input: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
             output: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
             error: Some(fd),
@@ -829,7 +855,9 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             seed: launch.seed,
             pid: 102,
             trace: inherited.appends.first().map(|(_, fd)| *fd),
-            roots: Some(inherited.roots.iter().map(|(_, fd)| *fd).collect()),
+            roots: Some(
+                inherited.roots.iter().filter(|(name, _)| name.as_ref() != b"programs").map(|(_, fd)| *fd).collect(),
+            ),
         },
         Box::new(errors.clone()),
     )
