@@ -42,6 +42,15 @@ pub struct Rendered {
     limits: Option<(PathBuf, temper_playground::documents::Configuration)>,
 }
 impl Rendered {
+    /// The engine's typed figures and provider inputs as its fixture writer would retain them.
+    #[must_use]
+    pub fn engine_configuration(&self) -> temper_playground::documents::Configuration {
+        let mut value = self.limits.as_ref().expect("engine figures").1.clone();
+        let providers = &self.providers.as_ref().expect("engine providers").1;
+        value["world_providers"] = temper_agent_fixtures::providers::flat(providers);
+        value
+    }
+
     pub fn lay(&self) {
         for (path, bytes) in &self.files {
             private_directory(path.parent().expect("file parent"));

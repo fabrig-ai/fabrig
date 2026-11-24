@@ -1,5 +1,10 @@
 //! Harness contracts over values and scripted completions.
 use crate::support;
+use serde_json::{Value, json};
+use std::{
+    net::SocketAddr,
+    path::{Path, PathBuf},
+};
 use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
@@ -207,6 +212,631 @@ fn a_kept_project_requires_complete_visible_unambiguous_adoptions() {
 #[test]
 fn the_twin_waits_for_the_childs_result_after_a_forge_notification() {
     support::forge_land::rung::twin_tests::the_twin_waits_for_the_childs_result_after_a_forge_notification();
+}
+
+#[test]
+fn the_sign_in_fixture_reads_the_initialized_listeners_without_an_llm_member() {
+    use temper_config_shell::{FILE, Shape};
+    let root = Path::new("/fixture/sign-in-listeners");
+    let start = support::configuration::parse(
+        &temper_config_shell::render(&support::configuration::file(), Shape::Standalone),
+        Shape::Standalone,
+    );
+    let document: Value = serde_json::from_slice(&start.document).expect("initialized document");
+    assert!(document["engine"].get("llm").is_none());
+    let drawn = [local(19_001), local(19_002)];
+    let mut file = None;
+    let (setting, _, _) =
+        support::sign_in::patch_configuration_with(root, start, drawn, local(19_003), |path, bytes, providers| {
+            assert_eq!(path, root.join(FILE));
+            let kept = support::configuration::parse(bytes, Shape::Standalone);
+            file = Some(kept.file);
+            let start = json_bytes(&kept.document);
+            let agent = temper_agent_fixtures::with_figures(&start, &temper_service::stock::agents(), root, providers);
+            (start, agent)
+        });
+    let file = file.expect("captured fixture file");
+    assert_eq!(file.listen, Some(drawn[0]));
+    assert!(file.webhooks.is_some());
+    let mut copies = ProviderCopies::default();
+    let _ = temper_agent_fixtures::providers::remember_with(root, &setting.providers, copies.writer());
+    let providers = copies.startup(root);
+    assert_eq!(providers["providers"][0]["number"], 1);
+    let sign_in = &providers["providers"][0]["sources"]["sign_in"];
+    let issuer = sign_in["issuer"].as_str().expect("patched issuer");
+    assert!(issuer.starts_with("http://127.0.0.1:"), "independent local issuer: {issuer}");
+    assert_eq!(issuer, "http://127.0.0.1:19003");
+    assert_eq!(sign_in["transport"], "plaintext");
+}
+
+#[test]
+fn moving_listeners_preserves_the_retained_files_explicit_keys() {
+    use temper_config_shell::{File, Internal, Shape};
+    let file = File {
+        listen: Some(local(7100)),
+        webhooks: Some(local(7101)),
+        public: Some("https://temper.example.invalid".into()),
+        owner: Some("owner@example.invalid".into()),
+        internal: Internal { bundle: Some("/fixture/retained-file-edit/bundle".into()) },
+        environment: vec![("FIXTURE".into(), "retained".into())],
+        ..Default::default()
+    };
+    let read = support::configuration::parse(&temper_config_shell::render(&file, Shape::Standalone), Shape::Standalone);
+    let drawn = [local(19_001), local(19_002)];
+    let moved = support::move_listener_file(read, drawn);
+    let moved =
+        support::configuration::parse(&temper_config_shell::render(&moved, Shape::Standalone), Shape::Standalone).file;
+    assert_ne!(moved.listen, file.listen);
+    assert_ne!(moved.webhooks, file.webhooks);
+    assert_ne!(moved.listen, moved.webhooks);
+    let expected = File { listen: Some(drawn[0]), webhooks: Some(drawn[1]), ..file };
+    assert_eq!(moved, expected, "all non-listener keys are retained");
+}
+
+#[test]
+fn rebinding_the_fake_model_keeps_the_split_deployments_issuer() {
+    let root = Path::new("/fixture/split-provider-rebind");
+    let config = root.join("config");
+    let data = root.join("data");
+    let mut providers = temper_agent_fixtures::providers::stock();
+    providers["providers"][0]["sources"]["sign_in"]["issuer"] = "http://127.0.0.1:19002".into();
+    let address = local(19_003);
+    let mut copies = ProviderCopies::default();
+    support::llm::configure_with(
+        &config,
+        address,
+        |path| path == data,
+        |path| {
+            assert_eq!(path, data);
+            providers.clone()
+        },
+        copies.writer(),
+    );
+    let rebound = copies.startup(&data);
+    assert_eq!(
+        rebound["providers"][0]["sources"]["sign_in"]["issuer"],
+        providers["providers"][0]["sources"]["sign_in"]["issuer"]
+    );
+    assert_eq!(rebound["endpoints"][0]["address"]["socket"], address.to_string());
+}
+
+// It reaches `forgejo_elsewhere`, whose capture witness uses Linux's abstract Unix sockets.
+#[cfg(target_os = "linux")]
+#[test]
+fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directory() {
+    let root = Path::new("/fixture/elsewhere-split-provider");
+    let config = root.join("config");
+    let data = root.join("data");
+    let recipe = support::recipe(&config, &support::Forge::Unreached);
+    let before = temper_agent_fixtures::providers::flat(&recipe.agent_setting().providers);
+    let address = local(19_003);
+    let mut copies = ProviderCopies::default();
+    let mut settings = None;
+    support::forgejo_elsewhere::configure_llm_with(
+        root,
+        address,
+        before.clone(),
+        json_bytes(&support::owned::producer_landing_settings_bytes(2)),
+        copies.writer(),
+        |path, bytes| {
+            assert_eq!(path, config.join("native-landing-settings.json"));
+            settings = Some(json_bytes(bytes));
+        },
+    );
+
+    // Read the startup copy through the product's reader, not the world's retained inputs.
+    let running = copies.startup(&data);
+    assert_eq!(running["endpoints"][0]["address"]["socket"], address.to_string());
+    assert_eq!(running["endpoints"][0]["transport"], "tls");
+    assert_eq!(running["endpoints"][0]["server_name"], "skein.test");
+    assert_eq!(running["endpoints"][0]["trust"], json!(config.join("root.der")));
+    let mut expected = before;
+    expected["endpoints"][0]["address"] = json!({"socket": address.to_string()});
+    assert_eq!(running, expected, "rebinding preserves the complete provider, not stock with a new socket");
+    let settings = settings.expect("captured landing settings");
+    let edits = support::provider_setup::items(&running);
+    assert!(settings["items"].as_array().expect("items").ends_with(&edits), "ctl commits the running providers");
+}
+
+#[derive(Default)]
+struct ProviderCopies(Vec<(PathBuf, Box<[u8]>)>);
+impl ProviderCopies {
+    fn writer(&mut self) -> impl FnMut(&Path, &[jig_protocol_config::ProviderSetting]) -> std::io::Result<bool> + '_ {
+        |path, values| {
+            self.0.push((path.into(), temper_service_shell::providers::render(values)));
+            Ok(true)
+        }
+    }
+
+    fn startup(self, data: &Path) -> Value {
+        let mut log = Vec::new();
+        assert_eq!(self.0.len(), 2, "fixture input and startup copies");
+        assert_eq!(self.0[0].0, data.join("world-providers.json"));
+        let values = temper_service_shell::providers::read_using(
+            &data.join("providers.setting"),
+            temper_service::stock::providers(),
+            &mut log,
+            |path| {
+                let (kept, bytes) = self.0.into_iter().nth(1).expect("startup copy");
+                assert_eq!(path, kept);
+                Ok(Some(bytes.into_vec()))
+            },
+        );
+        assert!(log.is_empty(), "{}", String::from_utf8_lossy(&log));
+        temper_agent_fixtures::providers::flat(&values)
+    }
+}
+
+#[test]
+fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
+    use temper_service::startup;
+    let root = Path::new("/fixture/cluster-turn-documents");
+    let mut cluster = support::cluster::Cluster::description_from(root, &cluster_turn_setup::fixture());
+    cluster_turn_setup::bind_addresses(
+        &mut cluster,
+        &[local(7100), local(7101), local(7102), local(3000), local(8371)],
+    );
+    let rendered = cluster.render_files("engine");
+    let engine = rendered.engine_configuration();
+    let providers = temper_agent_fixtures::providers::values(&engine["world_providers"]);
+    let agent = temper_agent_fixtures::with_figures(
+        &engine,
+        &temper_service::stock::agents(),
+        &cluster.dir("engine").join("data"),
+        &providers,
+    );
+    let composed = cluster_turn_setup::compose_engine(engine, agent);
+    cluster.bind("story.change_spend", &composed.change_spend().to_string());
+    let figures = composed.configuration;
+    let forge = rendered_json(&cluster, "forge", "forge.json");
+    assert_eq!(forge["workflows"], json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]));
+    assert_eq!(forge["manual_merges"], json!({"allow":true,"autodetect":true}));
+    assert_eq!(forge["pace"]["ci_ms"], cluster_turn_setup::CI_MS);
+    temper_fake::forge::Document::decode(&serde_json::to_vec(&forge).expect("forge JSON")).expect("forge document");
+    let llm = rendered_json(&cluster, "llm", "llm.json");
+    temper_fake::llm::Document::decode(&serde_json::to_vec(&llm).expect("LLM JSON"))
+        .expect("scripted producer and chat");
+    let producer = &llm["cued"][0]["turns"];
+    assert_eq!(producer[2]["lines"][0]["call"], "save");
+    assert_eq!(
+        producer[3]["lines"][0]["arguments"]["content"].as_str().expect("both lines").as_bytes(),
+        cluster_turn_setup::CONTENT
+    );
+    assert_eq!(producer[4]["lines"][0]["call"], "deliver");
+    let engine_start = rendered.start.expect("rendered engine").document;
+    let engine = json_bytes(&engine_start);
+    let landing = json_bytes(&composed.landing);
+    let project = &landing["items"][0]["set"];
+    assert_eq!(project["by"], "turn");
+    assert_eq!(project["batch"], 1);
+    assert_eq!(landing["items"][1]["set"]["repositories"][0]["gates"][0]["workflow"], "gate.yml");
+    let limits = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
+    let bytes = serde_json::to_vec(&engine["engine"]).expect("engine JSON");
+    let document = jig_protocol_config::document(&bytes, &limits).expect("engine document");
+    let engine = startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut figures.jig.clone(),
+    )
+    .expect("initial engine");
+    assert!(
+        temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
+        "the worker's merge train must be declared"
+    );
+    let bytes = serde_json::to_vec(&support::cluster::agent_configuration(
+        &json_bytes(&engine_start),
+        &cluster.dir("w1").join("data"),
+    ))
+    .expect("agent JSON");
+    let agent = support::prepare_agent(bytes.into()).agent;
+    for process in ["engine", "w1"] {
+        let root = cluster.dir(process);
+        let directories = temper_real_loop_world::cluster::directories_in([
+            &root.join("config"),
+            &root.join("data"),
+            &root.join("cache"),
+        ]);
+        let directories = temper_box_shell::directories::jig_directories(&directories);
+        let bytes = cluster.render_files(process).start.expect("rendered process").document;
+        if process == "engine" {
+            startup::store_limits_with_limits(
+                &bytes,
+                &directories,
+                Some(&agent.declaration()),
+                &figures.jig,
+                &figures.limits,
+            )
+            .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
+        }
+        match startup::shape(&bytes, &directories).expect("separate shape") {
+            startup::Shape::EngineAlone => {
+                startup::named(&bytes, &directories).expect("checked engine alone");
+            }
+            startup::Shape::WorkerAlone => {
+                startup::worker_part(&bytes, &directories, None, &[]).expect("checked worker alone");
+            }
+            startup::Shape::Standalone => panic!("separate deployment processes"),
+        }
+    }
+    let core = jig_protocol_config::core(&engine, [0; 16], 1);
+    let needs = jig_domain_core::settings::fleet_needs::configured(&core, &engine.limits.core);
+    assert_eq!(
+        jig_domain_fleet::shortfall(&needs, &agent.bounds, jig_domain_fleet::HostKind::Worker),
+        None,
+        "the sole worker admits the stock and the prepare job"
+    );
+}
+
+#[test]
+fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
+    let root = Path::new("/fixture/cluster-turn-settings");
+    let calls: Vec<_> = [
+        json!({}),
+        json!({"newest":7}),
+        json!({"setting":{"kind":"policy","number":1},"value":{
+            "period_spend":48000,"roles":[{"number":0,"period_spend":48000}],"kept":"policy"}}),
+        json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat",
+            "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
+        json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer",
+            "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
+    ]
+    .iter()
+    .map(|value| support::Ended {
+        exit: Some(skein_io::kernel::Exit::Code(0)),
+        stdout: serde_json::to_vec(value).expect("setting JSON"),
+        stderr: Vec::new(),
+    })
+    .collect();
+    let mut settings = None;
+    let _apply =
+        cluster_turn_setup::settings_with(root, &calls, &temper_agent_fixtures::providers::stock(), |path, bytes| {
+            assert_eq!(path, root.join("turn-settings.json"));
+            settings = Some(json_bytes(bytes));
+        });
+    let settings = settings.expect("captured turn settings");
+    let policy = &settings["items"][0]["set"];
+    assert_eq!(policy["roles"][0]["period_spend"], 41000, "7000 of the period remains for preparation");
+    assert_eq!(policy["kept"], "policy");
+    assert_eq!(settings["items"][1]["set"]["kept"], "chat");
+    assert_eq!(settings["items"][2]["set"]["kept"], "producer");
+    assert_eq!(
+        settings["items"][1]["set"]["model"]["provider"], 1,
+        "the chat uses the fake provider, not stock's first choice"
+    );
+    assert_eq!(settings["items"][2]["set"]["model"]["provider"], 1, "the producer uses the fake provider");
+    assert_eq!(settings["items"][3]["set"]["gates"], json!([]), "turn's test gate is the only gate");
+}
+
+fn rendered_json(cluster: &support::cluster::Cluster, process: &str, file: &str) -> Value {
+    let wanted = cluster.dir(process).join(file);
+    let rendered = cluster.render_files(process);
+    let (_, bytes) = rendered.files.iter().find(|(path, _)| *path == wanted).expect("rendered file");
+    json_bytes(bytes)
+}
+
+#[test]
+fn the_scripted_batch_fits_its_budget_and_call() {
+    use skein_fake_llm_domain::api::Line;
+    use support::turn_restart::Profile;
+    let root = Path::new("/fixture/batch-admission");
+    let fixture = landing_fixture(root, Some(Profile::NarrowedBatch));
+    let value = fixture.retained_configuration();
+    let engine = temper_real_loop_world::settings::configuration(&value);
+    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let scripts = support::batch_landing::scripted_batch(
+        support::forgejo::native_scripts(b"hello", local(3000), 1, b"README").into_vec(),
+        stock.rules.maximum_run_spend,
+    );
+    let owner = scripts.iter().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
+    let Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
+    let delegate: serde_json::Value = serde_json::from_slice(arguments).expect("delegate JSON");
+    let tracked = delegate["batch"].as_array().expect("batch").iter().filter(|task| !task["tracked"].is_null()).count();
+    assert!(
+        u32::try_from(tracked).expect("tracked changes") <= engine.limits.core.tasks.project_goals,
+        "the independent changes fit the project's goal limit"
+    );
+    let result_credits = u32::try_from(delegate["batch"].as_array().expect("batch").len())
+        .expect("batch members")
+        .checked_mul(engine.limits.core.tasks.result_bytes)
+        .expect("batch result credits");
+    assert!(result_credits <= engine.limits.core.tasks.inbox_bytes, "the batch's result credits fit its inbox");
+    let spend: u64 = delegate["batch"]
+        .as_array()
+        .expect("batch")
+        .iter()
+        .map(|change| change["authority"]["budget"]["spend"].as_u64().expect("spend"))
+        .sum();
+    let policy = &stock.policies.get(&1).expect("stock policy").policy;
+    let owner = policy.roles.iter().find(|role| role.number == 0).expect("owner role");
+    assert!(
+        spend + stock.rules.maximum_run_spend <= owner.authority.budget.spend,
+        "the chat funds every delegate and retains one run for itself"
+    );
+    let agent = json_bytes(&fixture.configured.agent.bytes);
+    assert!(
+        u64::try_from(arguments.len()).expect("call length")
+            <= agent["profile"]["declared"]["tool_payload"].as_u64().expect("payload"),
+        "one admitted model call carries the whole batch"
+    );
+}
+
+#[test]
+fn native_forgejo_settings_preserve_the_coding_producer() {
+    let root = Path::new("/fixture/native-forgejo-producer");
+    let api = local(3000);
+    let recipe = support::recipe(root, &forge(api));
+    let settings = json_bytes(recipe.landing_settings.as_ref().expect("native landing settings"));
+    let producer = &settings["items"][1]["set"];
+    assert_eq!(producer, 2, "native scripts delegate to charter 2");
+    assert_eq!(settings["items"][0]["set"]["gates"], json!([]));
+    let scripts = support::forgejo::native_scripts(b"hello", api, 1, b"README");
+    let skein_fake_llm_domain::api::Line::Call { name, arguments } = &scripts[0].turns[0].lines[0] else {
+        panic!("delegate call")
+    };
+    assert_eq!(name.as_ref(), b"delegate");
+    let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
+    let (_, deployment) = support::configuration::documents(root, "/fixture/temper");
+    let deployment = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&deployment).expect("deployment JSON"),
+    );
+    let engine = temper_real_loop_world::settings::configuration(&deployment);
+    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let spend = delegate["batch"][0]["authority"]["budget"]["spend"].as_u64().expect("change spend");
+    assert!(
+        spend >= stock.rules.maximum_run_spend * 2,
+        "the native change funds stock model reserves and its production and review turns"
+    );
+    let kinds = delegate["batch"][0]["authority"]["delegation"]["kinds"].as_array().expect("kinds");
+    assert!(kinds.contains(&json!({"kind":"agent", "number":producer})));
+}
+
+#[test]
+fn owned_settings_preserve_the_ordinary_producer_without_review() {
+    let owned = support::owned::Owned { review: false, ..support::owned::Owned::example() };
+    let settings = json_bytes(&support::owned::owned_landing_settings(&owned).expect("no-review settings"));
+    assert_eq!(settings["items"][1]["set"], 1, "owned fixture uses the ordinary charter");
+    assert_eq!(settings["items"][0]["set"]["gates"], serde_json::json!([]));
+}
+
+#[test]
+fn native_landing_rules_replace_the_projects_stock_review() {
+    for producer in [1, 2] {
+        let settings = json_bytes(&support::owned::producer_landing_settings_bytes(producer));
+        assert_eq!(
+            settings["items"][0],
+            serde_json::json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
+                "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
+                "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}),
+            "no-review fixtures replace project rule 1 and keep CI and freshness"
+        );
+        assert_eq!(settings["items"][1]["set"], producer);
+    }
+}
+
+#[test]
+fn turn_restart_configuration_passes_startup_admission() {
+    landing_configuration_admission("/fixture/turn-restart-admission", support::turn_restart::Profile::Turn);
+}
+
+#[test]
+fn batch_landing_configuration_passes_startup_admission() {
+    landing_configuration_admission("/fixture/batch-landing-admission", support::turn_restart::Profile::NarrowedBatch);
+}
+
+fn landing_configuration_admission(root: &str, profile: support::turn_restart::Profile) {
+    use skein_lib::{List, Secret};
+    use temper_service::settings::{Files, Seeds};
+
+    let fixture = landing_fixture(Path::new(root), Some(profile));
+    let figures = &fixture.configured.configuration;
+    let document = &fixture.recipe.read_start().document;
+    let directories = jig_protocol_config::Directories::working();
+    let named = temper_service::named(document, &directories).expect("named story files");
+    let mut entries = List::with_capacity(u32::try_from(named.files.len()).expect("file count"));
+    for file in named.files {
+        let bytes = fixture
+            .recipe
+            .files
+            .entries
+            .iter()
+            .find(|(path, _)| *path == file.path)
+            .unwrap_or_else(|| panic!("missing composed file {}", String::from_utf8_lossy(&file.path)))
+            .1
+            .expose();
+        entries.push((file.path, Secret::new(bytes.into()))).expect("named file count");
+    }
+    let seeds = Seeds {
+        link_secret: None,
+        local_secret: None,
+        deployment: [7; 16],
+        installation: [8; 16],
+        seed: 7,
+        crypto: Secret::new(Box::new([9; 32])),
+    };
+    let result = temper_service::startup::checked_start_with_limits(
+        document,
+        &directories,
+        &Files { entries },
+        Some(&fixture.configured.agent.agent),
+        &seeds,
+        List::with_capacity(0),
+        None,
+        &temper_service::stock::Given::Stock,
+        None,
+        &figures.jig,
+        &figures.limits,
+    );
+    if let Err(problems) = result {
+        panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
+    }
+}
+
+#[test]
+fn turn_configuration_declares_the_prepare_job() {
+    let fixture = landing_fixture(Path::new("/fixture/turn-prepare-carriers"), None);
+    let config = fixture.retained_configuration();
+    let engine = temper_real_loop_world::settings::configuration(&config);
+    let prepare = temper_service::limits::prepare_bound();
+    assert!(
+        temper_service::limits::prepare_jobs(&engine.limits).contains(&prepare),
+        "the turn declares the prepare job"
+    );
+    assert!(engine.limits.core.tasks.result_bytes >= prepare.result, "the worker carries the prepare result");
+}
+
+struct LandingFixture {
+    recipe: support::Recipe,
+    configured: support::turn_restart::Configured,
+    figures: Vec<u8>,
+}
+impl LandingFixture {
+    fn retained_configuration(&self) -> temper_playground::documents::Configuration {
+        support::limit_settings::configuration_over(
+            self.recipe.start_document(),
+            temper_agent_fixtures::providers::flat(&self.configured.setting.providers),
+            Some(&self.figures),
+        )
+    }
+}
+
+fn landing_fixture(root: &Path, profile: Option<support::turn_restart::Profile>) -> LandingFixture {
+    use support::turn_restart::{self, Inputs, Profile, Stage};
+    let recipe = support::recipe(root, &forge(local(3000)));
+    let start = recipe.start_document();
+    let configuration = support::limit_settings::configuration_over(
+        start.clone(),
+        temper_agent_fixtures::providers::flat(&recipe.agent_setting().providers),
+        Some(&support::limit_settings::figures_bytes(&recipe.configuration)),
+    );
+    let inputs = Inputs {
+        configuration,
+        agent: json_bytes(&recipe.agent.bytes),
+        native_settings: json_bytes(recipe.landing_settings.as_ref().expect("native settings")),
+    };
+    let prepare = |setting: &temper_agent_fixtures::Setting| {
+        let agent = temper_agent_fixtures::with_figures(&start, &setting.figures, root, &setting.providers);
+        support::prepare_agent(serde_json::to_vec(&agent).expect("agent JSON").into())
+    };
+    let mut seeded = Vec::new();
+    let mut figures = Vec::new();
+    let stage = |step: Stage<'_>| match step {
+        Stage::Landing(bytes) => turn_restart::stage_landing_with(
+            root,
+            bytes,
+            |path| path == root.join("state"),
+            |path, _| assert_eq!(path, root.join("landing-settings.json")),
+            |path, bytes| {
+                temper_real_loop_world::fixtures::seed_settings_file_with(path, bytes, |path, writes| {
+                    assert_eq!(path, root.join("state"));
+                    assert_eq!(writes.len(), 4, "metadata and data for both landing settings");
+                });
+                seeded.push(json_bytes(bytes));
+            },
+        ),
+        Stage::Figures(value) => figures = support::limit_settings::figures_bytes(value),
+        Stage::LocalPlaces(_) | Stage::Native(_) => {}
+    };
+    let configured = match profile {
+        Some(profile) => turn_restart::configure_with(inputs, 1, profile, prepare, stage),
+        None => turn_restart::configure_batch_with(inputs, 1, 3, prepare, stage),
+    };
+    let narrowed = matches!(profile, Some(Profile::NarrowedBatch));
+    assert_eq!(seeded.len(), if narrowed { 2 } else { 1 });
+    let last = seeded.last().expect("landing settings seed");
+    let batch = if matches!(profile, Some(Profile::Turn)) { 1 } else { 3 };
+    assert_eq!(last["items"][0]["set"], json!({"by":"turn","batch":batch}));
+    if narrowed {
+        assert_eq!(
+            last["items"][1]["set"]["repositories"][0]["gates"][0]["report"],
+            json!({"artifact":"failed-tests","format":"lines"}),
+        );
+    }
+    LandingFixture { recipe, configured, figures }
+}
+
+// It reaches `forgejo_elsewhere`, whose capture witness uses Linux's abstract Unix sockets.
+#[cfg(target_os = "linux")]
+#[test]
+fn elsewhere_settings_follow_the_connected_project() {
+    use support::forgejo_elsewhere::{check_adopted_project, project_settings_bytes};
+    let before = json_bytes(&support::owned::producer_landing_settings_bytes(2));
+    let reply = |owner, name| support::Ended {
+        exit: Some(skein_io::kernel::Exit::Code(0)),
+        stdout: format!(
+            "{{\"connecting\":{{}}}}\n{}\n",
+            json!({"project":7,"outcome":{"adopted":{"owner":owner,"name":name}}})
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+    };
+    let project = check_adopted_project(&reply("elsewhere", "first")).expect("adopted repository");
+    let after = json_bytes(&project_settings_bytes(before.clone(), project));
+    assert_eq!(after["items"][0]["setting"]["project"], 7, "the rule follows the connect answer");
+    assert_eq!(after["items"][0]["set"], before["items"][0]["set"]);
+    assert_eq!(after["items"][1], before["items"][1]);
+    assert!(check_adopted_project(&reply("other", "first")).is_err(), "owner must match");
+    assert!(check_adopted_project(&reply("elsewhere", "other")).is_err(), "repository must match");
+}
+
+#[test]
+fn ctl_limit_settings_apply_both_kinds_in_one_revision() {
+    let root = Path::new("/fixture/limit-settings-step");
+    let reads: Vec<_> = [
+        serde_json::json!({"newest":7}),
+        serde_json::json!({"setting":{"kind":"limits"},"value":[]}),
+        serde_json::json!({"setting":{"kind":"temper-limits"},"value":[]}),
+    ]
+    .into_iter()
+    .map(|value| support::Ended {
+        exit: Some(skein_io::kernel::Exit::Code(0)),
+        stdout: serde_json::to_vec(&value).expect("read JSON"),
+        stderr: Vec::new(),
+    })
+    .collect();
+    let overrides =
+        [("temper-limits", "tool_payload", 2048, "small agent"), ("limits", "tasks.tasks", 8, "small task set")];
+    assert_eq!(support::limit_settings::held_text(&overrides), "tool_payload 2048\ntasks.tasks 8\n");
+    let file = root.join("limit-settings.json");
+    let mut captured = None;
+    let call = support::ctl::limit_settings_apply_with(root, &overrides, &reads, None, |path, bytes| {
+        assert_eq!(path, file);
+        captured = Some(json_bytes(bytes));
+    });
+    assert_eq!(
+        call.arguments(),
+        support::ctl::Call::new(&[
+            "settings",
+            "apply",
+            file.to_str().expect("FILE path"),
+            "--against",
+            "7",
+            "--key",
+            "fixture-limits-7"
+        ])
+        .arguments()
+    );
+    let value: serde_json::Value = captured.expect("one settings FILE");
+    assert_eq!(
+        value,
+        serde_json::json!({"items":[
+            {"setting":{"kind":"limits"},"set":[{"name":"tasks.tasks","value":8,"reason":"small task set"}]},
+            {"setting":{"kind":"temper-limits"},"set":[{"name":"tool_payload","value":2048,"reason":"small agent"}]}
+        ]})
+    );
+}
+
+fn json_bytes(bytes: &[u8]) -> Value {
+    serde_json::from_slice(bytes).expect("fixture JSON")
+}
+
+fn local(port: u16) -> SocketAddr {
+    ([127, 0, 0, 1], port).into()
+}
+
+fn forge(api: SocketAddr) -> support::Forge<'static> {
+    support::Forge::Throwaway { forgejo: Path::new("/fixture/forgejo"), api, git: format!("http://{api}/") }
 }
 
 #[test]

@@ -13,6 +13,7 @@ use temper_service::settings::Files;
 pub struct Recipe {
     pub configuration: Configuration,
     pub files: Files,
+    pub landing_settings: Option<Vec<u8>>,
     pub agent: temper_worker_shell::agent::Prepared,
     pub given: temper_service::stock::Given,
     start: Read,
@@ -36,7 +37,7 @@ impl Recipe {
         &self.setting
     }
 
-    fn lay(&self, root: &Path, forge: &Forge<'_>) {
+    fn lay(&self, root: &Path) {
         for name in ["accounts", "secrets", "state"] {
             fs::create_dir_all(root.join(name)).expect("deployment directory");
         }
@@ -45,8 +46,8 @@ impl Recipe {
             let path = if path.starts_with(root) { path.into() } else { root.join(path) };
             crate::write_private(&path, bytes.expose());
         }
-        if matches!(forge, Forge::Throwaway { .. }) {
-            owned::producer_landing_settings(root, 2);
+        if let Some(bytes) = &self.landing_settings {
+            owned::write_landing_settings(root, bytes);
         }
         self.setting.lay(root);
         crate::write_file(&root.join(temper_config_shell::FILE), &self.start.file, Shape::Standalone);
@@ -95,7 +96,7 @@ pub fn lay_configuration(root: &Path, forge: &Forge<'_>) -> Configuration {
     };
     let provider_key = temper_agent_fixtures::data(root).join("provider.key").is_file();
     let recipe = compose(root, owned.as_ref(), provider_key, providers::values(&providers::read(root)));
-    recipe.lay(root, forge);
+    recipe.lay(root);
     recipe.configuration
 }
 
@@ -129,7 +130,8 @@ fn compose(
     let agent = prepare_agent(serde_json::to_vec(&document).expect("agent JSON").into_boxed_slice());
     configuration.agent_bounds(&agent.agent);
     let given = providers::given_with(setting.providers.clone(), Some(([127, 0, 0, 1], 8370).into()));
-    Recipe { configuration, files: files(root), agent, given, start, setting }
+    let landing_settings = owned.map(|_| owned::producer_landing_settings_bytes(2));
+    Recipe { configuration, files: files(root), landing_settings, agent, given, start, setting }
 }
 
 fn files(root: &Path) -> Files {

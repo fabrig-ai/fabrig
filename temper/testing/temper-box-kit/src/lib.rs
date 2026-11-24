@@ -83,6 +83,17 @@ pub fn reserve_listeners<const N: usize>(taken: &[SocketAddr]) -> [std::net::Tcp
 /// Reserves every listener an init-made document names and moves its socket and HTTP URLs,
 /// keeping URL paths, so that no story depends on init's preferred ports.
 pub fn own_listeners(document: &mut serde_json::Value) {
+    let old = listener_addresses(document);
+    move_listeners(document, old, free_addresses(&old));
+}
+
+fn listener_addresses(document: &serde_json::Value) -> [SocketAddr; 2] {
+    ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
+        document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
+    })
+}
+
+fn move_listeners(document: &mut serde_json::Value, old: [SocketAddr; 2], drawn: [SocketAddr; 2]) {
     fn replace(value: &mut serde_json::Value, moves: &[(String, String)]) {
         match value {
             serde_json::Value::String(text) => {
@@ -105,10 +116,6 @@ pub fn own_listeners(document: &mut serde_json::Value) {
         }
     }
 
-    let old = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
-        document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
-    });
-    let drawn = free_addresses::<2>(&old);
     let moves: Vec<_> =
         old.into_iter().zip(drawn).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace(document, &moves);
@@ -118,8 +125,18 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 pub fn own_listener_files(directory: &Path) {
     let path = directory.join(temper_config_shell::FILE);
     let read = read_start(&path, temper_config_shell::Shape::Standalone);
+    let document = serde_json::from_slice(&read.document).expect("start document");
+    let drawn = free_addresses(&listener_addresses(&document));
+    let kept = move_listener_file(read, drawn);
+    write_file(&path, &kept, temper_config_shell::Shape::Standalone);
+}
+
+/// Move the effective listeners, retaining the file's explicit non-listener fields.
+#[must_use]
+pub fn move_listener_file(read: temper_config_shell::Read, drawn: [SocketAddr; 2]) -> temper_config_shell::File {
     let mut document = serde_json::from_slice(&read.document).expect("start document");
-    own_listeners(&mut document);
+    let old = listener_addresses(&document);
+    move_listeners(&mut document, old, drawn);
     let listener = |key: &str| {
         document["application"][key]["listener"]["socket"].as_str().expect("socket").parse().expect("address")
     };
@@ -129,7 +146,7 @@ pub fn own_listener_files(directory: &Path) {
     if kept.public.is_some() {
         kept.public = document["application"]["clients"]["public"].as_str().map(str::to_owned);
     }
-    write_file(&path, &kept, temper_config_shell::Shape::Standalone);
+    kept
 }
 
 /// Read retained file values without losing explicit keys or their absence.

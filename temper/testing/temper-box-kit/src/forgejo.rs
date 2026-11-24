@@ -422,7 +422,8 @@ pub fn landing_scripts(answer: &[u8], forgejo: &Throwaway) -> Box<[skein_fake_ll
     native_scripts(answer, api, repository, &forgejo.main_readme())
 }
 
-pub(super) fn native_scripts(
+#[must_use]
+pub fn native_scripts(
     answer: &[u8],
     api: SocketAddr,
     repository: u32,
@@ -453,46 +454,6 @@ pub(super) fn native_scripts(
     initial.cue = b"Hello".as_slice().into();
     scripts.push(initial);
     scripts.into_boxed_slice()
-}
-
-/// Native fixture contracts checked without starting Forgejo.
-pub mod tests {
-    use super::{Forge, Path, Scratch, Value, fs, json, native_scripts};
-
-    /// The native fixture's selected producer is authorized by its scripted delegate.
-    pub fn native_settings_preserve_the_coding_producer() {
-        let scratch = Scratch::new("native_forgejo_producer");
-        let api = "127.0.0.1:3000".parse().expect("fixture forge");
-        let forge = Forge::Throwaway { forgejo: Path::new("/fixture/forgejo"), api, git: format!("http://{api}/") };
-        super::super::lay_configuration(scratch.path(), &forge);
-        let settings: Value = serde_json::from_slice(
-            &fs::read(scratch.path().join("native-landing-settings.json")).expect("landing settings"),
-        )
-        .expect("settings JSON");
-        let producer = &settings["items"][1]["set"];
-        assert_eq!(producer, 2, "native scripts delegate to charter 2");
-        assert_eq!(settings["items"][0]["set"]["gates"], json!([]));
-        let scripts = native_scripts(b"hello", api, 1, b"README");
-        let skein_fake_llm_domain::api::Line::Call { name, arguments } = &scripts[0].turns[0].lines[0] else {
-            panic!("delegate call")
-        };
-        assert_eq!(name.as_ref(), b"delegate");
-        let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
-        let (_, deployment) = super::super::configuration::documents(scratch.path(), "/fixture/temper");
-        let deployment = temper_playground::documents::Configuration::from_jig(
-            serde_json::from_slice(&deployment).expect("deployment JSON"),
-        );
-        let engine = temper_real_loop_world::settings::configuration(&deployment);
-        let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-        let spend = delegate["batch"][0]["authority"]["budget"]["spend"].as_u64().expect("change spend");
-        assert!(
-            spend >= stock.rules.maximum_run_spend * 2,
-            "the native change funds stock model reserves and its production and review turns"
-        );
-        let kinds = delegate["batch"][0]["authority"]["delegation"]["kinds"].as_array().expect("kinds");
-        assert!(kinds.contains(&json!({"kind":"agent", "number":producer})));
-        scratch.remove();
-    }
 }
 
 fn stage(name: &str, began: skein_lib::Time) {

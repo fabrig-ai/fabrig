@@ -728,8 +728,8 @@ pub fn lay(directory: &Path, owned: &Owned) {
     fs::create_dir_all(&path).expect("example directory");
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private directory");
     super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    if !owned.review {
-        native_landing_settings(directory);
+    if let Some(bytes) = owned_landing_settings(owned) {
+        write_landing_settings(directory, &bytes);
     }
     super::write_private(&directory.join("worker.secret"), b"worker-secret\n");
 }
@@ -1273,6 +1273,12 @@ pub fn adopt(
     }
 }
 
+/// The walk server's no-review fixture uses the ordinary producer.
+#[must_use]
+pub fn owned_landing_settings(owned: &Owned) -> Option<Vec<u8>> {
+    (!owned.review).then(|| producer_landing_settings_bytes(1))
+}
+
 /// This fixture's changes use the ordinary charter without an agent review.
 pub fn native_landing_settings(directory: &Path) {
     producer_landing_settings(directory, 1);
@@ -1281,14 +1287,21 @@ pub fn native_landing_settings(directory: &Path) {
 /// Replace seeded project 1's review rule and select this fixture's producer charter.
 /// temper/docs/design/protocol/configuration/stock.md and temper/docs/design/protocol/configuration/settings.md, 4–5.
 pub fn producer_landing_settings(directory: &Path, producer: u64) {
+    write_landing_settings(directory, &producer_landing_settings_bytes(producer));
+}
+
+pub(super) fn write_landing_settings(directory: &Path, bytes: &[u8]) {
+    super::write_private(&directory.join("native-landing-settings.json"), bytes);
+}
+
+/// Render the native settings FILE without laying it.
+#[must_use]
+pub fn producer_landing_settings_bytes(producer: u64) -> Vec<u8> {
     let value = serde_json::json!({"items":[
         {"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
             "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
             "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}},
         {"setting":{"kind":"forge-charter","number":1},"set":producer}
     ]});
-    super::write_private(
-        &directory.join("native-landing-settings.json"),
-        &serde_json::to_vec(&value).expect("native landing settings"),
-    );
+    serde_json::to_vec(&value).expect("native landing settings")
 }

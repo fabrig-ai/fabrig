@@ -12,6 +12,9 @@ use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, end_to_end::Streams, real};
 use std::{cell::Cell, fs, path::Path};
+use temper_agent_fixtures::Setting;
+use temper_playground::documents::Configuration;
+use temper_worker_shell::agent::Prepared;
 
 pub(super) const SETUP_CALLS: usize = super::NATIVE_SETUP_CALLS + 2;
 
@@ -61,26 +64,135 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
 
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
 #[expect(clippy::must_use_candidate, reason = "subprocess worlds use the files; in-process checks retain the figures")]
-pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::Configuration {
-    let mut value = configure_batch(root, repository, 1);
-    // The prepare job needs the standard engine profile and room for its result.
-    super::batch_landing::message_room(root, &mut value);
-    staging_limits(&mut value);
-    super::limit_settings::remember(root, &value);
-    value
+pub fn configure(root: &Path, repository: u64) -> Configuration {
+    configure_at(root, repository, Profile::Turn)
 }
 
-/// The narrowed batch reports failed ids and accepts a selected probe.
-pub(super) fn selected_gate(root: &Path) {
-    let path = root.join("landing-settings.json");
-    let mut settings: Value = serde_json::from_slice(&fs::read(&path).expect("landing settings")).expect("JSON");
-    settings["items"][1]["set"]["repositories"][0]["gates"][0]["report"] =
-        json!({"artifact":"failed-tests", "format":"lines"});
-    let bytes = serde_json::to_vec(&settings).expect("landing JSON");
-    write_private(&path, &bytes);
-    if root.join("state").is_dir() {
-        temper_real_loop_world::fixtures::seed_settings_file(&root.join("state"), &bytes);
+#[derive(Clone, Copy)]
+pub enum Profile {
+    Turn,
+    NarrowedBatch,
+}
+
+/// The native fixture's preceding configuration and startup copies, supplied as values.
+pub struct Inputs {
+    pub configuration: Configuration,
+    pub agent: Value,
+    pub native_settings: Value,
+}
+
+/// Outputs of configuration, in the order the subprocess fixture lays them.
+pub enum Stage<'a> {
+    Landing(&'a [u8]),
+    Native(&'a [u8]),
+    LocalPlaces(u32),
+    Figures(&'a Configuration),
+}
+
+pub struct Configured {
+    pub configuration: Configuration,
+    pub agent: Prepared,
+    pub setting: Setting,
+}
+
+pub(super) fn configure_at(root: &Path, repository: u64, profile: Profile) -> Configuration {
+    let inputs = Inputs {
+        configuration: super::limit_settings::configuration(root),
+        agent: temper_agent_fixtures::read(root),
+        native_settings: super::cluster_turn::read(&root.join("native-landing-settings.json")),
+    };
+    configure_with(
+        inputs,
+        repository,
+        profile,
+        |setting| {
+            setting.lay(root);
+            temper_agent_fixtures::prepared(root)
+        },
+        |stage| match stage {
+            Stage::Landing(bytes) => stage_landing_with(
+                root,
+                bytes,
+                Path::is_dir,
+                write_private,
+                temper_real_loop_world::fixtures::seed_settings_file,
+            ),
+            Stage::Native(bytes) => super::owned::write_landing_settings(root, bytes),
+            Stage::LocalPlaces(places) => super::limit_settings::local_places(root, places),
+            Stage::Figures(configuration) => super::limit_settings::remember(root, configuration),
+        },
+    )
+    .configuration
+}
+
+/// Stage the landing FILE and, when there is a store, seed those same bytes there.
+pub fn stage_landing_with(
+    root: &Path,
+    bytes: &[u8],
+    is_directory: impl FnOnce(&Path) -> bool,
+    write: impl FnOnce(&Path, &[u8]),
+    seed: impl FnOnce(&Path, &[u8]),
+) {
+    write(&root.join("landing-settings.json"), bytes);
+    let state = root.join("state");
+    if is_directory(&state) {
+        seed(&state, bytes);
     }
+}
+
+/// Compose the turn or narrowed-batch fixture through supplied agent and output faces.
+pub fn configure_with(
+    inputs: Inputs,
+    repository: u64,
+    profile: Profile,
+    mut prepare: impl FnMut(&Setting) -> Prepared,
+    mut stage: impl FnMut(Stage<'_>),
+) -> Configured {
+    let batch = match profile {
+        Profile::Turn => 1,
+        Profile::NarrowedBatch => 3,
+    };
+    let mut landing = landing_settings(repository, batch);
+    let mut configured = configure_base(inputs, batch, &landing, &mut prepare, &mut stage);
+    let value = &mut configured.configuration;
+    if matches!(profile, Profile::NarrowedBatch) {
+        stage(Stage::LocalPlaces(8));
+        // The narrowed batch reports failed ids and accepts a selected probe.
+        landing["items"][1]["set"]["repositories"][0]["gates"][0]["report"] =
+            json!({"artifact":"failed-tests", "format":"lines"});
+        stage(Stage::Landing(&serde_json::to_vec(&landing).expect("landing settings")));
+        value["workers"][0]["slots"] = 8.into();
+        value.derive_places();
+        // Three readiness gathers run beside repository polls and the held latch.
+        value.temper_over("forge.client.pending", 16);
+        value.temper_over("forge.client.calls", 8);
+        value.temper_over("forge_component.connections", 8);
+    }
+    let agent = serde_json::from_slice(&configured.agent.bytes).expect("prepared agent JSON");
+    configured.setting = super::batch_landing::compose_message_room(value, agent, &configured.setting.providers);
+    configured.agent = prepare(&configured.setting);
+    value.agent_bounds(&configured.agent.agent);
+    staging_limits(value);
+    stage(Stage::Figures(value));
+    configured
+}
+
+/// Compose the bare batch bound, before the full story's message-room edit.
+pub fn configure_batch_with(
+    inputs: Inputs,
+    repository: u64,
+    batch: u16,
+    mut prepare: impl FnMut(&Setting) -> Prepared,
+    mut stage: impl FnMut(Stage<'_>),
+) -> Configured {
+    configure_base(inputs, batch, &landing_settings(repository, batch), &mut prepare, &mut stage)
+}
+
+fn landing_settings(repository: u64, batch: u16) -> Value {
+    json!({"items":[
+        {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":batch}},
+        {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":repository,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}],"tiers":[]}]}}
+    ]})
 }
 
 const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300);
@@ -110,18 +222,15 @@ pub fn staging_limits(value: &mut temper_playground::documents::Configuration) {
     value.jig_over("hub.event_bytes", 63_738);
 }
 
-/// Share the owned turn setup while selecting the story's batch bound.
-pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> temper_playground::documents::Configuration {
-    let mut config = super::limit_settings::configuration(root);
-    let settings = json!({"items":[
-        {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":batch}},
-        {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":repository,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}],"tiers":[]}]}}
-    ]});
-    let bytes = serde_json::to_vec(&settings).expect("landing settings");
-    write_private(&root.join("landing-settings.json"), &bytes);
-    if root.join("state").is_dir() {
-        temper_real_loop_world::fixtures::seed_settings_file(&root.join("state"), &bytes);
-    }
+fn configure_base(
+    inputs: Inputs,
+    batch: u16,
+    settings: &Value,
+    prepare: &mut impl FnMut(&Setting) -> Prepared,
+    stage: &mut impl FnMut(Stage<'_>),
+) -> Configured {
+    let Inputs { configuration: mut config, mut agent, mut native_settings } = inputs;
+    stage(Stage::Landing(&serde_json::to_vec(settings).expect("landing settings")));
     // Each member and the train need watched branches
     // (temper/docs/design/protocol/configuration/limits.md, forge.landing_members).
     let members = u32::from(batch);
@@ -129,31 +238,29 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
     config.temper_over("forge.resources_per_task", members + 1);
     // The turn needs the prepare kind, declared only when its carriers fit
     // (temper/docs/design/domain/worker/jobs.md, kind 1).
-    let prepare = temper_service::limits::prepare_bound();
-    config.jig_over("tasks.spec_bytes", prepare.spec);
-    config.jig_over("tasks.message_bytes", prepare.result);
-    config.jig_over("tasks.result_bytes", prepare.result);
-    config.jig_over("tasks.result_bytes", prepare.result);
-    config.temper_over("forge.client.op_bytes", prepare.result);
-    let mut agent = temper_agent_fixtures::read(root);
+    let bound = temper_service::limits::prepare_bound();
+    config.jig_over("tasks.spec_bytes", bound.spec);
+    config.jig_over("tasks.message_bytes", bound.result);
+    config.jig_over("tasks.result_bytes", bound.result);
+    config.jig_over("tasks.result_bytes", bound.result);
+    config.temper_over("forge.client.op_bytes", bound.result);
     // A JSON string's quotes share the tool payload with its message.
-    let tool_payload = prepare.result + 2;
+    let tool_payload = bound.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
     config.jig_over("hub.outcome_bytes", tool_payload);
     config.jig_over("hub.outcome_bytes", tool_payload);
-    config.jig_over("hub.event_bytes", prepare.result);
+    config.jig_over("hub.event_bytes", bound.result);
     // Let the call carriers follow the agent's declared payload.
     config.jig_over("core.call_answer_bytes", jig_protocol_config::stock().core.call_answer_bytes);
     super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
-    temper_agent_fixtures::apply(&mut config, root, &agent);
-    config.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
-    super::limit_settings::remember(root, &config);
-    let path = root.join("native-landing-settings.json");
-    let mut settings: Value =
-        serde_json::from_slice(&fs::read(&path).expect("native landing settings")).expect("settings JSON");
-    settings["items"][0]["set"]["gates"] = json!([{"number":1,"blocking":true,"freshness":"clean"}]);
-    write_private(&path, &serde_json::to_vec(&settings).expect("settings JSON"));
-    config
+    let providers = temper_agent_fixtures::providers::take(&mut config).expect("fixture providers");
+    let setting = temper_agent_fixtures::compose_setting(&mut config, &agent, &providers);
+    let agent = prepare(&setting);
+    config.agent_bounds(&agent.agent);
+    stage(Stage::Figures(&config));
+    native_settings["items"][0]["set"]["gates"] = json!([{"number":1,"blocking":true,"freshness":"clean"}]);
+    stage(Stage::Native(&serde_json::to_vec(&native_settings).expect("settings JSON")));
+    Configured { configuration: config, agent, setting }
 }
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
@@ -176,31 +283,6 @@ pub struct Proof {
     pub reads: Reads,
     pub original: String,
     pub run: u64,
-}
-
-/// Configuration is checked without starting the owned forge or runner.
-pub mod tests {
-    /// A turn's task carriers must admit the prepare kind and its worker's result.
-    pub fn turn_configuration_declares_the_prepare_job() {
-        let scratch = super::super::Scratch::new("turn_prepare_carriers");
-        let api = "127.0.0.1:3000".parse().expect("fixture forge");
-        let forge = super::super::Forge::Throwaway {
-            forgejo: std::path::Path::new("/fixture/forgejo"),
-            api,
-            git: format!("http://{api}/"),
-        };
-        super::super::lay_configuration(scratch.path(), &forge);
-        super::configure_batch(scratch.path(), 1, 3);
-        let config = super::super::limit_settings::configuration(scratch.path());
-        let engine = temper_real_loop_world::settings::configuration(&config);
-        let prepare = temper_service::limits::prepare_bound();
-        assert!(
-            temper_service::limits::prepare_jobs(&engine.limits).contains(&prepare),
-            "the turn declares the prepare job"
-        );
-        assert!(engine.limits.core.tasks.result_bytes >= prepare.result, "the worker carries the prepare result");
-        scratch.remove();
-    }
 }
 
 struct Judge<'a> {

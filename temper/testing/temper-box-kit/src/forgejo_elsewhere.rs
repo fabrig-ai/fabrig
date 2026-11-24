@@ -294,16 +294,30 @@ fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
 /// Stage the fixture's whole provider in the data directory and include it in ctl's landing-settings change.
 /// The second life uses the store's kept copy without restaging these inputs.
 pub fn configure_llm(root: &Path, peer: &super::llm::Listening) {
-    let config = root.join("config");
-    let data = root.join("data");
-    let providers = temper_agent_fixtures::providers::read(&config);
-    temper_agent_fixtures::providers::write(&data, &providers);
-    peer.configure(&config);
-    let providers = temper_agent_fixtures::providers::read(&data);
-    let mut settings = landing_settings(root);
+    configure_llm_with(
+        root,
+        peer.address(),
+        temper_agent_fixtures::providers::read(&root.join("config")),
+        landing_settings(root),
+        temper_service_shell::providers::write,
+        write_private,
+    );
+}
+
+/// Stage the split deployment's provider copy and the corresponding settings FILE through their sinks.
+pub fn configure_llm_with(
+    root: &Path,
+    address: std::net::SocketAddr,
+    providers: Value,
+    mut settings: Value,
+    keep: impl FnMut(&Path, &[jig_protocol_config::ProviderSetting]) -> std::io::Result<bool>,
+    write: impl FnOnce(&Path, &[u8]),
+) {
+    let providers = super::llm::rebind_with(&root.join("data"), providers, address, keep);
+    let providers = temper_agent_fixtures::providers::flat(&providers);
     settings["items"].as_array_mut().expect("settings items").extend(super::provider_setup::items(&providers));
-    write_private(
-        &config.join("native-landing-settings.json"),
+    write(
+        &root.join("config/native-landing-settings.json"),
         &serde_json::to_vec(&settings).expect("landing, agents and provider settings"),
     );
 }
@@ -406,11 +420,16 @@ fn check_landing_settings(root: &Path) -> Result<Value, String> {
 }
 
 fn project_settings(root: &Path, project: u64) -> PathBuf {
-    let mut settings = landing_settings(root);
-    settings["items"][0]["setting"]["project"] = project.into();
     let file = root.join("config/native-landing-settings.json");
-    write_private(&file, &serde_json::to_vec(&settings).expect("project landing settings"));
+    write_private(&file, &project_settings_bytes(landing_settings(root), project));
     file
+}
+
+/// Retarget the rule only, retaining the rule's criteria and selected producer.
+#[must_use]
+pub fn project_settings_bytes(mut settings: Value, project: u64) -> Vec<u8> {
+    settings["items"][0]["setting"]["project"] = project.into();
+    serde_json::to_vec(&settings).expect("project landing settings")
 }
 
 fn landing_project(root: &Path) -> u64 {
@@ -427,7 +446,8 @@ fn check_landing_project(root: &Path) -> Result<u64, String> {
 fn adopted_project(call: &super::Ended) -> u64 {
     check_adopted_project(call).unwrap_or_else(|why| panic!("{why}"))
 }
-fn check_adopted_project(call: &super::Ended) -> Result<u64, String> {
+/// Read the terminal connection answer and verify the adopted repository's identity.
+pub fn check_adopted_project(call: &super::Ended) -> Result<u64, String> {
     Ok({
         // Progress and the terminal answer are separate JSON lines, as for setup.
         let answer = call
@@ -580,29 +600,6 @@ fn start_chat(calls: &mut ctl::Calls, root: &Path) -> Result<(), String> {
     }
 
     Ok(())
-}
-
-/// Project selection is checked without starting a deployment or its forge.
-pub mod tests {
-    /// The connect answer selects the rule's project and preserves its criteria and producer.
-    pub fn settings_follow_the_connected_project() {
-        let scratch = super::Scratch::new("elsewhere_project_rule");
-        let config = scratch.path().join("config");
-        super::fs::create_dir(&config).expect("fixture configuration");
-        super::super::owned::producer_landing_settings(&config, 2);
-        let before = super::landing_settings(scratch.path());
-        let call = super::super::Ended {
-            exit: Some(super::Exit::Code(0)),
-            stdout: b"{\"connecting\":{}}\n{\"project\":7,\"outcome\":{\"adopted\":{\"owner\":\"elsewhere\",\"name\":\"first\"}}}\n".to_vec(),
-            stderr: Vec::new(),
-        };
-        super::project_settings(scratch.path(), super::adopted_project(&call));
-        let after = super::landing_settings(scratch.path());
-        assert_eq!(super::landing_project(scratch.path()), 7, "the rule follows the connect answer");
-        assert_eq!(after["items"][0]["set"], before["items"][0]["set"]);
-        assert_eq!(after["items"][1], before["items"][1]);
-        scratch.remove();
-    }
 }
 
 struct Judge {

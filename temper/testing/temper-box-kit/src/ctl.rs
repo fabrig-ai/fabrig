@@ -62,6 +62,11 @@ pub struct Call {
 }
 impl Call {
     #[must_use]
+    pub fn arguments(&self) -> &[Box<[u8]>] {
+        &self.arguments
+    }
+
+    #[must_use]
     pub fn new(arguments: &[&str]) -> Self {
         Self {
             arguments: arguments.iter().map(|word| word.as_bytes().into()).collect(),
@@ -1417,35 +1422,43 @@ pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -
         Step::Run(Call::new(&["settings", "show", "limits", "--json"])),
         Step::Run(Call::new(&["settings", "show", "temper-limits", "--json"])),
         Step::Then(Box::new(move |calls| {
-            let reads = &calls[calls.len() - 3..];
-            let file = directory.join("limit-settings.json");
-            let mut items = Vec::new();
-            for (kind, setting) in [("limits", &reads[1]), ("temper-limits", &reads[2])] {
-                let mut values: Vec<_> = overrides
-                    .iter()
-                    .filter(|(k, _, _, _)| k == kind)
-                    .map(|(_, name, value, reason)| serde_json::json!({"name":name,"value":value,"reason":reason}))
-                    .collect();
-                values.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
-                setting_change_file(&file, setting, |value| *value = values.into());
-                let change: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(&file).expect("limit FILE")).expect("limit JSON");
-                items.extend(change["items"].as_array().expect("limit items").iter().cloned());
-            }
             let local = directory.join("local-worker-settings.json");
-            if local.exists() {
-                let local: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(local).expect("local worker settings"))
-                        .expect("worker settings JSON");
-                items.extend(local["items"].as_array().expect("local worker items").iter().cloned());
-            }
-            super::write_private(
-                &file,
-                &serde_json::to_vec(&serde_json::json!({"items":items})).expect("limit settings JSON"),
-            );
-            settings_change(&reads[0], &file, &format!("fixture-limits-{}", newest(&reads[0])))
+            let local = local.exists().then(|| std::fs::read(local).expect("local worker settings"));
+            let overrides: Vec<_> = overrides
+                .iter()
+                .map(|(kind, name, value, reason)| (kind.as_str(), name.as_str(), *value, reason.as_str()))
+                .collect();
+            limit_settings_apply_with(&directory, &overrides, calls, local.as_deref(), super::write_private)
         })),
     ]
+}
+
+/// Compose one settings FILE and one apply call from the three completed reads.
+pub fn limit_settings_apply_with(
+    directory: &Path,
+    overrides: &[(&str, &str, u64, &str)],
+    calls: &[Ended],
+    local: Option<&[u8]>,
+    write: impl FnOnce(&Path, &[u8]),
+) -> Call {
+    let reads = &calls[calls.len() - 3..];
+    let file = directory.join("limit-settings.json");
+    let mut items = Vec::new();
+    for (kind, setting) in [("limits", &reads[1]), ("temper-limits", &reads[2])] {
+        let mut values: Vec<_> = overrides
+            .iter()
+            .filter(|(k, _, _, _)| *k == kind)
+            .map(|(_, name, value, reason)| serde_json::json!({"name":name,"value":value,"reason":reason}))
+            .collect();
+        values.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
+        items.push(serde_json::json!({"setting":json(setting)["setting"],"set":values}));
+    }
+    if let Some(local) = local {
+        let local: serde_json::Value = serde_json::from_slice(local).expect("worker settings JSON");
+        items.extend(local["items"].as_array().expect("local worker items").iter().cloned());
+    }
+    write(&file, &serde_json::to_vec(&serde_json::json!({"items":items})).expect("limit settings JSON"));
+    settings_change(&reads[0], &file, &format!("fixture-limits-{}", newest(&reads[0])))
 }
 
 /// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client/README.md, 3).
@@ -1458,54 +1471,6 @@ pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
 }
 
 pub mod read_condition_tests {
-    pub fn limit_settings_apply_both_kinds_in_one_revision() {
-        let scratch = crate::Scratch::startup("limit-settings-step");
-        let reads: Vec<_> = [
-            serde_json::json!({"newest":7}),
-            serde_json::json!({"setting":{"kind":"limits"},"value":[]}),
-            serde_json::json!({"setting":{"kind":"temper-limits"},"value":[]}),
-        ]
-        .into_iter()
-        .map(|value| crate::Ended {
-            exit: Some(super::Exit::Code(0)),
-            stdout: serde_json::to_vec(&value).expect("read JSON"),
-            stderr: Vec::new(),
-        })
-        .collect();
-        let overrides =
-            [("temper-limits", "tool_payload", 2048, "small agent"), ("limits", "tasks.tasks", 8, "small task set")];
-        crate::limit_settings::hold(scratch.path(), &overrides);
-        assert_eq!(
-            std::fs::read_to_string(scratch.path().join("limits-held")).expect("held file"),
-            "tool_payload 2048\ntasks.tasks 8\n"
-        );
-        let mut steps = super::limit_settings(scratch.path(), &overrides);
-        let Some(super::Step::Then(next)) = steps.pop() else { panic!("dependent apply") };
-        let call = next(&reads);
-        let file = scratch.path().join("limit-settings.json");
-        assert_eq!(
-            call.arguments,
-            super::Call::new(&[
-                "settings",
-                "apply",
-                file.to_str().expect("FILE path"),
-                "--against",
-                "7",
-                "--key",
-                "fixture-limits-7"
-            ])
-            .arguments
-        );
-        let value: serde_json::Value = serde_json::from_slice(&std::fs::read(file).expect("FILE")).expect("JSON");
-        assert_eq!(
-            value,
-            serde_json::json!({"items":[
-                {"setting":{"kind":"limits"},"set":[{"name":"tasks.tasks","value":8,"reason":"small task set"}]},
-                {"setting":{"kind":"temper-limits"},"set":[{"name":"tool_payload","value":2048,"reason":"small agent"}]}
-            ]})
-        );
-        scratch.remove();
-    }
     use super::{
         Action, Call, CallKind, Calls, Child, Clock, Duration, Exit, Fd, Host, Judge, PACE, PathBuf, Process,
         ReadCondition, Referee, RefereeWork, Step, Time, Wall, real,

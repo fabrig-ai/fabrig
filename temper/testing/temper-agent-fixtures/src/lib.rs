@@ -116,24 +116,36 @@ pub fn read(directory: &std::path::Path) -> Value {
 }
 #[must_use]
 pub fn at(document: &Value, directory: &std::path::Path) -> Value {
-    use temper_client_protocol_wire::v1 as w;
-    let agents = std::fs::read(directory.join("agents.setting"))
-        .ok()
-        .and_then(|bytes| {
-            let mut reader = skein_lib::Reader::new(&bytes);
-            w::AgentFigures::decode(&w::CEILINGS, &mut reader).ok()
-        })
-        .unwrap_or_else(temper_engine_service_stock::stock::agents);
+    let agents = agent_figures(directory);
     let providers = document
         .get("world_providers")
         .map_or_else(|| providers::values(&providers::read(directory)), providers::values);
     with_figures(document, &agents, directory, &providers)
 }
+/// The native fixture's retained agents, or stock when no copy was laid.
+#[must_use]
+pub fn agent_figures(directory: &std::path::Path) -> temper_client_protocol_wire::v1::AgentFigures {
+    use temper_client_protocol_wire::v1 as w;
+    std::fs::read(directory.join("agents.setting"))
+        .ok()
+        .and_then(|bytes| {
+            let mut reader = skein_lib::Reader::new(&bytes);
+            w::AgentFigures::decode(&w::CEILINGS, &mut reader).ok()
+        })
+        .unwrap_or_else(temper_engine_service_stock::stock::agents)
+}
+
 /// The fixture's data directory, beside a split `config` directory or shared with it.
 #[must_use]
 pub fn data(config: &std::path::Path) -> std::path::PathBuf {
+    data_with(config, std::path::Path::is_dir)
+}
+
+/// Resolve a fixture's data root with its directory fact supplied.
+#[must_use]
+pub fn data_with(config: &std::path::Path, is_directory: impl FnOnce(&std::path::Path) -> bool) -> std::path::PathBuf {
     let sibling = config.parent().unwrap_or(config).join("data");
-    if config.ends_with("config") && sibling.is_dir() { sibling } else { config.into() }
+    if config.ends_with("config") && is_directory(&sibling) { sibling } else { config.into() }
 }
 fn configuration_file(directory: &std::path::Path) -> (temper_config_shell::Read, temper_config_shell::Shape) {
     use temper_config_shell::{Shape, read};

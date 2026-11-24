@@ -22,11 +22,19 @@ pub fn read(directory: &Path) -> Value {
 }
 /// Retain world inputs separately from the engine's current kept copy.
 pub fn remember(directory: &Path, providers: &[config::ProviderSetting]) {
+    let _ = remember_with(directory, providers, temper_service_shell::providers::write);
+}
+
+/// Keep both provider copies through a supplied writer, returning the values kept.
+pub fn remember_with(
+    directory: &Path,
+    providers: &[config::ProviderSetting],
+    mut write: impl FnMut(&Path, &[config::ProviderSetting]) -> std::io::Result<bool>,
+) -> Box<[config::ProviderSetting]> {
     let providers = without_scripted(providers);
-    temper_service_shell::providers::write(&directory.join("world-providers.json"), &providers)
-        .expect("world provider inputs");
-    temper_service_shell::providers::write(&directory.join("providers.setting"), &providers)
-        .expect("world provider copy");
+    write(&directory.join("world-providers.json"), &providers).expect("world provider inputs");
+    write(&directory.join("providers.setting"), &providers).expect("world provider copy");
+    providers
 }
 /// Stage the same typed world inputs before each process start.
 pub fn restore(directory: &Path) {
