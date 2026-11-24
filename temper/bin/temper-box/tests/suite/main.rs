@@ -5,7 +5,6 @@ mod agent_modes;
 mod box_front;
 mod box_listeners;
 mod fake;
-mod fake_opening;
 mod forge;
 mod forge_land;
 mod landing_failure;
