@@ -62,10 +62,13 @@ mod process;
 pub mod provider;
 mod review;
 mod two_workers;
+mod walk;
 
 pub use agreement::call;
 pub use delegates::survey_delegation;
 use process::{Around, Process};
+pub use review::rule as review_rule;
+pub use walk::WalkRepository;
 
 const CHANNEL: Token = Token::new(7);
 const TICK: Duration = Duration::from_millis(1);
@@ -174,6 +177,7 @@ pub struct World {
     merge_job: Option<merge_job::Story>,
     close_job: Option<close_job::Story>,
     scripts: VecDeque<Script>,
+    playback: Option<provider::Playback>,
     parked: std::collections::BTreeMap<u64, Process>,
     period_budget: u64,
     account_generation: Option<u64>,
@@ -197,6 +201,9 @@ pub struct World {
     /// This root has been read ready: the worker and the party may begin.
     opened: bool,
     forge: Forge,
+    forge_binding: temper_engine_service_vocabulary::settings::Forge,
+    repository_name: Box<[u8]>,
+    walk: Option<walk::Party>,
     pub observed: Observed,
     pub run_watch: Option<RunWatch>,
 }
@@ -520,14 +527,31 @@ impl World {
         config: fn(u64) -> engine::Config,
         limits: fn(&mut engine::Limits),
     ) -> Self {
-        let (mut config, mut bounds) = configured_parts(config(seed), repository);
+        Self::configured_case(
+            seed,
+            script,
+            repository,
+            config(seed),
+            limits,
+            (repository_forge(seed), link::default_forge()),
+        )
+    }
+
+    fn configured_case(
+        seed: u64,
+        script: Script,
+        repository: bool,
+        config: engine::Config,
+        limits: fn(&mut engine::Limits),
+        (forge, forge_binding): (Forge, temper_engine_service_vocabulary::settings::Forge),
+    ) -> Self {
+        let (mut config, mut bounds) = configured_parts(config, repository);
         limits(&mut bounds);
         for worker in &mut config.core.defaults.workers {
             worker.places = bounds.fleet.slots;
         }
         let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
         let mut limits = bounds;
-        let forge = repository_forge(seed);
         let mut worker_limits =
             if config.core.defaults.charters.len() > 1 { agreement::worker_limits(&limits) } else { worker_limits() };
         if !config.core.jobs.is_empty() {
@@ -561,6 +585,7 @@ impl World {
             merge_job: None,
             close_job: None,
             scripts: VecDeque::new(),
+            playback: None,
             parked: std::collections::BTreeMap::new(),
             period_budget: config.core.defaults.rules.period_spend,
             account_generation: None,
@@ -574,8 +599,11 @@ impl World {
             root_events: VecDeque::from([
                 engine::Event::Restart { pending: false },
                 engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
-                    forge: 1,
-                    state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+                    forge: forge_binding.number,
+                    state: temper_engine_domain_forge::Connection::Connected {
+                        id: forge_binding.user,
+                        login: b"bot".as_slice().into(),
+                    },
                 })),
             ]),
             store,
@@ -588,6 +616,9 @@ impl World {
             funded: false,
             opened: false,
             forge,
+            forge_binding,
+            repository_name: b"org/repo".as_slice().into(),
+            walk: None,
             observed: Observed::default(),
             run_watch: None,
         }
@@ -693,6 +724,7 @@ impl World {
                 store: &self.store,
                 assignment: lane.assignment.as_ref(),
                 repository: self.adoption != Adoption::Without,
+                playback: self.playback.as_ref(),
             };
             lane.process.tick(lane.worker_env.now, &mut around);
         }
@@ -801,7 +833,11 @@ impl World {
     fn fund(&mut self) {
         let period = engine::PartyInput::Period { project: 1, period: 1, budget: self.period_budget, next: None };
         self.root_events.push_back(engine::Event::Party(period));
-        let identity = engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) };
+        let identity = engine::Event::Credential {
+            number: self.forge_binding.identity,
+            generation: 1,
+            valid: Duration::from_secs(3600),
+        };
         self.root_events.push_back(identity);
     }
 
@@ -855,10 +891,13 @@ impl World {
         let result = self.ends.close(self.env.now, &self.store);
         self.keep_finding(result)?;
         self.keep_finding(Err(format!(
-            "composed run did not settle: {:?}; answered={:?}; agent_tail={:?}",
+            "composed run did not settle: {:?}; answered={:?}; adoption={:?}; party={:?}; task={:?}; agent_tail={:?}",
             self.observed,
             self.lanes[0].process.answered,
-            self.agent().trace().iter().rev().take(8).collect::<Vec<_>>()
+            self.adoption,
+            self.party.replies,
+            self.lanes[0].assignment.as_ref().map(|assignment| assignment.task),
+            (!self.lanes[0].process.prepared()).then(|| self.agent().trace().iter().rev().take(8).collect::<Vec<_>>())
         )))
     }
 
@@ -1282,13 +1321,14 @@ impl World {
     }
 
     fn forge(&mut self, call: Token, repository: skein_forge::api::Repository, op: &skein_forge::api::Op) {
-        assert_eq!(repository.forge, temper_engine_forge_world::REPO.forge);
-        assert!(repository.repository == 0 || repository == temper_engine_forge_world::REPO);
+        assert_eq!(repository.forge, self.forge_binding.number);
+        let expected = self.walk.as_ref().map_or(temper_engine_forge_world::REPO.repository, |walk| walk.repository);
+        assert!(repository.repository == 0 || repository.repository == expected);
         self.forge.at(self.env.now);
         let client = &self.env.limits.forge.client;
         let located = temper_engine_forge_world::translate::locate_name(op);
-        let name = located.as_deref().unwrap_or(b"org/repo");
-        let result = match self.forge.api(name, 1, api::op(op, client)) {
+        let name = located.as_deref().unwrap_or(&self.repository_name);
+        let result = match self.forge.api(name, self.forge_binding.user, api::op(op, client)) {
             Ok(answer) => {
                 let answer = api::answer(op, answer, client);
                 if let Ok(answer) = &answer
@@ -1352,7 +1392,9 @@ impl World {
         }
         let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)));
         assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
-        self.bind_review_script();
+        if self.playback.is_none() {
+            self.bind_review_script();
+        }
         self.absence_assignment(&assignment);
         if at == 0 && !self.account_assignment(&assignment) {
             self.select_process(assignment.task);
@@ -1364,7 +1406,7 @@ impl World {
         self.observed.assignments += 1;
         let repositories = usize::from(self.adoption != Adoption::Without);
         assert_eq!(assignment.workspace.repositories.len(), repositories);
-        let (hub, items) = link::assignment(&assignment);
+        let (hub, items) = link::assignment(&assignment, self.forge_binding.clone());
         if self.run_watch.is_some() && self.absence_watch_needed() {
             self.root_events.push_back(engine::Event::Party(engine::PartyInput::WatchRun {
                 watcher: RUN_WATCH,
@@ -1386,6 +1428,15 @@ impl World {
         match delivery {
             // A run watch first supplies its current document, then streams
             // provisional suffixes. Acknowledge both kinds of delivery.
+            Delivery::Document { watcher, document } if watcher == walk::TREE => {
+                let walk = self.walk.as_mut().expect("a recorded walk is reading its tree");
+                assert!(walk.tree.replace(document).is_none());
+                self.root_events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
+                self.root_events.push_back(engine::Event::Party(engine::PartyInput::Unwatch { watcher }));
+            }
+            Delivery::WatchEnded { watcher, .. } if watcher == walk::TREE => {
+                self.walk.as_mut().expect("a recorded walk ends its tree watch").tree_closed = true;
+            }
             Delivery::Document { watcher, .. } => self.acknowledge_run(watcher),
             Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story requests no source sign-out"),
@@ -1552,7 +1603,9 @@ impl World {
                 key: [90; 16],
                 digest: [5; 32],
                 carried: None,
-                request: temper_engine_domain::Application::Forge(temper_engine_domain_forge::Ask::Adopt(adoption())),
+                request: temper_engine_domain::Application::Forge(temper_engine_domain_forge::Ask::Adopt(
+                    self.walk.as_ref().map_or_else(adoption, |walk| walk.adoption.clone()),
+                )),
             }));
         }
     }
@@ -1755,7 +1808,7 @@ impl World {
             worker::Request::Io { owner, op, .. } => {
                 self.observed.checkouts += 1;
                 self.forge.at(self.env.now);
-                let op = forge_operation(op);
+                let op = forge_operation(op, &self.forge_binding.git);
                 self.observe_merge_fetch(&op);
                 self.observe_close_io(&op);
                 let lane = &mut self.lanes[at];
@@ -1785,6 +1838,7 @@ impl World {
             store: &self.store,
             assignment: lane.assignment.as_ref(),
             repository: self.adoption != Adoption::Without,
+            playback: self.playback.as_ref(),
         };
         lane.process.request(request, &mut around);
     }
@@ -1995,19 +2049,23 @@ fn questioning_config(seed: u64) -> engine::Config {
 }
 
 fn signed_in_party(words: &[u8]) -> parties::Party {
+    signed_in_forge_party(words, temper_engine_domain_forge::user_key(1, 7))
+}
+
+fn signed_in_forge_party(words: &[u8], key: people::IdentityKey) -> parties::Party {
     parties::Party::new(
         1,
         parties::Role::Owner,
         400,
         Box::new([
-            parties::Act::SignIn { provider: 0, subject: temper_engine_domain_forge::user_key(1, 7).subject },
+            parties::Act::SignIn { provider: key.provider, subject: key.subject },
             parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: words.into() } },
         ]),
     )
 }
 
 /// Map the service's git remote to the fake forge's repository name.
-fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::Op {
+fn forge_operation(mut op: worker::checkout::git::Op, git_base: &[u8]) -> worker::checkout::git::Op {
     use worker::checkout::git::Op;
     let remote = match &mut op {
         Op::Store { remote, .. }
@@ -2031,7 +2089,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::Commit { snapshot: None, .. } => return op,
     };
     *remote = remote
-        .strip_prefix(link::GIT_BASE)
+        .strip_prefix(git_base)
         .and_then(|path| path.strip_prefix(b"/"))
         .and_then(|path| path.strip_suffix(b".git"))
         .expect("the world's configured git remote")

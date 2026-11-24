@@ -7,6 +7,33 @@ use smith_agent_world::{
 };
 use smith_domain::Request;
 
+use smith_protocol_llm_world::{Peer, Protocol, fixture};
+
+/// One checked document and its wire configuration, shared by every activation in a walk.
+#[expect(missing_debug_implementations, reason = "the wire configuration owns fixture credential bytes")]
+pub struct Playback {
+    configuration: fixture::Configuration,
+    peer: Peer,
+    pub(super) limits: smith_protocol_llm::Limits,
+}
+
+impl Playback {
+    /// Play the document with all of its cues, turn rules, takes and domain limits intact.
+    #[must_use]
+    pub fn new(document: &temper_fake::llm::Document, configuration: fixture::Configuration, seed: u64) -> Self {
+        // Carry stock tool descriptions and the saved conversation in each native request.
+        let mut limits = fixture::limits();
+        limits.client.request = 131_072;
+        limits.client.http.request = limits.client.request;
+        limits.client.http.send = 8192;
+        limits.client.input = 8192;
+        limits.stated.call_input_bytes = limits.client.input;
+        limits.history_bytes = u64::from(limits.client.request);
+        limits.rendered_result = 8192;
+        Self { configuration, peer: Peer::new(document.domain(seed), document.limits()), limits }
+    }
+}
+
 /// Provider faces for composed runs; the wire is opt-in.
 #[expect(
     clippy::large_enum_variant,
@@ -41,20 +68,38 @@ impl Provider {
             current.continue_provider(previous);
         }
     }
-    pub(super) fn new(settings: &Settings, script: Script, wire: bool, grants: &[super::worker::agent::Grant]) -> Self {
+    pub(super) fn new(
+        settings: &Settings,
+        script: &Script,
+        wire: bool,
+        playback: Option<&Playback>,
+        grants: &[super::worker::agent::Grant],
+    ) -> Self {
         if !wire {
-            return Self::Typed(Typed::scripted(settings, Box::new([script])));
+            assert!(playback.is_none(), "documents play through the wire");
+            return Self::Typed(Typed::scripted(settings, Box::new([script.clone()])));
         }
         let [grant] = grants else { panic!("one source pays for the provider story") };
-        let configuration = smith_protocol_llm_world::fixture::Dialect::OpenAi.configuration();
-        let mut provider = smith_protocol_llm_world::Protocol::with_grant(
-            configuration,
-            smith_protocol_llm_world::fixture::limits(),
-            Box::new([script]),
-            settings.seed,
-            &settings.limits,
-            smith_domain::GrantName { account: grant.account, generation: 1 },
-        );
+        let initial = smith_domain::GrantName { account: grant.account, generation: 1 };
+        let mut provider = if let Some(playback) = playback {
+            Protocol::with_peer(
+                &playback.configuration,
+                playback.limits,
+                playback.peer.clone(),
+                settings.seed,
+                &settings.limits,
+                initial,
+            )
+        } else {
+            Protocol::with_grant(
+                fixture::Dialect::OpenAi.configuration(),
+                fixture::limits(),
+                Box::new([script.clone()]),
+                settings.seed,
+                &settings.limits,
+                initial,
+            )
+        };
         if grant.generation != 1 {
             provider.grant(
                 smith_domain::GrantName { account: grant.account, generation: grant.generation },

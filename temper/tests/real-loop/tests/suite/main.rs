@@ -30,7 +30,6 @@ mod fuzzy {
     mod case_6_4;
     mod case_6_6;
     mod case_6_8;
-    mod green_light;
     mod landing;
     mod repair;
 }

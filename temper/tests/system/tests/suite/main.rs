@@ -16,6 +16,7 @@ mod text;
 mod fuzzy {
     mod accounts;
     mod composed;
+    mod green_light;
 }
 mod running_revision;
 

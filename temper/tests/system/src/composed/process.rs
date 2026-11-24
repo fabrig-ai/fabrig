@@ -120,6 +120,7 @@ pub(crate) struct Around<'a> {
     pub(crate) store: &'a Store,
     pub(crate) assignment: Option<&'a engine::Assignment>,
     pub(crate) repository: bool,
+    pub(super) playback: Option<&'a super::provider::Playback>,
 }
 
 impl Process {
@@ -408,6 +409,13 @@ impl Process {
         let restored = transcript.as_ref().map_or(0, |transcript| transcript.turns.len());
         assert_eq!(restored, assignment.transcript.len(), "the committed turns cross whole");
         if transcript.is_none() && self.history.is_some() {
+            assert!(
+                around.playback.is_none(),
+                "task {} attempt {} lost its {}-turn recorded prefix",
+                assignment.task,
+                assignment.attempt,
+                self.history.as_ref().expect("saved history").turns.len()
+            );
             self.script = self.fresh.take().expect("the pending activation's script");
             self.history = None;
         }
@@ -435,17 +443,16 @@ impl Process {
             configure(&mut settings);
         }
         if self.wire {
-            let client = smith_protocol_llm_world::fixture::limits().client;
+            let client =
+                around.playback.map_or_else(smith_protocol_llm_world::fixture::limits, |deck| deck.limits).client;
             settings.limits.session.completion_blocks = client.output_items;
             settings.limits.session.failure_bytes = client.detail_bytes;
-            settings.limits.session.completion_bytes = smith_protocol_llm_world::codec::completion_bound(
-                &smith_protocol_llm_world::fixture::limits().client,
-                settings.limits.decoded_call_bytes,
-            )
-            .expect("native completion room");
+            settings.limits.session.completion_bytes =
+                smith_protocol_llm_world::codec::completion_bound(&client, settings.limits.decoded_call_bytes)
+                    .expect("native completion room");
         }
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
-        let mut provider = Provider::new(&settings, self.script.clone(), self.wire, &start.grants);
+        let mut provider = Provider::new(&settings, &self.script, self.wire, around.playback, &start.grants);
         if let Some(mut previous) = self.previous_provider.take() {
             provider.continue_provider(&mut previous);
         }

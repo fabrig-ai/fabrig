@@ -992,24 +992,35 @@ paths = ["temper/tests/real-loop/tests/fixtures/README.md"]
 disposition = "provenance"
 reason = "Recording provenance for the B0 and B1 replay fixtures."
 
-# real-loop green_light::{fixture,recipe,acts,check}; repair::fixture also uses
-# green_light::fixture; temper suite/fake_opening.rs reads person/llm; temper/testing/temper-box-kit/src/forge_land/rung.rs:
-# twin_peer -> offline_walk. llm-base.json feeds the declared regenerator.
+# The system twin reads the unmodified B0 documents. Real-loop repair still
+# uses green_light::fixture for its forge seed; llm-base.json and takes.json feed regeneration.
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/b0/*.json"]
 regenerate = ["temper/tests/real-loop/tests/fixtures/b0/regenerate.sh"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-box"
-filter = "binary(=suite) & test(/recorded_walk_chat_fixtures_select_their_opening_requests/)"
+filter = "binary(=domain) & test(/recorded_walk_chat_fixtures_select_their_opening_requests/)"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-system-world"
+filter = "binary(=suite) & test(=fuzzy::green_light::a_green_light_in_the_inbox_lets_the_change_land)"
 [[fixture.reader]]
 pair = "fuzzy"
 package = "temper-real-loop-world"
-filter = "binary(=suite) & (test(/^fuzzy::green_light::/) | test(/^fuzzy::repair::/))"
+filter = "binary(=suite) & test(/^fuzzy::repair::/)"
 [[fixture.reader]]
 pair = "process-temper"
 package = "temper-box"
-filter = "binary(=process) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
+filter = "binary(=proof_live) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-twin-tool"
+filter = "binary(=suite) & (test(/b0_plan_scripts_are_exactly_the_twins_cued_and_asked_in_box_form/) | test(/ctl_hello_scripts_are_only_the_twins_review_with_qa_verdict_text_in_box_form/))"
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-journeys-tool"
+filter = "kind(lib) & test(/widget_commits_the_b0_tree_before_waiting_on_checks/)"
 
 # real-loop repair::{fixture,recipe,acts,check}; temper suite/fake_opening.rs reads person/llm.
 # llm-base.json feeds the declared regenerator.

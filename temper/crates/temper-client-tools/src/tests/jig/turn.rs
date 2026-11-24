@@ -199,6 +199,31 @@ fn chat_prints_only_the_hosts_provisional_text() {
 }
 
 #[test]
+fn chat_show_json_keeps_the_committed_reply() {
+    const WORDS: &[u8] = b"I have asked the work to wait for your go-ahead.";
+    use jig_client::contract as c;
+    let mut blocks = skein_lib::List::with_capacity(1);
+    blocks.push(c::Block::Text(c::Text::new(WORDS.into(), 64).expect("reply fits"))).expect("one reply");
+    let ReadResult::Value(ReadValue::Turn(turn)) = fixtures::turn_blocks(blocks) else { panic!("decoded turn") };
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(crate::tests::documents::turn(1, turn.at, turn.name, turn.turn)).expect("one committed turn");
+    let (mut root, call) = fixtures::read_call(&["chat", "show", "41", "--json"]);
+    root.serve(
+        call,
+        ReadResult::Value(ReadValue::Activity(Box::new(c::ActivityPage {
+            cut: false,
+            rows,
+            before: None,
+            after: None,
+        }))),
+    );
+    root.deliver_run(fixtures::no_provisional());
+    let printed = root.answer(call).expect("chat shown");
+    assert_eq!(printed.status, 0);
+    assert!(skein_lib::bytes::find(&printed.stdout, WORDS).is_some(), "JSON carries the committed reply");
+}
+
+#[test]
 fn a_run_closes_its_watch_at_its_first_delivery() {
     let (mut root, call) = fixtures::read_call(fixtures::RUN_CALL);
     root.deliver_run(fixtures::no_provisional());

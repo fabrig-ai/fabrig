@@ -65,6 +65,7 @@ skein-fake-forge-domain.workspace = true
 temper-worker-domain.workspace = true
 temper-worker-domain-world = { path = "../worker/domain" }
 temper-worker-checkout-world = { path = "../worker/checkout" }
+temper-fake.workspace = true
 temper-fake-checkout.workspace = true
 jig-fake-parties.workspace = true
 smith-host-domain.workspace = true

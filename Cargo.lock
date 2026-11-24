@@ -8483,6 +8483,7 @@ dependencies = [
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
+ "temper-fake",
  "temper-fake-checkout",
  "temper-limits-fixtures",
  "temper-protocol-worker-wire",

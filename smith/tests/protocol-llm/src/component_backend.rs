@@ -10,7 +10,11 @@ use skein_lib::{Duration, Env, Intake, Queue, Time, Token, Wall};
 use smith_agent_world::backend::{Backend, Progress};
 use smith_domain::{Event, GrantName, Request, llm, run};
 use smith_protocol_llm::{Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain};
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    rc::Rc,
+};
 
 /// One logical call's public receiving contract and independently received HTTP request.
 #[derive(Debug)]
@@ -60,6 +64,23 @@ struct Socket {
     peer_grant: u32,
 }
 
+/// The independently configured fake domain shared by successive wire clients.
+/// Switch only between settled activations: outstanding replies belong to their transport.
+#[derive(Clone)]
+#[expect(missing_debug_implementations, reason = "the fake provider does not expose its internal state")]
+pub struct Peer {
+    domain: Rc<RefCell<fake::Domain>>,
+    limits: fake::Config,
+}
+
+impl Peer {
+    /// Use a domain already checked by its document loader, with the same limits at each step.
+    #[must_use]
+    pub fn new(domain: fake::Domain, limits: fake::Config) -> Self {
+        Self { domain: Rc::new(RefCell::new(domain)), limits }
+    }
+}
+
 /// One production component owns calls and connection reuse; the fixture owns only byte delivery.
 pub struct Protocol {
     pub(crate) faults: crate::faults::Faults,
@@ -71,7 +92,7 @@ pub struct Protocol {
     service: provider::Service,
     peer_env: Env<provider::Limits>,
     credentials: Box<[skein_llm::Credential]>,
-    provider: fake::Domain,
+    provider: Rc<RefCell<fake::Domain>>,
     provider_env: Env<fake::Config>,
     replies: Queue<fake::Request>,
     held: BTreeSet<Token>,
@@ -109,6 +130,50 @@ impl Protocol {
         translation: smith_protocol_llm::Limits,
         scripts: Box<[fake::api::Script]>,
         seed: u64,
+        domain_limits: &smith_domain::Limits,
+        initial: GrantName,
+    ) -> Self {
+        let limits = fake::Config { calls: 256, cache_entries: 256, accounts: 1, ..skein_llm_kit::fake::config() };
+        let domain = fake::Domain::try_scripted(&limits, 3, scripts).expect("bounded scripts");
+        Self::connect(
+            (configuration.endpoint, configuration.usage_fields, configuration.credential),
+            translation,
+            Peer::new(domain, limits),
+            seed,
+            domain_limits,
+            initial,
+        )
+    }
+
+    /// Attach a plaintext client to a caller-owned peer without resetting its state.
+    #[must_use]
+    pub fn with_peer(
+        configuration: &Configuration,
+        translation: smith_protocol_llm::Limits,
+        peer: Peer,
+        seed: u64,
+        domain: &smith_domain::Limits,
+        initial: GrantName,
+    ) -> Self {
+        let credential = skein_llm::Credential {
+            scheme: configuration.credential.scheme,
+            value: configuration.credential.value.clone(),
+        };
+        Self::connect(
+            (configuration.endpoint.clone(), configuration.usage_fields, credential),
+            translation,
+            peer,
+            seed,
+            domain,
+            initial,
+        )
+    }
+
+    fn connect(
+        (endpoint, usage_fields, credential): (skein_llm::Endpoint, documents::UsageFields, skein_llm::Credential),
+        translation: smith_protocol_llm::Limits,
+        peer: Peer,
+        seed: u64,
         domain: &smith_domain::Limits,
         initial: GrantName,
     ) -> Self {
@@ -131,6 +196,7 @@ impl Protocol {
             decoded_call_bytes: domain.decoded_call_bytes,
         };
         let mut peer_limits = skein_llm_kit::fake::limits(&translation.client);
+        peer_limits.http.body = peer_limits.http.body.max(u64::from(translation.client.http.request));
         peer_limits.http.read = translation.client.http.read;
         peer_limits.http.send = translation.client.sse.chunk;
         peer_limits.sse.chunk = translation.client.sse.chunk;
@@ -139,12 +205,12 @@ impl Protocol {
                 list: None,
                 list_status: None,
                 echo: skein_llm::openai::Echo::NONE,
-                usage_fields: configuration.usage_fields,
-                provider: match configuration.endpoint.provider {
+                usage_fields,
+                provider: match endpoint.provider {
                     skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
                     skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
                 },
-                path: configuration.endpoint.target.clone(),
+                path: endpoint.target.clone(),
                 headers: Box::new([]),
                 without_credential: false,
             },
@@ -161,7 +227,7 @@ impl Protocol {
                     credential: skein_llm::client::CredentialLimits { value: 128 },
                     address: "127.0.0.1:443".parse().expect("fixture address"),
                     transport: skein_llm_connection::Transport::Plaintext,
-                    llm: configuration.endpoint,
+                    llm: endpoint,
                 },
                 oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
             }]),
@@ -169,12 +235,11 @@ impl Protocol {
         )
         .expect("fixture endpoint");
         let mut component = Component::new(&limits, endpoints).expect("production component");
-        let credential = match configuration.credential.scheme {
-            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()),
-            skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()),
+        let grant = match credential.scheme {
+            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+            skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()),
         };
-        component.grant(initial, credential, Time::from_nanos(u64::MAX)).expect("fixture grant");
-        let config = fake::Config { calls: 256, cache_entries: 256, accounts: 1, ..skein_llm_kit::fake::config() };
+        component.grant(initial, grant, Time::from_nanos(u64::MAX)).expect("fixture grant");
         Self {
             faults: crate::faults::Faults::default(),
             call_names: BTreeMap::new(),
@@ -184,9 +249,9 @@ impl Protocol {
             below: Queue::uncapped(),
             service,
             peer_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: peer_limits },
-            credentials: Box::new([configuration.credential]),
-            provider: fake::Domain::try_scripted(&config, 3, scripts).expect("bounded scripts"),
-            provider_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config },
+            credentials: Box::new([credential]),
+            provider: peer.domain,
+            provider_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: peer.limits },
             replies: Queue::uncapped(),
             held: BTreeSet::new(),
             sockets: BTreeMap::new(),
@@ -227,7 +292,7 @@ impl Protocol {
     /// # Errors
     /// Refuses a strike that exceeds the fake provider's account or model bounds.
     pub fn strike(&mut self, credential: u32, strike: fake::api::Strike, now: Time) -> Result<(), fake::api::Error> {
-        self.provider.strike(credential, strike.clone(), now)?;
+        self.provider.borrow_mut().strike(credential, strike.clone(), now)?;
         self.faults.strike(credential, strike, now);
         Ok(())
     }
@@ -242,7 +307,7 @@ impl Protocol {
 
     /// Clear one fake provider fault at the supplied clock.
     pub fn clear(&mut self, credential: u32, strike: &fake::api::Strike, now: Time) {
-        self.provider.clear(credential, strike);
+        self.provider.borrow_mut().clear(credential, strike);
         self.faults.clear(credential, strike, now);
     }
 
@@ -430,7 +495,7 @@ impl Protocol {
                         self.referee.observe(self.env.now, seen, &mut Vec::new());
                         progress.queries.push(query.clone());
                     }
-                    fake::step(&mut self.provider, &self.provider_env, event, &mut self.replies);
+                    fake::step(&mut self.provider.borrow_mut(), &self.provider_env, event, &mut self.replies);
                     progress.immediate = true;
                 }
             }
@@ -520,8 +585,8 @@ impl Backend for Protocol {
             self.io(request);
             self.drain_measures();
         }
-        while self.provider.is_due(now) {
-            fake::fire(&mut self.provider, &self.provider_env, &mut self.replies);
+        while self.provider.borrow().is_due(now) {
+            fake::fire(&mut self.provider.borrow_mut(), &self.provider_env, &mut self.replies);
         }
         while let Some(reply) = self.replies.pop() {
             let reply = self.faults.report(now, reply);
@@ -582,7 +647,7 @@ impl Backend for Protocol {
             progress.terminals.push((owner, event));
             progress.immediate = true;
         }
-        self.provider.reclaim();
+        self.provider.borrow_mut().reclaim();
         self.service.reclaim();
         self.component.reclaim();
         self.referee.assert_holding(self.seed);
@@ -606,10 +671,10 @@ impl Backend for Protocol {
             && self.service.calls() == 0
             // A never-released hold belongs to the fake's lifetime. Once the
             // peer has closed its route, it cannot answer this client.
-            && usize::try_from(self.provider.calls()).expect("fake call count") == self.held.len()
+            && usize::try_from(self.provider.borrow().calls()).expect("fake call count") == self.held.len()
     }
     fn next_deadline(&self) -> Option<Time> {
-        self.component.next_deadline().into_iter().chain(self.provider.next_deadline()).min()
+        self.component.next_deadline().into_iter().chain(self.provider.borrow().next_deadline()).min()
     }
     fn assert_settled(&self) {
         assert!(self.is_settled());

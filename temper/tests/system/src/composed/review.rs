@@ -7,7 +7,14 @@ use temper_engine_domain_forge_change as change;
 
 fn config(seed: u64) -> engine::Config {
     let mut config = agreement::config(seed);
-    let rule = engine::LandingRule {
+    config.kinds_stock = engine::landing_stock(&[rule()], &skein_lib::Map::with_capacity(0), 2, 4);
+    config
+}
+
+/// The stock exact-head review, up-to-date and CI rule used in review walks.
+#[must_use]
+pub fn rule() -> engine::LandingRule {
+    engine::LandingRule {
         sets: Box::new([]),
         connector: 0,
         kind: 4,
@@ -20,9 +27,7 @@ fn config(seed: u64) -> engine::Config {
         },
         gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }]),
         approvals: Box::default(),
-    };
-    config.kinds_stock = engine::landing_stock(&[rule], &skein_lib::Map::with_capacity(0), 2, 4);
-    config
+    }
 }
 
 impl World {
@@ -126,7 +131,11 @@ impl World {
         let head = self.reviewed_change().change.last_head.expect("review head");
         let answer = self
             .forge
-            .api(b"org/repo", 1, super::fake::Op::Read(super::fake::Read::Pull { number }))
+            .api(
+                &self.repository_name,
+                self.forge_binding.user,
+                super::fake::Op::Read(super::fake::Read::Pull { number }),
+            )
             .expect("pull read");
         let super::fake::Answer::Pull(pull) = answer else { panic!("pull answer") };
         assert_eq!(skein_fake_forge_domain::object_bytes(pull.commit).as_slice(), &head[..20]);

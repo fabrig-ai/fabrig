@@ -1311,7 +1311,15 @@ impl<B: Backend> World<B> {
                 }
                 assert_eq!(host_run, self.host_run, "the push names the scripted host's request");
                 self.delivery_names.push((name, self.now));
-                let tree = self.code();
+                // The parent owns the full checkout and its evidence. A parent workspace
+                // need not contain the standalone referee's example file.
+                let tree = if self.parent_deliveries {
+                    self.root
+                        .and_then(|root| self.disk.load(root, fixture::CODE, u64::MAX).ok())
+                        .map_or_else(Vec::new, |(bytes, _)| bytes)
+                } else {
+                    self.code()
+                };
                 let finishing = self.delivery_call == DeliveryCall::Finish;
                 self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing });
                 self.snapshots.insert(owner, tree);

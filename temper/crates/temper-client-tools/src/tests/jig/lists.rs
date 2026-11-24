@@ -225,10 +225,11 @@ fn help_tasks_describes_parent() {
     assert!(skein_lib::bytes::find(&bytes, b"Only this task's delegates").is_some());
 }
 
-fn tree_answer(folded: bool) -> crate::jig::Printed {
+fn tree_answer(folded: bool, json: bool) -> crate::jig::Printed {
     use jig_client::{Latest, Watchable};
     use skein_lib::List;
-    let (mut root, call) = fixtures::read_call(&["task", "show", "41", "--tree"]);
+    let argv = ["task", "show", "41", "--tree", "--json"];
+    let (mut root, call) = fixtures::read_call(if json { &argv } else { &argv[..4] });
     let mut task = fixtures::goal(41, c::WaitsOn::Nothing);
     task.chip.title = fixtures::document_text(b"Root");
     let Latest::Jig(c::Delivery::Tree(mut tree)) = fixtures::owner_tree_at(task.chip.clone()) else {
@@ -254,7 +255,8 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
     }
     tree.folded = List::with_capacity(3);
     // Independent parents contribute to the total; a repeated parent gets one read-on call.
-    for (parent, waiting, running) in [(41, 1, 1), (42, 0, 1), (42, 0, 0)] {
+    let folds = [(41, 1, 1), (42, 0, 1), (42, 0, 0)];
+    for &(parent, waiting, running) in if json { &[] } else { folds.as_slice() } {
         tree.folded
             .push(c::TreeFold {
                 parent,
@@ -277,7 +279,7 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
 
 #[test]
 fn a_tree_says_what_is_folded_and_how_to_read_on() {
-    let answer = tree_answer(true);
+    let answer = tree_answer(true, false);
     let start = skein_lib::bytes::find(&answer.stdout, b"tree:\n").expect("tree").checked_add(6).expect("tree start");
     let tree = answer.stdout.get(start..).expect("tree text");
     let end = skein_lib::bytes::find(tree, b"digest:").expect("digest");
@@ -286,7 +288,15 @@ fn a_tree_says_what_is_folded_and_how_to_read_on() {
 
 #[test]
 fn a_tree_with_nothing_folded_has_no_cut_line() {
-    assert!(skein_lib::bytes::find(&tree_answer(false).stdout, b"cut:").is_none());
+    assert!(skein_lib::bytes::find(&tree_answer(false, false).stdout, b"cut:").is_none());
+}
+
+#[test]
+fn task_tree_json_names_a_complete_unfolded_page() {
+    let printed = tree_answer(false, true);
+    assert_eq!(printed.status, 0);
+    assert!(skein_lib::bytes::find(&printed.stdout, br#""folded":[]"#).is_some());
+    assert!(skein_lib::bytes::find(&printed.stdout, br#""more":false"#).is_some());
 }
 
 #[test]

@@ -579,6 +579,22 @@ fn a_cut_question_is_answered_as_any_other() {
     assert_eq!(root.answer(call).expect("answer completed").status, 0);
 }
 
+#[test]
+fn answering_the_inbox_question_prints_its_kept_identity() {
+    let (mut root, call) = fixtures::send_act(
+        &["task", "answer", "41", "3", "Go ahead.", "--key", "approval", "--json"],
+        fixtures::SEED,
+        fixtures::EMPTY.into(),
+    );
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::QuestionAnswered { task: 41, question: 3, message: 9 }));
+    let printed = root.answer(call).expect("answer kept");
+    assert_eq!(printed.status, 0);
+    assert!(
+        skein_lib::bytes::find(&printed.stdout, br#""question_answered":{"task":41,"question":3,"message":9}"#)
+            .is_some()
+    );
+}
+
 // Three retained answers, with a full day's advertised retention.
 const HELD_ANSWERS: u32 = 3;
 const ROOM_NEXT_DAY: skein_lib::Wall = skein_lib::Wall::from_nanos(86_400_000_000_000);
