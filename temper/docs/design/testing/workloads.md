@@ -438,11 +438,15 @@ calls, at the shipped `small` limits (`scenarios.md`, 1.1).
   (`tests/suite/forge_routes/goal_tool.rs`) makes a goal beneath the chat
   with no branch, grants or dependencies of its own, so it starts only a
   goal that needs none; a goal with its own branch and closer is
-  delegated by its party with the branch's symbol and the closer, as the
-  branch and closer stories make it (`forge_routes/goal_closer.rs`), and
-  a milestone's goals are delegated beneath a gathering milestone, each
-  after the one before (`forge_routes/milestones.rs`). The product's
-  `goal` route is left as it is. Each goal's changes by its
+  delegated by its party through the people's route,
+  `people::Ask::Delegate` beneath the party's chat task, with the
+  branch's symbol and the closer, as the branch and closer stories make
+  it (`forge_routes/goal_closer.rs`, `goal_closes.rs`): an agent's
+  `Tool::Delegate` carries no branch symbol, its `symbolic_grants` being
+  ordinary grants. A milestone's goals are delegated by the same route
+  beneath a gathering milestone, each after the one before
+  (`forge_routes/milestones.rs`). The product's `goal` and delegation
+  routes are left as they are. Each goal's changes by its
   coordinator's `change` calls with their `after`; the train goal's
   changes landing together (`forge_routes/landing_trains.rs`); each
   producer writing its files and delivering, asking its question first
