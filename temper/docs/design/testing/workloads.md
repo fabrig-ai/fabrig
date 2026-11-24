@@ -433,10 +433,16 @@ forge-route world (`temper/tests/engine/domain/src/forge_routes.rs`): the
 engine's root over the fake forge's domain, its agents scripted by tool
 calls, at the shipped `small` limits (`scenarios.md`, 1.1).
 
-- **It runs `ENGINE`'s draw** as its stories run each element: a party's
-  chat starting each goal by its `goal` call
-  (`tests/suite/forge_routes/goal_tool.rs`); a milestone goal after the
-  one before (`forge_routes/milestones.rs`); each goal's changes by its
+- **It runs `ENGINE`'s draw** as its stories run each element: a party
+  starting each goal. The chat's `goal` call
+  (`tests/suite/forge_routes/goal_tool.rs`) makes a goal beneath the chat
+  with no branch, grants or dependencies of its own, so it starts only a
+  goal that needs none; a goal with its own branch and closer is
+  delegated by its party with the branch's symbol and the closer, as the
+  branch and closer stories make it (`forge_routes/goal_closer.rs`), and
+  a milestone's goals are delegated beneath a gathering milestone, each
+  after the one before (`forge_routes/milestones.rs`). The product's
+  `goal` route is left as it is. Each goal's changes by its
   coordinator's `change` calls with their `after`; the train goal's
   changes landing together (`forge_routes/landing_trains.rs`); each
   producer writing its files and delivering, asking its question first
@@ -501,13 +507,15 @@ three runs at once, each one of the domain world's stories
 (`temper/tests/worker/domain/src/whole/faults.rs`' draw), started at
 drawn steps over one domain at the world's limits, so that its tables
 reach their capacity; drawn from `Workload`, part `worker`, as that draw
-is. Four of those stories strike the whole worker (a drain, a drain that
-expires, a link lost that drains, one whose grace passes), so runs at
-once share them: the cohort's first run draws among all eight; when it
-draws one of the four, every run of the cohort takes that story, each
-started at its own drawn step, and the one worker-wide event falls once,
-on all of them; otherwise each other run draws among the four that
-strike one run. Every run then ends as its story says. Its parks:
+is. Five of those stories strike the whole worker (a drain, a drain that
+expires, a link lost that drains, one whose drain expires, and a contact
+whose grace passes, which cancels every run), so runs at once share
+them: the cohort's first run draws among all eight; when it draws one of
+the five, every run of the cohort takes that story, each started at its
+own drawn step, and the one worker-wide event falls once, on all of
+them; otherwise each other run draws among the three that strike one run
+(delivered, a delivery cancelled, a contact regained within its grace).
+Every run then ends as its story says. Its parks:
 
 - **`DELIVERED_THEN_PARKED`:** a run delivers, parks, and finishes in its
   next run with the commit it delivered, as
@@ -539,7 +547,11 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   (`checks.md`, 6.3); each goal on its party's account.
 - **One forge:** the fake forge serves the engine's API and the worker's
   git, with the project's repository and its main.
-- **Its goals at once:** every goal started as the workload says, the
+- **Its goals at once:** every goal started as the workload says, by its
+  party as 4.1 starts it (a milestone's goals by the party's
+  authenticated delegate beneath a gathering milestone, each with its
+  dependency; a goal needing no branch of its own by the chat's `goal`
+  call), the
   milestone's later goal after the earlier one's landing, the train goal's
   changes landing as one train, every goal's closer landing its branch,
   and the tier following main. smith's activations take turns on the one
