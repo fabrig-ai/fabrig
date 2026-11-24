@@ -92,6 +92,46 @@
   and read fences. Charged spend, `last_answer`, `RunEnded` and committed
   replies are kept. This end bypasses the account Recheck rewrite. A
   requester-ended conversation keeps its requester ending (9).
+- **A wait past its bound holds** (`../engine/waits.md`, 5;
+  `temper/docs/design/draft/bounded-waits.md`, 4.2). At its kind's figure, a
+  `news`, `host` or `account` wait holds its task for `Waited`; at the
+  task's deadline, a task that isn't working (`../engine/waits.md`, 4),
+  in any wait, a `dependency` or `delegate` one among them, is held for
+  `Deadline`. Either hold's source is the words
+  of the waits it was in, made by the core at the bound, naming each
+  wait's kind, its object, its *since* and its figure or deadline:
+  "Waited 24 h for news since 2026-11-24T06:07Z: subscriptions 3 and 5,
+  a timer at 2026-11-25T06:00Z." The deadline is the one suspension
+  moves (below), and the record's bound is that same instant.
+  - *The core's bound alarm:* the core keeps one alarm for each live
+    task, at the earliest bound among those of its waits whose outcome
+    it takes at the alarm (these, and a question's pass up,
+    `messages.md`, 2), and moves it whenever the task's waits may
+    change, as the task is saved; a start arms it again for every live
+    task. When it fires, the core computes the task's own waits at that
+    instant, as a line's are (`../engine/waits.md`, 4), and in one
+    decision takes the outcome of each wait past its bound, in their
+    order: a wait that has moved since, or begun again with a later
+    *since*, is left, and the alarm moves to the next bound. A crash
+    before that decision commits makes it again at the next start, and
+    a decision made once is not made twice.
+  - *What it keeps:* the hold keeps whatever the task had, as every hold
+    here does: its place in a queue, its reservations, its effects in
+    flight (an uncertain write keeps its read-back as its wake, and its
+    outcome is recorded whenever it comes), its subscriptions and timers.
+    A live run that waits (`../engine/waits.md`, 3, `news`) is cancelled
+    as parked, as a drain parks it (2), its turn kept and no try spent,
+    and the task is held once it has parked.
+  - *Its clocks:* a wait with a clock of its own keeps it and its
+    owner's outcome: a resource's queue holds for `HoldsWaited`
+    (`holds.md`, 2), an escalation and a proposal pass up at their
+    stall (`proposals.md`), a person task at its own
+    (`../people/README.md`, 7). A standing task's `news`, and a
+    `dependency` or `delegate` wait in a task with no deadline, have no
+    bound and never hold for it.
+  - *Released,* the task starts a fresh wait, with a new *since*; the
+    hold and the wait before it stay in its history. A deadline still
+    past holds it again, as below.
 - **Past its tries, a task is held.** So it is when its executor stalls
   past its bound, a dependency fails or is cancelled, drift breaks a
   resource it relies on (../connectors.md, section 11), an effect it asked
@@ -148,7 +188,15 @@ deadline, circles, a procedure's need) keep their rules.
 
 - **It is a record of its own,** numbered in the deployment: its owner,
   its mode, its scope, what lifts it, its reason in words, when it was
-  placed, its revision, and the tasks it exempts. Its revision moves
+  placed, its revision, and the tasks it exempts.
+- **Its reason is never empty.** Every placement gives words saying
+  why: a party's `Stop` and `Hold` each carry a reason
+  (`../people/acts.md`, 1), and so does a task's or a procedure's
+  placement. One with an empty reason is refused before anything
+  changes, with the refusal a message's empty words take, a limit named
+  empty, and nothing of it is held. A stored hold placed before this rule,
+  its reason empty, reads as it is; its words say it was placed with no
+  reason (3). Its revision moves
   when it is lifted, never when it exempts a task, so that accepting
   one task's release leaves its siblings' proposals standing. A lift
   names the hold by its number alone: the core finds its project and
@@ -269,3 +317,49 @@ deadline, circles, a procedure's need) keep their rules.
 - **Restart** restores placed holds and their subscriptions with the
   tasks they hold, resolving each hold's owner once the people child's
   parties are restored; a drain in progress goes on draining.
+
+## 3. A hold's words
+
+Every hold has words (`temper/docs/design/draft/bounded-waits.md`, 8):
+one text, which the tasks child makes from the held task's record
+whenever it is read, so that it is never stale and a hold stored before
+it has words too.
+
+- **What they say:** its cause, naming its object by number or value;
+  since when the task has been held, the instant its present hold began;
+  and its way out, the act that ends it: "Waited 24 h for news since
+  2026-11-24T06:07Z: subscriptions 3 and 5. Held since
+  2026-11-25T06:07Z. Release it to wait again, or amend or cancel it."
+- **Bounded:** at most 1,024 bytes of UTF-8. A source's words or a
+  placed reason too long for the rest is cut at a character's boundary
+  and marked cut. The task's and the chip's document bounds keep that
+  room, as they keep a connector's account
+  (`../../client/domain/contract/documents.md`, 3).
+- **Where they are read:** the chip's hold, in the task's document and
+  each line that carries it, as the hold's words
+  (`../../client/domain/objects.md`, 5); a run's read of the task; and
+  the escalation's entry its holder hears (`proposals.md`, *Waking*),
+  so that a task holding an escalation reads why in the entry itself.
+
+| Held for | Its cause and object | Its way out |
+|---|---|---|
+| a configured bound (`Exceeded`) | the bound, its allowance and the value reached | lighten what was asked, or raise the allowance, then release |
+| out of tries (`Failures`) | the class, and the last failure's words | release, to try again; amend first where its instructions failed it |
+| stalled (`Stalled`) | its executor made no progress within its stall bound | release, to run again |
+| a dependency (`Dependency`) | the dependency, and how it ended | amend it to drop the dependency, then release |
+| stopped (`Stopped`) | that it was stopped | release |
+| a placed hold (`Placed`) | the hold, its owner and its reason, or that it was placed with none | its owner lifts it, or releases this task from it (2) |
+| drift (`Drift`) | the resource, and its connector's words | release, which does what the connector says |
+| an effect (`Effects`, `EffectFailed`) | the effect's entry, and its connector's account | release, for its executor to decide afresh |
+| an uncertain effect (`Uncertain`) | the entry, made or not on its system | look at the system, then release, making it again or not |
+| its budget (`Budget`) | what it spent, and what its next run needs | widen its budget, then release |
+| its deadline (`Deadline`) | its deadline, and the words of the waits it was in, where a bound made it | move its deadline, then release |
+| a resource's queue (`HoldsWaited`) | the resource, the task holding it, and since when it queued | release, to queue again; or amend to drop it |
+| a resource gone (`ResourceUnavailable`, `ResourceAccess`) | the resource, and its connector's account | release once it is back, or amend to drop it |
+| its pool (`PoolLost`) | the pool | release, to wait for a slot |
+| its procedure (`Procedure`) | its connector's account | release, its counts reset |
+| a circle (`Circle`) | the circle's tasks in order, cut where cut | it lifts once the circle breaks; amend a task on it to drop a dependency |
+| a wait's bound (`Waited`) | its source's words: the wait, its object, its *since* and its figure | release, to wait again |
+
+Every way out but a placed hold's also has amend and cancel, as
+`changes.md` lets their party; the words name the one that ends the hold.

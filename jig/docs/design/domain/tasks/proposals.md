@@ -138,6 +138,14 @@ proposed, what an action needs, and what an acceptance funds.
 - **Stalled** past its bound, undecided, a proposal or an escalation
   passes up to the next holder that covers it, and past the last, waits
   for the parties the policy names.
+- **Overdue at the last holder.** At the project's last holder, the
+  parties its policy names or a holder past which none covers it, an
+  entry left past its stall, counted from its arrival there, is overdue
+  (`temper/docs/design/draft/bounded-waits.md`, 4.2): it stays where it
+  is, decidable as before, and no timer runs for it after. Overdue is
+  no stored state: its wait's bound has passed and its outcome is
+  *overdue* (`../engine/waits.md`, 5), so a restart finds it so, and a
+  reader shows its age from its *since*.
 - **Withdrawn** when the proposer withdraws it (a run's call, a
   procedure's step, a party's `Withdraw`), when its task's fresh proposal
   of settings replaces it (above), when a proposing task closes,
