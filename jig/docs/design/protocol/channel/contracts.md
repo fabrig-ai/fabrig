@@ -113,7 +113,10 @@ pub fn receive(peer: &mut Peer, kind: u16, body: &[u8], limits: &v22::Limits) ->
   components hand it now; `limits` the engine's, which its codec decodes
   a record within.
 - **A `Peer` whose wires are all at the engine's layout** (`Peer::same`)
-  hands the frame back as it is: nothing decoded, nothing allocated.
+  converts nothing and decodes nothing: `send` hands its frame back as
+  it is, allocating nothing, and `receive` makes the one frame of its
+  kind and body, the one allocation a frame owning its bytes needs, as
+  the component made it before.
 - **A part with no root** (`layouts.md`, 7) crosses as it is; a part's
   refusal names the part's wire and declaration, as `Peer::down` and
   `Peer::up` name it.
