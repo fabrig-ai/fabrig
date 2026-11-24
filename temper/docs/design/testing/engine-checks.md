@@ -402,6 +402,13 @@ pub const OPENING: Bound;
 - **Ended** is the task's ended row, done, failed or cancelled; **held
   with words** is its live row held, its hold's words, as jig keeps them
   with the hold, holding the expected words.
+- **Waiting,** for `Waits`, is the task's live row waiting on its
+  dependencies, or held; or the task live, neither held nor ended, with a
+  task beneath it that is held or holds a question its party has not
+  answered, read from the store's rows. A goal whose producer's question
+  is never answered waits so while its coordinator parks: the scenario
+  makes it wait on nothing it would not otherwise wait on. A live task
+  with no such descendant is not waiting.
 - **Bounds count** from the later of the faults' last moment and the
   last opening, and for `Untouched` from when it is named: a restart is a
   fault that stops at the opening that follows it (the draft, 3.4).
