@@ -6842,6 +6842,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-tasks-kit",
+ "skein-codec",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",

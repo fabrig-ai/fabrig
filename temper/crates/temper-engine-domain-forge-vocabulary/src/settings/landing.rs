@@ -1,13 +1,18 @@
 //! The landing kept at restore (temper/docs/design/domain/landing-settings.md, 1.1).
 use super::{Bounds, Refusal};
-use crate::{Follows, RepositoryGates, Tier};
+use crate::{
+    Follows, RepositoryGates, Tier,
+    generated::client_wire::{
+        project_landing_to_domain, project_landing_to_record, settings_gate_to_domain, settings_gate_to_record,
+        settings_tier_to_domain, settings_tier_to_record,
+    },
+};
 use alloc::boxed::Box;
 use core::mem::size_of;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{Duration, List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 use temper_client_protocol_wire::v1::Record;
-use temper_engine_domain_forge_landing::{Combine, Gate, GateReport};
-use temper_engine_domain_forge_tiers::Format;
+use temper_engine_domain_forge_landing::{Combine, Gate};
 
 pub const CARRIER: u32 = jig_client_protocol_wire::CEILINGS.application_value_bytes;
 
@@ -54,155 +59,33 @@ pub struct ProjectGates {
 }
 
 pub fn landing_record(v: &ProjectLanding) -> w::ProjectLanding {
-    w::ProjectLanding {
-        repairs: super::repairs::record(v.repairs.as_ref()),
-        by: match v.by {
-            temper_engine_domain_forge_change::Way::Queue => w::SettingsLandingWay::Queue,
-            temper_engine_domain_forge_change::Way::Turn => w::SettingsLandingWay::Turn,
-        },
-        batch: v.batch,
-        combine_main: combine_record(v.combine_main),
-        combine_other: combine_record(v.combine_other),
-        merge_job: v.merge_job.clone(),
-        close_job: v.close_job.clone(),
-        landing_attempts: v.landing_attempts,
-        check_timeout_ms: v.check_timeout_ms,
-        gate_retries: v.gate_retries,
-        gate_timeout_ms: v.gate_timeout_ms,
-        tier_retries: v.tier_retries,
-        verification_bound_ms: v.verification_bound_ms,
-        wait: match v.wait {
-            temper_engine_domain_forge_change::Wait::Cleared => w::SettingsLandingWait::Cleared,
-            temper_engine_domain_forge_change::Wait::Landed => w::SettingsLandingWait::Landed,
-        },
-    }
+    project_landing_to_record(v).expect("admitted repair model counts")
 }
 pub fn landing_from(v: w::ProjectLanding) -> ProjectLanding {
-    ProjectLanding {
-        repairs: super::repairs::from_record(v.repairs),
-        by: match v.by {
-            w::SettingsLandingWay::Queue => temper_engine_domain_forge_change::Way::Queue,
-            w::SettingsLandingWay::Turn => temper_engine_domain_forge_change::Way::Turn,
-        },
-        batch: v.batch,
-        combine_main: combine_from(v.combine_main),
-        combine_other: combine_from(v.combine_other),
-        merge_job: v.merge_job,
-        close_job: v.close_job,
-        landing_attempts: v.landing_attempts,
-        check_timeout_ms: v.check_timeout_ms,
-        gate_retries: v.gate_retries,
-        gate_timeout_ms: v.gate_timeout_ms,
-        tier_retries: v.tier_retries,
-        verification_bound_ms: v.verification_bound_ms,
-        wait: match v.wait {
-            w::SettingsLandingWait::Cleared => temper_engine_domain_forge_change::Wait::Cleared,
-            w::SettingsLandingWait::Landed => temper_engine_domain_forge_change::Wait::Landed,
-        },
-    }
+    project_landing_to_domain(v)
 }
-fn combine_record(v: Combine) -> w::SettingsCombine {
-    match v {
-        Combine::Merge => w::SettingsCombine::Merge,
-        Combine::Squash => w::SettingsCombine::Squash,
-    }
-}
-fn combine_from(v: w::SettingsCombine) -> Combine {
-    match v {
-        w::SettingsCombine::Merge => Combine::Merge,
-        w::SettingsCombine::Squash => Combine::Squash,
-    }
-}
-fn format_record(v: Format) -> w::SettingsReportFormat {
-    match v {
-        Format::Junit => w::SettingsReportFormat::Junit,
-        Format::Lines => w::SettingsReportFormat::Lines,
-    }
-}
-fn format_from(v: w::SettingsReportFormat) -> Format {
-    match v {
-        w::SettingsReportFormat::Junit => Format::Junit,
-        w::SettingsReportFormat::Lines => Format::Lines,
-    }
-}
-fn ignored(v: &[Box<[u8]>]) -> List<Box<[u8]>> {
-    let mut out = List::with_capacity(u32::try_from(v.len()).expect("counted paths"));
-    for path in v {
-        out.push(path.clone()).expect("counted paths");
-    }
-    out
-}
-fn report_record(v: &GateReport) -> w::SettingsGateReport {
-    w::SettingsGateReport { artifact: v.artifact.clone(), format: format_record(v.format), fuzzy: v.fuzzy.clone() }
-}
-#[expect(clippy::manual_map, reason = "the domain matches optional report records without closures")]
 pub fn gate_record(v: &Gate) -> w::SettingsGate {
-    w::SettingsGate {
-        name: v.name.clone(),
-        workflow: v.workflow.clone(),
-        ignored: ignored(&v.ignored),
-        blocking: v.blocking,
-        base: v.base,
-        report: match &v.report {
-            Some(report) => Some(report_record(report)),
-            None => None,
-        },
-    }
+    settings_gate_to_record(v).expect("counted paths")
 }
 pub fn tier_record(v: &Tier) -> w::SettingsTier {
-    w::SettingsTier {
-        name: v.name.clone(),
-        workflow: v.workflow.clone(),
-        ignored: ignored(&v.ignored),
-        artifact: v.artifact.clone(),
-        format: format_record(v.format),
-        follows: match &v.follows {
-            Follows::Landing => w::SettingsFollows::Landing,
-            Follows::Goals => w::SettingsFollows::Goals,
-            Follows::Branch(name) => w::SettingsFollows::Branch(w::SettingsBranch { name: name.clone() }),
-        },
-        span_ms: match v.span {
-            Some(span) => span.as_millis(),
-            None => 0,
-        },
-        description: v.description.clone(),
+    settings_tier_to_record(v).expect("counted paths")
+}
+
+// Zero in a tier's span field means no span; other values are whole milliseconds.
+#[expect(clippy::ref_option, reason = "the wire span is a required scalar translated from a borrowed domain field")]
+pub(crate) fn span_to_record(span: &Option<Duration>) -> u64 {
+    match span {
+        Some(span) => span.as_millis(),
+        None => 0,
     }
 }
-fn gate_from(v: w::SettingsGate) -> Gate {
-    Gate {
-        name: v.name,
-        workflow: v.workflow,
-        ignored: v.ignored.into_boxed(),
-        blocking: v.blocking,
-        base: v.base,
-        report: match v.report {
-            Some(report) => {
-                let r = report;
-                Some(GateReport { artifact: r.artifact, format: format_from(r.format), fuzzy: r.fuzzy })
-            }
-            None => None,
-        },
+pub(crate) fn span_to_domain(ms: u64) -> Option<Duration> {
+    match ms {
+        0 => None,
+        ms => Some(Duration::from_millis(ms)),
     }
 }
-fn tier_from(v: w::SettingsTier) -> Tier {
-    Tier {
-        name: v.name,
-        workflow: v.workflow,
-        ignored: v.ignored.into_boxed(),
-        artifact: v.artifact,
-        format: format_from(v.format),
-        follows: match v.follows {
-            w::SettingsFollows::Landing => Follows::Landing,
-            w::SettingsFollows::Goals => Follows::Goals,
-            w::SettingsFollows::Branch(b) => Follows::Branch(b.name),
-        },
-        span: match v.span_ms {
-            0 => None,
-            ms => Some(skein_lib::Duration::from_millis(ms)),
-        },
-        description: v.description,
-    }
-}
+
 fn append(out: &mut Writer, bytes: &[u8]) {
     skein_codec::piece::write(out, bytes).expect("measured pieces");
 }
@@ -267,7 +150,7 @@ pub fn gates_from(v: w::ProjectGates) -> Option<ProjectGates> {
             if !r.is_empty() {
                 return None;
             }
-            gates.push(gate_from(gate)).ok()?;
+            gates.push(settings_gate_to_domain(gate)).ok()?;
         }
         let mut input = Reader::new(&v.tiers);
         let mut sum = 0;
@@ -278,7 +161,7 @@ pub fn gates_from(v: w::ProjectGates) -> Option<ProjectGates> {
             if !r.is_empty() {
                 return None;
             }
-            tiers.push(tier_from(tier)).ok()?;
+            tiers.push(settings_tier_to_domain(tier)).ok()?;
         }
         repositories
             .push(RepositoryGates {

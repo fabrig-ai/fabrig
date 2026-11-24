@@ -3,6 +3,15 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod client_wire;
+}
 use alloc::boxed::Box;
 
 pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
