@@ -11,6 +11,14 @@ const FIRST_FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, wi
 const FIRST_SECRET: &[u8] = &[0x83; 32];
 const AFTER_BLOCK: &[u8] = b"Additional startup information.\n";
 fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Harness {
+    first_link_opening(steps, items, Box::new([]), AFTER_BLOCK)
+}
+fn first_link_opening(
+    steps: &[Step],
+    items: &[skein_fake_machine::Item],
+    log_lines: Box<[Box<[u8]>]>,
+    after_block: &[u8],
+) -> Harness {
     Harness::with_terminal(
         temper_forge_setup::Steps { always: Box::from(steps), asked: Box::new([]) },
         items,
@@ -21,14 +29,14 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
         super::fixtures::Opening {
             parent: None,
             link_form: crate::terminal::LinkForm::Bare,
-            log_lines: Box::new([]),
+            log_lines,
             front: None,
             first_link: Some(crate::host::FirstLink {
                 url: bytes::copy_of(FIRST_URL),
                 local: None,
                 secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
             }),
-            after_block: bytes::copy_of(AFTER_BLOCK),
+            after_block: bytes::copy_of(after_block),
         },
     )
 }
@@ -620,6 +628,25 @@ fn the_block_is_the_terminal_before_any_spawn() {
     assert!(!Harness::contains(&h.terminal_bytes(), crate::terminal::CTRL_C));
     assert!(Harness::contains(&h.log(), b"Logs: /data/box/logs/\n00:00:00Z Ctrl-C stops temper.\n"));
 }
+
+#[test]
+fn the_no_openssl_opening_prints_a_link_and_logs_the_warning_once() {
+    use skein_shell::Host;
+    const WARNING: &[u8] = b"First run: no sign-in through temper: openssl is not on PATH\n";
+    let mut h = first_link_opening(&[long(b"serve", &[b"never"])], &[], Box::new([bytes::copy_of(WARNING)]), b"");
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://local/first\n");
+    assert_eq!(h.launches.get(0).expect("serve launched").name.as_ref(), b"serve");
+    let serve = h.hosted.get(h.child_index(b"serve")).expect("hosted serve").pid;
+    assert!(h.sim.service_running(serve));
+    assert_eq!(h.service.exit(), None, "the box stays up until stopped");
+
+    stop_first_link(&mut h);
+    let log = h.log();
+    assert!(log.starts_with(b"00:00:00Z First run: no sign-in through temper: openssl is not on PATH\n"));
+    assert_eq!(bytes::count(&log, b"no sign-in through temper:", 2), 1);
+}
+
 #[test]
 fn a_held_block_holds_the_first_spawn() {
     use skein_shell::Host;

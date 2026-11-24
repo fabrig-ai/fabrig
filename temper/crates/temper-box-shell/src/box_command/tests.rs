@@ -100,6 +100,24 @@ fn a_failed_reread_closes_the_listeners_held_by_init() {
 }
 
 #[test]
+fn first_configuration_without_openssl_admits_serve_and_supplies_one_warning() {
+    let dirs = directories(Path::new("/fixture"));
+    // No executable on the fixture PATH; its key maker panics if reached.
+    let startup = RefCell::new(Startup::new(&[], true));
+    let exit = run_with(read_configuration(&startup, &dirs), |bytes, _, opening| {
+        let (steps, _) = configuration_steps(&dirs, bytes, Box::new([]))?;
+        assert!(steps.always.iter().any(|step| step.name() == b"serve"), "serve is admitted");
+        let expected = format!(
+            "First run: no sign-in through temper: openssl is not on PATH\nFirst run: wrote the configuration, /fixture/config/{}\n",
+            temper_config_shell::FILE
+        );
+        assert_eq!(opening.log_lines.as_ref(), [expected.into_bytes().into_boxed_slice()]);
+        Ok(Exit::Code(0))
+    });
+    assert_eq!(exit, Ok(Exit::Code(0)));
+}
+
+#[test]
 fn front_refuses_a_fixed_link_member_before_starting_steps() {
     let dirs = directories(Path::new("/fixture"));
     let mut document: serde_json::Value =

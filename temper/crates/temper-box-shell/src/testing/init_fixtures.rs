@@ -7,6 +7,12 @@ use std::{
 };
 use temper_shell::directories::EnvironmentEntry;
 
+/// Init's retained configuration for two supplied listener ports, without reserving either.
+#[must_use]
+pub fn configuration(clients: std::num::NonZeroU16, webhooks: std::num::NonZeroU16) -> temper_config_shell::File {
+    crate::init::configuration(clients, webhooks)
+}
+
 #[must_use]
 pub fn scratch(row: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("temper-init-{}-{row}", std::process::id()));
