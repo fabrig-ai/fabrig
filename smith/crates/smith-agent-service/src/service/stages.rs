@@ -31,10 +31,7 @@ pub(super) fn clocks(service: &mut Stages, now: Time, wall: Wall) {
 /// Earliest active deadline over all child machines.
 #[must_use]
 pub(super) fn next_deadline(service: &Stages, frame: Option<&Frame>) -> Option<Time> {
-    let mut next = match face::domain(frame) {
-        Some(domain) => domain.next_deadline(),
-        None => None,
-    };
+    let mut next = domain_deadline(service, frame);
     next = earliest(next, service.llm.next_deadline());
     next = earliest(next, program::deadline(service));
     next = earliest(next, service.machine.next_deadline());
@@ -47,21 +44,25 @@ pub(super) fn next_deadline(service: &Stages, frame: Option<&Frame>) -> Option<T
     );
     next = earliest(next, service.files.next_deadline());
     next = earliest(next, service.live.deadline());
-    next
+    earliest(next, super::orphan::deadline(service))
 }
 
 /// Earliest policy deadline, excluding IO and file settlement.
 #[must_use]
 pub(super) fn next_policy_deadline(service: &Stages, frame: Option<&Frame>) -> Option<Time> {
-    let mut next = match face::domain(frame) {
-        Some(domain) => domain.next_deadline(),
-        None => None,
-    };
+    let mut next = domain_deadline(service, frame);
     next = earliest(next, service.llm.next_deadline());
     next = earliest(next, program::policy_deadline(service));
     next = earliest(next, service.machine.next_deadline());
     next = earliest(next, service.live.deadline());
-    next
+    earliest(next, super::orphan::deadline(service))
+}
+
+fn domain_deadline(service: &Stages, frame: Option<&Frame>) -> Option<Time> {
+    if service.host.dropped() {
+        return None;
+    }
+    face::domain(frame)?.next_deadline()
 }
 
 // Count internal handoffs, including the optional program's lower queue.
@@ -105,7 +106,11 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
             None => false,
         }
         || match face::domain(frame) {
-            Some(domain) => takes && (domain.has_facts() || (domain_requests_dispatched(service) && domain.is_ready())),
+            Some(domain) => {
+                takes
+                    && (domain.has_facts()
+                        || (!service.host.dropped() && domain_requests_dispatched(service) && domain.is_ready()))
+            }
             None => false,
         }
         || !service.completions.is_empty()
@@ -211,6 +216,7 @@ impl Stages {
                 signals: None,
                 admission: super::admission::Admission::Waiting,
                 host_word_closed: false,
+                host: super::orphan::Host::Open,
                 signalled: false,
                 pending_signal: None,
                 run_started: Time::ZERO,

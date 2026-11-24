@@ -550,6 +550,33 @@ impl Component {
         }
     }
 
+    /// Stop every file operation and child tree after the owner drops its run.
+    /// Their terminals still drain before `closed` reports settlement.
+    pub fn abort(&mut self, below: &mut Queue<Below>) {
+        self.closing = true;
+        let mut files = List::with_capacity(self.pending.len());
+        for (owner, _) in &self.pending {
+            files.push(*owner).expect("one owner per file operation");
+        }
+        for owner in &files {
+            if self.pending.get_mut(owner).expect("retained file operation").cancel() {
+                below.push(Below::CancelFile { owner: *owner });
+            }
+        }
+        for (owner, guide) in &self.guides {
+            if guide.cancellable() {
+                below.push(Below::CancelFile { owner: *owner });
+            }
+        }
+        let mut owners = List::with_capacity(self.processes.len());
+        for (owner, _) in &self.processes {
+            owners.push(*owner).expect("one owner per process");
+        }
+        for owner in &owners {
+            self.processes.get_mut(owner).expect("retained process").abort(below);
+        }
+    }
+
     /// Whether every file and child retained at close has settled.
     #[must_use]
     pub fn closed(&self) -> bool {

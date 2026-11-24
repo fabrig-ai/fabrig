@@ -295,6 +295,11 @@ fn extra_operations(configuration: &config::Configuration, resources: &Resources
 fn prepare(mut configuration: config::Configuration, resources: &Resources) -> Result<PreparedAgent, String> {
     #[cfg(not(unix))]
     validate_hosted(&configuration, resources)?;
+    configuration
+        .service
+        .limits
+        .resolve_link(&configuration.profile, &configuration.service.domain.limits)
+        .map_err(config::profile_refusal)?;
     prepare_program(&mut configuration.service, resources.programs.as_ref())?;
     let root_count = resources.roots.as_ref().map_or(0, |roots| roots.len());
     if root_count > usize::try_from(configuration.service.limits.domain.run.directories).expect("directory bound") {

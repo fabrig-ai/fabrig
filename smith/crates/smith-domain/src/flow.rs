@@ -43,6 +43,10 @@ impl Flow {
         self.done
     }
 
+    pub(crate) const fn disconnected(&self) -> bool {
+        self.disconnected
+    }
+
     pub(crate) fn push(&mut self, record: Record, request: Request, out: &mut Queue<Request>) {
         if self.disconnected {
             match record {

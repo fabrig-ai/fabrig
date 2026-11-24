@@ -32,10 +32,19 @@ fn effective_names_are_unique_across_two_endpoints() {
     let mut second = configuration.endpoints[0].clone();
     second.number = 8;
     configuration.endpoints = Box::new([configuration.endpoints[0].clone(), second]);
-    let limits = derive(&profile(), &configuration).expect("fixture derives");
+    let selected = profile();
+    let mut limits = derive(&selected, &configuration).expect("fixture derives");
+    let link = crate::host_limits(&selected, &limits, &[]).expect("link derives");
+    limits.resolve_link(&selected, &[]).expect("link resolves");
     let named =
-        effective(&profile(), &configuration, &limits, &endpoints(&configuration, &limits)).expect("bounded list");
+        effective(&selected, &configuration, &limits, &endpoints(&configuration, &limits)).expect("bounded list");
     let header = header(&named, &names(), &configuration).expect("names fit");
+    for (name, duration) in [
+        (b"service.orphan_exit".as_slice(), crate::orphan_exit(&link).expect("orphan exit fits")),
+        (b"service.no_progress", link.no_progress),
+    ] {
+        assert_eq!(value(&header, name), Some(LimitValue::Integer(duration.as_millis())));
+    }
     for (index, entry) in header.iter().enumerate() {
         for other in &header.as_slice()[index + 1..] {
             assert_ne!(entry.name, other.name);

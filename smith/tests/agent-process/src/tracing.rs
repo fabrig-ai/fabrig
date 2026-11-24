@@ -10,6 +10,7 @@ use smith_agent_service as agent;
 pub(super) struct Tracing {
     pub(super) agent: skein_world::PipeHost<smith_agent_shell::Agent>,
     pub(super) pressure: Option<super::world::orders::Pressure>,
+    pub(super) command_spawned: bool,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
 }
@@ -20,21 +21,7 @@ impl Tracing {
         inherited: &skein_world::Inherited,
         capture: smith_protocol_events::sinks::Capture,
     ) -> Self {
-        for _ in 0..2 {
-            let header =
-                effective_header(&configuration.limits, &configuration.channel_endpoints, &configuration.llm_endpoints);
-            configuration.limits.events = Some(
-                smith_agent_service::event_limits(
-                    &configuration.limits,
-                    capture,
-                    1,
-                    0,
-                    header.as_slice(),
-                    skein_lib::Duration::from_secs(1),
-                )
-                .expect("world event bounds"),
-            );
-        }
+        configure_events(&mut configuration, capture);
         let queue = configuration.limits.queue;
         let mut configuration = crate::shell_configuration(configuration);
         configuration.trace = Some(smith_agent_shell::trace::TraceConfig {
@@ -63,6 +50,7 @@ impl Tracing {
         Self {
             agent: bridge.host(agent),
             pressure: None,
+            command_spawned: false,
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
         }
@@ -90,6 +78,11 @@ impl Host for Tracing {
             self.agent.completions().push(complete);
         }
         while let Some(complete) = self.completions.pop() {
+            if matches!(&complete.kind, kernel::Op::Spawn { spawn } if spawn.program.as_ref() == b"/bin/sh")
+                && matches!(&complete.result, Ok(kernel::Done::Spawned { .. }))
+            {
+                self.command_spawned = true;
+            }
             if let Some(pressure) = &mut self.pressure
                 && pressure.holds(&complete)
             {
@@ -135,19 +128,27 @@ impl Host for Tracing {
     }
 }
 
+pub(super) fn configure_events(configuration: &mut agent::Config, capture: smith_protocol_events::sinks::Capture) {
+    let write_deadline = skein_lib::Duration::from_secs(1);
+    configuration.limits.events = Some(
+        smith_agent_service::event_limits(&configuration.limits, capture, 1, 0, &[], write_deadline)
+            .expect("world event bounds"),
+    );
+    configuration.limits.resolve_link(&crate::profile(), &configuration.domain.limits).expect("world link");
+    let header =
+        effective_header(&configuration.limits, &configuration.channel_endpoints, &configuration.llm_endpoints);
+    configuration.limits.events = Some(
+        smith_agent_service::event_limits(&configuration.limits, capture, 1, 0, header.as_slice(), write_deadline)
+            .expect("world event bounds"),
+    );
+}
+
 /// Receiving bounds derived from the same producer configuration.
 pub(super) fn event_limits(limits: &agent::Limits) -> smith_protocol_events::EventLimits {
-    let configuration = crate::configuration();
-    let header = effective_header(limits, &configuration.channel_endpoints, &configuration.llm_endpoints);
-    smith_agent_service::event_limits(
-        limits,
-        smith_protocol_events::sinks::Capture::Everything,
-        1,
-        0,
-        header.as_slice(),
-        skein_lib::Duration::from_secs(1),
-    )
-    .expect("world event bounds")
+    let mut configuration = crate::configuration();
+    configuration.limits = *limits;
+    configure_events(&mut configuration, smith_protocol_events::sinks::Capture::Everything);
+    configuration.limits.events.expect("world event bounds")
 }
 
 fn effective_header(

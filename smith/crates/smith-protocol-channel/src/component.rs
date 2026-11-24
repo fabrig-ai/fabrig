@@ -94,6 +94,7 @@ pub struct Component {
     transcript: smith_transcript::v8::Limits,
     endpoints: Endpoints,
     calls: Map<CallKey, CallRoute>,
+    abandoned: bool,
     turn_capacity: u32,
     resume_turns: u32,
     search_hits: u32,
@@ -129,6 +130,7 @@ impl Component {
             transcript: limits.transcript,
             endpoints,
             calls: Map::with_capacity(limits.calls),
+            abandoned: false,
             turn_capacity: limits.turns,
             resume_turns: limits.resume_turns,
             search_hits: limits.search_hits,
@@ -152,8 +154,25 @@ impl Component {
         self.ended() && !self.calls.is_empty()
     }
 
+    /// Give up both streams. The service aborts their IO and the channel
+    /// owes only its lost calls. Returns whether this is the first abandonment.
+    pub fn abandon(&mut self, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) -> bool {
+        if self.abandoned {
+            return false;
+        }
+        self.abandoned = true;
+        self.state = State::Refused;
+        self.machine.down(Request::Close, &mut self.events, below);
+        self.events.clear();
+        self.ending.end(Closed::Owner, to_service);
+        true
+    }
+
     /// Consume one stream event and progress the opening.
     pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
+        if self.abandoned {
+            return;
+        }
         self.machine.up(event, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -161,8 +180,10 @@ impl Component {
 
     /// Request the next read or write operation, including the initial Open read.
     pub fn fire(&mut self, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
-        self.machine.poll(&mut self.events, below);
-        self.drain(to_service, below);
+        if !self.abandoned {
+            self.machine.poll(&mut self.events, below);
+            self.drain(to_service, below);
+        }
         self.lost_call(to_service);
     }
 

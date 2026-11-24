@@ -19,8 +19,9 @@ mod values;
 pub use checks::{effects_valid, io_valid, valid};
 pub use events::event_limits;
 pub use host::host_limits;
+pub use profile::orphan_exit;
 pub use programs::{ProgramBackend, program_operations, program_valid};
-pub use values::{Config, Limits, ROUTE_HEADROOM};
+pub use values::{Config, Limits, Link, ROUTE_HEADROOM};
 
 #[cfg(test)]
 mod fixture;

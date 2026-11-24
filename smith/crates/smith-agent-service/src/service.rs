@@ -13,6 +13,7 @@ mod effects;
 mod face;
 pub(crate) mod link;
 mod opening;
+mod orphan;
 mod readiness;
 mod request;
 mod roots;
@@ -172,6 +173,7 @@ pub(crate) struct Stages {
     signals: Option<Token>,
     admission: admission::Admission,
     host_word_closed: bool,
+    host: orphan::Host,
     signalled: bool,
     pending_signal: Option<smith_channel::Signalled>,
     run_started: Time,
@@ -362,6 +364,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     up::io_up(stages, Some(frame));
     up::lower_events(stages, Some(frame));
     up::component_up(stages, Some(frame));
+    orphan::expire(stages);
     up::domain_up(stages, frame);
     down::domain_down(stages, Some(frame));
     down::component_down(stages);

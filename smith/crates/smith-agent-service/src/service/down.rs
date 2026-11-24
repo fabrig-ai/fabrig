@@ -76,7 +76,9 @@ pub(super) fn drain_facts(service: &mut Stages, mut frame: Option<&mut Frame>) {
             None => break,
         };
         let token = service.next_send();
-        if let Some(channel) = face::channel_mut(frame.as_deref_mut()) {
+        if !service.host.gone()
+            && let Some(channel) = face::channel_mut(frame.as_deref_mut())
+        {
             let result = channel.send_fact(
                 &fact,
                 service.run_started,
