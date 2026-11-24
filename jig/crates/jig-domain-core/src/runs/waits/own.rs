@@ -2,7 +2,7 @@
 
 use crate::{AtBound, Bound, Core, Limits, Unbounded, Wait, WaitKind, WaitObject, admission::escalation::wait_holder};
 use alloc::collections::BTreeMap;
-use jig_domain_people::{Entry, EntryKind, Proposer, Whom};
+use jig_domain_people::{DEPLOYMENT, Entry, EntryKind, Proposer, Role, Whom};
 use jig_domain_tasks::{self as tasks, Escalation, EscalationHolder as Holder, Party, Phase, TaskRecord};
 use skein_lib::{Duration, List, Wall};
 
@@ -71,8 +71,8 @@ impl Own {
         }
         self.task_entries(core, limits, row);
         self.questions(core, limits, row);
+        self.dependencies(core, row);
         if !working {
-            self.dependencies(core, row);
             self.resource(core, limits, row);
             self.run(core, limits, row, due_wait);
             if row.delegates.is_empty() {
@@ -138,7 +138,7 @@ impl Own {
     }
 
     fn dependencies(&mut self, core: &Core, row: &TaskRecord) {
-        if let Phase::Active(_) | Phase::Held { was: tasks::Was::Active(_), .. } = row.phase {
+        if let Phase::Waiting | Phase::Active(_) | Phase::Held { was: tasks::Was::Active(_), .. } = row.phase {
             for number in &row.waiting_on {
                 let mut since = row.created_at;
                 for added in &row.added {
@@ -229,6 +229,33 @@ impl Own {
         };
         self.push(row.number, WaitKind::News, WaitObject::News { subscriptions, timer }, since, bound);
     }
+}
+
+/// The owner can move a policy proposal that has no deciding role in the
+/// task's inbox projection (jig/docs/design/domain/engine/waits.md, 3).
+pub(super) fn policy_entry(row: &TaskRecord, inbox: &[Entry]) -> Option<Entry> {
+    if let Phase::Closing(_) | Phase::Ended(_) = row.phase {
+        return None;
+    }
+    let proposal = row.proposal.as_ref()?;
+    let tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Policy { project, kind }, since } =
+        proposal.state
+    else {
+        return None;
+    };
+    for entry in inbox {
+        if let EntryKind::Proposal { .. } = entry.kind {
+            return None;
+        }
+    }
+    let project = if kind == tasks::ProposalKind::Settings { DEPLOYMENT } else { project };
+    Some(Entry {
+        task: row.number,
+        project: row.project,
+        whom: Whom::Role { project, role: Role::Owner.number() },
+        kind: EntryKind::Proposal { proposer: Proposer::Task(row.number), number: proposal.number },
+        at: since,
+    })
 }
 
 pub(super) fn party(core: &Core, limits: &Limits, row: &TaskRecord, fact: &Entry, hears: Option<Holder>) -> Wait {

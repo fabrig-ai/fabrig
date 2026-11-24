@@ -10,12 +10,15 @@ use skein_lib::{Duration, ReplyTo, Time, Token, Wall};
 use skein_world::inspect::{Inspection, Moment, Release, Wait, Wake, check_tables, check_waits};
 use std::fmt::Write;
 
+mod records;
+
 fn inspect(world: &World, seed: u64) -> Inspection {
     let mut inspection = Inspection::new("jig", jig_inspect::KINDS);
     jig_inspect::core(world.domain.core(), &mut inspection);
     let moment = Moment { seed, at: world.clocks().0, iteration: 0 };
     assert_eq!(check_waits(&[&inspection], moment), Ok(()));
     assert_eq!(check_tables(&[&inspection], moment), Ok(()));
+    assert_eq!(jig_inspect::records(world.domain.core(), moment, world.clocks().1), Ok(()));
     inspection
 }
 
@@ -25,6 +28,16 @@ fn waiting<'a>(inspection: &'a Inspection, task: u64, kind: &str) -> &'a Wait {
         .iter()
         .find(|wait| wait.waiter == format!("task {task}") && wait.kind == kind)
         .unwrap_or_else(|| panic!("task {task} has {kind}: {:?}", inspection.waits()))
+}
+
+fn record(world: &World, task: u64, kind: core::WaitKind) -> core::Wait {
+    let waits = world.domain.core().waits(task);
+    waits
+        .own
+        .iter()
+        .find(|wait| wait.kind == kind)
+        .cloned()
+        .unwrap_or_else(|| panic!("task {task}: no {kind:?} in {waits:?}"))
 }
 
 fn park(world: &mut World, run: (u64, u64)) {
@@ -63,6 +76,7 @@ fn dependencies_name_the_pending_task() {
     let inspection = inspect(&world, 11727);
     let wait = waiting(&inspection, task, "on its dependencies");
     assert!(wait.wakes.contains(&Wake::Waiter(format!("task {dependency}"))));
+    assert_eq!(record(&world, task, core::WaitKind::Dependency).object, core::WaitObject::Task(dependency));
 }
 
 fn pool_queue(seed: u64) -> (World, u64, u64) {
@@ -135,6 +149,9 @@ fn a_pool_queue_has_the_holders_and_its_armed_bound() {
     assert_eq!(pool.refused[0].key, format!("task {task}"));
     assert_eq!(pool.refused[0].bound, Some(bound));
     assert_eq!(pool.refused[0].since, skein_lib::Time::ZERO);
+    assert!(
+        matches!(record(&world, task, core::WaitKind::Resource).object, core::WaitObject::Resource { holder: Some(owner), .. } if owner == holder)
+    );
 }
 
 #[test]
@@ -157,6 +174,7 @@ fn a_settling_backoff_waits_for_the_next_start() {
     world.advance(Duration::from_secs(60));
     let inspection = inspect(&world, seed);
     let wait = waiting(&inspection, task, "backing off");
+    assert_eq!(record(&world, task, core::WaitKind::Account).task, task);
     assert_eq!(wait.bound, None);
     assert!(wait.wakes.contains(&Wake::Party("the next start".into())));
     let mut child = Inspection::new("jig", jig_inspect::KINDS);
@@ -246,6 +264,8 @@ fn a_coordinator_waits_on_its_delegate_and_watch() {
     for kind in ["on its delegates", "on a watch"] {
         assert!(waiting(&inspection, parent.0, kind).wakes.contains(&Wake::Waiter(format!("task {child}"))));
     }
+    assert_eq!(record(&world, parent.0, core::WaitKind::Delegate).object, core::WaitObject::Task(child));
+    assert!(world.domain.core().waits(parent.0).own.iter().all(|wait| wait.kind != core::WaitKind::News));
 }
 
 #[test]
@@ -259,6 +279,72 @@ fn an_open_question_waits_on_its_requester() {
     park(&mut world, run);
     let inspection = inspect(&world, 11730);
     assert!(waiting(&inspection, task, "on its requester").wakes.contains(&Wake::Waiter(format!("task {}", parent.0))));
+    assert!(
+        matches!(record(&world, task, core::WaitKind::Question).object, core::WaitObject::Question { answerer, .. } if answerer == parent.0)
+    );
+}
+
+#[test]
+fn a_lone_parked_watcher_records_news() {
+    const SEED: u64 = 11741;
+    let mut world = super::stories::plan_world(SEED);
+    let parent = world.assignments[0];
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"watch the coordinator");
+    let task = delegate(&mut world, parent, 1, child);
+    let run = super::stories::running(&world, task);
+    subscribe(&mut world, task, tasks::SubscriptionKind::Task { target: parent.0, held: true, result: true });
+    park(&mut world, run);
+    let inspection = inspect(&world, SEED);
+    assert!(waiting(&inspection, task, "on a watch").wakes.contains(&Wake::Waiter(format!("task {}", parent.0))));
+    assert_eq!(record(&world, task, core::WaitKind::News).task, task);
+}
+
+fn conversation(seed: u64) -> World {
+    use jig_domain_people as people;
+    let (configuration, limits) = jig_core_world::world::fixture(seed, false);
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
+    let mut initial = jig_test_profile::fixtures::create_chat(&creating, 1, 0, b"a chat".as_slice().into());
+    let people::Ask::Create { batch, .. } = &mut initial else { panic!("conversation create") };
+    let member = batch.first_mut().expect("one conversation");
+    member.flags.ended_by = people::EndedBy::Requester;
+    World::new(Setup { seed, configuration: Some(configuration), limits, initial: Some(initial), ..Setup::default() })
+}
+
+#[test]
+fn a_parked_conversation_records_standing_news() {
+    const SEED: u64 = 11742;
+    let mut world = conversation(SEED);
+    let run = world.assignments[0];
+    park(&mut world, run);
+    let inspection = inspect(&world, SEED);
+    assert!(waiting(&inspection, run.0, "on its party").wakes.contains(&Wake::Party("person 1".into())));
+    assert_eq!(record(&world, run.0, core::WaitKind::News).bound, core::Bound::None(core::Unbounded::Standing));
+}
+
+#[test]
+fn paced_words_leave_a_parked_task_waiting_for_news() {
+    const SEED: u64 = 11743;
+    const PACE: Duration = Duration::from_secs(10);
+    let mut world = super::stories::plan_world(SEED);
+    let parent = world.assignments[0];
+    let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"wait for the next instruction");
+    child.wake = Some(tasks::WakePolicy { words: tasks::WakeRule::Paced { span: PACE }, ..tasks::WakePolicy::DEFAULT });
+    let task = delegate(&mut world, parent, 1, child);
+    let run = super::stories::running(&world, task);
+    world.await_timer(task);
+    park(&mut world, run);
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(9910)),
+        key: key(parent, 2),
+        action: core::NamedAction::Message {
+            target: task,
+            kind: tasks::MessageKind::Words,
+            words: b"next".as_slice().into(),
+        },
+    }));
+    let inspection = inspect(&world, SEED);
+    assert!(waiting(&inspection, task, "paced").bound.is_some());
+    assert_eq!(record(&world, task, core::WaitKind::News).task, task);
 }
 
 fn ask_requester(world: &mut World, run: (u64, u64), requester: u64) {
@@ -388,6 +474,10 @@ fn a_timer_subscription_is_pending_until_its_armed_time() {
         .expect("timer entry");
     assert_eq!(entry.release, Release::Pending);
     assert_eq!(entry.rule, "the subscriber's end, or unsubscribing");
+    let wall_due = Wall::from_nanos(wall.as_nanos() + span.as_nanos());
+    assert!(
+        matches!(record(&world, task.0, core::WaitKind::News).object, core::WaitObject::News { timer: Some(at), .. } if at == wall_due)
+    );
 }
 
 #[test]
@@ -399,6 +489,10 @@ fn a_held_task_wakes_its_escalation_holder() {
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Budget })));
     let inspection = inspect(&world, 11732);
     assert!(waiting(&inspection, task, "held: budget").wakes.contains(&Wake::Waiter(format!("task {}", parent.0))));
+    assert!(matches!(
+        record(&world, task, core::WaitKind::Party).object,
+        core::WaitObject::Entry { kind: jig_domain_people::EntryKind::Escalation { .. }, .. }
+    ));
 }
 
 #[test]
@@ -423,6 +517,7 @@ fn closing_names_the_cores_host_and_the_tasks_own_words() {
     );
     let inspection = inspect(&world, 11737);
     assert_eq!(waiting(&inspection, task, "closing on its run").wakes, [Wake::Party("host 7".into())]);
+    assert!(world.domain.core().waits(task).own.is_empty());
     let mut standalone = Inspection::new("jig", jig_inspect::KINDS);
     jig_inspect::tasks(&world.domain.core().tasks, &mut standalone);
     assert_eq!(waiting(&standalone, task, "closing on its run").wakes, [Wake::Party(format!("host of task {task}"))]);
@@ -455,6 +550,10 @@ fn a_person_task_wakes_its_person() {
     let inspection = inspect(&world, 11733);
     let wait = waiting(&inspection, task, "on a person's answer");
     assert!(wait.wakes.contains(&Wake::Party("person 1".into())));
+    assert!(matches!(
+        record(&world, task, core::WaitKind::Party).object,
+        core::WaitObject::Entry { kind: jig_domain_people::EntryKind::PersonTask, .. }
+    ));
     assert_eq!(wait.bound, None);
 }
 

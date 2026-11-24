@@ -671,6 +671,20 @@ fn a_goal_keeps_its_descendants_question_and_the_earliest_bound() {
 }
 
 #[test]
+fn a_working_kept_tasks_dependency_counts_toward_its_nearest_bound() {
+    let (core, limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.attempt = 1;
+    row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 1 });
+    row.waiting_on = Box::new([1]);
+    row.authority.budget.deadline = Some(SOON);
+    let doc = document_matching_line(&core, &limits, &row);
+    assert_eq!((doc.wait, doc.waits_on), (None, WaitsOn::Nothing));
+    assert_eq!(doc.nearest, Some(Nearest { at: SOON, then: AtBound::Hold, kind: WaitKind::Dependency }));
+    assert_eq!(doc.waits.get(0).unwrap().object, WaitObject::Task(1));
+}
+
+#[test]
 fn working_line_has_no_first_but_its_document_lists_party_and_question_waits() {
     let (mut core, limits) = pair();
     let mut row = core.tasks.task(2).unwrap().clone();

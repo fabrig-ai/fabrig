@@ -269,6 +269,7 @@ pub struct World {
     wall: u64,
     wall_lag: u64,
     supplied_wall: Option<Wall>,
+    record_wall: Wall,
 }
 
 impl World {
@@ -486,6 +487,7 @@ impl World {
             }
             self.observer.observe(self.wall, crate::referee::Observed::Tick)?;
             let env = self.env();
+            self.record_wall = self.record_wall.max(env.wall);
             self.observer.systems(self.wall, &self.systems)?;
             let sweep_waits = store_check::sweep_waits(&self.domain, self.events.front());
             if consume
@@ -767,6 +769,7 @@ impl World {
                     self.inspections = self.inspections.checked_add(1).expect("world inspection count fits");
                     skein_world::inspect::check_waits(&[&inspection], moment)?;
                     skein_world::inspect::check_tables(&[&inspection], moment)?;
+                    jig_inspect::records(self.domain.core(), moment, self.record_wall)?;
                 }
                 return Ok(());
             }

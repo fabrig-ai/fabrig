@@ -502,6 +502,7 @@ impl World {
 
     fn check_quiet(&mut self) {
         if self.quiet() {
+            self.checks.observe_wall(self.store.record_wall);
             self.checks
                 .quiet(&self.domain, self.environment.now, u64::from(self.iteration))
                 .unwrap_or_else(|finding| panic!("{finding}"));

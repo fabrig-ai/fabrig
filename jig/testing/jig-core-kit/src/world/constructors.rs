@@ -1,7 +1,7 @@
 //! Seeded configuration and world construction.
 use super::{
-    Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, World, accounts, connector, core, fleet, people,
-    root,
+    Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, Wall, World, accounts, connector, core, fleet,
+    people, root,
 };
 use jig_domain_link::{Form, Hello, Scheme};
 pub use jig_test_profile::effect_fixture as fixture;
@@ -326,6 +326,7 @@ impl World {
             wall: 0,
             wall_lag: 0,
             supplied_wall: None,
+            record_wall: Wall::EPOCH,
         }
     }
 }

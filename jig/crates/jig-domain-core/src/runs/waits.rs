@@ -7,6 +7,7 @@ mod reports;
 pub(crate) use reports::report;
 
 use crate::{Bound, Core, Limits, Nearest, Wait, WaitKind, WaitObject, Waits, documents::PhaseCounts};
+use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -51,6 +52,27 @@ impl Core {
     pub fn waits(&self, task: u64) -> Waits {
         let Some(row) = self.tasks.task(task) else { return empty() };
         read(self, &self.wait_limits, row).waits
+    }
+
+    /// A task's own records for the quiet-point check, including those beyond document lines.
+    #[must_use]
+    pub fn inspection_wait_records(&self, row: &tasks::TaskRecord) -> Box<[Wait]> {
+        let limits = &self.wait_limits;
+        let hears = crate::admission::escalation::wait_holder(self, limits, row, None);
+        let mut own = own::Own::new(hears);
+        let inbox = self.waiting_entries(limits, row);
+        for entry in inbox.iter().chain(own::policy_entry(row, &inbox).iter()) {
+            if party_entry(entry.kind) {
+                own.insert(own::party(self, limits, row, entry, hears));
+            }
+        }
+        let (working, parked) = activity(self, row);
+        let records = own.finish(self, limits, row, working, parked, due_wait(self, row));
+        let mut waits = List::with_capacity(u32::try_from(records.len()).expect("bounded waits"));
+        for wait in records.into_values() {
+            waits.push(wait).expect("one slot per wait");
+        }
+        waits.into_boxed()
     }
 
     /// The compatibility summary of the waits in a live subtree.
@@ -101,8 +123,9 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
             candidate
         };
         phases.add(&candidate.phase);
-        for entry in core.waiting_entries(limits, candidate).as_ref() {
-            if !party_entry(candidate, entry.kind) {
+        let inbox = core.waiting_entries(limits, candidate);
+        for entry in inbox.iter().chain(own::policy_entry(candidate, &inbox).iter()) {
+            if !party_entry(entry.kind) {
                 continue;
             }
             entries = entries.saturating_add(1);
@@ -121,14 +144,7 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
             pending.push(*delegate).expect("live subtree within tree_tasks");
         }
     }
-    let due_wait = match row.phase {
-        tasks::Phase::Active(tasks::Active::Due) => crate::documents::run_wait(core, row),
-        tasks::Phase::Active(_)
-        | tasks::Phase::Waiting
-        | tasks::Phase::Held { .. }
-        | tasks::Phase::Closing(_)
-        | tasks::Phase::Ended(_) => None,
-    };
+    let due_wait = due_wait(core, row);
     let (working, parked) = activity(core, row);
     let own = own.finish(core, limits, row, working, parked, due_wait);
     let party = match oldest {
@@ -166,12 +182,23 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
     Projection { waits: Waits { first, nearest, own: lines, count }, on, phases, due_wait }
 }
 
-fn party_entry(row: &tasks::TaskRecord, kind: people::EntryKind) -> bool {
+fn due_wait(core: &Core, row: &tasks::TaskRecord) -> Option<crate::documents::TaskRunWait> {
+    match row.phase {
+        tasks::Phase::Active(tasks::Active::Due) => crate::documents::run_wait(core, row),
+        tasks::Phase::Active(_)
+        | tasks::Phase::Waiting
+        | tasks::Phase::Held { .. }
+        | tasks::Phase::Closing(_)
+        | tasks::Phase::Ended(_) => None,
+    }
+}
+
+fn party_entry(kind: people::EntryKind) -> bool {
     match kind {
         people::EntryKind::Question { .. }
         | people::EntryKind::Proposal { .. }
-        | people::EntryKind::Escalation { .. } => true,
-        people::EntryKind::PersonTask => row.waiting_on.is_empty(),
+        | people::EntryKind::Escalation { .. }
+        | people::EntryKind::PersonTask => true,
         people::EntryKind::ChatReply { .. } | people::EntryKind::Reply { .. } => false,
     }
 }

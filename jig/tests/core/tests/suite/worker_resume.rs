@@ -41,6 +41,16 @@ fn placement(world: &World, task: u64) -> Option<Token> {
     proof.placement
 }
 
+fn assert_suspended_wait(world: &mut World, task: u64, until: Wall) {
+    let waits = world.domain.core().waits(task);
+    assert!(waits.own.iter().any(|wait| matches!(wait, core::Wait {
+        kind: core::WaitKind::Host,
+        object: core::WaitObject::Run(core::documents::TaskRunWait::Worker { worker: 2, until: reset }),
+        ..
+    } if *reset == until)));
+    assert_eq!(super::runs::funding_wait(world, task), Some(core::documents::TaskRunWait::Worker { worker: 2, until }));
+}
+
 #[test]
 fn a_shutdown_resumes_on_its_worker_or_elsewhere_at_the_window_end() {
     for returns in [true, false] {
@@ -110,10 +120,7 @@ fn a_shutdown_resumes_on_its_worker_or_elsewhere_at_the_window_end() {
             world.domain.core().run_choice(task),
             Err(core::RunWait::Worker { worker: 2, until: suspension.until })
         );
-        assert_eq!(
-            super::runs::funding_wait(&mut world, task),
-            Some(core::documents::TaskRunWait::Worker { worker: 2, until: suspension.until })
-        );
+        assert_suspended_wait(&mut world, task, suspension.until);
         world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: SECOND })));
         let next = if returns {
             world.advance(Duration::from_secs(1));
