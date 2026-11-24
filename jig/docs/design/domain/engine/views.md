@@ -310,7 +310,11 @@ section 3):
     dependencies, its holds, its closing), or it has ended.
 
   The core computes it as it makes a line or a document, by a walk of
-  the task's live subtree, within tasks per tree. An entry for a party
+  the task's live subtree, within tasks per tree. It is the summary of
+  the task's waits (`waits.md`): the same walk makes them, and this
+  value comes from them by the rule above, so the two never disagree.
+  A line carries its first wait and its nearest bound beside it, and a
+  document every wait of the task's own (`waits.md`, 4). An entry for a party
   made or ended, and a delegate made or ended, touch every task along
   its lineage, within the depth limit, so their watches are marked
   (`views.md`).

@@ -314,6 +314,15 @@ impl Checks {
   component `engine`; a step's names the waiter, its kind and its bound.
 - **The settings goal adds its store check's call** here, and nothing
   else (`../draft/failure-worlds.execution.md`, 2).
+- **jig's record check** (`jig/docs/design/domain/testing-fakes.md`,
+  1.1): `quiet` runs `jig_inspect::records` over the root's core after
+  skein's two checks, with the same moment, so every live task's waits,
+  a change's and a landing's tasks among them, are jig's records at
+  each quiet point. Their bounds arm no deadline here (that section's
+  third rule). The landing and change waits of 2.2 stay named for the
+  worlds alone until their procedures report records
+  (`../draft/bounded-waits.md`, 3.2); `forge`'s world holds no core, and
+  runs it not.
 
 ### 3.2 Where each driver calls it
 

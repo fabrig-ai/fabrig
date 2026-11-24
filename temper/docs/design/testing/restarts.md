@@ -326,7 +326,12 @@ as the world's programs (`tiers.md`, 1.5).
   an empty store at commit zero, so it watches only the runs that start
   fresh. A run from the image is checked by the golden reader's checks
   (census, history, preserved sources, forge) and the secrets' checks.
-  These are the world's checks as they stand (section 9).
+  These are the world's checks as they stand (section 9). Its waits are
+  checked too, at the upgrade's first quiet point: every live task's
+  waits, as jig's core computes them, read *since* that first start, its
+  kinds' floors, and none is past its bound
+  (`jig/docs/design/domain/engine/waits.md`, 7;
+  `../draft/bounded-waits.md`, 12).
 - **Why the older layout falls at a run's start:** a world runs one
   build, so the only store a previous release writes is one that release
   wrote before, kept as its image, and the upgrade is the first start
