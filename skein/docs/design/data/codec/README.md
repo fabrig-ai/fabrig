@@ -182,7 +182,7 @@ enum Form {
   (../../../foundation/programming-model.md, section 9).
 - **Every field is present.** An absent value is an explicit `option`.
   A value's bytes hold every field of its layout, whatever its default.
-- **A default is the value an older layout's records take** for a field
+- **A default is the value another layout's records take** for a field
   their layout lacks (`layouts.md`, 2), written after the type:
   `infrastructure: u32 = 0`. An `option` without one defaults to none.
   Its forms are a patch's values (`patches.md`, 2), each checked against
@@ -205,6 +205,26 @@ enum Form {
   a record's fields', an enumeration's variants') and none of its other
   former names; it stays as long as a store may hold a layout that
   spells it. Like names, former names are in no fingerprint.
+- **A tombstone keeps a dropped field in its record's text:** `dropped
+  hint: text 256 = ""`, the word `dropped`, then the field as it was,
+  its former names among it, and its default, which it must have. It
+  takes no bytes, no generated code, no golden byte and no fingerprint:
+  it lets a plan toward a layout that still has the field write a value
+  there, in either mode (`layouts.md`, 2). Its type is one that takes a
+  default; its name and former names are none of its record's fields'
+  names or former names, nor another tombstone's. It stays until fabrig
+  keeps no code for a layout that has the field
+  (`temper/docs/design/draft/layouts-both-ways.md`, 7.4).
+- **`droppable`** before a field's name, `droppable hint: text 256`,
+  lets a plan in Keep mode from this layout drop the field whatever its
+  value, where the target lacks it (`layouts.md`, 2). Nothing else reads
+  it: it moves no byte, no generated code and no fingerprint.
+- **Both words are read from this grammar on.** A build before it
+  refuses a text that uses either, so a family's schema uses them once
+  dev.fabrig.ai runs a build that reads them: its store's registry, and
+  a peer it opens with, may hand that text to it
+  (`temper/docs/design/draft/layouts-both-ways.md`, 7.4). A field may
+  still be named `dropped` or `droppable` (`run-time.md`, 1.1).
 - **A variant holds one record, or nothing.** The record seals its own
   bounds, which an enum variant's fields could not.
 - **A variant marked `boxed`** (`report: boxed Report`) holds its record

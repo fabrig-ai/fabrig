@@ -146,7 +146,7 @@ impl Machine {
         // A working directory is not a containment root: ../canary is a
         // normal lookup, then Landlock decides whether the target is granted.
         let mut root = cwd;
-        while let Some(parent) = self.node(root).parent {
+        while let Some(parent) = self.node_state(root).parent {
             if parent == self.top {
                 break;
             }
@@ -166,7 +166,7 @@ impl Machine {
         if right == Rights::EXECUTE && self.is_directory(node) {
             return Err(Error::Permission);
         }
-        match self.node(node).body {
+        match self.node_state(node).body {
             Body::Special(_) => return Err(Error::NotAFile),
             Body::Link(_) => unreachable!("probe lookup follows links"),
             Body::File(_) | Body::Directory { .. } => {}

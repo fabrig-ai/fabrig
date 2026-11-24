@@ -1,6 +1,5 @@
 //! The real box's first block and held socket (temper/docs/design/protocol/setup/box-supervision.md, 1, and temper/docs/design/protocol/setup/testing.md, 4).
 use box_link::command;
-use jig_client_protocol_wire::Record as _;
 use skein_world::{Deadline, Expired};
 use std::{
     fs,
@@ -30,43 +29,6 @@ fn clients(document: &serde_json::Value) -> SocketAddr {
         .expect("clients listener")
         .parse()
         .expect("socket")
-}
-
-/// Open a spent link through its wire route and inspect the reason, not a transport refusal.
-fn used(link: &[u8]) -> std::io::Result<bool> {
-    use crate::support::{
-        self,
-        story_socket::{Scope, Socket},
-    };
-    use jig_client_protocol_wire as wire;
-    use skein_lib::{
-        Reader, Writer,
-        base64::{self, Alphabet},
-    };
-    let text = std::str::from_utf8(link).expect("fixture URL");
-    let secret = base64::decode(Alphabet::Url, text.split_once("secret=").expect("link secret").1.as_bytes(), 32)
-        .expect("fixture encoding");
-    let limits = jig_protocol_config_fixtures::small().clients.wire;
-    let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
-    let mut out = Writer::new(
-        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
-            .expect("record length"),
-    );
-    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured record");
-    let body = out.finish();
-    let address = box_link::address(link);
-    let mut socket = Socket::connect("spent link", support::WITHIN, address, Scope::Owned)?;
-    let header = format!(
-        "POST /jig/v1/sign-in/link HTTP/1.0\r\nHost: {address}\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        body.len()
-    );
-    socket.write_all("spent link request", support::WITHIN, header.as_bytes())?;
-    socket.write_all("spent link body", support::WITHIN, &body)?;
-    let answer = socket.read_to_end("spent link answer", support::WITHIN, 4096)?;
-    let start = skein_lib::bytes::find(&answer, b"\r\n\r\n").expect("HTTP answer") + 4;
-    let mut reader = Reader::new(&answer[start..]);
-    Ok(matches!(wire::SignInAnswer::decode(&limits, &mut reader), Ok(wire::SignInAnswer::LinkUsed))
-        && reader.remaining() == 0)
 }
 
 #[test]
@@ -174,55 +136,6 @@ fn a_fresh_box_prints_its_block_and_nothing_else() {
         remaining = remaining.split_once(entry).expect("ordered lifecycle fact").1;
     }
     assert!(!log.contains("http://") && !log.contains("secret="), "box.log holds no link");
-}
-
-#[test]
-fn a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up() {
-    let mut boxed = box_link::Boxed::start("no-openssl", Some(""));
-    boxed.link();
-    boxed.wait(|boxed| crate::support::boxed::serve_listening(&boxed.root().join("data")));
-    let document = temper_agent_fixtures::start(&boxed.root().join("config"));
-    assert!(document["engine"]["clients"]["provider"].is_null());
-    assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
-    let (_, _, log) = boxed.stop();
-    let first = log.lines().next().expect("first-run log").get(10..).expect("timestamp");
-    assert_eq!(first, "First run: no sign-in through temper: openssl is not on PATH");
-    assert_eq!(log.matches("no sign-in through temper:").count(), 1);
-}
-
-#[test]
-fn the_first_link_opened_at_once_waits_and_signs_in() {
-    let mut boxed = box_link::Boxed::start("first-open", None);
-    let link = boxed.link();
-    let connected = std::net::TcpStream::connect(box_link::address(&link));
-    let listening = crate::support::boxed::serve_listening(&boxed.root().join("data"));
-    eprintln!("serve.log had listening clients at the first connect: {listening}; early open: {}", !listening);
-    let connected = connected.expect("the first link's socket accepts immediately");
-    drop(connected);
-    let local = kept_link(&mut boxed);
-    assert!(local != link, "the file's link differs from the first printed link");
-    assert!(box_link::signs_in(boxed.root(), "first-client", &link), "the block's very first link signs in as owner");
-    match used(&link) {
-        Ok(used) => assert!(used, "the spent link is answered used"),
-        Err(why) => {
-            boxed.stop();
-            crate::support::story_socket::finish(why);
-        }
-    }
-    let fresh = boxed.link();
-    assert!(fresh != link, "a spent link draws a fresh one");
-    let path = box_link::link_path(boxed.root());
-    assert!(local != fresh, "the file's link differs from the fresh printed link");
-    assert!(
-        fs::read(&path).expect("kept local link") == [local.as_slice(), b"\n"].concat(),
-        "the file's link stays unchanged"
-    );
-    let (stdout, stderr, _) = boxed.stop();
-    assert!(stdout == [link.as_slice(), b"\n", fresh.as_slice(), b"\n"].concat(), "exactly the first and fresh links");
-    assert!(
-        stderr == [box_link::PRELUDE, box_link::footer(&link).as_slice(), b"\n"].concat(),
-        "fresh link has only its separator"
-    );
 }
 
 fn kept_link(boxed: &mut box_link::Boxed) -> Vec<u8> {

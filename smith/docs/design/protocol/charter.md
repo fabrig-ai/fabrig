@@ -188,16 +188,15 @@ already has from the delivery's own answer (channel.md, section 3).
 
 ## 5. Versions
 
-The charter is pre-release, like every format (README.md, section 8): one
-version at a time, and any change a reader would notice is a new one.
+The charter's version is frozen at 5, and a layout is its text's
+fingerprint (README.md, section 8).
 
 - **The charter's first field is its version.** The agent reads its one
   version and refuses any other as an invalid start (domain/run.md,
-  section 4). The agent translates nothing: a host that speaks several
-  versions of the charter, jig's worker channel, translates it to the
-  agent's version before the start, and the result back, by
-  `smith-charter`'s bridge (skein's `data/codec/bridges.md`; jig's
-  `protocol/channel/bridges.md`, 5.3).
+  section 4). The agent translates nothing: a host that speaks to agents
+  of other builds, jig's engine, converts the charter to the agent's
+  layout before the start, and the result back, by plans from both
+  texts (jig's `protocol/channel/layouts.md`, 2.1).
 - **A charter that does not decode** in the version the agent reads is an
   invalid start too, with a reason of its own: its writer has a bug to
   fix, where another version needs a writer and an agent of the same

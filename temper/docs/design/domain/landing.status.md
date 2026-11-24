@@ -1,6 +1,7 @@
 # landing: status
 
-2026-11-21. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-24. Where temper's code lags or departs from [landing.md](landing.md).
+
 
 
 

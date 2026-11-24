@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-21. Where skein's code lags or departs from [README.md](README.md).
+2026-11-23. Where skein's code lags or departs from [README.md](README.md).
 
 `layout.md`, section 1's test-only fork kit and
 its documented process boundary are present, as is the row runner's

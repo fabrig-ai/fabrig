@@ -1,12 +1,14 @@
 //! A cut run's private mark and the start's selective sweep (worker/checkouts.md).
 use super::{Action, Directories, count, fd, page, read_buffer};
+mod locks;
 use crate::{Settings, invocation, sequence::Next};
 use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use skein_lib::{Decimal, Intake, List, Reader, Token, Writer, bytes, stream};
 use temper_worker_domain_checkout::{Limits, git};
 
-const VERSION: &[u8] = b"temper-kept 1\n";
+const VERSION: &[u8] = b"temper-kept 2\n";
+const PREVIOUS: &[u8] = b"temper-kept 1\n";
 
 fn put(writer: &mut Writer, value: &[u8]) {
     writer.put(value).expect("measured mark");
@@ -16,10 +18,10 @@ fn field(writer: &mut Writer, value: &[u8]) {
     put(writer, value);
 }
 fn encode(mark: &git::Kept) -> Box<[u8]> {
-    let mut size = VERSION.len().checked_add(16).expect("mark header").checked_add(mark.key.len()).expect("key size");
+    let mut size = VERSION.len().checked_add(17).expect("mark header").checked_add(mark.key.len()).expect("key size");
     for repository in &mark.repositories {
         size = size
-            .checked_add(40)
+            .checked_add(if repository.merging.is_some() { 74 } else { 42 })
             .expect("mark header")
             .checked_add(repository.name.len())
             .expect("mark name")
@@ -29,12 +31,27 @@ fn encode(mark: &git::Kept) -> Box<[u8]> {
     let mut writer = Writer::new(size);
     put(&mut writer, VERSION);
     put(&mut writer, &mark.when.to_be_bytes());
+    put(
+        &mut writer,
+        &[match mark.state {
+            git::KeptState::Kept => 0,
+            git::KeptState::Held => 1,
+        }],
+    );
     field(&mut writer, &mark.key);
     put(&mut writer, &u32::try_from(mark.repositories.len()).expect("repository count").to_be_bytes());
     for repository in &mark.repositories {
         field(&mut writer, &repository.name);
         field(&mut writer, &repository.remote);
         put(&mut writer, &repository.commit.raw());
+        match repository.merging {
+            Some(commit) => {
+                put(&mut writer, &[1]);
+                put(&mut writer, &commit.raw());
+            }
+            None => put(&mut writer, &[0]),
+        }
+        put(&mut writer, &[u8::from(repository.unchecked)]);
     }
     writer.finish()
 }
@@ -48,10 +65,21 @@ fn read_field(input: &mut Reader<'_>, limit: u32) -> Option<Box<[u8]>> {
 fn decode(workspace: Token, input: &[u8], limits: &Limits) -> Option<git::Kept> {
     workspace.raw().checked_add(1_u64 << 32)?;
     let mut input = Reader::new(input);
-    if input.bytes(u32::try_from(VERSION.len()).expect("short header"))? != VERSION {
+    let header = input.bytes(u32::try_from(VERSION.len()).expect("short header"))?;
+    let previous = header == PREVIOUS;
+    if header != VERSION && !previous {
         return None;
     }
     let when = input.u64()?;
+    let state = if previous {
+        git::KeptState::Kept
+    } else {
+        match input.u8()? {
+            0 => git::KeptState::Kept,
+            1 => git::KeptState::Held,
+            _ => return None,
+        }
+    };
     let key = read_field(&mut input, limits.name_bytes)?;
     let n = input.u32()?;
     if n == 0 || n > limits.repositories {
@@ -71,12 +99,32 @@ fn decode(workspace: Token, input: &[u8], limits: &Limits) -> Option<git::Kept> 
             }
         }
         let commit = git::Commit::new(input.bytes(32)?.try_into().ok()?);
-        repositories.push(git::KeptRepository { name, remote, commit }).expect("bounded repositories");
+        let merging = if previous {
+            None
+        } else {
+            match input.u8()? {
+                0 => None,
+                1 => Some(git::Commit::new(input.bytes(32)?.try_into().ok()?)),
+                _ => return None,
+            }
+        };
+        let unchecked = if previous {
+            false
+        } else {
+            match input.u8()? {
+                0 => false,
+                1 => true,
+                _ => return None,
+            }
+        };
+        repositories
+            .push(git::KeptRepository { name, remote, commit, merging, unchecked })
+            .expect("bounded repositories");
     }
     if !input.is_empty() {
         return None;
     }
-    Some(git::Kept { workspace, key, repositories: repositories.into_boxed(), when })
+    Some(git::Kept { workspace, key, state, repositories: repositories.into_boxed(), when })
 }
 fn token(name: &[u8]) -> Option<Token> {
     let mut n = 0_u64;
@@ -246,6 +294,7 @@ pub(crate) struct Layout {
     limits: Limits,
     candidate: Option<git::Kept>,
     tree: u8,
+    locks: Option<locks::Locks>,
 }
 #[derive(Clone, Copy, Debug)]
 enum Read {
@@ -258,6 +307,7 @@ enum Read {
     Workspace,
     CloseWorkspace,
     Discard,
+    Locks,
     Trees,
     ListTree,
     Move,
@@ -269,7 +319,7 @@ impl Layout {
         let capacity = limits
             .repositories
             .checked_mul(
-                limits.name_bytes.checked_mul(2).expect("name bound").checked_add(40).expect("repository bound"),
+                limits.name_bytes.checked_mul(2).expect("name bound").checked_add(74).expect("repository bound"),
             )
             .expect("repository count")
             .checked_add(limits.name_bytes)
@@ -285,6 +335,7 @@ impl Layout {
             limits,
             candidate: None,
             tree: 0,
+            locks: None,
         }
     }
     pub fn first(&self, dirs: &mut Directories, settings: &Settings) -> Action {
@@ -293,6 +344,7 @@ impl Layout {
             Read::Open => {
                 Op::Open { root: settings.root, path: Box::from(b"kept".as_slice()), how: OpenHow::DirectoryNoFollow }
             }
+            Read::Locks => return self.locks.as_ref().expect("startup locks").first(settings),
             Read::List | Read::ListTree => Op::List {
                 fd: self.directory.expect("listing directory"),
                 entries: Box::new([kernel::Entry::BLANK]),
@@ -349,7 +401,8 @@ impl Layout {
                     Err(error) => return Action::Layout(Err(error)),
                 };
                 self.phase = if self.name.is_empty() {
-                    Read::Trees
+                    self.locks = Some(locks::Locks::new(&dirs.marks));
+                    Read::Locks
                 } else if token(&self.name).is_some() && dirs.marks.len() < self.limits.workspaces {
                     Read::File
                 } else {
@@ -410,6 +463,14 @@ impl Layout {
                 self.candidate = None;
                 self.phase = Read::List;
             }
+            Read::Locks => match self.locks.as_mut().expect("startup locks").complete(complete, dirs) {
+                Ok(false) => {}
+                Ok(true) => {
+                    self.locks = None;
+                    self.phase = Read::Trees;
+                }
+                Err(error) => return Action::Layout(Err(error)),
+            },
             Read::Trees => {
                 self.directory = match fd(complete.result) {
                     Ok(fd) => Some(fd),

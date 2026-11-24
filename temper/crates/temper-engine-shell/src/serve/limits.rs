@@ -20,8 +20,15 @@ pub struct Held {
 }
 /// Presence suppresses both setting kinds, including an empty file.
 pub fn limits_hold(data: &std::path::Path) -> Result<Option<Held>, String> {
+    limits_hold_with(data, |path| std::fs::read_to_string(path))
+}
+
+pub(crate) fn limits_hold_with(
+    data: &std::path::Path,
+    read: impl FnOnce(&std::path::Path) -> std::io::Result<String>,
+) -> Result<Option<Held>, String> {
     let path = data.join("limits-held");
-    let text = match std::fs::read_to_string(&path) {
+    let text = match read(&path) {
         Ok(text) => text,
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(why) => return Err(format!("{}: {why}", path.display())),

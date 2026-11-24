@@ -422,6 +422,24 @@ impl Wire {
         self.channel = None;
     }
 
+    /// A killed process loses its decoder; the world's observations survive it.
+    pub(crate) fn preceded_by(&mut self, mut previous: Self) {
+        previous.frames.append(&mut self.frames);
+        self.frames = previous.frames;
+        previous.acknowledgements.append(&mut self.acknowledgements);
+        self.acknowledgements = previous.acknowledgements;
+        previous.grants.append(&mut self.grants);
+        self.grants = previous.grants;
+        previous.granted.append(&mut self.granted);
+        self.granted = previous.granted;
+        self.calls_answered += previous.calls_answered;
+        self.hellos += previous.hellos;
+        self.admitted_hellos += previous.admitted_hellos;
+        self.adopting_hellos += previous.adopting_hellos;
+        self.start_messages += previous.start_messages;
+        self.waited |= previous.waited;
+    }
+
     pub(crate) fn hello_sent(&self) -> bool {
         self.frames.iter().any(|(_, kind, _)| *kind == jig_protocol_worker_wire::Kind::Hello.number())
     }
@@ -618,7 +636,13 @@ impl skein_world::Machine for Machine {
         }
     }
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        // Only the restart check writes this one-byte marker. Wait for that
+        // write before killing it, so its next start can read the same tree.
+        let marker = matches!(&call.ask, skein_sim::Ask::Write { bytes, .. } if bytes.as_ref() == b"1");
         skein_fake_machine::step(&mut self.0, call, answers);
+        if marker && let Some(views) = &self.1 {
+            views.borrow_mut().restart.check_marked = true;
+        }
     }
 }
 

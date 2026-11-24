@@ -1,5 +1,5 @@
 //! Cross-directory moves stay atomic through power loss (testing/simulator.md, 3.3).
-use super::{Body, Machine, Node, NodeId, draw};
+use super::{Body, Machine, NodeId, NodeState, draw};
 use alloc::{boxed::Box, collections::BTreeMap};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -13,7 +13,7 @@ pub(super) struct Move {
     durable_to: Option<NodeId>,
 }
 
-fn entries(nodes: &mut BTreeMap<NodeId, Node>, dir: NodeId) -> Option<&mut BTreeMap<Box<[u8]>, NodeId>> {
+fn entries(nodes: &mut BTreeMap<NodeId, NodeState>, dir: NodeId) -> Option<&mut BTreeMap<Box<[u8]>, NodeId>> {
     let Body::Directory { entries, .. } = &mut nodes.get_mut(&dir)?.body else {
         super::fail("a move names directories");
     };
@@ -29,7 +29,7 @@ fn restore(names: Option<&mut BTreeMap<Box<[u8]>, NodeId>>, name: &[u8], node: O
     }
 }
 
-fn parent(nodes: &mut BTreeMap<NodeId, Node>, id: NodeId, directory: NodeId) {
+fn parent(nodes: &mut BTreeMap<NodeId, NodeState>, id: NodeId, directory: NodeId) {
     if let Some(node) = nodes.get_mut(&id) {
         match node.body {
             Body::Directory { .. } => node.parent = Some(directory),
@@ -67,7 +67,7 @@ impl Machine {
         }
     }
 
-    pub(super) fn crash_moves(&mut self, surviving: &mut BTreeMap<NodeId, Node>, rng: &mut u64) {
+    pub(super) fn crash_moves(&mut self, surviving: &mut BTreeMap<NodeId, NodeState>, rng: &mut u64) {
         for moved in core::mem::take(&mut self.pending_moves) {
             *rng = draw(*rng);
             if *rng & 1 != 0 {

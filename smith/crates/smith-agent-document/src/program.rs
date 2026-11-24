@@ -67,12 +67,12 @@ impl std::fmt::Display for Refusal {
 
 /// Check an existing directory's kind, owner and mode; `Ok(false)` means absent.
 pub fn private_directory(path: &Path) -> Result<bool, Refusal> {
-    private_directory_with(path, skein_shell::effective_user(), inspect(path))
+    private_directory_with(path, skein_shell::effective_user(), inspect_at(path, skein_shell::symlink_stat))
 }
 
-fn inspect(path: &Path) -> std::io::Result<Stat> {
+fn inspect_at(path: &Path, inspect: impl FnOnce(&Path) -> std::io::Result<Stat>) -> std::io::Result<Stat> {
     let inspected: PathBuf = path.components().collect();
-    skein_shell::symlink_stat(&inspected)
+    inspect(&inspected)
 }
 
 /// Check supplied no-follow metadata; a not-found result means the name is absent.
@@ -101,7 +101,7 @@ pub fn private_directory_with(path: &Path, user: u32, metadata: std::io::Result<
 
 /// Make and recheck the private programs and source directories, refusing names first.
 pub fn prepare(directory: &Path, source: &str) -> Result<PathBuf, Refusal> {
-    prepare_with(directory, source, skein_shell::effective_user(), inspect, |path, parents, mode| {
+    prepare_with(directory, source, skein_shell::effective_user(), skein_shell::symlink_stat, |path, parents, mode| {
         std::fs::DirBuilder::new().recursive(parents).mode(mode).create(path)
     })
 }
@@ -120,7 +120,7 @@ pub fn prepare_with(
         Err(Error::Name) => return Err(Refusal::Name),
         Err(Error::Directory | Error::Environment) => return Err(Refusal::Relative(directory.into())),
     };
-    let mut check = |path: &Path| private_directory_with(path, user, inspect(path));
+    let mut check = |path: &Path| private_directory_with(path, user, inspect_at(path, &mut inspect));
     let programs_present = check(directory)?;
     let source_present = check(&configuration)?;
     if !programs_present {

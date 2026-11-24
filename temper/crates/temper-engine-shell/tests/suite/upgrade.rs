@@ -29,27 +29,6 @@ fn tree(root: &Path) -> Vec<(std::path::PathBuf, u32, Vec<u8>)> {
 }
 
 #[test]
-fn stopped_preparation_names_bad_held_lines_without_opening_or_changing_the_store() {
-    let (_scratch, directories) = deployment();
-    let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
-    let source = std::fs::File::open(data.join("state")).expect("deployment directory");
-    source.try_lock().expect("serving engine holds the store");
-    for (body, prefix) in [
-        ("not.a.limit 1\n", "limits-held line 1: not.a.limit is no limit of this release"),
-        ("people.identity_bytes 4294967296\n", "limits-held line 1: people.identity_bytes (setting limits):"),
-    ] {
-        std::fs::write(data.join("limits-held"), body).expect("held input");
-        let before = tree(data);
-        let Err(why) = shell::stopped::prepare("temper-engine", &directories) else {
-            panic!("stopped preparation ignored limits-held");
-        };
-        assert!(why.starts_with(prefix), "{why}");
-        assert!(!why.contains("put limits-held"), "the held-file refusal names its own line: {why}");
-        assert_eq!(tree(data), before, "held-file refusal opens and changes no store");
-    }
-}
-
-#[test]
 fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
     let (_scratch, directories) = deployment();
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
@@ -88,5 +67,16 @@ fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
             "the checkpoint lock is taken"
         );
         assert_eq!(tree(data), before, "a refused rehearsal writes nothing under --data");
+        let (mut service, prepared_deployment) =
+            shell::stopped::prepare("temper-engine", &directories).expect("read-only preparation with source held");
+        assert_eq!(tree(data), before, "preparation with source held writes nothing under --data");
+        service.engine_component().build_name("test-build");
+        assert_eq!(
+            shell::upgrade::run_prepared("temper-engine", &directories, &request, service, &prepared_deployment)
+                .expect("prepared busy source report"),
+            1,
+            "the prepared run takes the checkpoint lock"
+        );
+        assert_eq!(tree(data), before, "a refused prepared rehearsal writes nothing under --data");
     }
 }

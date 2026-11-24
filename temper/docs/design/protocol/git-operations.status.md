@@ -1,10 +1,15 @@
 # git-operations: status
 
-2026-11-23. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
+2026-11-24. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
 
 - **Not yet:** 1.7: an empty listing still refuses with its words rather
   than ending `ParentUnreachable { head, merging, parent }` [in flight:
   change 6015].
+- **Not yet:** 1.6: a conflicted merge runs no history comparison: after
+  exit 1 it lists its unmerged paths at once, so a run's rename-detecting
+  comparison of a side's commit fails `fatal: unable to read <object>`
+  where that commit's parent held a copy no step fetched [in flight:
+  change 15504].
 
 Section 1.7's delivery snapshot has no other known implementation gap: it reads
 HEAD and MERGE_HEAD, checks a second parent against freshly fetched remote

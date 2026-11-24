@@ -292,3 +292,67 @@ fn job_terminal_ignores_another_jobs_reported_terminal() {
     crate::common::edit::tool_completed(&mut records[JOB_TERMINAL_AT]).job = Some(OTHER_JOB_NUMBER);
     assert_eq!(observed(&records, &EventCheck::JobTerminal), Measure::Observed { value: false });
 }
+
+/// The command's terminal bound to the seed script whose stdout was captured.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SeedRecording {
+    script_sha256: String,
+    exit_code: i32,
+}
+
+#[test]
+fn tool_output_seed_exercises_capture_and_read_windows() {
+    use crate::offline::{BENCHMARK_TREE, DESIGN_TREE, catalogue_tree};
+    use smith_bench::files::Files;
+    use smith_bench::testing::task::validate_suite_with;
+    use std::path::Path;
+
+    let tree = catalogue_tree(&[
+        "benchmarks/tasks/probes/tool-output",
+        "benchmarks/suites/probes.toml",
+        "benchmarks/agents",
+        "docs/design",
+    ]);
+    let root = Path::new(BENCHMARK_TREE);
+    let suite_file = root.join("suites/probes.toml");
+    let mut suite = smith_bench::read_suite_with(&tree, &suite_file).expect("four authored variants");
+    suite.tasks.retain(|name| name.starts_with("probes/tool-output/") && !name.ends_with("/background"));
+    suite.agents.retain(|agent| agent.tasks.iter().any(|name| name == "probes/tool-output"));
+    suite.agents[0].tasks.clone_from(&suite.tasks);
+    let task = root.join("tasks/probes/tool-output");
+    let recording: SeedRecording =
+        toml::from_str(include_str!("../recorded/tool-output/test.toml")).expect("exit recording");
+    assert_eq!(
+        tree.sha256(&task.join("seed/test.sh")).expect("frozen script digest"),
+        recording.script_sha256,
+        "the seed script changed; record its exit and stdout again"
+    );
+
+    let catalogue = smith_bench::catalogue_with(&tree, &task, Path::new(DESIGN_TREE)).expect("frozen catalogue");
+    let agents = root.join("agents");
+    let models = smith_bench::read_model_tiers_with(&tree, &agents.join("models.toml")).expect("tiers");
+    assert_eq!(
+        validate_suite_with(&suite_file, &suite, &catalogue, &agents, &models, |pin| {
+            smith_bench::read_configuration_with(&tree, pin)
+        })
+        .expect("selectors"),
+        [
+            "probes/tool-output/quote",
+            "probes/tool-output/test-output",
+            "probes/tool-output/timeout",
+            "probes/tool-output/utf-8"
+        ]
+    );
+
+    let stdout = include_bytes!("../recorded/tool-output/test.stdout");
+    assert_eq!(recording.exit_code, 1);
+    assert!(stdout.len() > 10 * 1024);
+    assert!(stdout.ends_with(b"ASSERT budget_total: expected 17, observed 19\n"));
+    let document = tree.read_to_string(&task.join("seed/manual.txt")).expect("document");
+    assert!(document.len() > 30_000);
+    assert_eq!(
+        document.lines().nth(699),
+        Some("QUOTE: The copper heron carries seven blue lanterns across the silent harbor.")
+    );
+}

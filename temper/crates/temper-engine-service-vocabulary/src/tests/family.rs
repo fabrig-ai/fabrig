@@ -1781,6 +1781,7 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
+        read_hold: None,
         waits: Some(forge::LandingWait {
             on: forge::LandingWaitFor::Run,
             change: Some(51),
@@ -2001,6 +2002,17 @@ fn a_search_by_test_encodes_selections_passes_and_the_probe_kind() {
         let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(&got.round.as_ref().unwrap().search.as_ref().unwrap().tests, &expected);
     }
+}
+
+#[test]
+fn a_landing_view_carries_the_read_hold_reason() {
+    let mut view = landing_view();
+    view.phase = forge::LandingPhase::Held { was: Box::new(view.phase), why: forge::LandingHold::Read };
+    let reason: Box<[u8]> = b"read: branch main: no answer".as_slice().into();
+    view.read_hold = Some(reason.clone());
+    let bytes = family::document(forge::Document::Landing(view), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!((got.phase, got.hold), (w::LandingPhase::Held, Some(w::LandingHold::Read(w::HeldRead { reason }))));
 }
 
 #[test]

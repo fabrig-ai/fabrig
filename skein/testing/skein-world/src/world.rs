@@ -213,6 +213,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
                 match control {
                     Control::Signal { host, signal } => self.inner.signal(host, signal),
                     Control::Cut { host, cut } => self.inner.cut_now(host, cut),
+                    Control::KillUnit { host } => self.inner.kill_unit(host),
                 }
             }
             let mut turns = Observing { referee: &mut self.referee, faults: &mut faults, findings: &findings };

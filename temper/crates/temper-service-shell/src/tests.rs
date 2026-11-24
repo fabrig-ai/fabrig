@@ -156,6 +156,34 @@ fn an_unsafe_worker_secret_is_named_without_its_bytes() {
     assert!(!refused.contains("forge-1-git-token-value"), "no secret in a diagnostic");
 }
 
+#[test]
+fn a_push_key_refuses_nonprivate_files_naming_its_member() {
+    // The bound of the named push key in the fixture.
+    const PUSH_MAX: u32 = 1024;
+    const PUSH_PATH: &str = "push.pem";
+    let read_key = |read| {
+        let at = Member::root().member(b"application").member(b"push").member(b"key");
+        let mut next = Some(read);
+        let result = read_files_with_asked_using(
+            Box::new([named_file(at, PUSH_PATH, PUSH_MAX, true)]),
+            Box::new([]),
+            USER,
+            |path, max, private| {
+                assert_eq!((path, max, private), (Path::new(PUSH_PATH), PUSH_MAX, true));
+                next.take().expect("one read of the user's required push key")
+            },
+        );
+        assert!(next.is_none(), "the push key was read");
+        result
+    };
+    let mode = Unread::Unsafe(skein_io::file::Unsafe::Mode(0o044));
+    let why = read_key(Err(mode)).expect_err("nonprivate key refused");
+    assert!(why.starts_with("application.push.key:"), "{why}");
+    let fixture = b"fixture".as_slice();
+    let files = read_key(Ok(Secret::new(fixture.into()))).expect("private key accepted");
+    assert_eq!(files.contents(PUSH_PATH.as_bytes()), Some(fixture));
+}
+
 // A small bound for the asked file fixtures.
 const ASKED_MAX: u32 = 64;
 

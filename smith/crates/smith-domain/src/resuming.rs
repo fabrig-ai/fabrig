@@ -287,7 +287,7 @@ impl Parts {
         limits: &Limits,
     ) -> Option<Box<[Block]>> {
         let mut results = List::with_capacity(limits.session.completion_blocks);
-        // Result parts win over host answers and later duplicate parts.
+        // Parts arrive by activation then number; the last result wins over host answers.
         for block in content {
             let Some(call) = block.tool_call() else { continue };
             let mut found = None;
@@ -304,7 +304,6 @@ impl Parts {
                     match result {
                         Block::ToolResult { id, .. } if *id == call.id => {
                             found = Some(result.clone());
-                            break;
                         }
                         Block::ToolResult { .. }
                         | Block::ToolCall(_)

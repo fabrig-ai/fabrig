@@ -104,7 +104,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
 }
 
 fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
-    if relay.open.is_none() && relay.replies.is_empty() {
+    if relay.open.is_none() && relay.waiting.is_empty() && relay.replies.is_empty() {
         return None;
     }
     Some(crate::generated::store::closing_relay_to_record(relay).expect(FITS))

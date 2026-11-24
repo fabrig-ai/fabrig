@@ -492,7 +492,7 @@ enum ClosingStands = o::relay::Stands
 record ClosingQuestion = o::relay::Question
 enum ClosingForm = o::relay::Form { answer { number = question } }
 record ClosingMessage = o::relay::Message
-record ClosingRelay = o::relay::Relay { replies slice }
+record ClosingRelay = o::relay::Relay { replies slice, waiting slice }
 record Closer by hand
 record LandedDraft by hand
 record FollowCommit = d::FollowCommit

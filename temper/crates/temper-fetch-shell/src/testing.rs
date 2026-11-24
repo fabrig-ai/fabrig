@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub use crate::box_binary::testing::{Files, absent, cached, identity, suffix};
+pub use crate::box_binary::testing::{Files, cached, identity, suffix};
 
 #[must_use]
 pub fn scratch(name: &str) -> PathBuf {

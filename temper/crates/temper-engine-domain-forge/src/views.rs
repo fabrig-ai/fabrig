@@ -155,6 +155,7 @@ impl Domain {
                 .expect("admitted members");
         }
         Some(LandingView {
+            read_hold: self.landing.rows.get(&task)?.read_hold.clone(),
             waits: self.landing_wait(task),
             task,
             project: row.project,
