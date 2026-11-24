@@ -1,10 +1,10 @@
 //! A change's relay of its agents' questions (temper/docs/design/domain/forge/change/questions.md, 1).
 use alloc::boxed::Box;
-use skein_lib::{List, Writer, bytes};
+use skein_lib::{List, Wall, Writer, bytes};
 
 use crate::{
-    AMENDMENTS_KEPT, ANSWERS_KEPT, Amended, Answered, Limits, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, Route,
-    Stands,
+    AMENDMENTS_KEPT, ANSWERS_KEPT, Amended, Answered, Blocked, Limits, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions,
+    Route, Stands,
 };
 
 /// A question one of the change's own agents asked, taken at this step.
@@ -12,6 +12,13 @@ use crate::{
 pub struct Asked<'a> {
     pub asker: u64,
     pub number: u64,
+    pub words: &'a [u8],
+}
+
+/// The requester's answer, naming the change's own question rather than the asker's.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct RelayAnswer<'a> {
+    pub question: u64,
     pub words: &'a [u8],
 }
 
@@ -24,14 +31,14 @@ pub struct RelayHeard<'a> {
     pub amended: &'a [&'a [u8]],
     pub message_bytes: usize,
     pub asked: &'a [Asked<'a>],
-    /// The requester's answer to the change's question, its words.
-    pub answer: Option<&'a [u8]>,
+    pub answer: Option<RelayAnswer<'a>>,
     /// Askers among the open questions' that have ended.
     pub ended: &'a [u64],
     /// The change was released from its questions hold since its last step.
     pub released: bool,
-    /// A pending dependency the task did not start from holds the answer.
-    pub held: bool,
+    /// The first pending dependency that holds the answer, if any.
+    pub dependency: Option<u64>,
+    pub now: Wall,
 }
 
 /// What the root applies for a change's relay.
@@ -39,6 +46,10 @@ pub struct RelayHeard<'a> {
 pub enum RelayAct {
     /// Answer the asker's question with these words.
     Answer { asker: u64, number: u64, words: Box<[u8]> },
+    /// Tell the requester in the room the change's own question kept.
+    Held { question: u64, blocked: Blocked },
+    /// Tell the requester in ordinary message room, with the answer to the asker.
+    Delivered { question: u64, since: Wall, asker: u64 },
     /// Ask the requester.
     Ask { asker: u64, number: u64, reasons: Box<[u8]> },
     /// Tell the requester that a question's asker ended.
@@ -56,7 +67,7 @@ pub struct Relayed {
     pub more: bool,
 }
 
-/// Decide the relay purely; `room` bounds this step's `Answer`, `Ask` and `Left` acts.
+/// Decide the relay purely; `room` bounds all messages except the question's `Held` notice.
 #[must_use]
 pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut room: usize) -> Relayed {
     let amended = keep_amendments(&questions.amended, heard);
@@ -77,37 +88,44 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
         if question.stands == Stands::Asked
             && let Some(answer) = heard.answer
         {
-            answered = keep_answer(&answered, question, answer, heard.revision);
-            if heard.ended.contains(&question.asker) {
-                if room == 0 {
-                    question.stands = Stands::Held { answer: bytes::copy_of(answer) };
-                    more = true;
-                    break;
-                }
+            answered = keep_answer(&answered, question, answer.words, heard.revision);
+            let ended = heard.ended.contains(&question.asker);
+            let dependency = if ended { None } else { heard.dependency };
+            if dependency.is_some() || room == 0 {
+                acts.push(hold_answer(question, answer, dependency, heard.now)).expect("relay acts fit a list");
+                more |= dependency.is_none();
+                break;
+            }
+            if ended {
                 room = room.saturating_sub(1);
                 acts.push(left(question, true)).expect("relay acts fit a list");
                 heard.answer = None;
                 done = done.saturating_add(1);
                 continue;
             }
-            if heard.held || room == 0 {
-                question.stands = Stands::Held { answer: bytes::copy_of(answer) };
-                if !heard.held {
-                    more = true;
-                }
+        }
+        let mut delivery = None;
+        if let Stands::Held { question: number, blocked, .. } = &mut question.stands {
+            // Question zero is a legacy hold, whose requester was never told it was held.
+            let needed = if *number == 0 { 1 } else { 2 };
+            if heard.dependency.is_some() || room < needed {
+                refresh_blocker(blocked, heard.dependency, heard.now);
+                more |= heard.dependency.is_none();
                 break;
+            }
+            if *number != 0
+                && let Some(blocked) = blocked
+            {
+                delivery = Some(RelayAct::Delivered { question: *number, since: blocked.since, asker: question.asker });
             }
         }
         let Some(act) = next_act(question, &heard, limits, taken, questions.route) else { break };
-        match &act {
-            RelayAct::Answer { .. } | RelayAct::Ask { .. } | RelayAct::Left { .. } => {
-                if room == 0 {
-                    more = true;
-                    break;
-                }
-                room = room.saturating_sub(1);
+        if act != RelayAct::Hold {
+            if room == 0 {
+                more = true;
+                break;
             }
-            RelayAct::Hold => {}
+            room = room.saturating_sub(1);
         }
         if question.stands == Stands::Taken && act != RelayAct::Hold {
             taken = if heard.released { 1 } else { taken.saturating_add(1) };
@@ -122,6 +140,10 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 }
                 done = done.saturating_add(1);
                 acts.push(act).expect("relay acts fit a list");
+                if let Some(delivery) = delivery {
+                    room = room.saturating_sub(1);
+                    acts.push(delivery).expect("relay acts fit a list");
+                }
             }
             RelayAct::Ask { .. } => {
                 question.stands = Stands::Asked;
@@ -132,8 +154,8 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
                 acts.push(act).expect("relay acts fit a list");
                 break;
             }
-            RelayAct::Left { .. } => {
-                unreachable!("ended askers are removed before working the head")
+            RelayAct::Left { .. } | RelayAct::Held { .. } | RelayAct::Delivered { .. } => {
+                unreachable!("notices are emitted when working the answer or removing an ended question")
             }
         }
     }
@@ -226,6 +248,22 @@ fn take_questions(
     open.into_boxed()
 }
 
+fn hold_answer(question: &mut Open, answer: RelayAnswer<'_>, dependency: Option<u64>, now: Wall) -> RelayAct {
+    let blocked = Blocked { dependency, since: now };
+    question.stands =
+        Stands::Held { answer: bytes::copy_of(answer.words), question: answer.question, blocked: Some(blocked) };
+    RelayAct::Held { question: answer.question, blocked }
+}
+
+fn refresh_blocker(blocked: &mut Option<Blocked>, dependency: Option<u64>, now: Wall) {
+    if let Some(held) = blocked
+        && held.dependency == dependency
+    {
+        return;
+    }
+    *blocked = Some(Blocked { dependency, since: now });
+}
+
 fn left(question: &Open, answered: bool) -> RelayAct {
     RelayAct::Left { asker: question.asker, number: question.number, line: question.line.clone(), answered }
 }
@@ -245,14 +283,8 @@ fn next_act(question: &Open, heard: &RelayHeard<'_>, limits: &Limits, taken: u32
                 Route::None => unreachable!("a route of none returns before taking questions"),
             }
         }
-        Stands::Asked => Some(RelayAct::Answer { asker, number, words: bytes::copy_of(heard.answer?) }),
-        Stands::Held { answer } => {
-            if heard.held {
-                None
-            } else {
-                Some(RelayAct::Answer { asker, number, words: answer.clone() })
-            }
-        }
+        Stands::Asked => Some(RelayAct::Answer { asker, number, words: bytes::copy_of(heard.answer?.words) }),
+        Stands::Held { answer, .. } => Some(RelayAct::Answer { asker, number, words: answer.clone() }),
     }
 }
 

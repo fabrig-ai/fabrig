@@ -54,7 +54,7 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1162924515 decoded=1163238880; at_most(3) encoded=3082 decoded=2139
+ChangeHot: ceilings encoded=1162927843 decoded=1163242976; at_most(3) encoded=3160 decoded=2235
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
 ChangeReply: ceilings encoded=533 decoded=512; at_most(3) encoded=24 decoded=3
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
@@ -206,7 +206,7 @@ Gating: ceilings encoded=8228 decoded=8192; at_most(3) encoded=60 decoded=24
 GoalFrom: ceilings encoded=28 decoded=0; at_most(3) encoded=28 decoded=0
 GoalView: ceilings encoded=134440998 decoded=134479872; at_most(3) encoded=143 decoded=219
 HeadBeside: ceilings encoded=65 decoded=0; at_most(3) encoded=65 decoded=0
-Held: ceilings encoded=262148 decoded=262144; at_most(3) encoded=7 decoded=3
+Held: ceilings encoded=262174 decoded=262144; at_most(3) encoded=33 decoded=3
 HistoryAfter: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 HistoryAfterVerdict: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 HistoryAnswer: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -382,7 +382,7 @@ Names: ceilings encoded=67120140 decoded=67141632; at_most(3) encoded=57 decoded
 NoChange: ceilings encoded=65540 decoded=65536; at_most(3) encoded=7 decoded=3
 Number: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 NumberTopic: ceilings encoded=14 decoded=0; at_most(3) encoded=14 decoded=0
-Open: ceilings encoded=524573 decoded=524544; at_most(3) encoded=38 decoded=9
+Open: ceilings encoded=524599 decoded=524544; at_most(3) encoded=64 decoded=9
 OpenPull: ceilings encoded=4194320 decoded=4194304; at_most(3) encoded=28 decoded=12
 OpenRefusal: ceilings encoded=131589 decoded=133120; at_most(3) encoded=47 decoded=114
 OpenRefused: ceilings encoded=131589 decoded=133120; at_most(3) encoded=47 decoded=114
@@ -426,7 +426,7 @@ Provenance: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Pull: ceilings encoded=2621561 decoded=2621440; at_most(3) encoded=151 decoded=30
 PullFilesAnswer: ceilings encoded=2097190 decoded=2097152; at_most(3) encoded=41 decoded=3
 PullState: ceilings encoded=65581 decoded=65536; at_most(3) encoded=49 decoded=3
-Questions: ceilings encoded=80279337 decoded=80305152; at_most(3) encoded=466 decoded=792
+Questions: ceilings encoded=80282665 decoded=80309248; at_most(3) encoded=544 decoded=888
 RateLimited: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Reach: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ReachClass: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -514,7 +514,7 @@ Severity: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 ShownTest: ceilings encoded=1028 decoded=1024; at_most(3) encoded=7 decoded=3
 SignOff: ceilings encoded=48 decoded=0; at_most(3) encoded=48 decoded=0
 SizedValue: ceilings encoded=1114249 decoded=1114240; at_most(3) encoded=217 decoded=429
-Stands: ceilings encoded=262149 decoded=262144; at_most(3) encoded=8 decoded=3
+Stands: ceilings encoded=262175 decoded=262144; at_most(3) encoded=34 decoded=3
 StartedFrom: ceilings encoded=40 decoded=0; at_most(3) encoded=40 decoded=0
 Status: ceilings encoded=3145802 decoded=3145728; at_most(3) encoded=83 decoded=9
 StatusBrief: ceilings encoded=857 decoded=800; at_most(3) encoded=63 decoded=6

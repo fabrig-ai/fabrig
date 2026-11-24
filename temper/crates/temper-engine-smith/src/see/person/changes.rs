@@ -53,7 +53,7 @@ pub(super) fn change(number: u64, document: &Document, lines: &mut List<Box<[u8]
         let stands = match question.stands {
             f::PanelStands::Taken => b"taken".as_slice(),
             f::PanelStands::Asked => b"waiting for a person",
-            f::PanelStands::Held => b"held",
+            f::PanelStands::Held { .. } => b"held",
         };
         lines
             .push(join(&[

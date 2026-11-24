@@ -844,7 +844,14 @@ fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w
             stands: match question.stands {
                 forge::PanelStands::Taken => w::Stands::Taken,
                 forge::PanelStands::Asked => w::Stands::Asked,
-                forge::PanelStands::Held => w::Stands::Held,
+                forge::PanelStands::Held { blocked } => w::Stands::Held(w::HeldQuestion {
+                    blocked: match blocked {
+                        Some(blocked) => {
+                            Some(w::QuestionBlocker { dependency: blocked.dependency, since: blocked.since.as_nanos() })
+                        }
+                        None => None,
+                    },
+                }),
             },
         })
         .ok()?;

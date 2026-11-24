@@ -104,7 +104,11 @@ pub fn has_ask(acts: &[change::RelayAct]) -> bool {
     for act in acts {
         match act {
             change::RelayAct::Ask { .. } => return true,
-            change::RelayAct::Answer { .. } | change::RelayAct::Left { .. } | change::RelayAct::Hold => {}
+            change::RelayAct::Answer { .. }
+            | change::RelayAct::Left { .. }
+            | change::RelayAct::Held { .. }
+            | change::RelayAct::Delivered { .. }
+            | change::RelayAct::Hold => {}
         }
     }
     false

@@ -627,7 +627,13 @@ pub fn stands_to_record(value: &d::Stands) -> w::Stands {
     match value {
         d::Stands::Taken => w::Stands::Taken,
         d::Stands::Asked => w::Stands::Asked,
-        d::Stands::Held { answer } => w::Stands::Held(w::Held { answer: answer.clone() }),
+        d::Stands::Held { answer, question, blocked } => {
+            let (dependency, since) = match blocked {
+                Some(blocked) => (blocked.dependency, Some(blocked.since.as_nanos())),
+                None => (None, None),
+            };
+            w::Stands::Held(w::Held { answer: answer.clone(), question: *question, dependency, since })
+        }
     }
 }
 
@@ -635,7 +641,14 @@ pub fn stands_to_domain(value: w::Stands) -> Result<d::Stands, w::Problem> {
     match value {
         w::Stands::Taken => Ok(d::Stands::Taken),
         w::Stands::Asked => Ok(d::Stands::Asked),
-        w::Stands::Held(value) => Ok(d::Stands::Held { answer: value.answer }),
+        w::Stands::Held(value) => Ok(d::Stands::Held {
+            answer: value.answer,
+            question: value.question,
+            blocked: match value.since {
+                Some(since) => Some(d::Blocked { dependency: value.dependency, since: Wall::from_nanos(since) }),
+                None => None,
+            },
+        }),
         w::Stands::Retired => Err(w::paths::STANDS_TAG.problem(skein_codec::Reason::Malformed)),
     }
 }

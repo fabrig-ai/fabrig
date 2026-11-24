@@ -177,7 +177,6 @@ otherwise, the scenarios, works and conditions unchanged:
 | Was | Is |
 |---|---|
 | `bounds` / `forge write entries full` | `temper_faults::bounds::FORGE_WRITE_ENTRIES` |
-| `parties` / `answer a question` | `temper_faults::people::ANSWERS_LATE` and `ANSWERS_TWICE`: P85's exclusion is registered for each the sweep configures |
 | `parties` / `a change waits on another goal` | `temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL` |
 | `restarts` / `the engine restarted cold` | `temper_faults::restarts::ENGINE_CRASH`: the same fault, F8's kind |
 | `forge` / `a starved gate` | `temper_blame::STARVED`: the same fault, the CI family's kind |

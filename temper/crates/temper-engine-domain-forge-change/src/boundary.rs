@@ -731,8 +731,16 @@ pub enum Stands {
     Taken,
     /// Asked of the change's requester, the change kept by its own question.
     Asked,
-    /// Answered by the requester and held until a step has message room.
-    Held { answer: Box<[u8]> },
+    /// Answered by the requester, but not yet relayed to the asker.
+    Held { answer: Box<[u8]>, question: u64, blocked: Option<Blocked> },
+}
+
+/// The current blocker of a held answer (temper/docs/design/domain/forge/change/notices.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Blocked {
+    /// None means the step has insufficient message room.
+    pub dependency: Option<u64>,
+    pub since: Wall,
 }
 
 /// One change ready for a landing branch's derived queue.

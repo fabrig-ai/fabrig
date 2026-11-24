@@ -216,7 +216,7 @@ record ChangeResult { head: option fixed 32 checks: ResultText failed: ResultTex
 record ModelEffort { model: u8 effort: option u8 }
 record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort account: option u32 }
 enum Route { none, retired, up }
-record Held { answer: bytes 262144 }
+record Held { answer: bytes 262144 question: u64 = 0 dependency: option u64 = none since: option u64 = none }
 enum Stands { taken, retired, asked, held: Held }
 record Open { asker: u64 number: u64 line: bytes 256 words: bytes 262144 stands: Stands }
 record Waiting { from: u64 number: u64 words: bytes 262144 passed: option u64 }

@@ -2533,7 +2533,21 @@ fn a_panels_questions_map_field_for_field() {
         for (index, (stands, wire)) in [
             (forge::PanelStands::Taken, w::Stands::Taken),
             (forge::PanelStands::Asked, w::Stands::Asked),
-            (forge::PanelStands::Held, w::Stands::Held),
+            (forge::PanelStands::Held { blocked: None }, w::Stands::Held(w::HeldQuestion { blocked: None })),
+            (
+                forge::PanelStands::Held {
+                    blocked: Some(change::Blocked { dependency: Some(84), since: skein_lib::Wall::from_nanos(567) }),
+                },
+                w::Stands::Held(w::HeldQuestion {
+                    blocked: Some(w::QuestionBlocker { dependency: Some(84), since: 567 }),
+                }),
+            ),
+            (
+                forge::PanelStands::Held {
+                    blocked: Some(change::Blocked { dependency: None, since: skein_lib::Wall::from_nanos(568) }),
+                },
+                w::Stands::Held(w::HeldQuestion { blocked: Some(w::QuestionBlocker { dependency: None, since: 568 }) }),
+            ),
         ]
         .into_iter()
         .enumerate()

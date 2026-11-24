@@ -2278,7 +2278,7 @@ fn questions_open_follows_the_change_bound() {
 
 #[test]
 fn a_changes_questions_round_trip_unchanged() {
-    use temper_engine_domain_forge_change::{Hold, Open, Questions, Reply, Route, Stands, State, Waiting};
+    use temper_engine_domain_forge_change::{Blocked, Hold, Open, Questions, Reply, Route, Stands, State, Waiting};
     const ASKER: u64 = 7;
     let mut row =
         fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
@@ -2286,7 +2286,22 @@ fn a_changes_questions_round_trip_unchanged() {
     for (number, stands) in [
         (1, Stands::Taken),
         (4, Stands::Asked),
-        (5, Stands::Held { answer: b"Keep the documented behavior".as_slice().into() }),
+        (
+            5,
+            Stands::Held {
+                answer: b"Keep the documented behavior".as_slice().into(),
+                question: 51,
+                blocked: Some(Blocked { dependency: Some(28), since: skein_lib::Wall::from_nanos(65) }),
+            },
+        ),
+        (
+            6,
+            Stands::Held {
+                answer: b"Use the alternative".as_slice().into(),
+                question: 52,
+                blocked: Some(Blocked { dependency: None, since: skein_lib::Wall::EPOCH }),
+            },
+        ),
     ] {
         open.push(Open {
             asker: ASKER,
@@ -2413,7 +2428,7 @@ fn standard_sized_question_words_and_held_answers_round_trip() {
         number: 1,
         line: Box::new([]),
         words: skein_lib::bytes::zeroed(262_144),
-        stands: Stands::Held { answer: skein_lib::bytes::zeroed(262_144) },
+        stands: Stands::Held { answer: skein_lib::bytes::zeroed(262_144), question: 0, blocked: None },
     }]);
     let row = fixtures::change_hot(row);
     let bytes = records::encode(&row);
@@ -2442,7 +2457,11 @@ fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
             number: 1,
             line: Box::new([]),
             words: Box::new([]),
-            stands: Stands::Held { answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()) },
+            stands: Stands::Held {
+                answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()),
+                question: 0,
+                blocked: None,
+            },
         }]);
         let row = fixtures::change_hot(row);
         let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable::Malformed) };
@@ -3735,7 +3754,7 @@ fn change_parts_round_trip_agree_with_keys_and_join_the_generated_rows() {
                 number: 2,
                 line: b"question".as_slice().into(),
                 words: b"whole question".as_slice().into(),
-                stands: Stands::Held { answer: b"answer".as_slice().into() },
+                stands: Stands::Held { answer: b"answer".as_slice().into(), question: 0, blocked: None },
             }]);
             row.change.early = Early::Started(Box::new([StartedFrom { task: 2, head: [3; 32] }]));
         }

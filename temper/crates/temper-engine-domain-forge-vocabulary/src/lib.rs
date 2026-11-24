@@ -415,7 +415,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             skein_lib::len_u64(value.open.len()).checked_mul(u64::try_from(size_of::<change::Open>()).ok()?)?;
         for open in &value.open {
             held = held.checked_add(bytes(&open.line))?.checked_add(bytes(&open.words))?;
-            if let change::Stands::Held { answer } = &open.stands {
+            if let change::Stands::Held { answer, .. } = &open.stands {
                 held = held.checked_add(bytes(answer))?;
             }
         }

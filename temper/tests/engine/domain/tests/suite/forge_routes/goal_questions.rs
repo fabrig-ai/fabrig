@@ -530,7 +530,20 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
             break;
         }
     }
-    assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Held);
+    let temper_engine_domain_forge_change::Stands::Held { blocked: Some(blocked), .. } =
+        row(&story.world, story.b).questions.open[0].stands
+    else {
+        panic!("the answer is held with a blocker")
+    };
+    assert_eq!(blocked.dependency, Some(c));
+    assert_panel(
+        &mut story.world,
+        story.b,
+        producer.task,
+        question,
+        QUESTION,
+        forge_top::PanelStands::Held { blocked: Some(blocked) },
+    );
     assert_eq!(replies(&story.world, producer.task, story.b).len(), 0);
     assert!(!story.world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
     assert_eq!(branch_tip(&mut story.world, &story.branch), base);

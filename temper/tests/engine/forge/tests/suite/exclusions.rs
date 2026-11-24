@@ -49,20 +49,6 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "a landing's gate red",
     ),
     (
-        temper_faults::people::ANSWERS_LATE,
-        "people and parties/answering a change's question late",
-        "a_held_answer_tells_its_requester",
-        "bounded waits",
-        "a dependency holds the answer",
-    ),
-    (
-        temper_faults::people::ANSWERS_TWICE,
-        "people and parties/answering a change's question twice",
-        "a_held_answer_tells_its_requester",
-        "bounded waits",
-        "a dependency holds the answer",
-    ),
-    (
         temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL,
         "runs that park, resume and move/a change waits on another goal",
         "a_change_waits_on_another_goal",

@@ -1,4 +1,4 @@
-family temper-client-wire 47
+family temper-client-wire 48
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -447,7 +447,9 @@ enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
 record Used { used: u32 limit: u32 }
 enum Route { none, up }
-enum Stands { taken, asked, held }
+record QuestionBlocker { dependency: option u64 since: u64 }
+record HeldQuestion { blocked: option QuestionBlocker }
+enum Stands { taken, asked, held: HeldQuestion }
 record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }
 record Questions { route: Route taken: Used open: list 8 Question }
 # Landing-rule approvals (domain/forge/change/gates.md, 2; client/forge/README.md, 4).

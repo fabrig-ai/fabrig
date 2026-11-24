@@ -2927,6 +2927,9 @@ pub mod paths {
     pub const LLM_CHOICE_TAIL: Path = Path::new("LlmChoice (tail)");
     pub const ROUTE_TAG: Path = Path::new("Route (tag)");
     pub const HELD_ANSWER: Path = Path::new("Held.answer");
+    pub const HELD_QUESTION: Path = Path::new("Held.question");
+    pub const HELD_DEPENDENCY: Path = Path::new("Held.dependency");
+    pub const HELD_SINCE: Path = Path::new("Held.since");
     pub const HELD_TAIL: Path = Path::new("Held (tail)");
     pub const STANDS_TAG: Path = Path::new("Stands (tag)");
     pub const OPEN_ASKER: Path = Path::new("Open.asker");
@@ -16218,17 +16221,25 @@ impl Record for Route {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Held {
     pub answer: Box<[u8]>,
+    pub question: u64,
+    pub dependency: Option<u64>,
+    pub since: Option<u64>,
 }
 
 // Record: Held.
 impl Held {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_answer) },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 4;
+    pub const ENCODED_AT_ZERO: u64 = 30;
 }
 
 impl Record for Held {
@@ -16254,12 +16265,18 @@ impl Record for Held {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.held_answer.min(CEILINGS.held_answer) }, &self.answer, limits, out, paths::HELD_ANSWER)?;
+        field::write(field::U64, &self.question, limits, out, paths::HELD_QUESTION)?;
+        field::write(field::Optional { item: field::U64 }, &self.dependency, limits, out, paths::HELD_DEPENDENCY)?;
+        field::write(field::Optional { item: field::U64 }, &self.since, limits, out, paths::HELD_SINCE)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             answer: field::read(field::Bytes { limit: limits.held_answer.min(CEILINGS.held_answer) }, limits, reader, paths::HELD_ANSWER)?,
+            question: field::read(field::U64, limits, reader, paths::HELD_QUESTION)?,
+            dependency: field::read(field::Optional { item: field::U64 }, limits, reader, paths::HELD_DEPENDENCY)?,
+            since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::HELD_SINCE)?,
         })
     }
 }
@@ -16284,7 +16301,7 @@ impl Stands {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 5;
+    pub const ENCODED_AT_ZERO: u64 = 31;
 }
 
 impl Record for Stands {
@@ -16351,7 +16368,7 @@ impl Open {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 29;
+    pub const ENCODED_AT_ZERO: u64 = 55;
 }
 
 impl Record for Open {

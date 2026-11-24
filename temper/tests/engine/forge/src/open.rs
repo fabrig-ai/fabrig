@@ -66,16 +66,6 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             &["a landing's gate red"],
         ))?;
     }
-    for kind in [temper_faults::people::ANSWERS_LATE, temper_faults::people::ANSWERS_TWICE] {
-        if configured.contains(&kind) {
-            sweep.exclude(Exclusion::new(
-                "a_held_answer_tells_its_requester",
-                "bounded waits",
-                kind,
-                &["a dependency holds the answer"],
-            ))?;
-        }
-    }
     if configured.contains(&temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL) {
         sweep.exclude(Exclusion::new(
             "a_change_waits_on_another_goal",
