@@ -36,7 +36,7 @@ engine's in full.
   that fixes it until that work lands, and an exclusion for each that
   every engine sweep drawing its fault takes; a scenario whose handling
   holds already, or whose work has landed, runs active with none (P90,
-  S7, P120; P63's residual). P124's first scenario is its fix's own
+  S7, P120; P63's residual and P124's bound). P124's first scenario is its fix's own
   active test, not one of them.
 - **Out:** jig's, the worker's and smith's adapters and checks; the fault
   families (the draft, section 4); the settings tests and the store check
@@ -222,14 +222,17 @@ change's due step.
   step decides otherwise or the row ends. Every other queue's first retains
   its stall bound, including under the hold while forge facts stay unknown.
   A landing's
-  deadlines are polls, not bounds (`landing-waits.md`, 3), and a wait for
-  room has no bound in its design (`../domain/forge/room.md`, 4), so
-  neither has one. A wait past its bound at a quiet point is a finding
-  (skein's `testing/inspection.md`, 4.1): the stall should have held it.
+  deadlines are polls, not bounds; its wait on the forge has the bound
+  the stall gives from its last advance (`../domain/landing-waits.md`,
+  3), and a wait for room behind holders whose owners have all ended the
+  room figure from the last end (`../domain/forge/waits.md`, 7); a room
+  wait behind a live writer has none. A wait past its bound at a quiet
+  point is a finding (skein's `testing/inspection.md`, 4.1): the bound
+  should have held it.
 - **What it finds:** a landing or a change whose every wake has ended or
   waits on one another in a cycle, with no deadline armed; a room wait
-  behind an outbox whose every entry outlived its owner (the draft's
-  P124).
+  behind an outbox whose every entry outlived its owner, past its bound
+  and not held (the draft's P124).
 
 ### 2.3 Tables
 
@@ -326,10 +329,12 @@ impl Checks {
   skein's two checks, with the same moment, so every live task's waits,
   a change's and a landing's tasks among them, are jig's records at
   each quiet point. Their bounds arm no deadline here (that section's
-  third rule). The landing and change waits of 2.2 stay named for the
-  worlds alone until their procedures report records
-  (`../draft/bounded-waits.md`, 3.2); `forge`'s world holds no core, and
-  runs it not.
+  third rule). A change's, a landing's and a closer's are the records
+  the forge reports (`../domain/forge/waits.md`, 2); the landing and
+  change waits of 2.2 stay named for the worlds as well, since they judge
+  wakes and bounds the records only carry. A wait report the core refuses
+  is a finding, naming the task and the refusal. `forge`'s world holds no
+  core, and runs it not.
 
 ### 3.2 Where each driver calls it
 
@@ -464,7 +469,6 @@ wants of that symptom.
 
 | Problem | Scenario | Package | Fixed by |
 |---|---|---|---|
-| P124 | `a_change_waiting_for_room_has_a_bound` | `temper-engine-forge-world` | bounded waits |
 | P88 | `a_refused_release_is_accounted` | `temper-engine-forge-world` | landing train |
 | P90 | `a_refused_close_of_an_open_pull_holds_with_words` | `temper-engine-forge-world` | holds already: active |
 | P67 residual | `a_no_change_landing_repair_regates_once` | `temper-engine-forge-world` | a change's reds |
@@ -482,11 +486,15 @@ wants of that symptom.
   cancelled landing gives back its forge write slots*: this design writes
   no ignored copy of it and no exclusion for it (the milestone,
   2026-11-21).
-- **P124's bound:** no design gives a wait for room a bound
-  (`../domain/forge/room.md`, 4). Its second scenario holds the change to
-  its stall (`../domain/forge/change/stalls.md`, 1), which bounds every
-  other wait on the forge; the bounded-waits work settles the figure and
-  the scenario with it.
+- **P124's bound** (`../domain/forge/waits.md`, 7): its second
+  scenario, `a_change_waiting_for_room_has_a_bound`, ends the writer of
+  the outbox's sole entry while that entry's write stays uncertain, and
+  holds the change waiting for room at the room figure from that end,
+  with words naming the room, the entry and its ended writer. While the
+  writer lives, the waiter is behind it and the writer is the one held,
+  at its stall, keeping its write in flight; the scenario checks that
+  too. It runs active, with no exclusion (*A scenario its work has
+  fixed*, below).
 - **P90's refusal:** the fake forge refuses no close by branch policy
   (the draft's 4.1, *Refusing*, is the forge faults' work), so its
   scenario refuses the close of a change's pull request by permission,
@@ -512,7 +520,9 @@ wants of that symptom.
 - **A scenario its work has fixed** runs the same way, active with no
   exclusion, in the file its row named: P63's residual,
   `a_stored_charter_is_checked_at_start`, by the bounded waits' start
-  check (`../domain/agent/room.md`, 4.1), whose words it pins.
+  check (`../domain/agent/room.md`, 4.1), whose words it pins; and P124's
+  bound, `a_change_waiting_for_room_has_a_bound`, by a room wait's bound
+  (`../domain/forge/waits.md`, 7).
 
 ### 5.2 Their exclusions
 
@@ -535,7 +545,6 @@ own change.
 
 | Scenario | Fault | When |
 |---|---|---|
-| `a_change_waiting_for_room_has_a_bound` | `temper_faults::bounds::FORGE_WRITE_ENTRIES` | `a change waiting for room past its stall` |
 | `a_prepare_is_admitted_when_branch_holds_are_released` | `temper_faults::bounds::BRANCH_HOLDS` | `the holds and pending prepares, including the new change or train, exceed capacity` |
 | `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
 | `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
