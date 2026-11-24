@@ -9,7 +9,7 @@ use crate::{jobs, keys, records};
 use alloc::collections::BTreeMap;
 use jig_protocol_store::{JobLayout, JobRow};
 use skein_codec::{
-    layout::{Plan, Workspace},
+    layout::{Mode, Plan, Workspace},
     schema,
 };
 use temper_engine_domain_forge_vocabulary::Stored;
@@ -43,7 +43,8 @@ impl Floor {
     }
     pub fn row(&mut self, stored: &Stored, variant: &str) -> JobRow {
         let plan = self.plans.entry(variant.into()).or_insert_with(|| {
-            Plan::derive_dropping(
+            Plan::between(
+                Mode::Read,
                 &self.wide,
                 self.wide.root(b"Row", Some(variant.as_bytes())).unwrap(),
                 &[],
