@@ -25,6 +25,8 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::files::{Files, Native};
+
 use crate::{
     Agent, AttemptResult, Comparison, Convention, Design, End, Fault, Identity, Interval, Measure, ModelIdentity,
     Provider, RESULT_VERSION, Refusal, ResourceScope, ScopeKind, SmithFace, SpendBasis, TokenRecord, audit_sample,
@@ -705,7 +707,12 @@ fn read_json<T: serde::de::DeserializeOwned>(file: &Path) -> Result<T, Refusal> 
 
 /// Read the one summary version and the current result version.
 pub fn read_summary(file: &Path) -> Result<RunSummary, Refusal> {
-    let text = std::fs::read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
+    read_summary_with(&Native, file)
+}
+
+/// Read a committed summary on the supplied filesystem in a step test.
+pub fn read_summary_with(files: &dyn Files, file: &Path) -> Result<RunSummary, Refusal> {
+    let text = files.read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
     decode_summary(file, &text)
 }
 
@@ -753,10 +760,15 @@ pub fn read_baseline(file: &Path) -> Result<Baseline, Refusal> {
 
 /// Write a committed summary or baseline without overwriting an existing record.
 pub fn write_summary<T: Serialize>(file: &Path, document: &T) -> Result<(), Fault> {
-    use std::io::Write;
-    let text = serde_json::to_string_pretty(document)?;
-    let mut output = std::fs::OpenOptions::new().write(true).create_new(true).open(file)?;
-    output.write_all(format!("{text}\n").as_bytes()).map_err(Fault::from)
+    write_summary_with(&Native, file, document)
+}
+
+/// Publish a summary or baseline exclusively on the supplied filesystem in a step test.
+pub fn write_summary_with<T: Serialize>(files: &dyn Files, file: &Path, document: &T) -> Result<(), Fault> {
+    let mut text = serde_json::to_string_pretty(document)?;
+    text.push('\n');
+    // Summaries use the default create mode and do not sync the file.
+    files.create_new(file, 0o666, text.as_bytes(), false).map_err(Fault::from)
 }
 
 fn rounded_cost(value: f64) -> Option<u64> {

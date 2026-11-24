@@ -1,13 +1,15 @@
 //! Replaying controls (smith/docs/design/testing.md, 2).
 
-use std::{io, path::Path};
+use std::path::Path;
 
 use skein_fake_machine::Item;
 use smith_bench::{
     CatalogueTask, CheckVerdict, Count, End, EventCheck, Judgment, Measure, ModelTiers, PinnedConfiguration, Refusal,
-    Suite, judge, judge_suite,
-    testing::task::{configuration, parse_document, validate_suite_with},
+    Suite, judge, judge_suite, read_configuration_with,
+    testing::task::{parse_document, validate_suite_with},
 };
+
+use smith_bench_fixtures::files::Tree;
 
 use crate::common;
 use crate::common::probe_result as result;
@@ -76,15 +78,13 @@ fn budget_seed() -> [Item; 11] {
 }
 
 fn smoke_pin(path: &Path) -> Result<PinnedConfiguration, Refusal> {
-    if path != Path::new("agents/smith/everything.pin.toml") {
-        return Err(Refusal::new(path, "document", io::Error::from(io::ErrorKind::NotFound).to_string()));
-    }
-    configuration(path, include_str!("../../agents/smith/everything.pin.toml"), |layer| {
-        if layer != Path::new("agents/smith/everything.toml") {
-            return Err(Refusal::new(layer, "document", io::Error::from(io::ErrorKind::NotFound).to_string()));
-        }
-        Ok(include_bytes!("../../agents/smith/everything.toml").to_vec())
-    })
+    let tree = Tree::new(&[
+        Item::directory(b"agents"),
+        Item::directory(b"agents/smith"),
+        Item::file(b"agents/smith/everything.pin.toml", include_bytes!("../../agents/smith/everything.pin.toml")),
+        Item::file(b"agents/smith/everything.toml", include_bytes!("../../agents/smith/everything.toml")),
+    ]);
+    read_configuration_with(&tree, path)
 }
 
 #[test]

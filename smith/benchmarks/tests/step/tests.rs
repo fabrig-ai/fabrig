@@ -1,106 +1,40 @@
 //! Frozen inputs and offline suite decisions (smith/docs/design/benchmarks/README.md, 5).
 
-use skein_fake_machine::{How, Is, Item, Machine, Opened};
+use skein_fake_machine::Item;
 use smith_bench::{
-    CatalogueTask, Kind, ModelTiers, PinnedConfiguration, Refusal, Suite,
+    CatalogueTask, Kind, ModelTiers, PinnedConfiguration, Refusal, Suite, read_configuration_with,
     testing::task::{
-        SeedEntry, SeedFiles, SeedKind, check_task_with, configuration, parse_document, parse_task, probe_cases,
-        sample_catalogue, seed_digest_with, validate_suite_with,
+        check_task_with, parse_document, parse_task, probe_cases, sample_catalogue, seed_digest_with,
+        validate_suite_with,
     },
 };
-use std::{
-    cell::RefCell,
-    io,
-    path::{Path, PathBuf},
-};
+use smith_bench_fixtures::files::Tree;
+use std::{io, os::unix::ffi::OsStrExt, path::Path};
 
 const DOCUMENT: &str = include_str!("../recorded/empty-seed-probe.toml");
 const SUITE: &str = include_str!("../recorded/suites/sample.toml");
 
-struct Entry {
-    path: PathBuf,
-    kind: Is,
-}
-
-impl SeedEntry for Entry {
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn kind(&self) -> io::Result<SeedKind> {
-        Ok(match self.kind {
-            Is::Directory => SeedKind::Directory,
-            Is::File => SeedKind::File,
-            Is::Link | Is::Fifo | Is::Device => SeedKind::Other,
-        })
-    }
-}
-
-struct SeedTree<'a> {
-    path: &'a Path,
-    root: Opened,
-    machine: RefCell<Machine>,
-}
-
-impl<'a> SeedTree<'a> {
-    fn new(path: &'a Path, items: &[Item]) -> Self {
-        let mut machine = Machine::new();
-        let root = machine.lay(items);
-        Self { path, root, machine: RefCell::new(machine) }
-    }
-
-    fn with<T>(&self, path: &Path, how: How, read: impl FnOnce(&mut Machine, Opened) -> T) -> T {
-        let mut machine = self.machine.borrow_mut();
-        let relative = path.strip_prefix(self.path).expect("path in fake seed");
-        let relative = if relative.as_os_str().is_empty() { Path::new(".") } else { relative };
-        let handle = machine.open(self.root, relative.as_os_str().as_encoded_bytes(), how).expect("fake seed node");
-        let result = read(&mut machine, handle);
-        machine.close(handle);
-        result
-    }
-}
-
-impl SeedFiles for SeedTree<'_> {
-    type Entry = Entry;
-    type Children = std::vec::IntoIter<io::Result<Entry>>;
-
-    fn ordinary_directory(&self, path: &Path) -> io::Result<bool> {
-        Ok(self.with(path, How::PathNoFollow, |machine, handle| machine.stat(handle).is == Is::Directory))
-    }
-
-    fn children(&self, path: &Path) -> io::Result<Self::Children> {
-        let entries = self.with(path, How::Directory, |machine, handle| {
-            machine.list(handle, u32::MAX, u32::MAX).expect("fake directory entries")
-        });
-        Ok(entries
-            .into_iter()
-            .map(|(kind, bytes)| {
-                let name = std::str::from_utf8(&bytes).expect("UTF-8 fixture name");
-                Ok(Entry { path: path.join(name), kind })
-            })
-            .collect::<Vec<_>>()
-            .into_iter())
-    }
-
-    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
-        Ok(self.with(path, How::Read, |machine, handle| {
-            let size = u32::try_from(machine.stat(handle).size).expect("small fixture file");
-            machine.read(handle, 0, size).expect("fake seed bytes")
+fn seed_tree(root: &Path, children: &[Item]) -> Tree {
+    let directories: Vec<_> = root.ancestors().take_while(|path| !path.as_os_str().is_empty()).collect();
+    let items: Vec<_> = directories
+        .into_iter()
+        .rev()
+        .map(|path| Item::directory(path.as_os_str().as_bytes()))
+        .chain(children.iter().cloned().map(|mut item| {
+            item.path = [root.as_os_str().as_bytes(), b"/", &item.path].concat();
+            item
         }))
-    }
-
-    fn executable(&self, path: &Path) -> io::Result<bool> {
-        Ok(self.with(path, How::PathNoFollow, |machine, handle| machine.stat(handle).mode & 0o111 != 0))
-    }
+        .collect();
+    Tree::new(&items)
 }
 
-fn recorded_seed(root: &Path) -> SeedTree<'_> {
-    SeedTree::new(root, &[Item::file(b"README.md", include_bytes!("../recorded/tasks/valid/seed/README.md"))])
+fn recorded_seed(root: &Path) -> Tree {
+    seed_tree(root, &[Item::file(b"README.md", include_bytes!("../recorded/tasks/valid/seed/README.md"))])
 }
 
 pub(super) fn check_probe(file: &Path, document: &str, seed: &[Item]) -> Result<smith_bench::Task, Refusal> {
     let task = parse_task(file, document)?;
-    check_task_with(file, task, read_guard, |root| seed_digest_with(root, &SeedTree::new(root, seed)))
+    check_task_with(file, task, read_guard, |root| seed_digest_with(&seed_tree(root, seed), root))
 }
 
 fn read_guard(path: &Path) -> io::Result<String> {
@@ -121,13 +55,13 @@ fn read_guard(path: &Path) -> io::Result<String> {
 }
 
 fn read_pin(path: &Path) -> Result<PinnedConfiguration, Refusal> {
-    if path != Path::new("agents/codex/standard.pin.toml") {
-        return Err(Refusal::new(path, "document", io::Error::from(io::ErrorKind::NotFound).to_string()));
-    }
-    configuration(path, include_str!("../../agents/codex/standard.pin.toml"), |path| {
-        assert_eq!(path, Path::new("agents/codex/overrides.toml"), "recorded configuration");
-        Ok(include_bytes!("../../agents/codex/overrides.toml").to_vec())
-    })
+    let tree = Tree::new(&[
+        Item::directory(b"agents"),
+        Item::directory(b"agents/codex"),
+        Item::file(b"agents/codex/standard.pin.toml", include_bytes!("../../agents/codex/standard.pin.toml")),
+        Item::file(b"agents/codex/overrides.toml", include_bytes!("../../agents/codex/overrides.toml")),
+    ]);
+    read_configuration_with(&tree, path)
 }
 
 struct Fixtures {
@@ -140,7 +74,7 @@ impl Fixtures {
     fn new() -> Self {
         let file = Path::new("tests/recorded/tasks/valid/task.toml");
         let task = parse_task(file, include_str!("../recorded/tasks/valid/task.toml")).expect("task document");
-        let task = check_task_with(file, task, read_guard, |root| seed_digest_with(root, &recorded_seed(root)))
+        let task = check_task_with(file, task, read_guard, |root| seed_digest_with(&recorded_seed(root), root))
             .expect("recorded task");
         Self {
             suite: parse_document(Path::new("suite.toml"), SUITE).expect("recorded suite"),
@@ -258,7 +192,7 @@ fn kinds_and_checks_are_closed() {
 fn seed_digest_matches_the_committed_known_bytes() {
     let directory = Path::new("tests/recorded/tasks/valid/seed");
     assert_eq!(
-        seed_digest_with(directory, &recorded_seed(directory)).expect("seed hashes"),
+        seed_digest_with(&recorded_seed(directory), directory).expect("seed hashes"),
         "452c822eb37147a50a5ddf1271245fad2f5884ded6513b8f813e81629627fb85"
     );
 }
@@ -267,11 +201,11 @@ fn a_calibration_requires_ten_distinct_passes() {
     let file = Path::new("tests/recorded/tasks/bad-calibration/task.toml");
     let task = parse_task(file, include_str!("../recorded/tasks/bad-calibration/task.toml")).expect("task document");
     let error = check_task_with(file, task, read_guard, |root| {
-        let tree = SeedTree::new(
+        let tree = seed_tree(
             root,
             &[Item::file(b"README.md", include_bytes!("../recorded/tasks/bad-calibration/seed/README.md"))],
         );
-        seed_digest_with(root, &tree)
+        seed_digest_with(&tree, root)
     })
     .expect_err("nine passes do not calibrate");
     assert_eq!(error.key, "calibration");
@@ -279,8 +213,7 @@ fn a_calibration_requires_ten_distinct_passes() {
 
 fn a_seed_digest_freezes_names_content_and_executable_permissions() {
     let root = Path::new("seed");
-    let observed =
-        |name, bytes, mode| seed_digest_with(root, &SeedTree::new(root, &[Item::file(name, bytes).mode(mode)]));
+    let observed = |name, bytes, mode| seed_digest_with(&seed_tree(root, &[Item::file(name, bytes).mode(mode)]), root);
     let baseline = observed(b"a.txt", b"one", 0o600).expect("initial digest");
     assert_ne!(observed(b"a.txt", b"two", 0o600).expect("changed digest"), baseline);
     assert_eq!(observed(b"a.txt", b"one", 0o600).expect("restored digest"), baseline);
@@ -290,8 +223,8 @@ fn a_seed_digest_freezes_names_content_and_executable_permissions() {
 
 fn a_seed_symlink_cannot_reach_hidden_inputs() {
     let root = Path::new("seed");
-    let tree = SeedTree::new(root, &[Item::link(b"hidden", b"../grader")]);
-    let error = seed_digest_with(root, &tree).expect_err("seed must not follow symlinks");
+    let tree = seed_tree(root, &[Item::link(b"hidden", b"../grader")]);
+    let error = seed_digest_with(&tree, root).expect_err("seed must not follow symlinks");
     assert!(error.reason.contains("symlinks"), "{error}");
 }
 

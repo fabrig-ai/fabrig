@@ -13,6 +13,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 
+use crate::files::{Files, Kind, Native};
 use crate::guard::Guard;
 
 /// One user-owned temporary entry, without following links or reading contents.
@@ -141,15 +142,27 @@ pub struct Private {
 
 /// Resolve an authored seed-relative working directory before credentials.
 pub fn working_directory(guard: &Guard, private: &Private, task: &crate::Task) -> Result<PathBuf, Fault> {
+    working_directory_with(&Native, guard, private, task)
+}
+
+/// Resolve an authored working directory against the supplied filesystem in a step test.
+pub fn working_directory_with(
+    files: &dyn Files,
+    guard: &Guard,
+    private: &Private,
+    task: &crate::Task,
+) -> Result<PathBuf, Fault> {
     let Some(path) = &task.working_directory else {
         return Ok(private.workspace.clone());
     };
     if path.as_os_str().is_empty() || path.components().any(|part| !matches!(part, Component::Normal(_))) {
         return Err(input("task working_directory must be a seed-relative path without traversal"));
     }
-    let workspace = private.workspace.canonicalize()?;
-    let directory = guard.write_path(&workspace.join(path))?.canonicalize()?;
-    if !directory.is_dir() || !directory.starts_with(&workspace) {
+    let workspace = files.canonicalize(&private.workspace)?;
+    let directory = files.canonicalize(&guard.write_path_with(files, &workspace.join(path))?)?;
+    if !files.metadata(&directory).is_ok_and(|facts| facts.kind == Kind::Directory)
+        || !directory.starts_with(&workspace)
+    {
         return Err(input("task working_directory must be an existing directory inside the private seed"));
     }
     Ok(directory)

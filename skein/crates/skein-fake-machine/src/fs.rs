@@ -582,6 +582,17 @@ impl Machine {
         }
     }
 
+    /// Set the permission bits of an owned node for direct machine users.
+    /// The mode is durable once the file or directory is synced.
+    pub fn set_permissions(&mut self, file: Opened, mode: u32) -> Result<(), Refusal> {
+        let id = self.handle(file).node;
+        if self.node_state(id).owner != self.owner {
+            return Err(Refusal::Permission);
+        }
+        self.node_mut(id).mode = mode & 0o7777;
+        Ok(())
+    }
+
     /// Moves the entry `from` of the directory `from_dir` has open to the
     /// name `to` in `to_dir`'s, refusing a taken target with `no_replace`,
     /// otherwise replacing what `to` named, in the order

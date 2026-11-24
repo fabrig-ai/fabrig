@@ -5,8 +5,7 @@
 mod events;
 mod seed;
 
-pub use seed::seed_digest;
-pub use seed::testing::{SeedEntry, SeedFiles, SeedKind, seed_digest_with};
+pub use seed::{seed_digest, seed_digest_with};
 
 use std::collections::BTreeSet;
 use std::fs;

@@ -7,7 +7,8 @@
 
 mod bundle;
 mod check;
-mod formats;
+pub mod files;
+pub mod formats;
 mod judgment;
 mod models;
 mod passive;
@@ -43,7 +44,7 @@ pub mod process;
 
 pub mod grade;
 
-pub use agent::{Agent, Configuration, PinnedConfiguration, Provider, read_configuration};
+pub use agent::{Agent, Configuration, PinnedConfiguration, Provider, read_configuration, read_configuration_with};
 pub use models::{ModelChoice, ModelTiers, read_model_tiers};
 pub use result::{
     Artifact, AttemptResult, BudgetLimit, CheckVerdict, Child, ChildStop, Clamp, Classification, Counts, Delegation,
@@ -62,7 +63,7 @@ pub use suite::{
 pub use summary::{
     ArmSummary, AttemptRow, BASELINE_VERSION, Baseline, MetricSummary, PassCounts, PeakScope, RunSummary,
     SUMMARY_VERSION, SummaryComparison, baseline, baseline_group, committed_costs, read_baseline, read_results,
-    read_summary, summarise, write_summary,
+    read_summary, read_summary_with, summarise, write_summary, write_summary_with,
 };
 pub use tokens::{Convention, ResponseTokens, ScopeKind, TokenCounts, TokenLedger, TokenRecord, Usage};
 
@@ -73,6 +74,7 @@ pub use passive::{HeadroomOf, Passive};
 pub use bundle::{BundleCheck, BundleManifest, Pin, check_bundle, read_bundle_manifest, seed_source};
 pub use check::{
     ManifestCounts, check_benchmark_tree, check_benchmark_tree_with_bundles, check_task, check_tree, seed_digest,
+    seed_digest_with,
 };
 pub use task::{
     Before, Budget, Calibration, Count, Estimate, EventCheck, Grade, Kind, OutcomeCheck, Refusal, Task, Variant,
