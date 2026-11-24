@@ -112,8 +112,8 @@ pub fn ending_with_binary(
                 String::from_utf8_lossy(kind.name())
             ),
             Stop::CodecRestore { bound, kind, row } => codec_restore(binary, bound, *kind, row.as_ref()),
-            Stop::Room(short) => {
-                format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
+            Stop::Room(refusal) => {
+                format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&refusal.words()))
             }
             Stop::RestorePage { range, failure } => {
                 format!("{binary} serve: restore {}: {}\n", restore_kind(*range), page_failure(failure.as_ref()))

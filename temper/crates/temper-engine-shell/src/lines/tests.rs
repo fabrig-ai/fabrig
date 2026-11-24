@@ -404,8 +404,26 @@ fn byte_and_entry_figures_group_in_threes() {
     }
 }
 
+const FIXED_ROOM_ENDING: (Option<End>, bool, &str, u8) = {
+    use temper_engine_domain::room::{Measure, Refusal, Unfit};
+    (
+        Some(End::Stopped(Stop::Room(Refusal::Fixed(Unfit {
+            charter: 1,
+            wake: jig_domain_tasks::Reasons::FIRST,
+            measure: Measure::Owned,
+            bytes: 1_108,
+            allowance: 1_024,
+            floor: 0,
+        })))),
+        false,
+        "temper serve: restart refused: charter 1 on a first wake is 1,108 bytes owned before its brief, past its allowance of 1,024; trim its text, parts or tool families\n",
+        1,
+    )
+};
+
 #[test]
 fn other_endings_keep_their_exit_behavior() {
+    use temper_engine_domain::room::{Refusal, Short};
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
@@ -423,15 +441,12 @@ fn other_endings_keep_their_exit_behavior() {
         ),
         (Some(End::Stopped(Stop::Start(problems))), false, "temper serve: deployment: unknown reference\n", 1),
         (
-            Some(End::Stopped(Stop::Room(temper_engine_domain::room::Short {
-                charter: 3,
-                room: 2_047,
-                bound: 51_717,
-            }))),
+            Some(End::Stopped(Stop::Room(Refusal::Rendered(Short { charter: 3, room: 2_047, bound: 51_717 })))),
             false,
             "temper serve: restart refused: charter 3 leaves its brief 2,047 bytes of its host part's 51,717; it needs at least 2,048\n",
             1,
         ),
+        FIXED_ROOM_ENDING,
         (Some(End::Stopped(Stop::Binding)), false, "temper serve: deployment namespace binding refused\n", 1),
         (
             Some(End::Stopped(Stop::CommitFailed {
