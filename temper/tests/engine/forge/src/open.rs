@@ -84,14 +84,6 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             &["its requester parked"],
         ))?;
     }
-    if configured.contains(&temper_faults::restarts::ENGINE_CRASH) {
-        sweep.exclude(Exclusion::new(
-            "a_stored_charter_is_checked_at_start",
-            "bounded waits",
-            temper_faults::restarts::ENGINE_CRASH,
-            &["a stored charter past its room"],
-        ))?;
-    }
     if configured.contains(&temper_faults::people::CANCELS_A_GOAL) {
         sweep.exclude(Exclusion::new(
             "a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled",

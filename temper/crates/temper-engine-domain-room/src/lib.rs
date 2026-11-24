@@ -260,14 +260,14 @@ impl HostPart {
         Ok(())
     }
 
-    /// Restore checks rendered room alone; no local agent skips it.
+    /// Without a local agent there is no rendered bound to check.
     pub fn check_rendered(&self, charter: &Charter) -> Result<(), Short> {
         let Some(bound) = self.bound else { return Ok(()) };
         let room = self.room(charter);
         if room < BRIEF_ROOM { Err(Short { charter: charter.number, room, bound }) } else { Ok(()) }
     }
 
-    /// Both checks at settings entrances and over startup defaults.
+    /// Both checks at settings entrances and over configured and restored charters at startup.
     pub fn check(&self, charter: &Charter) -> Result<(), Refusal> {
         if let Err(unfit) = self.check_fixed(charter) {
             return Err(Refusal::Fixed(unfit));

@@ -548,9 +548,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::PartsLoaded { waiter, result } => parts::joined(domain, env, decision, waiter, result),
             Work::StartDone(phase) => {
                 if phase == core::start::Phase::LoadCore
-                    && let Err(short) = domain.check_room()
+                    && let Err(refusal) = domain.check_room()
                 {
-                    domain.stop_start(crate::StartStop::Room(short));
+                    domain.stop_start(crate::StartStop::Room(refusal));
                     return;
                 }
                 let mut output = Queue::uncapped();
