@@ -178,6 +178,57 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
 }
 
 #[test]
+fn a_worker_reads_endpoint_overrides_without_changing_stock_session_retries() {
+    use skein_lib::Duration;
+    let data = Path::new("/fixture/worker");
+    let mut input: serde_json::Value =
+        serde_json::from_slice(&temper_config_shell::init_document(true)).expect("stock box document");
+    input["engine"]["clients"]["provider"] = serde_json::Value::Null;
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    let mut figures = configured_figures_with(&input, &given);
+    let endpoint = figures
+        .agents
+        .endpoints
+        .iter_mut()
+        .find(|endpoint| endpoint.name.as_ref() == b"demo")
+        .expect("scripted endpoint figure");
+    let number = endpoint.number;
+    endpoint.limits.head = Duration::from_millis(250);
+    endpoint.limits.idle = Duration::from_millis(300);
+    let bytes = agent::figures::configuration(&figures, Some(Path::new("/fixture/claude")), data, &[])
+        .expect("agent document from worker figures");
+    let configured =
+        agent::decoded_bytes(&bytes).expect("decode document").resolve(&mut Vec::new()).expect("derive agent");
+    let endpoint = configured
+        .service
+        .domain
+        .limits
+        .iter()
+        .find(|endpoint| endpoint.endpoint.0 == number)
+        .expect("effective scripted endpoint");
+    assert_eq!(endpoint.head.as_millis(), 250);
+    assert_eq!(endpoint.idle.as_millis(), 300);
+    let session = configured.service.limits.domain.session;
+    assert_eq!(session.retries, 3, "stock session retries");
+    let retries = u64::from(session.retries);
+    let envelope = endpoint
+        .head
+        .saturating_add(endpoint.idle)
+        .saturating_mul(retries + 1)
+        .saturating_add(session.backoff_max.saturating_mul(retries));
+    let prepared = agent::prepare_bytes_with(bytes, &mut Vec::new(), |directory| {
+        assert_eq!(directory, data.join("programs"));
+        Ok(())
+    })
+    .expect("worker agent settings");
+    assert!(prepared.agent.host_limits.no_progress >= session.tools.tool_deadline);
+    assert!(prepared.agent.host_limits.no_progress > envelope.saturating_mul(10));
+}
+
+#[test]
 fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
     let mut input: serde_json::Value =
         serde_json::from_slice(&temper_config_shell::init_document(true)).expect("box document");

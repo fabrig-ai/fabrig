@@ -113,6 +113,7 @@ mod fuzzy {
     mod settings;
     mod stories;
     mod watches;
+    mod workload;
 }
 
 #[path = "../support/reads.rs"]

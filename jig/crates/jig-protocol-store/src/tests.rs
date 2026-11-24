@@ -40,8 +40,8 @@ mod phase;
 mod retention;
 mod words;
 
+mod frame_layouts;
 mod frame_memory;
-mod frame_patches;
 mod settings_patch;
 
 #[test]

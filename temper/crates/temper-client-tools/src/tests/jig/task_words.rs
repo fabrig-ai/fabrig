@@ -1011,6 +1011,78 @@ fn cleared_read(words: c::DocumentText) -> c::ReadResult {
     )
 }
 #[test]
+fn repair_task_json_keeps_the_spec_and_landed_evidence_and_the_ended_wait_keeps_the_verdict() {
+    use serde_json::{Value, json};
+
+    let spec = "Repair CI at 975835de1c97: / changes (pull_request)\n\
+                This change's current spec and rulings: keep CSV export.";
+    let landed = "1d0b14e4db018fed000000000000000300000000\n\
+                  pull request #2 of playground/widget on forge.example: http://forge.example/playground/widget/pulls/2\n\
+                  Landed: pull request #2 merged into main as 1d0b14e4db01.\n\
+                  repairs: 1: CI failed: / changes (pull_request)\n\
+                  successful repair task 41: added changes/2.md, then CI passed at 975835de1c97\n\
+                  [192 bytes cut]\n";
+    let change = |kind, words: &str| c::ResultValue::Change {
+        kind,
+        part: c::Part { connector: FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(2) },
+        words: f::document_text(words.as_bytes()),
+    };
+    let mut repair = f::goal(f::TASK, c::WaitsOn::Nothing);
+    repair.requester = c::Requester::Task(DELEGATE);
+    repair.spec.specification.words = f::document_text(spec.as_bytes());
+    let cases = [
+        (delegate(), change(1, landed), Some(1_u16), landed),
+        (repair, change(2, "Added changes/2.md."), Some(2), "Added changes/2.md."),
+        (
+            f::goal(f::TASK, c::WaitsOn::Nothing),
+            c::ResultValue::Verdict {
+                verdict: 1,
+                words: f::document_text(b"Approve."),
+                fields: List::with_capacity(0),
+                tasks: List::with_capacity(0),
+                proposal: None,
+            },
+            None,
+            "Approve.",
+        ),
+    ];
+    for (task, result, kind, words) in cases {
+        let waited = kind != Some(1);
+        let read = ended(task, c::Ending::Done, Some(result));
+        let printed = if waited {
+            let (mut root, call) = f::waiting_call(f::WAIT_TASK, f::UNTIL_ENDED);
+            root.end(call, &f::task_watch(), c::WatchEnd::SubjectEnded);
+            root.serve(call, read);
+            assert!(root.reads.is_empty(), "no repeated read after the terminal document");
+            root.answer(call).expect("ended wait answered")
+        } else {
+            f::read_answer(&["task", "show", "2", "--json"], read)
+        };
+        assert_eq!(printed.status, 0);
+        let value: Value = serde_json::from_slice(&printed.stdout).expect("task JSON");
+        let document = if waited {
+            assert_eq!(value["met"], true);
+            &value["task"]
+        } else {
+            &value
+        };
+        assert_eq!(document["chip"]["phase"], "ended");
+        let result = &document["result"]["value"];
+        if let Some(kind) = kind {
+            assert_eq!(result["change"]["kind"], kind);
+            assert_eq!(result["change"]["part"]["key"]["number"].as_u64(), Some(2));
+            assert_eq!(result["change"]["words"], json!({"bytes": words, "cut": false}));
+            if kind == 2 {
+                assert_eq!(document["requester"]["task"], DELEGATE);
+                assert_eq!(document["spec"]["specification"]["words"], json!({"bytes": spec, "cut": false}));
+            }
+        } else {
+            assert_eq!(result["verdict"]["words"], json!({"bytes": words, "cut": false}));
+        }
+    }
+}
+
+#[test]
 fn task_show_keeps_clearing_words_beyond_byte_128_in_text_and_json() {
     let words = cleared_words();
     assert!(skein_lib::bytes::find(&words, CLEARING.as_bytes()).unwrap() > 128);

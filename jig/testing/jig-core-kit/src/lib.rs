@@ -2,9 +2,16 @@
 
 #![forbid(unsafe_code)]
 
+pub mod bounds;
 mod charters;
 pub mod lists;
 pub mod open;
+pub mod parks;
+pub mod people;
+pub mod workload;
+
+#[cfg(test)]
+mod tests;
 pub mod world;
 
 #[doc(hidden)]

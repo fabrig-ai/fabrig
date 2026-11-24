@@ -20,7 +20,7 @@ const SAID: &[u8] = b"same visible text";
 const REPLAY: &[u8] = b"old replay bytes";
 // Fixture v6 body: version(2), window(1), task(8), attempt(8), turn(4),
 // spend(8), absent read(1), time(8), transcript length(4); framing adds 12.
-// jig-test-patches-jig's public frames::body/wrap give 44 + 12 = 56.
+// The fixture frames::body/wrap give 44 + 12 = 56.
 // The clarified direct-read contract charges this plus the transcript for
 // Window/Page reads, whether or not a machine is made.
 const FRAME_OVERHEAD: u64 = 56;
@@ -51,7 +51,7 @@ fn starts() -> [TranscriptRead; 3] {
 }
 
 fn page(world: &mut World, read: TranscriptRead, rows: u32, bytes: u64) -> Vec<Event> {
-    world.answered(Request::Transcript { owner: OWNER, read, rows, bytes })
+    world.request(Request::Transcript { owner: OWNER, read, rows, bytes })
 }
 
 fn continued(read: TranscriptRead, offset: u64) -> TranscriptRead {
@@ -127,11 +127,15 @@ fn mixed_frames() -> (World, u64) {
     let old = patches::fixture_turn(1, SAID, REPLAY, 0);
     let current = patches::fixture_turn(2, SAID, &[], 0);
     let charge = direct_frame_bytes(&current);
-    (committed(patches::FRAME_SETS, &[&old, &current]), charge)
+    let mut world = committed(patches::FRAME_VERSION_HEADS, &[&old, &current]);
+    world.crash(SEED);
+    world.owner_sets(patches::FRAME_SETS);
+    world.open_switched().expect("seed the frames registry");
+    (world, charge)
 }
 
 #[test]
-fn machine_pages_charge_framing_before_accepting_any_turn() {
+fn converted_pages_charge_framing_before_accepting_any_turn() {
     let (mut world, charge) = mixed_frames();
     // Forward/window encounter a patched turn first; backward encounters a
     // current turn. Both need the same complete current-body frame charge.

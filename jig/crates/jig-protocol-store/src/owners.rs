@@ -34,7 +34,7 @@ pub const SMITH_SET: OwnerSet = OwnerSet {
         frames: Some(Frames {
             root: smith_transcript::ROOT,
             texts: smith_transcript::patches::kept::smith_transcript::TEXTS,
-            patches: smith_transcript::patches::PATCHES,
+            number: 0,
         }),
     }],
 };

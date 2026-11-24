@@ -1,24 +1,26 @@
 //! The person's sign-in returns to the real listener.
 use temper_real_loop_world::{
     Exit, Ran, argv,
-    calls::{D1, Step, call, sign_in},
+    calls::{D1, Step, call, file, sign_in},
     run_sign_in, terminal,
 };
 
 /// The ctl calls each story reads: `me` after the sign-in, the accounts at its end.
 const ME: usize = 1;
-const ACCOUNTS: usize = 2;
+const ACCOUNTS: usize = 3;
 /// The person ends with one account, of one signed-in source.
 const ONE_ACCOUNT: usize = 1;
 const ONE_SOURCE: usize = 1;
 
 #[test]
 fn a_terminal_sign_in_returns_to_the_real_listener() {
+    const TERMINAL_LINK: &str = "terminal.link";
     let ran = run_sign_in(|| {
         vec![
             sign_in(D1),
             call(D1, argv!["me", "--json"]),
-            terminal::open(),
+            call(D1, argv!["link", "--out", file(TERMINAL_LINK)]),
+            terminal::open(TERMINAL_LINK),
             terminal::type_on(b"Deployment", b""),
             terminal::type_on(b"Accounts", b""),
             terminal::see(b"Connect a model"),

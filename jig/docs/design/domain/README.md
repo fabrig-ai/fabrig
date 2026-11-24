@@ -53,6 +53,7 @@ mechanics are those of skein's `programming-model.md`.
    the core takes from smith.
 9. **testing.md:** the worlds, the conformance world and its referee.
    - **testing-fakes.md:** fakes, kits, the inspection adapter and shared checks.
+   - **testing-workloads.md:** workloads drawn from the seed, people's acts, parks and bounds at any step, and their sweeps.
 10. **accounts.md:** LLM accounts: each application its own client,
     accounts and their holders, sources and states, whose work an
     account pays for, which account a run gets, what people do with

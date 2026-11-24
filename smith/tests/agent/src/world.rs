@@ -950,6 +950,16 @@ impl<B: Backend> World<B> {
     /// clock and returns control; it never advances a deadline in place of that
     /// Parent. The caller schedules the reply before driving settlement.
     pub fn drive(&mut self, iterations: u32) -> bool {
+        self.drive_bounded(iterations, None)
+    }
+
+    /// Drive with an outer world's clock horizon, leaving later timers pending.
+    pub fn drive_until(&mut self, iterations: u32, until: Time) -> bool {
+        assert!(until >= self.now, "the outer clock never moves backward");
+        self.drive_bounded(iterations, Some(until))
+    }
+
+    fn drive_bounded(&mut self, iterations: u32, until: Option<Time>) -> bool {
         for _ in 0..iterations {
             if let Some(orders) = &mut self.orders {
                 orders.round += 1;
@@ -1023,7 +1033,7 @@ impl<B: Backend> World<B> {
                 || self.backend.has_events()
                 || self.agent.is_ready();
             if !immediate {
-                self.now = [
+                let next = [
                     self.schedule.next_time(),
                     self.agent.next_deadline(),
                     self.backend.next_deadline(),
@@ -1033,6 +1043,7 @@ impl<B: Backend> World<B> {
                 .flatten()
                 .min()
                 .expect("an unsettled world has a next boundary");
+                self.now = until.map_or(next, |until| next.min(until));
             }
         }
         false
@@ -1490,7 +1501,15 @@ impl<B: Backend> World<B> {
                 }
                 assert_eq!(host_run, self.host_run, "the push names the scripted host's request");
                 self.delivery_names.push((name, self.now));
-                let tree = self.code();
+                // The parent owns the full checkout and its evidence. A parent workspace
+                // need not contain the standalone referee's example file.
+                let tree = if self.parent_deliveries {
+                    self.root
+                        .and_then(|root| self.disk.load(root, fixture::CODE, u64::MAX).ok())
+                        .map_or_else(Vec::new, |(bytes, _)| bytes)
+                } else {
+                    self.code()
+                };
                 let finishing = self.delivery_call == DeliveryCall::Finish;
                 self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing, checked: true });
                 self.snapshots.insert(owner, tree);

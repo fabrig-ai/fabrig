@@ -131,6 +131,7 @@ change's due step.
   in the inspection `forge` gave, and to nothing else: a task the
   world owes nothing has no fallback wake. The adapter's surface stays
   2.1's; the forge's state gains nothing for it.
+- **A landing's read-admission retry:** while its gather waits in the read line, its retained retry is `Timer(at)`; at the root this is read only while the landing's procedure step is due.
 - **A read in flight:** a read the forge's client has admitted and
   not yet had answered, its holder's owner the token the forge maps to
   the waiting change or landing, wakes it when its answer comes:
@@ -141,6 +142,11 @@ change's due step.
   applies while a room waiter's place remains on its row: once asked,
   it reads afresh before its decision keeps an entry or leaves the line
   (`../domain/forge/room.md`, 3).
+- **An offered room reservation:** another task's reservation names that
+  task as a waiter. The reservation's own task, once its procedure is due
+  in the root, names `Party("root")`: the line has already offered that
+  step, even before its fresh read is in flight. A reservation without a
+  due step or a live read gives its own task no fallback wake.
 - **A task waiting for restart freshness:** the forge's parked step or explicit
   freshness wait names the repositories it awaits (`../domain/forge/catching-up.md`,
   2 and 4). Each resource the client still owes in those repositories names
@@ -410,6 +416,13 @@ pub const OPENING: Bound;
 - **Ended** is the task's ended row, done, failed or cancelled; **held
   with words** is its live row held, its hold's words, as jig keeps them
   with the hold, holding the expected words.
+- **Waiting,** for `Waits`, is the task's live row waiting on its
+  dependencies, or held; or the task live, neither held nor ended, with a
+  task beneath it that is held or holds a question its party has not
+  answered, read from the store's rows. A goal whose producer's question
+  is never answered waits so while its coordinator parks: the scenario
+  makes it wait on nothing it would not otherwise wait on. A live task
+  with no such descendant is not waiting.
 - **Bounds count** from the later of the faults' last moment and the
   last opening, and for `Untouched` from when it is named: a restart is a
   fault that stops at the opening that follows it (the draft, 3.4).
@@ -509,37 +522,42 @@ pub fn exclude(sweep: &mut skein_world::sweep::Sweep, configured: &[skein_world:
 ```
 
 Every engine sweep calls it once it has configured its faults. A fault's
-`Kind` has as its family the part of the seed's `Faults` or `Parties`
-stream that draws it, in the draft's section 4's terms (`forge`, `llm`,
-`worker`, `parties`, `state`, `runs`, `bounds`, `restarts`; `checks.md`,
-6.2), and as its name the fault in that section's words. These are the
-engine's names for the faults its exclusions leave out until their
-families are built; the goal that builds a family renames any of them it
-names otherwise, here, in its own change.
+`Kind` has as its family the draft's section 4 family it falls in, and
+as its name the fault in that section's words; where a family's goal has
+built it, the kind is that family's constant
+(`workloads.md`, 2.5), and the rest are `open`'s own until their
+families are built, the goal that builds one renaming them here in its
+own change.
 
 | Scenario | Fault | When |
 |---|---|---|
-| `a_change_waiting_for_room_has_a_bound` | `bounds` / `forge write entries full` | `a change waiting for room past its stall` |
+| `a_change_waiting_for_room_has_a_bound` | `temper_faults::bounds::FORGE_WRITE_ENTRIES` | `a change waiting for room past its stall` |
+| `a_prepare_is_admitted_when_branch_holds_are_released` | `temper_faults::bounds::BRANCH_HOLDS` | `the holds and pending prepares, including the new change or train, exceed capacity` |
 | `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
 | `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
-| `a_starved_gate_is_the_runners` | `forge` / `a starved gate` | `a landing's gate` |
-| `a_resolution_keeping_a_deleted_path_is_refused` | `state` / `a path deleted on the base` | `a resolution under way` |
+| `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
+| `a_resolution_keeping_a_deleted_path_is_refused` | `stale` / `a path deleted on the base` | `a resolution under way` |
 | `a_repair_whose_tests_pass_regates_by_itself` | `runs` / `a repair finds its tests passing` | `a landing's gate red` |
-| `a_held_answer_tells_its_requester` | `parties` / `answer a question` | `a dependency holds the answer` |
-| `a_change_waits_on_another_goal` | `parties` / `a change waits on another goal` | `its requester parked` |
-| `a_stored_charter_is_checked_at_start` | `restarts` / `the engine restarted cold` | `a stored charter past its room` |
+| `a_held_answer_tells_its_requester` | `temper_faults::people::ANSWERS_LATE`, and `ANSWERS_TWICE`, each the sweep configures | `a dependency holds the answer` |
+| `a_change_waits_on_another_goal` | `temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL` | `its requester parked` |
+| `a_stored_charter_is_checked_at_start` | `temper_faults::restarts::ENGINE_CRASH` | `a stored charter past its room` |
+| `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
-- **No engine sweep draws these combinations yet** (2026-11-21): the
-  sweeps that will are the workloads' (the draft, 5), and each takes them
-  through `exclude`. A sweep of today's that draws one, and whose checks
-  find it, becomes a `Sweep` configuring the fault it draws, takes
-  `exclude`, and asks `leaves_out` before the draw.
-- **P124's first combination** (`parties` / `cancel a landing`, while `a
-  gate's dispatch in flight`) has no exclusion here. Should its fix not
-  have landed when the goal adding the workloads' sweeps lands, that goal
-  leaves the combination out of its sweeps by name, the fix as its work,
-  and removes the exclusion once the fix lands (the milestone,
-  2026-11-21).
+- **The sweeps that draw these combinations** are the workloads'
+  (`workloads.md`, 8), and each takes them through `exclude`. A sweep
+  that draws one, and whose checks find it, configures the fault it
+  draws, takes `exclude`, and asks `leaves_out` before the draw.
+- **The branch-holds exclusion** is read before the workload starts a
+  change or its closer. It adds the current holds, each live change's
+  still-unclaimed branch and prepare prefix, a started closer's pending
+  prefix, and the new load's demand. The first member admits a train as
+  one load: all its members' branches and prefixes are reserved until
+  each starts, so a partial train cannot consume its own remaining room.
+  A total equal to capacity is admitted. A left-out load records one
+  `leave_out`, and may start once the demand fits.
+- **P124's first combination** (`temper_faults::people::CANCELS_A_LANDING`,
+  while a gate's dispatch is in flight) has no exclusion: its fix landed
+  before the workloads' sweeps, and its scenario is active (5.1).
 - **An existing story whose check finds one of these problems** moves off
   its combination where what it tests holds without it; otherwise it is
   ignored as that problem's scenario is, its reason naming the same work

@@ -32,11 +32,13 @@ skein-sim-world.workspace = true
 skein-fake-forge-github.workspace = true
 temper-github-app.workspace = true
 temper-client-shell-cli.workspace = true
+temper-client-tools.workspace = true
 jig-client.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 temper-test-env.workspace = true
 temper-service.workspace = true
+temper-worker-service.workspace = true
 temper-engine-service.workspace = true
 temper-engine-shell.workspace = true
 temper-forge-setup.workspace = true
@@ -83,6 +85,7 @@ skein-sim = { path = "../../../skein/crates/skein-sim" }
 skein-fake-machine = { path = "../../../skein/crates/skein-fake-machine" }
 skein-fake-peers = { path = "../../../skein/crates/skein-fake-peers" }
 skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
+skein-llm.workspace = true
 skein-kv = { path = "../../../skein/crates/skein-kv" }
 
 [dev-dependencies]

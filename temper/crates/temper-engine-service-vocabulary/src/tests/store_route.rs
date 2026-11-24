@@ -909,38 +909,6 @@ fn a_loaded_turn_larger_than_the_tail_budget_keeps_its_texts_end() {
 }
 
 #[test]
-fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_root_event() {
-    use skein_codec::{
-        patch::{Capacity, Halt, Patcher, Site},
-        value::Value,
-    };
-    let schema = skein_codec::schema::parse(b"family fixture 1\nrecord Row {} ").unwrap();
-    let mut value = Value::with_room(1);
-    let at = value.decode(&schema, schema.find(b"Row").unwrap(), Box::new([])).unwrap();
-    let mut routes = fixtures::routes();
-    let mut out = Queue::with_capacity(4);
-    for of in [store::Owner::Skein, store::Owner::Smith, store::Owner::Jig, store::Owner::Application] {
-        let site = Site::new(2, 0);
-        route::up(
-            &mut routes,
-            store::Event::Site {
-                owner: fixtures::OWNER,
-                of,
-                key: Box::new([]),
-                site,
-                at,
-                patcher: Box::new(Patcher::new(Capacity { versions: 0, patches: 0, text: 0, bytes: 0, nodes: 0 })),
-            },
-            &mut out,
-        );
-        let Some(Up::Ask(store::Request::Site { owner, result, .. })) = out.pop() else { panic!("site reply") };
-        assert_eq!(owner, fixtures::OWNER);
-        assert_eq!(result, Err(Halt::NoSite(site)));
-        assert!(out.is_empty());
-    }
-}
-
-#[test]
 fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
     let (root, core, mut limits) = fixtures::store_limits();
     limits.core = core;
@@ -957,7 +925,7 @@ fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
     let mut routes = fixtures::routes();
     let mut out = Queue::with_capacity(4);
     for (of, words) in [(store::Owner::Jig, "no such jig job"), (store::Owner::Application, "no such temper job")] {
-        route::site(
+        route::job(
             &mut routes,
             &mut component,
             store::Event::Job {

@@ -5,6 +5,73 @@ use jig_conformance_world::{
 };
 
 #[test]
+fn a_named_person_executor_uses_its_stored_project_role() {
+    use jig_domain_core as core;
+    use jig_domain_people as people;
+    use jig_domain_tasks as tasks;
+    use jig_test_domain as root;
+    use std::collections::BTreeMap;
+
+    let mut world = Harness::<Testing>::new(Config::new(31, false, 2, None), 31);
+    world.drain().expect("faithful startup");
+    let mut records: BTreeMap<_, _> = world
+        .store
+        .rows
+        .iter()
+        .filter_map(|(key, record)| match (key, record) {
+            (root::Key::Core(key), root::Record::Core(record)) => Some((key.clone(), record.clone())),
+            _ => None,
+        })
+        .collect();
+    let mut task = records
+        .values()
+        .find_map(|record| match record {
+            core::Record::Tasks(tasks::Stored::Live(row)) => Some(row.as_ref().clone()),
+            _ => None,
+        })
+        .expect("live caller");
+    task.executor = tasks::Executor::Person(tasks::PersonAddress::Person(3));
+    records.insert(
+        core::Key::People(people::Key::Roles(task.project)),
+        core::Record::People(people::Stored::Roles {
+            project: task.project,
+            holdings: Box::new([people::Holding { person: 3, role: people::Role::Member }]),
+        }),
+    );
+    let borrowed = records.iter().map(|(key, record)| (key.clone(), record)).collect();
+    assert_eq!(jig_conformance::core::task(&task, &borrowed).executor, (2, people::Role::Member.number()));
+    task.executor = tasks::Executor::Person(tasks::PersonAddress::Role(people::Role::Observer.number()));
+    assert_eq!(jig_conformance::core::task(&task, &borrowed).executor, (2, people::Role::Observer.number()));
+    task.executor = tasks::Executor::Person(tasks::PersonAddress::Person(4));
+    assert_eq!(
+        jig_conformance::core::task(&task, &borrowed).executor,
+        (2, u32::MAX),
+        "an absent role is never the owner"
+    );
+    task.executor = tasks::Executor::Person(tasks::PersonAddress::Person(3));
+    let number = task.number;
+    let project = task.project;
+    let record = core::Record::Tasks(tasks::Stored::Live(Box::new(task)));
+    records.insert(record.key(), record);
+    let mut projection = jig_conformance::core::Projection::default();
+    let borrowed = records.iter().map(|(key, record)| (key.clone(), record)).collect();
+    assert_eq!(projection.snapshot(1, &borrowed).tasks[&number].executor, (2, people::Role::Member.number()));
+    let changed = core::Record::People(people::Stored::Roles {
+        project,
+        holdings: Box::new([people::Holding { person: 3, role: people::Role::Observer }]),
+    });
+    projection.submitted(&jig_conformance::core::Commit {
+        number: 2,
+        writes: vec![jig_conformance::core::Write::Save(&changed)],
+    });
+    records.insert(changed.key(), changed);
+    let borrowed = records.iter().map(|(key, record)| (key.clone(), record)).collect();
+    let updated = projection.snapshot(2, &borrowed);
+    assert_eq!(updated.tasks[&number].executor, (2, people::Role::Observer.number()));
+    assert_eq!(updated, jig_conformance::core::snapshot(&borrowed));
+}
+
+#[test]
 fn an_observer_finding_reaches_the_harness_with_seed_and_trace() {
     use jig_domain_core as core;
     use jig_domain_tasks as tasks;

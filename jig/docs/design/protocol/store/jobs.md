@@ -269,9 +269,11 @@ What follows holds for both:
 
 ## 5. Settling jobs
 
-No set declares a settling job, and the store runs none. The check
-(`layouts.md`, 5.3) takes no layout for one. A layout row retires only
-as `layouts.md`, 5.4 says.
+No set declares a settling job: the store settles each map value at
+another layout itself, while it serves, riding the root's commits
+(`settling.md`). The check (`layouts.md`, 5.3) takes no layout for one.
+A layout row retires as `layouts.md`, 5.4 says, at a writing open or by
+settling.
 
 ## 6. Tests
 

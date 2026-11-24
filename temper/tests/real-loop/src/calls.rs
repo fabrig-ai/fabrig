@@ -2,11 +2,8 @@
 //! Answer bounds follow skein/docs/foundation/testing-strategy.md, 2.10.
 mod activity;
 use crate::{deadline::Deadline, fixtures};
-pub use temper_fixtures::browse::Browsed;
-use temper_fixtures::browse::Browser;
-const BROWSER: usize = usize::MAX - 1;
 const SIGN_IN_HTTP: usize = usize::MAX - 2;
-use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
+use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;
 use skein_world::Expired;
@@ -19,17 +16,11 @@ use std::{
 #[derive(Clone, Copy)]
 pub struct Dir(pub u8);
 pub const D1: Dir = Dir(1);
-pub const D2: Dir = Dir(2);
-/// The welcome story's first task, created by its model check.
-pub(crate) const TRIAL_TASK: u64 = 1;
 pub enum Arg {
     Lit(&'static str),
     Task(usize),
-    Delegate(usize),
-    Digest(usize),
     ActivityBefore(usize),
     Number(u64),
-    GithubApp,
     File(&'static str),
 }
 impl From<&'static str> for Arg {
@@ -47,13 +38,8 @@ impl Argv {
 #[macro_export]
 macro_rules! argv { ($($word:expr),* $(,)?) => { $crate::calls::Argv::new(vec![$($crate::calls::Arg::from($word)),*]) }; }
 pub enum Step {
-    /// Declare the exact work this story intentionally leaves at its stop.
-    EndsLeaving(&'static [crate::ending::Leftover]),
     /// Finish runtime fixture provisioning before recording the story calls.
     FixtureReady,
-    Browse {
-        call: usize,
-    },
     /// Approve the terminal's last sign-in address at the fake issuer, keeping
     /// its Location unfollowed and secret in the world's memory.
     Authorize,
@@ -61,9 +47,8 @@ pub enum Step {
     Return,
     /// A person at the hosted terminal.
     Terminal(crate::terminal::Act),
-    Advance,
-    /// Commit the person's named file on the fake forge's main. One `Advance` or
-    /// `Push` per story: the forge moves once, and a second completes with nothing pushed.
+    /// Commit the person's named file on the fake forge's main. One `Push` per
+    /// story: the forge moves once, and a second completes with nothing pushed.
     Push {
         path: &'static [u8],
         words: &'static [u8],
@@ -71,20 +56,7 @@ pub enum Step {
     /// Release a fake LLM hold through its owner in the loop.
     ReleaseHold {
         name: &'static [u8],
-        after_queries: usize,
     },
-    /// Drain the engine, retaining its store and directories while workers live.
-    StopEngine,
-    /// Start the drained engine again and wait for its fresh sign-in link.
-    StartEngine {
-        failures: u32,
-    },
-    /// Wait for a worker's retained lost-contact cancellation answer.
-    WorkerCancelled {
-        name: &'static str,
-    },
-    /// Wait for the welcome story's trial task to commit its end in the engine.
-    TrialEnded,
     /// Drain a named worker while retaining its root for a restart.
     StopWorker {
         name: &'static str,
@@ -108,14 +80,8 @@ pub enum Step {
     SignIn {
         at: Dir,
     },
-    SameParty {
-        at: Dir,
-    },
     Held {
         name: &'static [u8],
-    },
-    Kill {
-        call: usize,
     },
     Call {
         at: Dir,
@@ -255,45 +221,9 @@ impl ReadCondition {
         )
     }
 }
-/// Follow the installation or manifest link printed by a completed ctl call.
-#[must_use]
-pub fn browse(call: usize) -> Step {
-    Step::Browse { call }
-}
-/// The id handed to the person by the fake's manifest conversion.
-#[must_use]
-pub fn github_app() -> Arg {
-    Arg::GithubApp
-}
-/// Start a configured worker and wait for its link before the next act.
 #[must_use]
 pub fn add_worker(name: &'static str) -> Step {
     Step::AddWorker { name }
-}
-/// Terminate the engine and wait until its service and ring I/O settle.
-#[must_use]
-pub fn stop_engine() -> Step {
-    Step::StopEngine
-}
-/// Restart the settled engine on its retained store and directories.
-#[must_use]
-pub fn start_engine() -> Step {
-    start_engine_after_failures(0)
-}
-/// Refuse this many starts at configuration checks before starting the engine.
-#[must_use]
-pub fn start_engine_after_failures(failures: u32) -> Step {
-    Step::StartEngine { failures }
-}
-/// Wait until this worker keeps an answer cancelled for lost engine contact.
-#[must_use]
-pub fn worker_cancelled(name: &'static str) -> Step {
-    Step::WorkerCancelled { name }
-}
-/// Join the welcome story's trial after the terminal has read Ready and closed.
-#[must_use]
-pub fn trial_ended() -> Step {
-    Step::TrialEnded
 }
 /// Terminate one worker and wait until its service and ring I/O settle.
 #[must_use]
@@ -308,22 +238,11 @@ pub fn start_worker(name: &'static str) -> Step {
 /// Release the named fake LLM hold before proceeding.
 #[must_use]
 pub fn release_hold(name: &'static [u8]) -> Step {
-    release_hold_after_queries(name, 0)
-}
-
-/// Release a scripted response only after the peer has received this many queries.
-/// A retry repeats its input, so it need not advance the script's turn.
-#[must_use]
-pub fn release_hold_after_queries(name: &'static [u8], after_queries: usize) -> Step {
-    Step::ReleaseHold { name, after_queries }
+    Step::ReleaseHold { name }
 }
 #[must_use]
 pub fn push(path: &'static [u8], words: &'static [u8]) -> Step {
     Step::Push { path, words }
-}
-#[must_use]
-pub fn advance() -> Step {
-    Step::Advance
 }
 #[must_use]
 pub fn probe(at: Dir) -> Step {
@@ -338,32 +257,12 @@ pub fn contended(calls: &'static [usize]) -> Step {
     Step::Contended { calls }
 }
 #[must_use]
-pub fn ends_leaving(leftovers: &'static [crate::ending::Leftover]) -> Step {
-    Step::EndsLeaving(leftovers)
-}
-#[must_use]
 pub fn sign_in(at: Dir) -> Step {
     Step::SignIn { at }
 }
 #[must_use]
-pub fn same_party(at: Dir) -> Step {
-    Step::SameParty { at }
-}
-#[must_use]
 pub fn held(name: &'static [u8]) -> Step {
     Step::Held { name }
-}
-#[must_use]
-pub fn kill(call: usize) -> Step {
-    Step::Kill { call }
-}
-#[must_use]
-pub fn listed(stdout: &[u8]) -> Vec<u64> {
-    std::str::from_utf8(stdout)
-        .expect("tasks page")
-        .lines()
-        .filter_map(|line| line.split_once(" · ").and_then(|(number, _)| number.parse().ok()))
-        .collect()
 }
 #[must_use]
 pub fn call(at: Dir, argv: Argv) -> Step {
@@ -411,31 +310,10 @@ pub fn number(task: u64) -> Arg {
 pub fn task(call: usize) -> Arg {
     Arg::Task(call)
 }
-#[must_use]
-pub fn delegate(call: usize) -> Arg {
-    Arg::Delegate(call)
-}
-#[must_use]
-pub fn digest(call: usize) -> Arg {
-    Arg::Digest(call)
-}
 /// The previous page cursor supplied by a task's activity read.
 #[must_use]
 pub fn activity_before(call: usize) -> Arg {
     Arg::ActivityBefore(call)
-}
-fn delegate_number(stdout: &[u8]) -> u64 {
-    let value: serde_json::Value = serde_json::from_slice(stdout).expect("task tree JSON");
-    if let Some(children) = value.get("task").unwrap_or(&value).get("delegates").and_then(serde_json::Value::as_array) {
-        assert_eq!(children.len(), 1, "one child task");
-        return children[0]["chip"]["task"].as_u64().expect("child task number");
-    }
-    let tree = &value["tree"];
-    let root = tree["root"]["task"].as_u64().expect("tree root");
-    let mut children = tree["rows"].as_array().expect("tree rows").iter().filter(|node| node["parent"] == root);
-    let child = children.next().expect("one child task")["chip"]["task"].as_u64().expect("child task number");
-    assert!(children.next().is_none(), "one child task");
-    child
 }
 #[must_use]
 pub fn occurrences(bytes: &[u8], needle: &[u8]) -> usize {
@@ -537,27 +415,19 @@ type ReadVersion = (u64, Option<(u64, u64)>);
 #[expect(clippy::struct_excessive_bools, reason = "admission, shutdown, directory probe and watch are independent")]
 pub(crate) struct Caller {
     recording: Recording,
-    pub(crate) github_app: Option<u64>,
-    pub(crate) browsed: Vec<Browsed>,
-    browser: Option<Browser>,
     visit: Option<crate::issuer::Visit>,
     kept: Option<skein_lib::Secret>,
     pub(crate) returned: Vec<crate::issuer::Returned>,
     pub(crate) released: bool,
     closing: bool,
     pub(crate) finding: Option<String>,
-    pub(crate) advanced: Cell<bool>,
+    pub(crate) pushed: Cell<bool>,
     pub(crate) hold_released: Cell<bool>,
     pub(crate) added: Cell<bool>,
     pub(crate) worker_ready: Cell<bool>,
-    pub(crate) engine_ready: Cell<bool>,
-    pub(crate) contact_cancelled: Cell<bool>,
-    pub(crate) trial_ended: Cell<bool>,
     pub(crate) held_queries: Cell<usize>,
     pub(crate) llm_queries: Cell<usize>,
     pub(crate) held: Cell<bool>,
-    pub(crate) links: Cell<u32>,
-    retry_link: Option<u32>,
     read_version: Cell<ReadVersion>,
     read_at: ReadVersion,
     retry_after: Option<ReadVersion>,
@@ -601,7 +471,6 @@ impl Caller {
                 Arg::Lit(word) => word.parse().expect("chat task number"),
                 Arg::Number(number) => *number,
                 Arg::Task(call) => task_number(&self.calls[*call].stdout),
-                Arg::Delegate(call) => delegate_number(&self.calls[*call].stdout),
                 _ => panic!("chat task number"),
             };
             (engine.commit_position(), engine.live_text_revision(task))
@@ -645,7 +514,7 @@ impl Caller {
                         .expect("string writer");
                 }
             }
-            Some(Step::SignIn { .. } | Step::SameParty { .. }) => {
+            Some(Step::SignIn { .. }) => {
                 out.push_str("caller argv=[sign-in] waits_for=sign-in response and exit\n");
             }
             Some(Step::Join { call }) => {
@@ -654,24 +523,13 @@ impl Caller {
             Some(Step::Watching { call }) => {
                 writeln!(out, "caller waits_for=service watch delivery for call {call}").expect("string writer");
             }
-            Some(Step::Browse { call }) => {
-                writeln!(out, "caller waits_for=browser completion for call {call}").expect("string writer");
-            }
             Some(Step::Held { name }) => {
                 writeln!(out, "caller waits_for=held request {:?}", String::from_utf8_lossy(name))
                     .expect("string writer");
             }
-            Some(Step::ReleaseHold { name, after_queries }) => {
-                writeln!(
-                    out,
-                    "caller waits_for=LLM hold release {:?} after {after_queries} queries",
-                    String::from_utf8_lossy(name)
-                )
-                .expect("string writer");
-            }
-            Some(Step::StopEngine | Step::StartEngine { .. }) => out.push_str("caller waits_for=engine transition\n"),
-            Some(Step::WorkerCancelled { name }) => {
-                writeln!(out, "caller waits_for=lost-contact answer {name}").expect("string writer");
+            Some(Step::ReleaseHold { name }) => {
+                writeln!(out, "caller waits_for=LLM hold release {:?}", String::from_utf8_lossy(name))
+                    .expect("string writer");
             }
             Some(Step::StopWorker { name } | Step::StartWorker { name } | Step::AddWorker { name }) => {
                 writeln!(out, "caller waits_for=worker transition {name}").expect("string writer");
@@ -679,18 +537,14 @@ impl Caller {
             Some(Step::Contended { calls }) => {
                 writeln!(out, "caller waits_for=contended calls {calls:?}").expect("string writer");
             }
-            Some(Step::Kill { call }) => {
-                writeln!(out, "caller waits_for=kill call {call}").expect("string writer");
-            }
             Some(Step::Terminal(_)) => out.push_str("caller waits_for=terminal act (input omitted)\n"),
             Some(Step::Authorize | Step::Return) => {
                 out.push_str("caller waits_for=issuer visit\n");
             }
-            Some(Step::TrialEnded) => out.push_str("caller waits_for=welcome trial's committed end\n"),
             Some(Step::Probe { .. } | Step::Release { .. }) => out.push_str("caller waits_for=directory lock\n"),
-            Some(Step::Advance | Step::Push { .. }) => out.push_str("caller waits_for=forge advance\n"),
+            Some(Step::Push { .. }) => out.push_str("caller waits_for=forge push\n"),
             Some(Step::FixtureReady) => out.push_str("caller waits_for=fixture provisioning\n"),
-            Some(Step::EndsLeaving(_)) | None => {
+            None => {
                 out.push_str("caller waits_for=remaining calls and owned operations to settle\n");
             }
         }
@@ -718,9 +572,6 @@ impl Caller {
                 Arg::Lit(word) => (*word).to_owned(),
                 Arg::Number(number) => number.to_string(),
                 Arg::File(name) => self.scratch.join(name).display().to_string(),
-                Arg::GithubApp => {
-                    self.github_app.map_or_else(|| "<GitHub App not observed>".into(), |app| app.to_string())
-                }
                 Arg::Task(index) => self
                     .calls
                     .get(*index)
@@ -729,24 +580,6 @@ impl Caller {
                     .and_then(|(_, tail)| tail.split(|c: char| !c.is_ascii_digit()).next())
                     .and_then(|number| number.parse::<u64>().ok())
                     .map_or_else(|| format!("<task from call {index}>"), |number| number.to_string()),
-                Arg::Delegate(index) => self
-                    .calls
-                    .get(*index)
-                    .and_then(|call| serde_json::from_slice::<serde_json::Value>(&call.stdout).ok())
-                    .and_then(|value| {
-                        let root = value.pointer("/tree/root/task")?.as_u64()?;
-                        value
-                            .pointer("/tree/rows")?
-                            .as_array()?
-                            .iter()
-                            .find(|row| row["parent"] == root)?
-                            .pointer("/chip/task")?
-                            .as_u64()
-                    })
-                    .map_or_else(|| format!("<delegate from call {index}>"), |task| task.to_string()),
-                Arg::Digest(index) => self
-                    .diagnostic_pointer(*index, &["/task/digest", "/digest"])
-                    .unwrap_or_else(|| format!("<digest from call {index}>")),
                 Arg::ActivityBefore(index) => self
                     .diagnostic_pointer(*index, &["/activity/before/value", "/before/value"])
                     .unwrap_or_else(|| format!("<activity cursor from call {index}>")),
@@ -759,32 +592,19 @@ impl Caller {
         paths.iter().find_map(|path| value.pointer(path)?.as_str().map(str::to_owned))
     }
 
-    pub(crate) fn leftovers(&self) -> &'static [crate::ending::Leftover] {
-        if let Some(Step::EndsLeaving(leftovers)) = self.steps.last() { leftovers } else { &[] }
-    }
-
     pub(crate) fn held_names(&self) -> impl Iterator<Item = &[u8]> {
         self.steps.iter().filter_map(|step| match step {
             Step::Held { name } => Some(*name),
-            Step::Browse { .. }
-            | Step::Authorize
+            Step::Authorize
             | Step::Return
             | Step::FixtureReady
-            | Step::EndsLeaving(_)
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
-            | Step::StopEngine
-            | Step::StartEngine { .. }
-            | Step::WorkerCancelled { .. }
-            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
-            | Step::Advance
             | Step::Push { .. }
             | Step::SignIn { .. }
-            | Step::SameParty { .. }
-            | Step::Kill { .. }
             | Step::Call { .. }
             | Step::Start { .. }
             | Step::Join { .. }
@@ -805,15 +625,6 @@ impl Caller {
         matches!(self.steps.get(self.next), Some(Step::Call { argv, .. })
             if matches!(argv.0.as_slice(), [Arg::Lit("task"), Arg::Lit("cancel"), ..]))
     }
-    pub(crate) fn stopping_engine(&self) -> bool {
-        matches!(self.steps.get(self.next), Some(Step::StopEngine))
-    }
-    pub(crate) fn starting_engine(&self) -> Option<u32> {
-        if let Some(Step::StartEngine { failures }) = self.steps.get(self.next) { Some(*failures) } else { None }
-    }
-    pub(crate) fn cancelled_worker(&self) -> Option<&'static str> {
-        if let Some(Step::WorkerCancelled { name }) = self.steps.get(self.next) { Some(*name) } else { None }
-    }
     pub(crate) fn held_name(&self) -> Option<&'static [u8]> {
         if let Some(Step::Held { name }) = self.steps.get(self.next) { Some(*name) } else { None }
     }
@@ -824,16 +635,7 @@ impl Caller {
         if let Some(Step::StartWorker { name }) = self.steps.get(self.next) { Some(*name) } else { None }
     }
     pub(crate) fn releasing_hold(&self) -> Option<&'static [u8]> {
-        if let Some(Step::ReleaseHold { name, after_queries }) = self.steps.get(self.next)
-            && self.llm_queries.get() >= *after_queries
-        {
-            Some(*name)
-        } else {
-            None
-        }
-    }
-    pub(crate) fn advancing(&self) -> bool {
-        matches!(self.steps.get(self.next), Some(Step::Advance))
+        if let Some(Step::ReleaseHold { name }) = self.steps.get(self.next) { Some(*name) } else { None }
     }
     pub(crate) fn pushing(&self) -> Option<(&'static [u8], &'static [u8])> {
         if let Some(Step::Push { path, words }) = self.steps.get(self.next) { Some((*path, *words)) } else { None }
@@ -841,17 +643,12 @@ impl Caller {
     pub(crate) fn held_index(&self) -> usize {
         self.steps[..self.next].iter().filter(|step| matches!(step, Step::Held { .. })).count()
     }
-    pub(crate) fn requested_kills(&self) -> usize {
-        self.steps.iter().filter(|step| matches!(step, Step::Kill { .. })).count()
-    }
     pub(crate) fn provisioned(mut steps: Vec<Step>, scratch: PathBuf, root: Fd) -> Self {
-        // A welcome trial provisions its own account through the native form.
-        if steps.iter().any(|step| matches!(step, Step::TrialEnded)) {
-            return Self::new(steps, scratch, root);
-        }
-        let Some((position, at)) = steps.iter().enumerate().find_map(|(index, step)| {
-            if let Step::SignIn { at } | Step::SameParty { at } = step { Some((index, *at)) } else { None }
-        }) else {
+        let Some((position, at)) = steps
+            .iter()
+            .enumerate()
+            .find_map(|(index, step)| if let Step::SignIn { at } = step { Some((index, *at)) } else { None })
+        else {
             return Self::new(steps, scratch, root);
         };
         // A real keyed request follows the story's first sign-in. Its setup result
@@ -906,33 +703,24 @@ impl Caller {
         caller
     }
     pub(crate) fn new(steps: Vec<Step>, scratch: PathBuf, root: Fd) -> Self {
-        let browsers = steps.iter().filter(|step| matches!(step, Step::Browse { .. })).count();
         let visits = steps.iter().filter(|step| matches!(step, Step::Authorize | Step::Return)).count();
         let settings_files = fixtures::take_settings();
         let count = steps.len();
         Self {
             recording: Recording::Story,
-            github_app: None,
-            browsed: Vec::with_capacity(browsers),
-            browser: None,
             visit: None,
             kept: None,
             returned: Vec::with_capacity(visits),
             released: false,
             closing: false,
             finding: None,
-            advanced: Cell::new(false),
+            pushed: Cell::new(false),
             hold_released: Cell::new(false),
             added: Cell::new(false),
             worker_ready: Cell::new(false),
-            engine_ready: Cell::new(false),
-            contact_cancelled: Cell::new(false),
-            trial_ended: Cell::new(false),
             held_queries: Cell::new(0),
             llm_queries: Cell::new(0),
             held: Cell::new(false),
-            links: Cell::new(0),
-            retry_link: None,
             read_version: Cell::new((0, None)),
             read_at: (0, None),
             retry_after: None,
@@ -976,7 +764,7 @@ impl Caller {
         }
 
         let (at, argv) = match &self.steps[self.next] {
-            Step::SignIn { at } | Step::SameParty { at } => {
+            Step::SignIn { at } => {
                 return vec![
                     fixtures::directory(&self.scratch, *at).as_os_str().as_bytes().into(),
                     b"sign-in".as_slice().into(),
@@ -984,26 +772,18 @@ impl Caller {
                 ];
             }
             Step::Call { at, argv } | Step::Start { at, argv } | Step::Until { at, argv, .. } => (at, argv),
-            Step::Browse { .. }
-            | Step::Authorize
+            Step::Authorize
             | Step::Return
             | Step::FixtureReady
-            | Step::EndsLeaving(_)
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
-            | Step::StopEngine
-            | Step::StartEngine { .. }
-            | Step::WorkerCancelled { .. }
-            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
-            | Step::Advance
             | Step::Push { .. }
             | Step::Join { .. }
             | Step::Watching { .. }
             | Step::Held { .. }
-            | Step::Kill { .. }
             | Step::Probe { .. }
             | Step::Release { .. }
             | Step::Contended { .. } => panic!("command step"),
@@ -1026,12 +806,6 @@ impl Caller {
             words.push(match arg {
                 Arg::Lit(word) => word.as_bytes().into(),
                 Arg::Task(call) => task_number(&self.calls[*call].stdout).to_string().into_bytes().into(),
-                Arg::Delegate(call) => delegate_number(&self.calls[*call].stdout).to_string().into_bytes().into(),
-                Arg::Digest(call) => {
-                    let value: serde_json::Value =
-                        serde_json::from_slice(&self.calls[*call].stdout).expect("task JSON");
-                    value["task"]["digest"].as_str().expect("task digest").as_bytes().into()
-                }
                 Arg::ActivityBefore(call) => activity_cursor(&self.calls[*call].stdout)
                     .unwrap_or_else(|| {
                         panic!(
@@ -1043,7 +817,6 @@ impl Caller {
                     })
                     .into_bytes()
                     .into(),
-                Arg::GithubApp => self.github_app.expect("person made the App").to_string().into_bytes().into(),
                 Arg::Number(number) => number.to_string().into_bytes().into(),
                 Arg::File(name) => self.scratch.join(name).as_os_str().as_bytes().into(),
             });
@@ -1053,9 +826,6 @@ impl Caller {
     fn spawn(&mut self, now: Time, index: usize) {
         self.read_at = self.read_version.get();
         let args = self.words().into_boxed_slice();
-        if matches!(self.steps[self.next], Step::SameParty { .. }) && self.current.is_none() {
-            self.retry_link = Some(self.links.get());
-        }
         self.launch(
             now,
             index,
@@ -1124,12 +894,6 @@ impl Caller {
         if index == SIGN_IN_HTTP {
             if let Some(op) = self.visit.as_mut().expect("sign-in GET").complete(complete) {
                 self.submit(SIGN_IN_HTTP, op);
-            }
-            return;
-        }
-        if index == BROWSER {
-            if let Some(op) = self.browser.as_mut().expect("browser step").complete(complete) {
-                self.submit(BROWSER, op);
             }
             return;
         }
@@ -1204,7 +968,7 @@ impl Caller {
                 self.calls[index].observed_at = Some(wall);
                 self.submit(index, Op::Close { fd: pidfd });
             }
-            (Op::Close { .. } | Op::Signal { .. }, Done::Nothing) => {}
+            (Op::Close { .. }, Done::Nothing) => {}
             (kind, done) => panic!("caller completion {kind:?}: {done:?}"),
         }
     }
@@ -1299,40 +1063,15 @@ impl Caller {
         // Settings setup needs no worker; the story waits for its started workers to link.
         self.released = false;
     }
-    fn kill_call(&mut self, index: usize) -> bool {
-        if self.current.is_none() {
-            let pidfd = self.running[index].as_ref().expect("kill running call").pidfd.expect("spawned call");
-            self.submit(
-                index,
-                Op::Signal {
-                    pidfd,
-                    signal: Signal::Kill,
-                    to: skein_io::kernel::Target::Child,
-                    reason: skein_io::kernel::Reason::Asked,
-                },
-            );
-            self.current = Some(index);
-            return false;
-        }
-        if self.running[index].is_some() {
-            return false;
-        }
-        self.current = None;
-        true
-    }
     fn interactive_act(&mut self) -> bool {
         if matches!(self.steps[self.next], Step::Authorize | Step::Return) {
             return self.sign_in_http();
-        }
-        if let Step::Browse { call } = self.steps[self.next] {
-            return self.browse_act(call);
         }
         let Step::Terminal(act) = &self.steps[self.next] else { panic!("terminal step") };
         self.terminal.act(
             act,
             &self.scratch,
             self.root.expect("terminal launch root"),
-            self.links.get(),
             self.kept.as_ref(),
             &mut self.submissions,
         )
@@ -1370,21 +1109,6 @@ impl Caller {
         } else {
             self.returned.push(visit.answer);
         }
-        true
-    }
-    fn browse_act(&mut self, call: usize) -> bool {
-        if self.browser.is_none() {
-            assert!(self.running[call].is_none(), "browse a completed call");
-            let browser = Browser::new(call, &self.calls[call].stdout);
-            let op = browser.start();
-            self.browser = Some(browser);
-            self.submit(BROWSER, op);
-            return false;
-        }
-        if !self.browser.as_ref().expect("browser").done {
-            return false;
-        }
-        self.browsed.push(self.browser.take().expect("finished browser").seen);
         true
     }
     #[expect(
@@ -1513,15 +1237,6 @@ impl Caller {
             }
         }
         let call = &mut self.calls[index];
-        if matches!(step, Step::SameParty { .. }) && call.tries == 1 {
-            let link = *self.retry_link.get_or_insert(self.links.get());
-            if self.links.get() <= link {
-                return Ok(false);
-            }
-            self.retry_link = None;
-            self.spawn(now, index);
-            return Ok(false);
-        }
         if let Step::Until { holds, early, .. } = step
             && !holds.matches(&call.stdout)
         {
@@ -1558,10 +1273,6 @@ impl Caller {
             self.held_queries.set(self.llm_queries.get());
             self.next += 1;
         }
-        if matches!(self.steps.get(self.next), Some(Step::EndsLeaving(_))) {
-            assert_eq!(self.next + 1, self.steps.len(), "ending declaration is the last step");
-            self.next += 1;
-        }
     }
     fn advance(&mut self, now: Time) {
         if self.finding.is_some() {
@@ -1573,40 +1284,23 @@ impl Caller {
             return;
         };
         match step {
-            Step::Browse { .. } | Step::Authorize | Step::Return | Step::Terminal(_) => {
+            Step::Authorize | Step::Return | Step::Terminal(_) => {
                 if !self.interactive_act() {
                     return;
                 }
             }
             Step::FixtureReady if self.running.iter().any(Option::is_some) => return,
             Step::FixtureReady => self.fixture_ready(),
-            Step::EndsLeaving(_) => unreachable!("ending declaration was skipped"),
             Step::AddWorker { .. } if !self.added.replace(false) => return,
-            Step::StopEngine | Step::StartEngine { .. } if !self.engine_ready.replace(false) => return,
-            Step::WorkerCancelled { .. } if !self.contact_cancelled.get() => return,
-            Step::TrialEnded if !self.trial_ended.get() => return,
             Step::StopWorker { .. } | Step::StartWorker { .. } if !self.worker_ready.replace(false) => return,
-            Step::Advance | Step::Push { .. } if !self.advanced.get() => return,
-            Step::StopEngine
-            | Step::StartEngine { .. }
-            | Step::WorkerCancelled { .. }
-            | Step::TrialEnded
-            | Step::StopWorker { .. }
-            | Step::StartWorker { .. }
-            | Step::AddWorker { .. }
-            | Step::Advance
-            | Step::Push { .. } => {}
+            Step::Push { .. } if !self.pushed.get() => return,
+            Step::StopWorker { .. } | Step::StartWorker { .. } | Step::AddWorker { .. } | Step::Push { .. } => {}
             Step::ReleaseHold { .. } => {
                 if !self.hold_released.replace(false) {
                     return;
                 }
             }
             Step::Held { .. } => return,
-            Step::Kill { call } => {
-                if !self.kill_call(*call) {
-                    return;
-                }
-            }
             Step::Probe { at } => {
                 if !self.acquire_probe(*at) {
                     return;
@@ -1632,18 +1326,16 @@ impl Caller {
                     return;
                 }
             }
-            Step::SignIn { .. }
-            | Step::SameParty { .. }
-            | Step::Call { .. }
-            | Step::Start { .. }
-            | Step::Until { .. } => match self.command_act(now) {
-                Ok(true) => {}
-                Ok(false) => return,
-                Err(finding) => {
-                    self.finding = Some(finding);
-                    return;
+            Step::SignIn { .. } | Step::Call { .. } | Step::Start { .. } | Step::Until { .. } => {
+                match self.command_act(now) {
+                    Ok(true) => {}
+                    Ok(false) => return,
+                    Err(finding) => {
+                        self.finding = Some(finding);
+                        return;
+                    }
                 }
-            },
+            }
         }
         self.next += 1;
     }
@@ -1653,21 +1345,14 @@ impl Caller {
         }
         match self.steps.get(self.next) {
             Some(Step::Authorize | Step::Return) => self.visit.as_ref().is_none_or(|visit| visit.done),
-            Some(Step::Browse { .. }) => self.browser.as_ref().is_none_or(|browser| browser.done),
-            Some(Step::Terminal(act)) => self.terminal.ready(act, self.links.get()),
-            Some(Step::EndsLeaving(_)) | None => self.can_finish(),
+            Some(Step::Terminal(act)) => self.terminal.ready(act),
+            None => self.can_finish(),
             Some(Step::FixtureReady) => self.running.iter().all(Option::is_none),
-            Some(Step::StopEngine | Step::StartEngine { .. }) => self.engine_ready.get(),
-            Some(Step::WorkerCancelled { .. }) => self.contact_cancelled.get(),
-            Some(Step::TrialEnded) => self.trial_ended.get(),
             Some(Step::StopWorker { .. } | Step::StartWorker { .. }) => self.worker_ready.get(),
-            Some(Step::Advance | Step::Push { .. }) => self.advanced.get(),
+            Some(Step::Push { .. }) => self.pushed.get(),
             Some(Step::ReleaseHold { .. }) => self.hold_released.get(),
             Some(Step::AddWorker { .. }) => self.added.get(),
             Some(Step::Held { .. }) => self.held.get(),
-            Some(Step::SameParty { .. }) if self.retry_link.is_some() => {
-                self.retry_link.is_some_and(|link| self.links.get() > link)
-            }
             Some(Step::Probe { .. } | Step::Release { .. }) => !self.probing,
             Some(Step::Contended { calls }) => calls.iter().all(|call| self.calls[*call].busy != 0),
             Some(Step::Watching { .. }) => self.watched || self.watching.is_none(),
@@ -1715,7 +1400,6 @@ impl Host for Caller {
             && self.root.is_none()
             && self.probe.is_none()
             && self.owners.is_empty()
-            && self.browser.is_none()
             && self.visit.is_none()
             && self.terminal.is_empty()
     }

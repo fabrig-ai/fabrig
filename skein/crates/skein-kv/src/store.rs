@@ -409,6 +409,53 @@ impl Store {
         self.last
     }
 
+    /// Whether this is still the durable value and no admitted commit touches it.
+    #[must_use]
+    pub fn unchanged(&self, key: &[u8], value: &[u8]) -> bool {
+        !self.admitted.writing(key) && self.map.get(key) == Some(value)
+    }
+
+    /// Room after a required commit for optional operations on disjoint keys.
+    /// `frame` bounds the translated map frame (not the payloads); the result
+    /// is spare frame bytes and spare map growth, without reserving either.
+    #[must_use]
+    pub fn spare_for(&self, limits: &Limits, ops: &[Op], frame: u64) -> Option<(u64, u64)> {
+        use skein_lib::{Map, len_u64};
+        let mut rows = Map::uncapped();
+        let mut logs = Map::uncapped();
+        let mut bytes = frame;
+        for op in ops {
+            match op {
+                Op::Put { key, value } => {
+                    rows.insert(key.as_ref(), Some(len_u64(value.len()))).ok()?;
+                }
+                Op::Erase { key } => {
+                    rows.insert(key.as_ref(), None).ok()?;
+                }
+                Op::Append { log, frame } => {
+                    logs.insert(*log, Some(8)).ok()?;
+                    bytes = bytes.checked_add(frame.len())?;
+                }
+                Op::Drop { log } => {
+                    logs.insert(*log, None).ok()?;
+                }
+            }
+        }
+        let mut spare = u64::from(limits.commit).checked_sub(frame)?;
+        if let State::Open { .. } = &self.state {
+            spare = spare.min(limits.queued_bytes.checked_sub(self.queued_bytes.checked_add(bytes)?)?);
+        }
+        let mut used = i128::from(self.admitted.projected_used(&self.map));
+        for (key, value) in &rows {
+            used = used.checked_add(self.admitted.delta(&self.map, key, *value))?;
+        }
+        for (log, value) in &logs {
+            let key = self.logs.key(*log)?;
+            used = used.checked_add(self.admitted.delta(&self.map, &key, *value))?;
+        }
+        Some((spare, limits.budget.checked_sub(u64::try_from(used).ok()?)?))
+    }
+
     #[must_use]
     pub fn used(&self) -> u64 {
         self.map.used()

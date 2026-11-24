@@ -1,9 +1,6 @@
 //! File places win; otherwise read durable turns-log records (protocol/store/logs.md, 5).
-use super::{
-    Below, Decoded, Event, Queue, Read, Step, Store, Token, TurnRecord, codec, frame, keys, next, party, patching,
-    settle,
-};
-use crate::{logs, open};
+use super::{Below, Event, Queue, Read, Step, Store, Token, frame, keys, next, settle};
+use crate::{codec, logs, open};
 use alloc::boxed::Box;
 
 pub(crate) const OWNER: Token = Token::new(0x5456);
@@ -73,8 +70,7 @@ pub(super) fn start(store: &mut Store, owner: Token, mut read: Read, above: &mut
         | Step::Length { .. }
         | Step::Header { .. }
         | Step::Sized { .. }
-        | Step::Frame { .. }
-        | Step::Site { .. } => Err(()),
+        | Step::Frame { .. } => Err(()),
     };
     settle(store, owner, read, ready, above);
     if ready != Ok(false) {
@@ -112,7 +108,7 @@ pub(crate) fn arrived(
 ) {
     let Some(owner) = store.transcripts.reading else { return };
     let mut read = store.transcripts.reads.remove(&owner).expect("active log reader");
-    let ready = record(store, &mut read, records, above, below);
+    let ready = record(store, &mut read, records, below);
     settle(store, owner, read, ready, above);
 }
 
@@ -120,12 +116,10 @@ fn record(
     store: &mut Store,
     read: &mut Read,
     records: Option<Box<[skein_kv::LogRecord]>>,
-    above: &mut Queue<Event>,
     below: &mut Below,
 ) -> Result<bool, ()> {
     let Step::Log { max, waiting: true } = read.step else { return Err(()) };
-    // Each decode may stop at a written patch site. Demand one record so the
-    // next body is read only after this frame completes.
+    // Demand one body at a time, so a later record cannot fail this decode.
     let mut records = records.ok_or(())?.into_iter();
     let record = records.next().ok_or(())?;
     if records.next().is_some() {
@@ -137,7 +131,7 @@ fn record(
     {
         return Err(());
     }
-    let Some(body) = record.record else {
+    let Some(mut body) = record.record else {
         if max == store.limits.store.page.bytes {
             return Err(());
         }
@@ -148,53 +142,6 @@ fn record(
         return Err(());
     }
     let length = u32::try_from(record.end.checked_sub(record.at).ok_or(())?).or(Err(()))?;
-    match frame::Decode::from_body(&body, &mut store.transcripts.machines, &store.codec_limits).or(Err(()))? {
-        frame::Decode::Done { turn, size } => complete(store, read, record.at, length, turn, size, below),
-        frame::Decode::Patching(patch) => patching(store, read, record.at, length, patch, above, below),
-    }
-}
-
-fn complete(
-    store: &mut Store,
-    read: &mut Read,
-    offset: u64,
-    length: u32,
-    mut turn: TurnRecord,
-    size: u32,
-    below: &mut Below,
-) -> Result<bool, ()> {
-    let charged = store.transcripts.machines.body.is_some() || store.transcripts.machines.turn.is_some();
-    let transcript = core::mem::replace(&mut turn.transcript, Box::new([]));
-    let payload = u32::try_from(transcript.len()).or(Err(()))?;
-    if charged && let Some(party) = &mut read.party {
-        party.frame_bytes = Some(size);
-    }
-    let cost = if charged { size } else { payload };
-    if party::single(read) && party::header(store, read, &turn, cost)? {
-        return Ok(true);
-    }
-    if let Some(page) = &mut read.activity {
-        let selected = match read.scan {
-            super::Scan::Turn { attempt, turn: number } => turn.attempt == attempt && turn.turn == number,
-            super::Scan::Page => true,
-            super::Scan::Window { .. } => return Err(()),
-        };
-        if selected {
-            if page.identity() != Some((turn.task, turn.attempt, turn.turn)) {
-                return Err(());
-            }
-            let row = page.rows.get_mut(page.index).expect("pending row");
-            row.related = Some(super::domain::Record::Core(super::domain::CoreRecord::Turn(turn.clone())));
-            let bytes = row.owned_bytes().ok_or(())?.checked_add(u64::from(cost)).ok_or(())?;
-            row.related = None;
-            if bytes > page.bound {
-                return super::sized(store, read, offset, length, turn, cost, below);
-            }
-            if bytes > page.bytes {
-                return Ok(true);
-            }
-        }
-    }
-    turn.transcript = transcript;
-    super::accept(store, read, Decoded { offset, length, turn, size, charge_frame: charged, cut: None }, below)
+    let (turn, size) = frame::read_body(store, &mut body).or(Err(()))?;
+    super::complete(store, read, record.at, length, turn, size, below)
 }

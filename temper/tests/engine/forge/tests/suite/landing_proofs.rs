@@ -10,6 +10,7 @@ use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{
     World, changes,
     landings::{self, CHANGE, LANDING, Trains},
+    translate,
 };
 
 fn ours(event: &history::Event) -> bool {
@@ -285,6 +286,88 @@ fn a_batch_gets_one_proof_interval_and_turn_per_member() {
     }
     assert_eq!(runs(&world).len(), 1);
 }
+#[test]
+fn a_failing_member_turns_the_dispatched_two_member_top_red() {
+    const RED: u64 = CHANGE;
+    const OTHER: u64 = CHANGE + 1;
+    const CUE: &[u8] = b".fake-forge/gate";
+    const MARKER: &[u8] = b"turn-b.txt";
+    let mut workflow = workflow(2);
+    workflow.jobs = Box::new([b"gate".as_slice().into()]);
+    workflow.cue = Some(raw::Cue::Declared { path: CUE.into() });
+    let mut world = landings::turn_in(World::batch_turn(31, Some(workflow)));
+    world.batch(2);
+    for (task, branch, path, content) in [
+        (RED, b"temper/red".as_slice(), CUE, b"fail\n".as_slice()),
+        (OTHER, b"temper/b".as_slice(), MARKER, b"Second turn member\n".as_slice()),
+    ] {
+        world.produce_file(branch, path, content);
+        landings::ready_change(&mut world, task, branch);
+    }
+    let red_pull = world.change(RED).pull.expect("red member's pull");
+    Trains::default().judge(&mut world);
+
+    let mut candidate = None;
+    let failed = (1000..1120)
+        .find_map(|entry| {
+            landings::step_landing(&mut world, LANDING, entry);
+            let row = &world.landing(LANDING).landing;
+            if candidate.is_none() && row.phase == landing::Phase::Proving {
+                let [_, top] = row.members.as_ref() else { panic!("two members: {:?}", row.members) };
+                candidate = Some(top.candidate.expect("first whole top"));
+            }
+            let head = candidate?;
+            world.landing_history(LANDING).into_iter().find(|event| {
+                event.head == Some(head) && matches!(event.what, What::GateEnded { verdict: GateVerdict::Failed, .. })
+            })
+        })
+        .expect("committed failure of the first whole top");
+    let runs = runs(&world);
+    let [run] = runs.as_ref() else { panic!("first top dispatch only: {runs:?}") };
+    let head = translate::commit(run.commit);
+    assert_eq!(Some(head), candidate);
+    assert_eq!(run.event, raw::RunEvent::Dispatch);
+    assert_eq!(run.state, raw::RunState::Completed);
+    assert_eq!(run.conclusion, Some(raw::Conclusion::Failure));
+    assert_eq!((failed.head, failed.operation, failed.attempt), (Some(head), run.id, 1));
+    assert!(
+        world.landing_history(LANDING).iter().any(|event| matches!(
+            &event.what,
+            What::Formed { members, .. } if members.len() == 2
+                && members.iter().any(|member| member.change == RED)
+                && members.iter().any(|member| member.change == OTHER)
+        )),
+        "forming decision names both members"
+    );
+
+    let raw::Answer::Jobs(jobs) = world.inspect(&raw::Read::Jobs { run: run.id }) else { panic!("dispatched jobs") };
+    let [job] = jobs.as_ref() else { panic!("one gate job: {jobs:?}") };
+    assert_eq!(job.name.as_ref(), b"gate");
+    assert_eq!(job.conclusion, Some(raw::Conclusion::Failure));
+    let raw::Answer::Tree(tree) = world.inspect(&raw::Read::Tree { commit: run.commit }) else { panic!("top tree") };
+    assert_eq!(
+        tree.iter().find(|file| file.path.as_ref() == CUE).expect("red member at top").content.as_ref(),
+        b"fail\n"
+    );
+    assert!(tree.iter().any(|file| file.path.as_ref() == MARKER), "the failed top contains both members");
+
+    let main = world.branch(b"main");
+    assert_ne!(main, run.commit);
+    let raw::Answer::Pull(pull) = world.inspect(&raw::Read::Pull { number: red_pull }) else { panic!("red pull") };
+    let raw::Answer::Comparison { contains_base, .. } =
+        world.inspect(&raw::Read::Compare { base: pull.commit, head: main, page: 1, limit: 32 })
+    else {
+        panic!("red ancestry")
+    };
+    assert!(!contains_base, "the red member's head is not an ancestor of main");
+    let raw::Answer::Tree(main) = world.inspect(&raw::Read::Tree { commit: main }) else { panic!("main tree") };
+    assert!(
+        !main.iter().any(|file| file.path.as_ref() == CUE && file.content.as_ref() == b"fail\n"),
+        "main excludes the red member's content"
+    );
+    assert!(!main.iter().any(|file| file.path.as_ref() == MARKER), "main excludes the other member's content");
+}
+
 #[test]
 fn a_squashed_member_is_recorded_at_its_prefix_once() {
     let mut world = start(60);

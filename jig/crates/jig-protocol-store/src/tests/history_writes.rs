@@ -34,12 +34,6 @@ fn failed(events: &[Event], check: CommitCheck) {
     assert_eq!(*why, check);
 }
 const SETS: crate::OwnerSets = crate::OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] };
-fn limits() -> crate::Limits {
-    let mut limits = fixtures::store_limits();
-    limits.store.ops = 128;
-    limits.store.budget = 2_097_152;
-    limits
-}
 fn open(limits: &crate::Limits) -> Store {
     let stores = crate::Stores {
         store: skein_kv::Store::memory(&limits.store),
@@ -62,7 +56,7 @@ fn open(limits: &crate::Limits) -> Store {
     store
 }
 fn opened() -> Store {
-    open(&limits())
+    open(&fixtures::registered_store_limits())
 }
 fn place(store: &mut Store, task: u64) -> codec::component::HistoryLog {
     let key = keys::encode_own(&keys::Own::History { task }, fixtures::KEY_LIMIT).unwrap();
@@ -165,7 +159,7 @@ fn an_oversized_history_record_fails_encoding_at_the_record_edge() {
     let skein_kv::Op::Put { key, value } = put(&store, &row) else { unreachable!() };
     let length = u32::try_from(logs::record::encode(&[(key, Some(value))]).unwrap().len()).unwrap();
     for limit in [length, length.checked_sub(1).unwrap()] {
-        let mut limits = limits();
+        let mut limits = fixtures::registered_store_limits();
         limits.store.record = limit;
         let mut store = open(&limits);
         let op = put(&store, &row);

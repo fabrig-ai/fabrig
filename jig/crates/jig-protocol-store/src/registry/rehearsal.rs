@@ -3,8 +3,12 @@
 use super::{Layouts, head, rehead, rows, texts};
 use crate::{OpenRefusal, Store};
 use alloc::boxed::Box;
-use skein_codec::{schema::Shape, value::Value};
+use skein_codec::{
+    schema::{FieldIx, Held, Schema, Shape, Type},
+    value::{Node, Value},
+};
 
+#[derive(Debug)]
 pub(crate) struct Decoder {
     layouts: Box<Layouts>,
 }
@@ -20,13 +24,54 @@ impl Decoder {
         texts::clear(&mut self.layouts);
     }
 
-    pub(crate) fn decode(
+    pub(crate) fn decode(&mut self, family: &str, number: u16, value: &mut Value, bytes: Box<[u8]>) -> Result<(), u16> {
+        self.decoded(family, number, value, bytes)?;
+        Ok(())
+    }
+
+    pub(crate) fn seed_frames(&mut self, store: &Store) -> Result<(), OpenRefusal> {
+        let mut binary = texts::Binary::new(&store.owner_sets, &mut self.layouts)?;
+        for set in store.owner_sets.sets {
+            for family in set.families {
+                if let Some(frames) = &family.frames {
+                    rows::seed_frames(&mut self.layouts, &mut binary, family, frames)
+                        .ok_or(OpenRefusal::Set { owner: set.owner })?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn transcript(
+        &mut self,
+        family: &str,
+        number: u16,
+        smith: &str,
+        value: &mut Value,
+        bytes: Box<[u8]>,
+    ) -> Result<Box<[u8]>, u16> {
+        let (schema, decl, node) = self.decoded(family, number, value, bytes)?;
+        let version = schema.version();
+        let Shape::Record { first, count, .. } = schema.declaration(decl).shape else { return Err(version) };
+        for offset in 0..count {
+            let field = FieldIx::new(first.index().checked_add(offset).ok_or(version)?);
+            if let Type::Bytes { held: Held::Record { family, .. }, .. } = schema.ty(schema.field(field).ty)
+                && schema.spelled(family) == smith.as_bytes()
+            {
+                let node = value.field(node, field).or(Err(version))?;
+                return Ok(Box::from(value.content(node).or(Err(version))?));
+            }
+        }
+        Err(version)
+    }
+
+    fn decoded(
         &mut self,
         family: &str,
         number: u16,
         value: &mut Value,
         mut bytes: Box<[u8]>,
-    ) -> Result<(), u16> {
+    ) -> Result<(&Schema, skein_codec::schema::DeclIx, Node), u16> {
         let id = head(&bytes).ok_or(0_u16)?;
         let key = (Box::from(family), number, id);
         if let Some(row) = self.layouts.rows.get(&key) {
@@ -52,7 +97,7 @@ impl Decoder {
                     return Err(schema.version());
                 }
             }
-            return Ok(());
+            return Ok((schema, root.decl, node));
         }
         Err(id)
     }

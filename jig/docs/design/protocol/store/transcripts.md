@@ -15,16 +15,16 @@ converted; retention drops them as it drops a turns log.
   number, its spend, the last message it read, its time, whether it opens
   a window, then smith's bytes, with a checksum, and the frame's length
   at both ends, so the file can be walked from either end.
-- **A frame keeps the versions it was written in,** with no field of its
+- **A frame keeps the layouts it was written at,** with no field of its
   own. Its body is the core's `TurnRecord`, a versioned record, so its
-  first two bytes are the core family's version; its `transcript` is
+  first two bytes are its layout's id; its `transcript` is
   smith's turn, versioned on its own (smith's `protocol/transcript.md`,
-  section 6), so its first two bytes are smith-transcript's version, and
+  section 6), so its first two bytes are the turn's layout's id, and
   the core's schema says so (skein's `data/codec/README.md`, section 3):
   `transcript: bytes 33554432 holds smith-transcript Turn`, its ceiling
   smith's largest turn (smith's `protocol/limits.md`, 4). No frame is
-  rewritten: one behind the binary's versions is patched each time it is
-  read (6). The word is core-v6's: it is part of the family's layout
+  rewritten: one at another layout than the binary's is converted each
+  time it is read (6). The word is core-v6's: it is part of the family's layout
   and moves no byte (skein's `data/codec/fingerprints.md`, section 1).
 - **The map keeps each transcript's places,** in the component's own
   family: its committed length and the offset of its current window's
@@ -102,17 +102,16 @@ the committed length. The next open cuts the file to its committed length
   text at most the tail's own budget, as the core's memory prices it.
 - **Never past what is committed.**
 - **Current bytes only:** each kind hands on a frame at the binary's
-  versions, one behind patched as it is read (6).
+  layouts, one at another converted as it is read (6).
 - **Turns-log demands** ask for one record in either direction
-  (`logs.md`, 5). A written patch site pauses the current frame before
-  the next record is demanded (6).
+  (`logs.md`, 5).
 - **A dropped transcript,** a task with no row of places: a party's
   page of its activity carries each turn line without its turn, as
   unread, and goes on past it, since none of its frames can be read
   (`retention.md`, 7). A transcript read of it answers unread, and a
   party's read of one turn finds none.
 - **A frame that fails its checksum** fails the read as unread, and so
-  does one its machines refuse (6). The core
+  does one its layouts' plans refuse (6). The core
   treats the transcript as one the agent cannot use: the run fails as
   transient and the next starts fresh (`../../domain/engine/executors-transcripts.md`, 1); a
   closed window's tail it cannot read, it leaves out.
@@ -144,125 +143,86 @@ before the commit leaves places whose file is gone: a read of it answers
 as for a dropped transcript, and retention's next pass drops it again.
 Removing a missing file is not a failure.
 
-## 6. Patched as read
+## 6. Converted as read
 
-An upgrade never writes a transcript (`opening.md`, 2): the transcripts are most of
-what a deployment holds, and a frame is only ever read. So a frame
-behind the binary's versions is patched each time it is read, and
-nothing is written.
+An upgrade never writes a transcript (`opening.md`, 2): the transcripts
+are most of what a deployment holds, and a frame is only ever read. So
+a frame keeps the layouts it was written at, and is converted each time
+it is read, by plans from the registry's texts, as a map value is
+(`layouts.md`); nothing is written.
 
-- **The machines** are the frames' families' (`opening-owners.md`, 1,
-  `KeptFamily::frames`): one `Patcher` each, the body's family in jig's
-  set and the turn's in smith's, made at every open that serves (`opening.md`, 1)
-  from the sets it was handed, after the frames' checks of `opening-owners.md`, 1, each
-  frames' text kept and each of its frames' patches planned, and held
-  by the transcripts' part for the whole run. No map patch machine is
-  made. A family with no frames' text has no machine.
-- **A text kept once.** Each `Patcher` an open makes of a frames'
-  family (the frames' check's, the one that sizes a machine and the
-  machine itself) keeps each of the family's texts once: a copy of the
-  shell's prepared schema whose whole text equals it (`opening-owners.md`, 1),
-  or its own parse where none does. What the open reads of a kept text
-  after (its version, its root, its nodes' bound) it reads from the
-  schema the `Patcher` keeps, never from a parse of its own.
-- **A frame's versions** are read with its head, past the frame's
-  length: the body's first two bytes, and the turn's first two, past the
-  `transcript` field's length, after the fields the head reads already.
-  With smith's machine, a turn of fewer than two bytes is unread.
-- **A body behind** (its version kept by jig's machine, before the
-  binary's) runs jig's plans from its version to the binary's, from the
-  frames' root (found in the frame's version by the kept texts' renames,
-  by `transcripts/patches.rs`'s `held_root`), `next_pass` after the first.
-  At its held turn the machine stops (`Step::Held`): at the first pass,
-  smith's machine patches the turn from its version to smith's last
-  kept, and its bytes go back with `put_content`; the passes after carry
-  them (`carry`). A body at the binary's version is decoded by the
-  binary's codec, and its turn, if behind, is patched by smith's
-  machine alone, from smith's frames' root.
-- **One rule for versions.** Where a family has a machine, a version
-  among its kept texts and before its last is patched, its last goes on
-  as it is, and any other, older than its first or past its last, is a
-  halt (`Decode` or `Order`), so the frame is unread. Where a family has
-  none, its bytes go on as they are: a body its codec cannot
-  read is unread (3), and a turn's reader refuses a version not its
-  own (smith's `protocol/transcript.md`, section 4).
-- **Owners' order.** A frame runs jig's plans first and smith's at
-  the held turn (`opening-owners.md`, 1). Neither reads the other's bytes:
-  jig's written functions
-  on a frame's body never read its `transcript`, and smith's read their
-  turn alone (smith's `protocol/transcript.md`, section 12).
-- **Nothing is written.** The read hands on the patched bytes and the
-  file keeps the frame's own, so its lengths, its checksum and the map's
-  places stay true, and the frame is patched again at its next read. A
-  cut anywhere in a read leaves every file as it was.
+- **Two value types a frame** (`layouts.md`, 1): its body, the frames'
+  root of jig's frames' family, the core's `TurnRecord`; and the turn
+  its `transcript` holds, the frames' root of smith's,
+  smith-transcript's `Turn`. Each is named by its family's
+  `Frames::number` (`opening-owners.md`, 1), with no key range, its
+  layouts rows of the registry (`layouts.md`, 3). The body's layout is
+  computed without smith's text, so its held turn is named by family
+  and type (skein's `data/codec/fingerprints.md`, 1.4) and its plan
+  copies the turn as it is (skein's `data/codec/layouts.md`, 1): the
+  turn moves by its own layout, never its holder's. A record of the
+  map that holds a turn (the core's parts, `records.md`, 1) takes it
+  into its own layout, as any held record (`layouts.md`, 1).
+- **Heads:** the body's first two bytes are its layout's id, and the
+  turn's first two, past the `transcript` field's length, its own. A
+  frame is written with the binary's ids, each family's version the
+  generated code writes mapped to its value type's binary id as the
+  write edge maps a map value's (`layouts.md`, 4), before the frame's
+  checksum; a turns log's record the same. A frame is read with each
+  mapped back: an id that is the binary's, or one whose plan keeps, has
+  its family's version written in its place; another planned id is
+  converted by its plan, the turn within its field, the field's length
+  written again; an id its value type has no row for, or a value its
+  plan refuses, is a frame unread (3).
+- **Before the registry:** a frame written before its value types had
+  rows carries its families' versions, the body the core's 6, the turn
+  smith-transcript's 7 or 8. The open that finds no row of a frames'
+  value type registers each of its family's `texts` at its version as
+  its id, before the binary's layouts (`layouts.md`, 5.2): jig's the
+  core's `current`, at 6; smith's smith-transcript's kept texts, at 7
+  and 8. Each such frame's heads then name rows as any frame's do. A
+  frames' family's `texts` keep this seed until dev.fabrig.ai's store
+  holds the rows (temper's `draft/store-floor.md`).
+- **Planned at open,** each row of a frames' value type to the binary's
+  layout, as a log-held value type's (`layouts.md`, 5.3; `logs.md`, 8):
+  every layout is held, since no census counts frames, so one with no
+  plan refuses the open; none retires; none settles (`settling.md`); a
+  later one is planned in Read mode (`layouts.md`, 5.6). The rehearsal
+  decodes each frame's body and turn as generic values of their
+  layouts' texts (`opening-rehearsal.md`, 1).
 - **Every read kind** of 3 (resuming, a turn, a page's turns, a page
   of turns and a fresh run's tail, the last read as resuming's is) reads
-  its frames through one step, the frame's decode, and the machines run
-  there. The core, a party's read and a host's protocol layer are handed
+  its frames through one step, the frame's decode, and converts there.
+  The core, a party's read and a host's protocol layer are handed
   current bytes alone: `jig-protocol-transcript` reads smith's current
   version only, as smith's agent does.
-- **Bounds on patched bytes.** A frame behind is read whole and patched
+- **Bounds on converted bytes.** A frame is read whole and converted
   before anything is judged: its size, against a page's bound, a turn's
-  (a party's charge, the page's row and the turn's bytes) and the resume
-  limit, is its patched body's and its 12 bytes of framing. Where either
-  machine is made, every frame is charged so, behind or not, so a frame's
-  charge does not hang on its version, and a turn refused past a bound
+  (a party's charge, the page's row and the turn's bytes) and the
+  resume limit, is its converted body's and its 12 bytes of framing,
+  for every frame, converted or not, so a frame's charge does not hang
+  on its layout, and a turn refused past a bound
   (`TurnFailure::TooLarge`) names that size. A direct Window/Page read
-  charges the whole frame, including metadata, payload and framing,
-  whether or not a machine is made. With no machine, a party's read
-  charges the turn's bytes. The head alone (a turn past a
-  page's bound, 3) serves a frame at the binary's versions only: a
-  head whose body or turn is behind is read on, whole, from the bytes
-  already read. A patched record past its machine's bytes or nodes
-  halts (`Room`).
-- **A halt is an unread frame.** A frame the machines refuse (any
-  `Halt` of skein's `data/codec/patches.md`, 4, a site's `NoSite` among them) is
-  read as one that fails its checksum (3), in every read kind.
-- **A written site goes up** (`opening-owners.md`, 1): at
-  `Step::Written` the component answers `Site` to the read's own token,
-  `of` the site's owner, its `key` the frame's name (the task's key in
-  the component's places, `keys.md`, 1.4, then the frame's offset in its file,
-  eight bytes big-endian), the site, the node and the machine, moved;
-  the read waits for `Request::Site` with the result. A shell answers a
-  site at once, by its owner's generated `written`, with a `Default`
-  `Context`, its key set: reads come in any order and a frame is patched
-  at each, so a frame's patch reads that frame alone (skein's
-  `data/codec/patches.md`, 5). The component routes `Request::Site`
-  to the read waiting at that token; any other is refused. There is no
-  map walk's site to route. A shell that hands no sets never sees `Site`.
-- **One read at a time** (`transcripts/read.rs`): a read
-  waiting at a site holds the component's read, commits wait behind it
-  as behind any read (`transcripts/write.rs`), and a machine serves one
-  frame from `start` to `finish`.
-- **Memory:** each machine's `Patcher::workspace_bound` of its capacity,
-  in serving's worst case (`README.md`, section 8), priced at startup; none for sets
-  with no kept text. A capacity's versions, patches and text are its
-  owner's kept versions, patches and largest text. Its bytes and nodes
-  are its frames' bounds, never the map's: jig's, the frames' largest
-  body and the most nodes any kept body takes, its held turn one node;
-  smith's, the `transcript` field's bytes and the most nodes any kept
-  turn takes. Both are counted from the frames' root in each kept text
-  (`transcripts/patches.rs`, `node_bound`), so every frame the kept
-  texts allow is read and none is refused for its nodes. A turn's bytes
-  do not bound its nodes (a list of empty records takes none), so
-  smith's real turn, 4 messages of 128 blocks, takes 1,054,764 nodes,
-  and its machine is priced at that capacity, about
-  249 MB with what its tables hold while they grow (skein's `data/codec/patches.md`,
-  7); a machine holds only what the largest record it has met needed
-  (`README.md`, section 11).
-- **The formats are fixed** at the core's version 6 and smith's 8
-  (temper's `draft/store-floor.md`, section 5). Their frame patcher and
-  fixtures, `jig-test-patches-jig` and `jig-test-patches-smith`, stay.
-  A change to a frame format designs how the deployment's store reaches
-  it in that landing; no mark schedules a window-closing walk at open.
-  Smith's 8 (the `interrupted` outcome, smith's `protocol/transcript.md`,
-  section 12) reaches it by this patching: a turn at 7 is patched by
-  smith's machine each time it is read, and nothing is written.
-- **A frame's move is no level's.** Smith's level stays 0 (`opening.md`,
-  3; `records.md`, 3): a turn's version moves by its kept text and
-  patch, read here, never by a level, so a store written at smith's 7
-  opens at equal levels. The core's `TurnRecord` keeps its version 6
-  while the turn it holds moves: the body's own layout is judged with
-  its held turn at one version on both sides, and the held turn's move
-  by smith's kept texts and patches. temper's stored-layouts check
-  (`temper/tests/codecs`) holds both.
+  charges the whole frame, including metadata, payload and framing.
+  The head alone (a turn past a page's bound, 3) serves a frame whose
+  ids are the binary's or keep; another is read on, whole, from the
+  bytes already read. A frame converted past the page's bytes is
+  unread.
+- **Nothing is written.** The read hands on the converted bytes and the
+  file keeps the frame's own, so its lengths, its checksum and the map's
+  places stay true, and the frame is converted again at its next read. A
+  cut anywhere in a read leaves every file as it was.
+- **One read at a time** (`transcripts/read.rs`): commits wait behind a
+  read as behind any read (`transcripts/write.rs`).
+- **Memory:** the read edge's buffer and workspace (`layouts.md`, 7),
+  the workspace fitted at open to every frames' plan beside the map's,
+  the buffer grown to the largest frame converted, at most the page's
+  bytes `P` (`commits.md`, section 1). No patch machine is made, and no
+  frame goes up to the shell: a frame's conversion calls no owner.
+- **The formats:** a frame's layouts move as a registered value's do;
+  its families' versions stay, the core's 6 and smith's 8 (temper's
+  `draft/layouts-both-ways.md`, 3). A change no plan derives refuses
+  the open, as a log-held value type's does (`logs.md`, 8), so temper's
+  stored-layouts check holds every deployed frames' layout to a plan
+  (temper's `protocol/floor.md`, 6). A frame's move is no level's:
+  smith's level stays 0 (`opening.md`, 3; `records.md`, 3).

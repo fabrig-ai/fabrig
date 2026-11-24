@@ -1,13 +1,13 @@
-# Opening the store: owner sets and frames' sites
+# Opening the store: owner sets
 
-## 1. Owner sets and frames' sites
+## 1. Owner sets
 
 - **Owner sets are data,** handed to the component's open by its shell
   beside the limits and its build's name, a `&'static str` the floor row
   records (`records.md`, 3): for each owner whose records it keeps, its
   families, their value types, its jobs and its level, and for a
-  frames' family its frames' texts and patches, the generated modules'
-  constants (skein's `data/codec/command.md`, 3), no function. A set
+  frames' family its frames' root, number and texts, the generated
+  modules' constants (skein's `data/codec/command.md`, 3), no function. A set
   carries no map patch, no older text of a map family, no fresh mark
   and no effects in flight (temper's `draft/store-floor.md`, 4.1 and
   4.2): no map record is rewritten but by a job or the seal, and a
@@ -34,9 +34,9 @@ pub struct KeptFamily {
     pub retired: &'static [Retired],      // its retired value types (`layouts.md`, 2)
 }
 pub struct Frames {
-    pub root: &'static str,               // the declaration it is in transcripts' frames, where their machine starts
-    pub texts: &'static [&'static str],   // its frames' kept texts, in version order, the last at `current`'s version
-    pub patches: &'static [&'static str], // the patches the frames' machine plans, its owner's, in number order
+    pub root: &'static str,               // the declaration it is in transcripts' frames: its frames' value type's root
+    pub number: u16,                      // its frames' value type's number in the registry's keys (`layouts.md`, 2, 3), never reused
+    pub texts: &'static [&'static str],   // the texts frames were written at before the registry, in version order, the last at `current`'s version (`transcripts.md`, 6)
 }
 pub struct Keys {
     pub from: &'static [u8],              // inclusive
@@ -75,17 +75,19 @@ impl OwnerSets {
   section 7).
 - **The frames' families** (`transcripts.md`, 6) are the two whose
   `frames` is set: in jig's set, the core's, whose `TurnRecord` is a
-  frame's body, its `texts` the core's `current` alone and its
-  `patches` none; in smith's, smith-transcript, whose `Turn` the body's
-  `transcript` holds, with no `keys`, since none of its records is a
-  map's, its `texts` and `patches` smith-transcript's generated
-  module's (smith's `protocol/transcript.md`, section 12). Every other
-  family's is `None`. A set with a frames' family in another slot, or
-  two in one, is refused, `Set`; so is a body whose held turn names a
-  family other than smith's frames' one, judged from the frames'
-  texts, at every open before its machines are made (`transcripts.md`,
-  6). A frames' family's `texts` must keep one version after another,
-  each spelling the family's name, its last at `current`'s version.
+  frame's body, its `texts` the core's `current` alone; in smith's,
+  smith-transcript, whose `Turn` the body's `transcript` holds, with
+  no `keys`, since none of its records is a map's, its `texts`
+  smith-transcript's kept texts, from its generated module (smith's
+  `protocol/transcript.md`, section 12). Every other family's is
+  `None`. A set with a frames' family in another slot, or two in one,
+  is refused, `Set`; so is a body whose held turn names a family other
+  than smith's frames' one, judged from the frames' texts, at every
+  open before its layouts are planned (`transcripts.md`, 6). A frames'
+  family's `texts` must keep one version after another, each spelling
+  the family's name, its last at `current`'s version, and its `number`
+  must be none of its family's value types' or retired ones'
+  (`layouts.md`, 2), checked where the set is admitted.
 - **Levels.** A set's level is its `level`, held explicitly: jig's 6,
   temper's 14, skein's and smith's 0, which no binary moves
   (`records.md`, 3). Every writer and reader of a level (the first
@@ -100,19 +102,19 @@ impl OwnerSets {
   names no accounts consumer. The store's real-family layout and job
   tests use its own set. The component's other tests hand it fixture
   owners' sets: `jig-test-layouts`' fixture families for the registry's
-  tests, and `jig-test-patches-jig` in jig's slot and
-  `jig-test-patches-smith` in smith's, fixture frames' families whose
-  frames are patched as read. No test owner names a production family.
-  A fixture body family's last text is the core's `TurnRecord` at the
-  binary's version under its own name, its `transcript` holding the
-  fixture turn, since a patched body is decoded by the binary's codec;
-  the fixture turn's last is its own, since the component hands a
-  turn's bytes on undecoded. The names, texts and keys are `&'static`,
-  the binary's own constants, never state: the only references in
-  fields the component holds (skein/docs/foundation/programming-model.md,
-  10.3), beside optional immutable parsed binary texts (below), read by each
-  open's check and by each serving open, which makes
-  the frames' machines from them (`transcripts.md`, 6).
+  tests, among them fixture frames' families in jig's and smith's
+  slots, whose frames are converted as read. No test owner names a
+  production family. A fixture body family's last text is the core's
+  `TurnRecord` at the binary's version under its own name, its
+  `transcript` holding the fixture turn, since a converted body is
+  decoded by the binary's codec; the fixture turn's last is its own,
+  since the component hands a turn's bytes on undecoded. The names,
+  texts and keys are `&'static`, the binary's own constants, never
+  state: the only references in fields the component holds
+  (skein/docs/foundation/programming-model.md, 10.3), beside optional
+  immutable parsed binary texts (below), read by each open's check and
+  by each serving open, which plans the frames' layouts with them
+  (`transcripts.md`, 6).
 - **A set is checked where it is admitted,** at every open, before the
   levels are compared, so a start at equal levels proves its sets too:
   one set per owner; the manifest's bounds, at most 64 families in all
@@ -139,9 +141,9 @@ impl OwnerSets {
   whole text equals that text byte for byte, and parses one that no
   supplied schema equals: admission; the registry's planning, for a
   binary's `current` and a stored text alike, the stored bytes checked
-  against their digest first (`layouts.md`, 7); the rehearsal's decoding
-  (`opening-rehearsal.md`, 1); and the frames' machines, which keep a copy of it, since a
-  `Patcher` owns what it keeps (`transcripts.md`, 6). The schemas hold
+  against their digest first (`layouts.md`, 7), the frames' among them
+  (`transcripts.md`, 6); and the rehearsal's decoding
+  (`opening-rehearsal.md`, 1). The schemas hold
   no stored data, admission verdict or layout verdict: every check an
   open makes (owners, digests, held layouts, compatibility) runs over
   them as over its own parse, so an open given them answers as one given
@@ -168,30 +170,12 @@ impl OwnerSets {
   and no verdict outlives the open it was made in. The jobs' check the
   open makes alone at its first step (`jobs.md`, 1), before reading the
   format row, is cheap and stays where it is.
-- **A frame's written site goes up.** Step code holds no function
-  (skein's `data/codec/patches.md`, 4; skein/docs/foundation/programming-model.md,
-  10.3), so where a frame read while serving meets `Step::Written`
-  (`transcripts.md`, 6), the component answers `Site` to the read's
-  token with the owner, the frame's key, the site, the node and the
-  frames' `Patcher` itself, moved, never shared. The shell sets the key
-  in a `Default` `Context` of that owner's for each frame
-  (skein's `data/codec/patches.md`, 5), runs the owner's generated
-  `written` over `parts()`, and hands the `Patcher` back in a `Site`
-  request with the result; the component then calls `next()`. One
-  frame waits on at most one site at a time. No map record goes up: the
-  open runs jobs and seals, with no eager map patching walk.
-
-```rust
-// up                                      // down
-Event::Site {                              Request::Site {
-    owner: Token,                              owner: Token,
-    of: Owner,                                 patcher: Box<Patcher>,
-    key: Box<[u8]>,                            result: Result<(), Halt>,
-    site: Site,                            }
-    at: Node,
-    patcher: Box<Patcher>,
-}
-```
+- **Nothing goes up to the shell while the store serves.** A frame
+  converts by its layouts' plans (`transcripts.md`, 6) and a map value
+  by its layout's (`layouts.md`, 4): step code holds no function
+  (skein/docs/foundation/programming-model.md, 10.3), and no read calls
+  an owner. There is no `Event::Site` or `Request::Site`. What no plan
+  derives is a written job's, at open (`jobs.md`, 4).
 
 - **A job's other stored inputs:** while a job's page is outstanding
   (`jobs.md`, 3), `Store::patch_page` reads a bounded page of public
@@ -205,16 +189,13 @@ Event::Site {                              Request::Site {
   the owners' crates and drives the store's open: the application's
   (temper's `temper-service`, its `Store`); jig has no production shell
   of its own. In jig's tests the store world's (`tests/store`) answers
-  the fixture owners' frames' sites and jobs. `jig-test-service`'s
+  the fixture owners' jobs. `jig-test-service`'s
   hands no sets. `jig-test-store-files`' hands none either, unless a
   core world gives it fixture sets (`Store::with_owner_sets`, and
   `owner_sets` for the next open): then it opens over a fake machine's
-  directory, so that the copy, the jobs and the switch run. A site its
-  shell has no function for is answered `Halt::NoSite` (skein's
-  `data/codec/patches.md`, 4), as their routes already do for any token.
+  directory, so that the copy, the jobs and the switch run.
 - **A shell with no sets.** The component holds `OwnerSets::NONE`
   until a shell hands it sets, by a setter beside the constructors
-  (`Store::owner_sets`); with none it never answers `Site`, never wants
-  `Request::Site`, and `Opened`'s `pending` is false. A root that sees
+  (`Store::owner_sets`); with none `Opened`'s `pending` is false. A root that sees
   `pending` true asks for `Request::Switch` before its runs are adopted
   (`opening.md`, 2, step 7).

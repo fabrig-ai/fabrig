@@ -75,7 +75,7 @@ impl Disk {
             while let Some(event) = store.events().pop() {
                 match event {
                     Event::Census { .. } | Event::Ran { .. } => {}
-                    event @ (Event::Job { .. } | Event::Site { .. }) => assert!(store.opening_site(event)),
+                    event @ Event::Job { .. } => assert!(store.opening_job(event)),
                     event => return event,
                 }
             }

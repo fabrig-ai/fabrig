@@ -146,6 +146,7 @@ pub struct Store {
     read_failure: Option<restore::Failure>,
     registry: Box<registry::Layouts>,
     layout_work: Box<registry::ReadWork>,
+    frame_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
     names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
@@ -305,6 +306,7 @@ impl Store {
             read_failure: None,
             registry: Box::new(registry::Layouts::new()),
             layout_work: Box::new(registry::ReadWork::new()),
+            frame_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
             opening_keys: skein_lib::Map::uncapped(),
             stores,
@@ -472,7 +474,7 @@ impl Store {
     }
 }
 
-/// A bounded page read while a patch is stopped at a written site (protocol/store/opening-owners.md, 1).
+/// A bounded page of stored inputs read while a job page is outstanding (protocol/store/opening-owners.md, 1).
 #[derive(Debug)]
 pub struct PatchPage {
     pub rows: Box<[skein_kv::Row]>,
@@ -611,9 +613,6 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         Request::Open { owner, root, installation, purpose } => {
             directory::open(store, owner, root, installation, purpose, above, below);
         }
-        Request::Site { owner, patcher, result } => {
-            transcripts::read::site(store, owner, patcher, result, above, below);
-        }
         Request::Job { owner, answer } => upgrade::phase::job(store, env, owner, answer, above, below),
         Request::Commit { number, writes } => view::commit(store, env, number, writes, above, below),
         Request::Restore { owner, range, after, rows, bytes } => {
@@ -729,7 +728,7 @@ pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
     CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
     OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, Unready, WorkerOpening, Write,
+    SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WorkerOpening, Write,
 };
 
 #[cfg(test)]

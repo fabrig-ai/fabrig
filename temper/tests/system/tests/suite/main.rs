@@ -13,11 +13,16 @@ mod simulation;
 mod stopped_news;
 mod store_check;
 mod text;
+mod workload;
 
 mod fuzzy {
     mod accounts;
     mod composed;
+    mod green_light;
+    mod repair;
     mod restarts;
+    mod twin;
+    mod workload;
 }
 mod running_revision;
 
@@ -32,3 +37,4 @@ mod close_job;
 mod endings;
 mod notes;
 mod timer_results;
+mod two_workers;

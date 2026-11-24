@@ -7,7 +7,7 @@ use generations::{Copying, Progress, Removing};
 use skein_io::file;
 use skein_lib::{Queue, Token};
 mod decode;
-pub(crate) use decode::records;
+pub(crate) mod frames;
 
 #[derive(Debug)]
 enum Stage {
@@ -38,6 +38,8 @@ pub(crate) struct State {
     close: Option<Token>,
     fault: bool,
     files: crate::file_handles::Owned,
+    frames: Option<Box<frames::Walk>>,
+    resume_open: bool,
 }
 
 #[expect(clippy::too_many_arguments, reason = "a rehearsal carries its reach beside the adopted roots")]
@@ -73,6 +75,8 @@ pub(crate) fn begin(
         close: None,
         fault: false,
         files: crate::file_handles::Owned::new(),
+        frames: None,
+        resume_open: false,
     });
     store.directory.owner = owner;
     below.store.push(file::Request::Lock { owner: directory::OWNER, root: source.token });
@@ -237,6 +241,39 @@ fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     crate::rows::kept_wires(&bytes)
 }
 
+/// The map walk is synchronous; the frame walk resumes open after its last read.
+pub(crate) fn records(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> bool {
+    let Some(rehearsal) = &mut store.rehearsal else { return true };
+    if rehearsal.resume_open {
+        rehearsal.resume_open = false;
+        return true;
+    }
+    if rehearsal.frames.is_some() {
+        return false;
+    }
+    let Some((decoder, records)) = decode::records(store, owner, above) else { return false };
+    // The upgrade copy's map may have changed; its frames were checked at the source.
+    if crate::upgrade::switch::pending(store) {
+        above.push(Event::Decoded { owner, records });
+        return true;
+    }
+    let Some(mut walk) = frames::Walk::new(store, decoder, records) else {
+        above.push(Event::Decoded { owner, records });
+        return true;
+    };
+    if let Err(why) = walk.seed(store) {
+        open::refuse(store, owner, why, above);
+        return false;
+    }
+    state(store).frames = Some(Box::new(walk));
+    false
+}
+fn decoded(store: &mut Store, records: u64, above: &mut Queue<Event>) {
+    let rehearsal = state(store);
+    rehearsal.resume_open = true;
+    above.push(Event::Decoded { owner: rehearsal.owner, records });
+}
+
 /// End an openings-only rehearsal after the recovered rows have been announced.
 pub(crate) fn end_openings(store: &mut Store, above: &mut Queue<Event>) -> bool {
     let Some(state) = &store.rehearsal else { return false };
@@ -255,6 +292,7 @@ pub(crate) fn close(store: &mut Store, owner: Token, above: &mut Queue<Event>) {
         return;
     }
     state.close = Some(owner);
+    state.frames = None;
     state.stage = Stage::Closing;
     store.phase = Phase::Stopped;
 }

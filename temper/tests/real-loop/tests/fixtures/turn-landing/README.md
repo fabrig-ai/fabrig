@@ -1,8 +1,8 @@
 # Turn landing's scripts
 
 `scripts.json` is the box's `--scripts` object, not a whole model document.
-The real-loop red story decodes it with `Document::decode_with_scripts` and uses
-that domain unchanged. The setup catalogue copies these bytes.
+`temper-box::domain` checks this copy against the QA setup byte for byte
+and decodes it with `Document::decode_with_scripts`.
 
 ## Goal cues
 
@@ -20,24 +20,21 @@ from those words and each review's pull and head from its brief.
 The project uses `turn`, `batch` 2, with blocking `gate.yml`, the fake
 Forgejo's declared `.fake-forge/gate` cue, and both manual-merge settings on.
 Its agent-review landing rule uses **clean** freshness: disjoint clean merges
-carry their reviews to their prefixes. The real-loop world has one worker
-with two slots. Charter 1 makes changes and charter 4 reviews them.
+carry their reviews to their prefixes. Charter 1 makes changes and charter 4
+reviews them.
 
 The agent review gate belongs to the **stored project landing rule (kind 2)
 number 1**, whose `gates` member includes
 `{"number":1,"blocking":true,"freshness":"clean"}`. Stock `review_rule()`
 already sets that value. The setup keeps the stock rule, or applies that
 value through settings. It puts no `rules` or review-freshness member in
-the start's document: it refuses project `rules`. The world fixture's
-typed defaults set
-`world_settings.landing.projects[0].rules[0].gates[0].freshness` to `"clean"`;
-`finish_configuration` separates those world defaults before engine startup.
+the start's document: it refuses project `rules`.
 
 ## The person's latch
 
 Commands below omit only `temper ctl DIR` and optional replay keys. Use a new
 key for every write when keys are required. Goal budgets and deadlines are
-chosen within the deployment's offered bounds; the story uses 500 and
+chosen within the deployment's offered bounds; these commands use 500 and
 `2030-01-01T00:00Z`. Substitute the fresh project's name or number for PROJECT.
 
 1. `goal start --project PROJECT --charter 1 --budget 5 --deadline 2030-01-01T00:00Z --key first '@turn-a First turn member\nPerson: P; Repository: R;'`
@@ -71,8 +68,7 @@ durable completion making them eligible together, not two timed releases.
 
 The green landing on these scripts belongs to the setup's walk and the
 engine domain world's story: both changes land in one landing of two, the
-gate green at the top. The real-loop red story reads the first failed gate receipt in landing history, captures
-the dispatched run/jobs/tree through the forge API before any rerun replaces
-that attempt, then cancels the goals and landing for teardown. It checks that
-the red member is not an ancestor of main. No outcome of narrowing or repair
-is promised.
+gate green at the top. The engine domain suite also checks the shared latch
+before release. The forge connector's domain suite uses its own two-member
+batch to read the first failed whole-top receipt and the dispatched run, job
+and tree, and to check that neither member's content reached main.

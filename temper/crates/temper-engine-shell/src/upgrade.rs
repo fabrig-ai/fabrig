@@ -44,6 +44,15 @@ pub fn run(binary: &str, directories: &Directories, request: &Request, build_nam
         return checked(binary, directories, request, source, build_name)
             .map_err(|why| prefixed(&format!("{binary} upgrade"), &why));
     }
+    run_stopped(binary, directories, request, build_name)
+}
+
+fn run_stopped(
+    binary: &str,
+    directories: &Directories,
+    request: &Request,
+    build_name: &'static str,
+) -> Result<u8, String> {
     let (mut service, deployment) =
         stopped::prepare(binary, directories).map_err(|why| prefixed(&format!("{binary} upgrade"), &why))?;
     service.engine_component().build_name(build_name);

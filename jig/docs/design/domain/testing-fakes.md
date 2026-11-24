@@ -508,9 +508,9 @@ work that fixes it (`#[ignore = "P43, open: bounded waits
 skein's form (`skein/docs/design/testing/sweeps.md`, 5) in the kit of the
 world whose sweeps draw its fault: `jig_core_kit::open::EXCLUSIONS` and
 `jig_engine_clients_kit::open::EXCLUSIONS`, each fault's kind beside them,
-its family as the draft's section 4 names it. No jig sweep draws these
-faults yet; those that will (the draft's section 5) take them, and a step
-test holds that a sweep configuring each fault accepts each.
+its family as the draft's section 4 names it. The sweeps that draw these
+faults take them (`testing-workloads.md`, 7), and a step test holds that
+a sweep configuring each fault accepts each.
 
 | Problem | Scenario | World | Fixed by | Fault left out, and while |
 |---|---|---|---|---|

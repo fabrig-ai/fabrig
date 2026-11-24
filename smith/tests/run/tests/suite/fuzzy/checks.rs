@@ -1,6 +1,6 @@
 //! An independent counted-time model against random stderr lines and read splits.
 
-use crate::checks::held::Check;
+use crate::checks::held::{Check, draw_marker};
 use skein_lib::{Duration, Time, Token};
 use skein_world::{
     faults::{FaultLedger, Struck},
@@ -17,7 +17,8 @@ fn marker_sequences_and_read_splits_keep_the_held_bound_and_absolute_cap() {
     for seed in 0..96 {
         eprintln!("checks_waiting_for_a_place_fall seed {seed}");
         let streams = Streams::new(seed);
-        let mut rng = streams.rng(Stream::Faults, "checks");
+        let mut faults = streams.rng(Stream::Faults, "checks");
+        let mut workload = streams.rng(Stream::Workload, "runs");
         let mut ledger = FaultLedger::new();
         let mut held = None;
         let mut check = Check::new(500, 600);
@@ -27,21 +28,10 @@ fn marker_sequences_and_read_splits_keep_the_held_bound_and_absolute_cap() {
         let mut line = Vec::new();
         let mut deadline = 60_u64;
         'sequence: for _ in 0..100 {
-            let bytes = match rng.below(8) {
-                0 | 1 => b"smith-check: waiting\n".to_vec(),
-                2 | 3 => b"smith-check: admitted\n".to_vec(),
-                4 => b"smith-check: waiting now\n".to_vec(),
-                5 => b"smith-check: waiting".to_vec(),
-                6 => b"\n".to_vec(),
-                7 => vec![b'x'; 1024],
-                _ => unreachable!("eight draws"),
-            };
-            let stderr = !rng.chance(200);
+            let (chunks, stderr) = draw_marker(&mut workload, &mut faults);
             let pipe = Token::new(if stderr { 42 } else { 41 });
-            let mut from = 0;
-            while from < bytes.len() {
-                let to = (from + usize::try_from(rng.between(1, 24)).expect("small chunk")).min(bytes.len());
-                let later = now + rng.below(5);
+            for bytes in chunks {
+                let later = now + faults.below(5);
                 if later >= deadline {
                     if !waiting {
                         counted += deadline - now;
@@ -54,9 +44,9 @@ fn marker_sequences_and_read_splits_keep_the_held_bound_and_absolute_cap() {
                 }
                 now = later;
                 check.at(now);
-                check.bytes(pipe, &bytes[from..to]);
+                check.bytes(pipe, &bytes);
                 if stderr {
-                    for byte in &bytes[from..to] {
+                    for byte in &bytes {
                         line.push(*byte);
                         if *byte == b'\n' {
                             if line == b"smith-check: waiting\n" {
@@ -88,7 +78,6 @@ fn marker_sequences_and_read_splits_keep_the_held_bound_and_absolute_cap() {
                     Time::ZERO.saturating_add(Duration::from_secs(deadline)),
                     "seed {seed}, counted {counted}, waiting {waiting}"
                 );
-                from = to;
             }
         }
         check.settle_at_deadline(deadline);

@@ -9,7 +9,8 @@ fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its ca
 (`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
 waits, disk and faults, `worker.md`), where the box's own checks run
-(`box/README.md`) and the shells' (`shells.md`), the restarts and stops they inject (`restarts.md`), the
+(`box/README.md`) and the shells' (`shells.md`), the restarts and stops they inject (`restarts.md`),
+the workloads they draw from the seed and the sweeps that mix every failure (`workloads.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
@@ -143,6 +144,8 @@ testing/temper-agent-fixtures       the agents' configuration as the worker's wr
 testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
 testing/temper-engine-inspect       the engine's inspection adapter, read by its worlds alone (engine-checks.md, 2)
 testing/temper-blame                the check of blame and tries for gates, over a world's fault ledger (blame.md)
+testing/temper-faults               the fault vocabularies every world and sweep names (restarts.md, 2; workloads.md, 2)
+testing/temper-workload             the workload drawn from the seed, the parties' acts and a run's outcome (workloads.md, 3)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world

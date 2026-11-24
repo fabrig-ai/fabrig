@@ -67,6 +67,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Layout,
             Text,
             Job,
+            Order,
         ]
     );
     family!(

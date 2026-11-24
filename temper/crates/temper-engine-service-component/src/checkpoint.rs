@@ -113,7 +113,6 @@ impl State {
             Event::Opened { .. }
             | Event::Census { .. }
             | Event::Switched { .. }
-            | Event::Site { .. }
             | Event::Job { .. }
             | Event::Ran { .. }
             | Event::Rehearsing { .. }

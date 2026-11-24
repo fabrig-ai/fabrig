@@ -25,6 +25,7 @@ mod records;
 mod refused_after_switch;
 mod registry_memory;
 mod restoring;
+mod settling;
 mod sweep;
 mod transcript_golden;
 mod upgrades;

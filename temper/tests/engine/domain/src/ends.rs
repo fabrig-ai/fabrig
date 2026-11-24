@@ -207,6 +207,39 @@ fn deadline(bound: Bound) -> String {
     format!("neither ended nor held within {} minutes and {} steps", bound.minutes, bound.steps)
 }
 
+/// The goal can be idle while its producer is waiting for its person. Read the
+/// requester chain, not `root`: a goal may itself be beneath a chat or gathering.
+fn descendant_waits(store: &Store, ancestor: u64) -> bool {
+    store.rows.values().any(|record| {
+        let Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = record else { return false };
+        row.number != ancestor
+            && (matches!(row.phase, tasks::Phase::Held { .. }) || !row.questions.is_empty())
+            && beneath(store, row.number, ancestor)
+    })
+}
+
+fn beneath(store: &Store, mut number: u64, ancestor: u64) -> bool {
+    // A requester chain has at most one edge per retained task. A malformed
+    // cycle cannot turn an unrelated task into a descendant of this goal.
+    for _ in 0..store.rows.len() {
+        let row = [tasks::Key::Live(number), tasks::Key::Ended(number)].into_iter().find_map(|key| {
+            match store.rows.get(&Key::Core(core::Key::Tasks(key))) {
+                Some(Record::Core(core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))) => {
+                    Some(row)
+                }
+                _ => None,
+            }
+        });
+        let Some(row) = row else { return false };
+        let tasks::Party::Task(parent) = row.requester else { return false };
+        if parent == ancestor {
+            return true;
+        }
+        number = parent;
+    }
+    false
+}
+
 fn outcome(store: &Store, task: u64, expect: Expect) -> Result<bool, String> {
     let ended = Key::Core(core::Key::Tasks(tasks::Key::Ended(task)));
     if let Some(Record::Core(core::Record::Tasks(tasks::Stored::Ended(row)))) = store.rows.get(&ended)
@@ -246,6 +279,7 @@ fn outcome(store: &Store, task: u64, expect: Expect) -> Result<bool, String> {
         }
         (tasks::Phase::Held { .. }, Expect::Ends | Expect::Untouched) => Err("held instead of ended".into()),
         (tasks::Phase::Held { .. } | tasks::Phase::Waiting, Expect::Waits) => Ok(true),
+        (tasks::Phase::Active(_), Expect::Waits) => Ok(descendant_waits(store, task)),
         _ => Ok(false),
     }
 }

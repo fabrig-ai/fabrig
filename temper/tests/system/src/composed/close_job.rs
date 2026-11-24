@@ -256,7 +256,7 @@ impl World {
             &temper_worker_service::worker_settings::Limits::shared(own),
         )
         .expect("worker payload limits");
-        self.worker_events.push_back(link::job(job, workspace, &limits));
+        self.lanes[0].worker_events.push_back(link::job(job, workspace, &limits));
     }
 
     pub(super) fn observe_close_io(&mut self, op: &worker::checkout::git::Op) {
@@ -280,21 +280,24 @@ impl World {
     }
 
     fn play_close_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
-        assert_eq!(self.disk.content(&disk_path(program)), Some(COMMAND), "command read from goal's tree");
+        assert_eq!(self.lanes[0].disk.content(&disk_path(program)), Some(COMMAND), "command read from goal's tree");
         let dir = disk_path(directory);
         let repo = [dir.as_slice(), b"/repo"].concat();
-        assert_eq!(self.disk.content(&[repo.as_slice(), b"/status.md"].concat()), Some(b"in flight\n".as_slice()));
-        assert!(!self.disk.exists(&[repo.as_slice(), b"/.git/MERGE_HEAD"].concat()));
-        let request = self.disk.content(&disk_path(&args[2])).expect("request written").to_vec();
+        assert_eq!(
+            self.lanes[0].disk.content(&[repo.as_slice(), b"/status.md"].concat()),
+            Some(b"in flight\n".as_slice())
+        );
+        assert!(!self.lanes[0].disk.exists(&[repo.as_slice(), b"/.git/MERGE_HEAD"].concat()));
+        let request = self.lanes[0].disk.content(&disk_path(&args[2])).expect("request written").to_vec();
         let story = self.close_job.as_mut().expect("close story");
         let result = if story.row == Row::Settled {
-            self.disk.write(&[repo.as_slice(), b"/status.md"].concat(), b"settled\n");
-            self.disk.write(&[repo.as_slice(), b"/.git/index"].concat(), b"status.md\0settled\n");
+            self.lanes[0].disk.write(&[repo.as_slice(), b"/status.md"].concat(), b"settled\n");
+            self.lanes[0].disk.write(&[repo.as_slice(), b"/.git/index"].concat(), b"status.md\0settled\n");
             br#"{"settled":["status.md"]}"#.as_slice()
         } else {
             br#"{"settled":[]}"#.as_slice()
         };
-        self.disk.write(&[dir.as_slice(), b"/result.json"].concat(), result);
+        self.lanes[0].disk.write(&[dir.as_slice(), b"/result.json"].concat(), result);
         story.spawn = Some(Spawn {
             program: program.to_vec(),
             args: args.iter().map(|arg| arg.to_vec()).collect(),
@@ -306,7 +309,7 @@ impl World {
             tooling::Event::Exited { owner, exit: tooling::Exit::Code(0), tail: Box::new([]) },
             tooling::Event::Gone { owner },
         ] {
-            self.worker_events.push_back(worker::Event::Job { owner, event });
+            self.lanes[0].worker_events.push_back(worker::Event::Job { owner, event });
         }
     }
 }

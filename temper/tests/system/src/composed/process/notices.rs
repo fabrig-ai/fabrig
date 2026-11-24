@@ -50,7 +50,7 @@ fn composed_notices_reach_the_accounts_child_before_the_attempt_ends() {
         let mut world = World::signed_in_chat(930, report_script(true));
         world.until_call();
         assert_eq!(world.observed.answers, 0);
-        world.process.up.push_front(notice.message());
+        world.lanes[0].process.up.push_front(notice.message());
         world.run();
         match notice {
             Notice::Unauthorized => assert!(world.protocol.accounts.contains(&accounts::Request::Component(

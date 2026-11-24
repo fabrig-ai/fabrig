@@ -317,6 +317,7 @@ pub fn step_5_2() -> Vec<calls::Step> {
         calls::release_hold(REVIEW_HOLD),
         until(D1, argv!["task", "show", number(H1), "--json"], b"\"phase\":\"ended\"", b"\"task\""),
         call(D1, argv!["task", "show", number(BOWNER), "--until", "ended"]),
+        call(D1, argv!["task", "show", number(PAUSE), "--until", "ended"]),
     ]
 }
 

@@ -139,6 +139,12 @@ fn walk_values(
     Ok(pages::Walked { rows: found.into_boxed(), next: None })
 }
 
+/// One page of stored map rows, without a view overlay or layout conversion.
+pub(crate) fn load_stored(store: &mut Store, range: Range) -> Result<pages::Page, Failure> {
+    let limits = store.limits.store;
+    load_rows(store, KeptMap::Store, limits, range, limits.page.rows, false)
+}
+
 pub(crate) fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<pages::Page, Failure> {
     load_rows(store, map, pages::map_limits(store, map), range, 1, true)
 }

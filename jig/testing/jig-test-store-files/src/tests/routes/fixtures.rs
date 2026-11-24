@@ -213,7 +213,6 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
         | jig_protocol_store::Request::Back { .. }
         | jig_protocol_store::Request::Close { .. }
         | jig_protocol_store::Request::Switch { .. }
-        | jig_protocol_store::Request::Site { .. }
         | jig_protocol_store::Request::Job { .. }
         | jig_protocol_store::Request::HoldCheckpoint { .. }
         | jig_protocol_store::Request::RemoveCheckpoint { .. }

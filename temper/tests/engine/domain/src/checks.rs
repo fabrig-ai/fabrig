@@ -27,6 +27,17 @@ impl Checks {
 
     /// Inspect at the driver's quiet point, replacing the previous bounded waits.
     pub fn quiet(&mut self, root: &temper_engine_domain::Domain, at: Time, iteration: u64) -> Result<(), String> {
+        self.quiet_with(root, at, iteration, &[])
+    }
+
+    /// Check a composed world's other roots alongside the same engine snapshot.
+    pub fn quiet_with(
+        &mut self,
+        root: &temper_engine_domain::Domain,
+        at: Time,
+        iteration: u64,
+        others: &[&Inspection],
+    ) -> Result<(), String> {
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
@@ -35,8 +46,11 @@ impl Checks {
         let moment = Moment { seed: self.seed, at, iteration };
         let core = root.core();
         self.observe_wall(core.inspection_wall());
-        let result = check_waits(&[&inspection], moment)
-            .and_then(|()| check_tables(&[&inspection], moment))
+        let mut inspections = Vec::with_capacity(others.len() + 1);
+        inspections.push(&inspection);
+        inspections.extend_from_slice(others);
+        let result = check_waits(&inspections, moment)
+            .and_then(|()| check_tables(&inspections, moment))
             .and_then(|()| jig_inspect::records(core, moment, self.record_wall));
         self.bounded.clear();
         self.bounded.extend(

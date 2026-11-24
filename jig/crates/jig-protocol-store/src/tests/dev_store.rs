@@ -46,14 +46,16 @@ fn old_sets() -> OwnerSets {
         current: TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1,
         // Dev's core predates parts: keep only its registered types and key range.
         types: if family.name == "jig-store-core" { &family.types[..8] } else { family.types },
-        keys: if family.name == "jig-store-core" { &family.keys[..1] } else { family.keys },
+        keys: match family.name {
+            "jig-store-core" => &family.keys[..1],
+            // The kept registry text does not declare Order.
+            "jig-store-registry" => &family.keys[..3],
+            _ => family.keys,
+        },
+        frames: None, // Dev has the map registry but no frame rows.
         ..family
     });
-    let smith = crate::KeptFamily {
-        current: SMITH,
-        frames: Some(crate::Frames { root: smith_transcript::ROOT, texts: &[SMITH], patches: &[] }),
-        ..crate::SMITH_SET.families[0]
-    };
+    let smith = crate::KeptFamily { current: SMITH, frames: None, ..crate::SMITH_SET.families[0] };
     OwnerSets {
         sets: Box::leak(Box::new([
             crate::SKEIN_SET,
@@ -311,13 +313,23 @@ fn read_back(disk: &mut Disk, store: &mut Store, calls: &[Record], activities: &
 #[test]
 fn dev_layouts_with_refusals_and_sharded_history_open_and_restore_twice() {
     let mut disk = Disk::new(&[]);
-    let mut old = store(&disk, old_sets());
+    let sets = old_sets();
+    let mut old = store(&disk, sets);
     opened(&disk.open(&mut old), false);
     // Use the registry's first-commit writer with the kept texts, rather than
     // duplicating its layout-row and held-text construction in the fixture.
     let committed = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
     let [Event::Committed { number: 1, .. }] = committed.as_ref() else { panic!("old registry: {committed:?}") };
     registry(&mut old);
+    // The fixture uses today's first-commit writer. Drop the orders it wrote
+    // so that the kept generation has the registry dev's build could write.
+    let orders = sets
+        .sets
+        .iter()
+        .flat_map(|set| set.families)
+        .flat_map(|family| family.types.iter().map(move |ty| (family.name, ty.number)))
+        .map(|(family, number)| skein_kv::Op::Erase { key: keys::order(family, number, fixtures::KEY_LIMIT).unwrap() });
+    raw(&mut disk, &mut old, orders.collect());
     let calls = [refused(TASKS[0], tasks::Refusal::ResourceUnavailable), refused(TASKS[1], tasks::Refusal::Busy)];
     let mut activities = Vec::new();
     for (task, call) in TASKS.into_iter().zip(&calls) {
@@ -377,4 +389,85 @@ fn dev_layouts_with_refusals_and_sharded_history_open_and_restore_twice() {
     assert_eq!(opened(&disk.open(&mut again), false), last);
     assert!(!disk.tree().iter().any(|(path, ..)| path.starts_with(b"generations/3")));
     read_back(&mut disk, &mut again, &calls, &activities);
+}
+
+#[test]
+fn dev_frame_heads_seed_at_core_six_and_smith_seven_and_eight() {
+    use crate::transcripts;
+    use skein_fake_machine::Item;
+
+    fn smallest(text: &str) -> Box<[u8]> {
+        skein_codegen::fixed_values(&skein_codegen::parse(text).expect("kept schema"))
+            .into_iter()
+            .find(|value| value.name == "record_turn_smallest.bin")
+            .expect("smallest turn")
+            .bytes
+            .into_boxed_slice()
+    }
+
+    let written = [smallest(SMITH), smallest(smith_transcript::SCHEMA)];
+    let task = TASKS[0];
+    let mut disk = Disk::new(&[]);
+    let mut old = store(&disk, old_sets());
+    opened(&disk.open(&mut old), false);
+    let events = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
+    let [Event::Committed { number: 1, .. }] = &*events else { panic!("first commit: {events:?}") };
+    let mut bytes = Vec::new();
+    for (index, turn) in written.iter().enumerate() {
+        let turn = fixtures::window_turn(task, 1, u32::try_from(index + 1).expect("turn number"), turn);
+        bytes.extend_from_slice(&transcripts::frame::encode(&turn, &old.codec_limits).expect("pre-registry frame"));
+    }
+    let own = |own| keys::encode_own(&own, fixtures::KEY_LIMIT).expect("component key");
+    raw(
+        &mut disk,
+        &mut old,
+        vec![
+            skein_kv::Op::Put {
+                key: own(keys::Own::Transcript { task }),
+                value: codec::component::Transcript { length: skein_lib::len_u64(bytes.len()), window: 0 }
+                    .encode()
+                    .expect("places"),
+            },
+            skein_kv::Op::Put {
+                key: own(keys::Own::Attempt { task, attempt: 1 }),
+                value: codec::component::Attempt { first: 0 }.encode().expect("attempt"),
+            },
+        ],
+    );
+    let path = [b"transcripts/".as_slice(), &transcripts::path(task)].concat();
+    let mut items = disk.items();
+    items.push(Item::directory(b"transcripts/0000000000000000").mode(0o700));
+    items.push(Item::file(&path, &bytes).mode(0o600));
+    let mut disk = Disk::new(&items);
+    let mut current = store(&disk, CURRENT);
+    opened(&disk.open(&mut current), true);
+    let events = disk.request(&mut current, Request::Switch { owner: OWNER });
+    let [Event::Switched { .. }] = &*events else { panic!("switch: {events:?}") };
+    let core = crate::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").expect("core family");
+    for (family, number, root, id, text) in [
+        (core.name, 9, "TurnRecord", 6, core.current),
+        ("smith-transcript", 0, "Turn", 7, SMITH),
+        ("smith-transcript", 0, "Turn", 8, smith_transcript::SCHEMA),
+    ] {
+        let key = own(keys::Own::Layout { family: family.into(), number, id });
+        let row = fixtures::get_kv(&mut current, &key).expect("seed row");
+        let row = crate::registry_v1::Layout::decode(&crate::registry_v1::CEILINGS, &mut Reader::new(&row)).unwrap();
+        let schema = schema::parse(text.as_bytes()).unwrap();
+        assert_eq!(row.root.as_ref(), root.as_bytes());
+        assert!(row.variant.is_none() && row.held.is_empty());
+        assert_eq!(row.layout, schema.layout(schema.root(root.as_bytes(), None).unwrap(), &[]).unwrap().digest());
+    }
+    let events = disk.request(
+        &mut current,
+        Request::Transcript {
+            owner: OWNER,
+            read: crate::TranscriptRead::Page { task, backwards: false, after: None },
+            rows: 2,
+            bytes: u64::from(PAGE),
+        },
+    );
+    let [Event::Turns { turns, cut: None, next: None, .. }] = events.as_ref() else { panic!("dev turns: {events:?}") };
+    assert_eq!(turns.len(), 2);
+    assert!(turns.iter().all(|turn| turn.transcript == written[1]));
+    assert_eq!(disk.bytes(&path).as_ref(), bytes);
 }

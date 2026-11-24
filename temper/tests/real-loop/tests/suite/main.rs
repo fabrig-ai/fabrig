@@ -4,28 +4,14 @@ use skein_world::domain::heap::Counting;
 #[global_allocator]
 static HEAP: Counting = Counting;
 
-mod account_key;
 mod case_5_3;
 mod cluster;
-mod diagnostics;
-mod forge;
-mod github;
-mod github_land;
-mod hung_model;
 mod lifecycle;
 mod lock;
-mod lost;
-mod model_check;
-mod notes;
 mod peers;
-mod restart;
 mod sample;
 mod sign_in;
 mod teardown;
-mod template_bounds;
-mod terminal;
-mod tools;
-mod turn_landing;
 
 mod world {
     mod teardown;
@@ -40,13 +26,8 @@ mod fuzzy {
     mod case_6_4;
     mod case_6_6;
     mod case_6_8;
-    mod green_light;
     mod landing;
-    mod program_landing;
-    mod repair;
 }
-
-mod adoption_hold;
 
 // Synchronous Usage operations measure this process and its reaped children;
 // the metric's readiness adapter hosts no service and starts no second world.

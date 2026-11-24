@@ -281,8 +281,8 @@ fn opened(store: &mut Store, io: &mut impl LimitsIo, deployment: Option<&[u8]>) 
                     ended = true;
                     keep.push(jig_protocol_store::Event::OpenRefused { owner, why });
                 }
-                event @ (jig_protocol_store::Event::Site { .. } | jig_protocol_store::Event::Job { .. }) => {
-                    if !store.opening_site(event) {
+                event @ jig_protocol_store::Event::Job { .. } => {
+                    if !store.opening_job(event) {
                         return Err("store opening job failed".into());
                     }
                 }

@@ -21,6 +21,7 @@ macro_rules! encode {
 }
 mod batch;
 pub mod changes;
+pub mod chat;
 pub mod local;
 pub mod moves;
 pub mod recovery;
@@ -115,6 +116,7 @@ pub struct Frame {
     wait_task: Option<u64>,
     stopping: Option<()>,
     change: bool,
+    chat: Option<chat::Read>,
     read_unreachable: bool,
     stream: Option<Fd>,
     opening: Option<w::Hello>,
@@ -249,6 +251,7 @@ impl Frame {
             wait_task: None,
             stopping: None,
             change: false,
+            chat: None,
             read_unreachable: false,
             stream: None,
             opening: None,
@@ -805,6 +808,8 @@ impl Frame {
                 if self.deliver.is_some() {
                     if self.move_mode {
                         self.deliver_move_accounts(open.watch, &subject);
+                    } else if self.chat.is_some() {
+                        self.deliver_chat_run(open.watch, &subject);
                     } else {
                         self.deliver_task(false);
                     }
@@ -828,6 +833,7 @@ impl Frame {
                     }
                 }
             }
+            b"/jig/v1/read" if self.chat.is_some() => self.read_chat_activity(fd),
             b"/jig/v1/read" => self.read_setup_or_task(fd),
             b"/jig/v1/sign-out" => {
                 self.hold_stores = Some(());

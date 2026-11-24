@@ -58,8 +58,6 @@ pub enum Request {
     Transcript { owner: Token, read: TranscriptRead, rows: u32, bytes: u64 },
     /// The secrets' store (protocol/store/secrets.md).
     Secrets { owner: Token, request: Secrets },
-    /// A written site's answer (protocol/store/opening-owners.md 1), with its machine handed back.
-    Site { owner: Token, patcher: Box<skein_codec::patch::Patcher>, result: Result<(), skein_codec::patch::Halt> },
 }
 
 /// Whether open may upgrade or make a deployment (protocol/store/checkpoints.md, 5).
@@ -353,13 +351,23 @@ pub enum OpenRefusal {
     /// patched from stays active, unchanged.
     Check { why: Check },
 }
-/// Why a layout cannot be planned (protocol/store/opening.md, 1.8).
+/// Why a layout cannot be read or kept (protocol/store/opening.md, 1.8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Unplanned {
     Underived(skein_codec::layout::Underived),
     Text,
     Undeclared,
     Retired,
+    Unkept(Unkept),
+}
+
+/// The later layout's refusals, with the first one's names (protocol/store/opening.md, 1.8).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Unkept {
+    pub refused: u64,
+    pub why: skein_codec::layout::Refused,
+    pub declaration: Box<str>,
+    pub part: Box<str>,
 }
 
 /// Join the bridge into a static piece, keeping deployment slots unchanged.
@@ -472,6 +480,11 @@ impl OpenRefusal {
                 " does not end at the commit its header records, so a file was lost, cut or restored apart from the others, and this start has changed nothing in it. Restore ",
                 " whole from one backup, or, to start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store.",
+            ],
+            Self::Layout { why: Unplanned::Unkept(_), .. } => &[
+                "",
+                " holds values a later build wrote that this build cannot keep, and this start has changed nothing in it. Start the later build again, or, with it, restore a checkpoint of ",
+                " taken before it started, then start this build.",
             ],
             Self::Layout { .. } => &[
                 "",
@@ -838,20 +851,6 @@ pub enum Event {
     /// stops (protocol/store/loads.md 1).
     Corrupt {
         owner: Token,
-    },
-    /// The shell sets this record's key in `of`'s Context, runs its generated
-    /// written function over `patcher.parts()`, and answers `Request::Site`
-    /// (protocol/store/opening-owners.md 1). Application keys are relative to their tag; every
-    /// other owner's keys are the map's whole keys. While serving, a frame's
-    /// key is its task's places key followed by its eight-byte big-endian
-    /// file offset (protocol/store/transcripts.md 6).
-    Site {
-        owner: Token,
-        of: crate::Owner,
-        key: Box<[u8]>,
-        site: skein_codec::patch::Site,
-        at: skein_codec::value::Node,
-        patcher: Box<skein_codec::patch::Patcher>,
     },
     /// A job page, routed to its owner (protocol/store/jobs.md, 3).
     Job {

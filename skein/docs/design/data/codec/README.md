@@ -497,12 +497,12 @@ pub fn generate(schema: &Schema) -> Output;
   values may still use. Its generated code reads and writes its version
   at a value's head, as any family's; the store maps that head to and
   from the value's layout id.
-- **Formats outside the registry are fixed:** the component's own rows,
-  the secrets' store and the transcripts' frames. A change designs and
-  brings, in its own landing, how the deployed store gets there
-  (temper's `draft/store-floor.md`, section 5). The frame patcher stays:
-  a frame behind the binary's versions is patched as it is read (jig's
-  `protocol/store/transcripts.md`, 6).
+- **Formats outside the registry are fixed:** the component's own rows
+  and the secrets' store. A change designs and brings, in its own
+  landing, how the deployed store gets there (temper's
+  `draft/store-floor.md`, section 5). The transcripts' frames register
+  their layouts: a frame at another layout than the binary's is
+  converted as it is read (jig's `protocol/store/transcripts.md`, 6).
 - **A writer writes its current version only.**
 - **On a channel,** the agreed version picks the code for its bodies
   (../../net/channel.md, section 5.2). Bodies carry no version of their own.

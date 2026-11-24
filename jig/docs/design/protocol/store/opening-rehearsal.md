@@ -90,8 +90,10 @@ deployment's lock as a start does (1, step 1).
   ranges of `A`'s maps (3, `Keys`), each record of a registered family
   decoded as a generic value of its layout's text from its value type's
   root (`layouts.md`, 4), and each other record as a generic value of
-  its family's `current` from its range's root; a family of
-  frames, each frame of each transcript from its frames' root. A start
+  its family's `current` from its range's root; each frame of each
+  transcript and turns log, its body and its turn each as a generic
+  value of its layout's text, from its frames' root
+  (`transcripts.md`, 6). A start
   never does it: its codecs decode each record as read. The first
   record that does not decode ends the
   rehearsal there, with `Event::Undecodable` naming its family, version
@@ -119,6 +121,16 @@ deployment's lock as a start does (1, step 1).
   which may have acted beyond the store, and going back is restoring a
   backup. A restored generation names no predecessor in its manifest, so
   going back refuses it `NoPrevious` (`restoring.md`, 4.4).
+- **Going back past the first commit:** the previous build is started
+  over the store as it stands, from the first build that reads the
+  layouts' order (`layouts.md`, 5.6). Its open plans the newer build's
+  layouts to keep their values and checks every value at them before
+  anything is written: it serves, keeping what the newer build
+  committed, or refuses by value type and count (`opening.md`, 1.8,
+  `Layout { why: Unkept }`), changing nothing, and restoring a
+  checkpoint taken before the newer build started is then the way back
+  (temper's `protocol/checkpoints.md`, 2.5). A rehearsal of the previous
+  build over a copy of the stopped deployment says which first.
 
 ```rust
 Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach } // `directory` never written; `scratch` emptied, never removed
