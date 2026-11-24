@@ -1,9 +1,21 @@
 //! One question at a time, without a closer allowance (temper/docs/design/domain/forge/branches.md, 2).
-use crate::{Running, Step, first_line};
+use crate::{Closer, Running, Step, first_line};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, bytes};
 
-pub const FALLBACK: &[u8] = b"The goal's closer decides nothing; it relays its own change's questions to its goal.";
+pub const FALLBACK: &[u8] =
+    b"This question reached no one: the goal's closer decides nothing and relays only the questions its open steps ask.";
+
+/// The changes to check for liveness, even when a settlement interrupts a landing.
+#[must_use]
+pub fn steps(closer: &Closer) -> [Option<Running>; 2] {
+    let landing = match (closer.running, closer.landing) {
+        (Some(running), Some(landing)) if running.change == landing => None,
+        (Some(_) | None, Some(landing)) => Some(Running { step: Step::Land, change: landing }),
+        (Some(_) | None, None) => None,
+    };
+    [closer.running, landing]
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Stands {
@@ -17,6 +29,15 @@ pub struct Question {
     pub step: Step,
     pub words: Box<[u8]>,
     pub stands: Stands,
+}
+impl Question {
+    fn held_bytes(&self) -> Option<u64> {
+        let words = skein_lib::len_u64(self.words.len());
+        match &self.stands {
+            Stands::Taken | Stands::Asked { answer: None, .. } => Some(words),
+            Stands::Asked { answer: Some(answer), .. } => words.checked_add(skein_lib::len_u64(answer.len())),
+        }
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Form {
@@ -34,12 +55,41 @@ pub struct Message {
 pub struct Relay {
     pub open: Option<Question>,
     pub replies: Box<[Message]>,
+    pub waiting: Box<[Question]>,
 }
 impl Relay {
     #[must_use]
     #[expect(clippy::new_without_default, reason = "step state has a named constructor")]
     pub fn new() -> Self {
-        Self { open: None, replies: Box::new([]) }
+        Self { open: None, replies: Box::new([]), waiting: Box::new([]) }
+    }
+    fn promote(&mut self) {
+        let waiting = core::mem::replace(&mut self.waiting, Box::new([]));
+        let mut next = None;
+        let mut rest = List::uncapped();
+        for question in waiting {
+            if next.is_none() {
+                next = Some(question);
+            } else {
+                rest.push(question).expect("waiting question suffix");
+            }
+        }
+        self.open = next;
+        self.waiting = rest.into_boxed();
+    }
+    fn keep(&mut self, question: Question) {
+        if self.open.is_none() && self.waiting.is_empty() {
+            self.open = Some(question);
+            return;
+        }
+        let waiting = core::mem::replace(&mut self.waiting, Box::new([]));
+        // Like replies, retained questions come from the admitted task inbox.
+        let mut next = List::uncapped();
+        for waiting in waiting {
+            next.push(waiting).expect("admitted waiting questions");
+        }
+        next.push(question).expect("admitted input");
+        self.waiting = next.into_boxed();
     }
     /// Owned payload, for store restore and reconciliation accounting.
     #[must_use]
@@ -50,28 +100,30 @@ impl Relay {
             total = total.checked_add(skein_lib::len_u64(reply.words.len()))?;
         }
         if let Some(open) = &self.open {
-            total = total.checked_add(skein_lib::len_u64(open.words.len()))?;
-            match &open.stands {
-                Stands::Taken | Stands::Asked { answer: None, .. } => {}
-                Stands::Asked { answer: Some(words), .. } => {
-                    total = total.checked_add(skein_lib::len_u64(words.len()))?;
-                }
-            }
+            total = total.checked_add(open.held_bytes()?)?;
+        }
+        let waiting = skein_lib::len_u64(self.waiting.len()).checked_mul(u64::try_from(size_of::<Question>()).ok()?)?;
+        total = total.checked_add(waiting)?;
+        for question in &self.waiting {
+            total = total.checked_add(question.held_bytes()?)?;
         }
         Some(total)
     }
 }
 
-/// Retain every offered input before sending anything; only the live step may ask.
-pub fn take(relay: &mut Relay, live: Option<Running>, goal: u64, from: u64, number: u64, form: &Form, words: &[u8]) {
+/// Retain every offered input before sending anything; only an open step may ask.
+pub fn take(relay: &mut Relay, steps: &[Running], goal: u64, from: u64, number: u64, form: &Form, words: &[u8]) {
+    let mut step = None;
+    for running in steps {
+        if running.change == from {
+            step = Some(running.step);
+            break;
+        }
+    }
     match form {
         Form::Question => {
-            if let Some(live) = live
-                && live.change == from
-                && relay.open.is_none()
-            {
-                relay.open =
-                    Some(Question { asker: from, number, step: live.step, words: words.into(), stands: Stands::Taken });
+            if let Some(step) = step {
+                relay.keep(Question { asker: from, number, step, words: words.into(), stands: Stands::Taken });
             } else {
                 push(relay, Message { target: from, form: Form::Answer { question: number }, words: FALLBACK.into() });
             }
@@ -87,9 +139,7 @@ pub fn take(relay: &mut Relay, live: Option<Running>, goal: u64, from: u64, numb
             }
         }
         Form::Words => {
-            if let Some(live) = live
-                && live.change == from
-            {
+            if step.is_some() {
                 let mut text = prefix(from);
                 append(&mut text, b": ");
                 append(&mut text, words);
@@ -175,6 +225,11 @@ pub fn relay(state: &Relay, goal: u64, ended: bool, room: u32, bound: u32) -> Re
                 }
             }
         }
+    }
+    // A promoted question gets its own step and its own admission credit.
+    if state.open.is_none() && !state.waiting.is_empty() {
+        state.promote();
+        more = true;
     }
     Relayed { relay: state, messages: messages.into_boxed(), asked, more }
 }

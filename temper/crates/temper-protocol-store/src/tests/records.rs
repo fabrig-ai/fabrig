@@ -3088,38 +3088,81 @@ fn a_closer_row_round_trips() {
     }
 }
 
+fn closer_relay_row(relay: temper_engine_domain_forge_closer::relay::Relay) -> forge::Stored {
+    const CLOSER: u64 = 8;
+    forge::Stored::Closer(forge::CloserRow {
+        task: CLOSER,
+        goal: CLOSER_GOAL,
+        closer: temper_engine_domain_forge_closer::Closer::new(),
+        making: None,
+        close_changes: Box::new([]),
+        landing_changes: Box::new([]),
+        done: false,
+        relay,
+    })
+}
+
+const CLOSER_GOAL: u64 = 7;
+const CLOSER_LANDING: u64 = 20;
+const CLOSER_SETTLEMENT: u64 = 21;
+const LANDING_QUESTION: u64 = 10;
+const SETTLEMENT_QUESTION: u64 = 11;
+const NEXT_LANDING_QUESTION: u64 = 12;
+const GOAL_QUESTION: u64 = 30;
+
+fn waiting_questions() -> Box<[temper_engine_domain_forge_closer::relay::Question]> {
+    use temper_engine_domain_forge_closer::{Step, relay::*};
+    Box::new([
+        Question {
+            asker: CLOSER_SETTLEMENT,
+            number: SETTLEMENT_QUESTION,
+            step: Step::Close,
+            words: b"What should I settle?".as_slice().into(),
+            stands: Stands::Taken,
+        },
+        Question {
+            asker: CLOSER_LANDING,
+            number: NEXT_LANDING_QUESTION,
+            step: Step::Land,
+            words: b"What should I check?".as_slice().into(),
+            stands: Stands::Taken,
+        },
+    ])
+}
+
+fn standing_question(
+    stands: temper_engine_domain_forge_closer::relay::Stands,
+) -> temper_engine_domain_forge_closer::relay::Relay {
+    use temper_engine_domain_forge_closer::{Step, relay::*};
+    Relay {
+        open: Some(Question {
+            asker: CLOSER_LANDING,
+            number: LANDING_QUESTION,
+            step: Step::Land,
+            words: b"Which rule?".as_slice().into(),
+            stands,
+        }),
+        replies: Box::new([Message {
+            target: CLOSER_GOAL,
+            form: Form::Words,
+            words: b"Change 20: asker ended".as_slice().into(),
+        }]),
+        waiting: Box::new([]),
+    }
+}
+
 #[test]
 fn a_closers_question_round_trips_with_its_owned_bytes() {
-    use temper_engine_domain_forge_closer::{Closer, Step, relay::*};
+    use temper_engine_domain_forge_closer::relay::Stands;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     for stands in [
         Stands::Taken,
-        Stands::Asked { question: 30, answer: None },
-        Stands::Asked { question: 30, answer: Some(b"Use known reds.".as_slice().into()) },
+        Stands::Asked { question: GOAL_QUESTION, answer: None },
+        Stands::Asked { question: GOAL_QUESTION, answer: Some(b"Use known reds.".as_slice().into()) },
     ] {
-        let row = forge::Stored::Closer(forge::CloserRow {
-            task: 8,
-            goal: 7,
-            closer: Closer::new(),
-            making: None,
-            close_changes: Box::new([]),
-            landing_changes: Box::new([]),
-            done: false,
-            relay: Relay {
-                open: Some(Question {
-                    asker: 20,
-                    number: 10,
-                    step: Step::Land,
-                    words: b"Which rule?".as_slice().into(),
-                    stands,
-                }),
-                replies: Box::new([Message {
-                    target: 7,
-                    form: Form::Words,
-                    words: b"Change 20: asker ended".as_slice().into(),
-                }]),
-            },
-        });
+        let mut relay = standing_question(stands);
+        relay.waiting = waiting_questions();
+        let row = closer_relay_row(relay);
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let cloned = row.clone();
@@ -3131,18 +3174,26 @@ fn a_closers_question_round_trips_with_its_owned_bytes() {
 }
 
 #[test]
+fn an_older_closer_defaults_its_waiting_questions_to_empty() {
+    use super::dev_layouts::Dev;
+    use temper_engine_domain_forge_closer::relay::Stands;
+    let mut dev = Dev::new();
+    let expected = closer_relay_row(standing_question(Stands::Asked { question: GOAL_QUESTION, answer: None }));
+    let stored = dev.row(&expected, "closer");
+    assert_eq!(dev.read(&stored, "closer"), expected);
+}
+
+#[test]
+fn a_closers_waiting_questions_alone_keep_the_relay_present() {
+    use temper_engine_domain_forge_closer::relay::Relay;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let row = closer_relay_row(Relay { waiting: waiting_questions(), ..Relay::new() });
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
 fn a_closer_with_a_truncated_relay_is_malformed() {
-    use temper_engine_domain_forge_closer::{Closer, relay::Relay};
-    let row = forge::Stored::Closer(forge::CloserRow {
-        task: 8,
-        goal: 7,
-        closer: Closer::new(),
-        making: None,
-        close_changes: Box::new([]),
-        landing_changes: Box::new([]),
-        done: false,
-        relay: Relay::new(),
-    });
+    let row = closer_relay_row(temper_engine_domain_forge_closer::relay::Relay::new());
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     let bytes = records::encode(&row);
     assert_eq!(bytes.last(), Some(&0));

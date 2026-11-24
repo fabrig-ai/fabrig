@@ -5,18 +5,8 @@ const QUESTION: &[u8] = b"Two reds remain: known reds, or change the golden test
 const ANSWER: &[u8] = b"Use known reds.";
 
 fn repairing_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, engine::Assignment) {
-    let (mut world, goal, branch) =
-        goal_world_with_updates(false, true, None, true, true, STEPS, None, false, Some(Duration::from_secs(3600)), 3);
-    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
-    let head = branch_tip(&mut world, &branch);
-    status(&mut world, head, raw::Check::Pending);
-    let closer = make_closer(&mut world, &goal, 94);
-    let landing = wait_landing(&mut world, closer);
-    let before = world.assigned.len();
-    status(&mut world, head, raw::Check::Failed);
-    let repair = reviews::next_assignment(&mut world, before);
-    assert_eq!(live_task(&world, repair.task).requester, tasks::Party::Task(landing));
-    assert_eq!(row(&world, landing).delegate, Some((repair.task, change::Delegate::Repair(change::Repair::Ci))));
+    let (mut world, goal, branch, closer, landing) = landing_with_settlement(false);
+    let repair = start_repair(&mut world, &branch, landing);
     let words = core::str::from_utf8(&live_task(&world, repair.task).spec.words).expect("repair context");
     assert!(
         words.contains(&format!("This change's current spec and rulings: task {landing} at spec revision 0.")),
@@ -25,6 +15,39 @@ fn repairing_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, engin
     let spec = core::str::from_utf8(&live_task(&world, landing).spec.words).expect("landing spec");
     assert!(words.ends_with(&format!("Its current spec, at revision 0:\n{spec}")), "{words}");
     (world, goal, branch, closer, landing, repair)
+}
+
+fn landing_with_settlement(settle: bool) -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    let (mut world, goal, branch) =
+        goal_world_with_updates(settle, true, None, true, true, STEPS, None, false, Some(Duration::from_secs(3600)), 3);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    if !settle {
+        pending_head(&mut world, &branch);
+    }
+    let closer = make_closer(&mut world, &goal, 94);
+    if settle {
+        let job = close_job(&mut world);
+        let tasks::Party::Task(change) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+        finish_close(&mut world, change, &branch, &job);
+        wait_ended(&mut world, change);
+        pending_head(&mut world, &branch);
+    }
+    let landing = wait_landing(&mut world, closer);
+    (world, goal, branch, closer, landing)
+}
+
+fn pending_head(world: &mut World, branch: &[u8]) {
+    let head = branch_tip(world, branch);
+    status(world, head, raw::Check::Pending);
+}
+
+fn start_repair(world: &mut World, branch: &[u8], landing: u64) -> engine::Assignment {
+    let head = branch_tip(world, branch);
+    status(world, head, raw::Check::Failed);
+    let repair = producer_for(world, landing);
+    assert_eq!(live_task(world, repair.task).requester, tasks::Party::Task(landing));
+    assert_eq!(row(world, landing).delegate, Some((repair.task, change::Delegate::Repair(change::Repair::Ci))));
+    repair
 }
 fn passed_up(world: &mut World, goal: u64, closer: u64, landing: u64) -> u64 {
     for _ in 0..STEPS {
@@ -79,20 +102,7 @@ fn repair_asks(restart: bool) {
     world.goal_answer(&goal, 111, closer, up, ANSWER);
     let repair = resumed(&mut world, &repair, number);
     assert!(closer_row(&world, closer).expect("closer record").relay.open.is_none());
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"fixed", 1)
-        .expect("repair pushes");
-    status(&mut world, head, raw::Check::Passed);
-    finish_run(
-        &mut world,
-        &repair,
-        tasks::TaskResult::Change {
-            title: tasks::ChangeTitle::new(b"Repair".as_slice().into()),
-            connector: 0,
-            kind: 2,
-            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-            words: b"repaired".as_slice().into(),
-        },
-    );
+    finish_repair(&mut world, &branch, &repair, raw::Check::Passed);
     wait_ended(&mut world, landing);
     assert!(matches!(row(&world, landing).change.state, change::State::Landed { .. }));
     wait_ended(&mut world, closer);
@@ -120,20 +130,7 @@ fn a_closers_landing_amends_its_live_ci_repair_without_a_producer() {
     super::super::stall_hold::jump(&mut world, window);
     let resumed = delegate_amendment::next_attempt(&mut world, &repair);
     delegate_amendment::assert_brief(&world, &resumed, &message);
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"fixed", 1)
-        .expect("repair pushes");
-    status(&mut world, head, raw::Check::Passed);
-    finish_run(
-        &mut world,
-        &resumed,
-        tasks::TaskResult::Change {
-            title: tasks::ChangeTitle::new(b"Repair".as_slice().into()),
-            connector: 0,
-            kind: 2,
-            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-            words: b"repaired".as_slice().into(),
-        },
-    );
+    finish_repair(&mut world, &branch, &resumed, raw::Check::Passed);
     wait_ended(&mut world, landing);
     wait_ended(&mut world, closer);
     world.close();
@@ -143,6 +140,65 @@ fn a_closers_landing_amends_its_live_ci_repair_without_a_producer() {
 fn a_landings_ci_repair_asks_the_goal_through_its_closer_and_goes_on() {
     repair_asks(false);
 }
+#[test]
+fn a_landing_repair_asks_while_the_closer_settles_status() {
+    use super::super::stall_hold;
+    const NEW_WORK: u64 = 95;
+    const WAIT_FOR_WORK: u64 = 96;
+    const ANSWER_CALL: u64 = 111;
+    let (mut world, goal, branch, closer, landing) = landing_with_settlement(true);
+    let first_repair = start_repair(&mut world, &branch, landing);
+    let window = world.env.limits.forge.client.window;
+    stall_hold::jump(&mut world, window);
+    let (work, producer) = new_work(&mut world, &goal, NEW_WORK);
+    closer_waits_for(&mut world, &goal, closer, work, WAIT_FOR_WORK);
+    // The first repair releases the writer slot for the merge. New work moves
+    // the head, so the repair that asks is the one at the new head.
+    finish_repair(&mut world, &branch, &first_repair, raw::Check::Pending);
+    wait_ended(&mut world, first_repair.task);
+    produce(&mut world, work, &branch, &producer, b"New work", b"done");
+    stall_hold::jump(&mut world, window);
+    let job = close_job(&mut world);
+    let tasks::Party::Task(settlement) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    let repair = start_repair(&mut world, &branch, landing);
+    let (number, up) = ask(&mut world, goal.task, closer, landing, &repair);
+    world.goal_answer(&goal, ANSWER_CALL, closer, up, ANSWER);
+    let repair = resumed(&mut world, &repair, number);
+    assert!(matches!(row(&world, work).change.state, change::State::Landed { .. }));
+    assert_eq!(
+        closer_row(&world, closer).expect("closer record").closer.running,
+        Some(closer::Running { step: closer::Step::Close, change: settlement })
+    );
+    assert!(ended(&world, settlement).is_none(), "status settlement is still live");
+    let fallback_reached = world.store.rows.values().any(|record| {
+        let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(line))) = record else {
+            return false;
+        };
+        (line.task == landing || line.task == repair.task)
+            && matches!(&line.line, tasks::Line::Words { kind: tasks::MessageKind::Answer { .. }, words, .. }
+                if words.as_ref() == FALLBACK)
+    });
+    assert!(!fallback_reached, "neither the landing nor the repair got the canned answer");
+    world.close();
+}
+
+fn finish_repair(world: &mut World, branch: &[u8], repair: &engine::Assignment, check: raw::Check) {
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"repair", b"fixed", 1)
+        .expect("repair pushes");
+    status(world, head, check);
+    finish_run(
+        world,
+        repair,
+        tasks::TaskResult::Change {
+            title: tasks::ChangeTitle::new(b"Repair".as_slice().into()),
+            connector: 0,
+            kind: 2,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+            words: b"repaired".as_slice().into(),
+        },
+    );
+}
+
 #[test]
 fn a_restart_keeps_the_closers_question_and_relays_its_answer() {
     repair_asks(true);

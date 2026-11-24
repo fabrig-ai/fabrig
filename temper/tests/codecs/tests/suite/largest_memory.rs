@@ -716,6 +716,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             closing_question_words,
             closing_message_words,
             closing_relay_replies,
+            closing_relay_waiting,
             closer_close_changes,
             closer_landing_changes,
             closer_selections,
@@ -817,7 +818,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             SettingsGate => (1_145_439_128, 1_158_809_983),
             SettingsTier => (1_146_487_769, 1_159_858_615),
             RepositoryGates,
-            Row => (2_823_456_448, 2_823_714_136),
+            Row => (3_223_881_843, 3_224_010_752),
         ]
     );
     family!(

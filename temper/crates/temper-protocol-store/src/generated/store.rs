@@ -6853,7 +6853,7 @@ pub fn closing_message_to_domain(record: crate::v25::ClosingMessage, context: &c
 
 // Maps line 453: ClosingRelay.
 pub fn closing_relay_to_record(value: &temper_engine_domain_forge_closer::relay::Relay, context: &crate::records::Context) -> Result<crate::v25::ClosingRelay, crate::v25::Problem> {
-    let temper_engine_domain_forge_closer::relay::Relay { open: field_000000, replies: field_000001 } = value;
+    let temper_engine_domain_forge_closer::relay::Relay { open: field_000000, replies: field_000001, waiting: field_000002 } = value;
     Ok(crate::v25::ClosingRelay {
         open: match field_000000 {
             Some(item) => Some(closing_question_to_record(item, context)?),
@@ -6868,13 +6868,23 @@ pub fn closing_relay_to_record(value: &temper_engine_domain_forge_closer::relay:
                 if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_RELAY_REPLIES.problem(skein_codec::Reason::Bound)); }
             }
             translated
+        },
+        waiting: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CLOSING_RELAY_WAITING.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = closing_question_to_record(item, context)?;
+                if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_RELAY_WAITING.problem(skein_codec::Reason::Bound)); }
+            }
+            translated
         }
     })
 }
 
 // Maps line 453: ClosingRelay.
 pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay, context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::relay::Relay, crate::v25::Problem> {
-    let crate::v25::ClosingRelay { open: field_000000, replies: field_000001 } = record;
+    let crate::v25::ClosingRelay { open: field_000000, replies: field_000001, waiting: field_000002 } = record;
     Ok(temper_engine_domain_forge_closer::relay::Relay {
         open: match field_000000 {
             Some(item) => Some(closing_question_to_domain(item, context)?),
@@ -6887,6 +6897,16 @@ pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay, context: &crate
             for item in source.into_boxed() {
                 let converted = closing_message_to_domain(item, context)?;
                 if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_RELAY_REPLIES.problem(skein_codec::Reason::Bound)); }
+            }
+            Box::from(translated)
+        },
+        waiting: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = closing_question_to_domain(item, context)?;
+                if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_RELAY_WAITING.problem(skein_codec::Reason::Bound)); }
             }
             Box::from(translated)
         }
