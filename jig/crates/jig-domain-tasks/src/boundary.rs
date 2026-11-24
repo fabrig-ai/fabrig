@@ -1217,6 +1217,8 @@ pub struct TaskRecord {
     pub changed: Wall,
     /// Injected wall time at which the current lifecycle phase began.
     pub phase_since: Wall,
+    /// When the present hold first wrote its line; older rows fall back to `phase_since`.
+    pub held_since: Option<Wall>,
     /// First matching task start report: root reports placement or adoption, not agent or tool start.
     /// Retained through holds and the terminal; a new claim clears it.
     pub run_since: Option<Wall>,

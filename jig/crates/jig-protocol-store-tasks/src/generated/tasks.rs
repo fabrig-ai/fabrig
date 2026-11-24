@@ -1498,6 +1498,7 @@ pub mod paths {
     pub const BEFORE_TALK_ASKED_REQUESTER: Path = Path::new("BeforeTalk.asked_requester");
     pub const BEFORE_TALK_QUESTION_WOKEN: Path = Path::new("BeforeTalk.question_woken");
     pub const BEFORE_TALK_WORDS_WOKEN: Path = Path::new("BeforeTalk.words_woken");
+    pub const BEFORE_TALK_HELD_SINCE: Path = Path::new("BeforeTalk.held_since");
     pub const BEFORE_TALK_TAIL: Path = Path::new("BeforeTalk (tail)");
     pub const CONCLUDED_BY: Path = Path::new("Concluded.by");
     pub const CONCLUDED_AT: Path = Path::new("Concluded.at");
@@ -1557,6 +1558,7 @@ pub mod paths {
     pub const LIVE_HOT_TALK: Path = Path::new("LiveHot.talk");
     pub const LIVE_HOT_CONCLUDED: Path = Path::new("LiveHot.concluded");
     pub const LIVE_HOT_WORDS_WOKEN: Path = Path::new("LiveHot.words_woken");
+    pub const LIVE_HOT_HELD_SINCE: Path = Path::new("LiveHot.held_since");
     pub const LIVE_HOT_TAIL: Path = Path::new("LiveHot (tail)");
     pub const LIVE_COLD_SPEC: Path = Path::new("LiveCold.spec");
     pub const LIVE_COLD_CONTRACT: Path = Path::new("LiveCold.contract");
@@ -17254,6 +17256,7 @@ pub struct BeforeTalk {
     pub asked_requester: bool,
     pub question_woken: u64,
     pub words_woken: u64,
+    pub held_since: Option<u64>,
 }
 
 // Record: BeforeTalk.
@@ -17274,11 +17277,13 @@ impl BeforeTalk {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 15 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 16] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1331;
+    pub const ENCODED_AT_ZERO: u64 = 1340;
 }
 
 impl Record for BeforeTalk {
@@ -17315,6 +17320,7 @@ impl Record for BeforeTalk {
         field::write(field::Boolean, &self.asked_requester, limits, out, paths::BEFORE_TALK_ASKED_REQUESTER)?;
         field::write(field::U64, &self.question_woken, limits, out, paths::BEFORE_TALK_QUESTION_WOKEN)?;
         field::write(field::U64, &self.words_woken, limits, out, paths::BEFORE_TALK_WORDS_WOKEN)?;
+        field::write(field::Optional { item: field::U64 }, &self.held_since, limits, out, paths::BEFORE_TALK_HELD_SINCE)?;
         Ok(())
     }
 
@@ -17332,6 +17338,7 @@ impl Record for BeforeTalk {
             asked_requester: field::read(field::Boolean, limits, reader, paths::BEFORE_TALK_ASKED_REQUESTER)?,
             question_woken: field::read(field::U64, limits, reader, paths::BEFORE_TALK_QUESTION_WOKEN)?,
             words_woken: field::read(field::U64, limits, reader, paths::BEFORE_TALK_WORDS_WOKEN)?,
+            held_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::BEFORE_TALK_HELD_SINCE)?,
         })
     }
 }
@@ -17410,7 +17417,7 @@ impl TaskRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1373;
+    pub const ENCODED_AT_ZERO: u64 = 1382;
 }
 
 impl Record for TaskRecord {
@@ -17717,6 +17724,7 @@ pub struct LiveHot {
     pub talk: Option<Talk>,
     pub concluded: Option<Concluded>,
     pub words_woken: u64,
+    pub held_since: Option<u64>,
 }
 
 // Record: LiveHot.
@@ -17741,11 +17749,13 @@ impl LiveHot {
         skein_codec::bounds::Node::Named("Concluded"),
         skein_codec::bounds::Node::Option { item: 16 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 17, 18] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 19 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 17, 18, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1270;
+    pub const ENCODED_AT_ZERO: u64 = 1279;
 }
 
 impl Record for LiveHot {
@@ -17784,6 +17794,7 @@ impl Record for LiveHot {
         field::write(field::Optional { item: field::Nested }, &self.talk, limits, out, paths::LIVE_HOT_TALK)?;
         field::write(field::Optional { item: field::Nested }, &self.concluded, limits, out, paths::LIVE_HOT_CONCLUDED)?;
         field::write(field::U64, &self.words_woken, limits, out, paths::LIVE_HOT_WORDS_WOKEN)?;
+        field::write(field::Optional { item: field::U64 }, &self.held_since, limits, out, paths::LIVE_HOT_HELD_SINCE)?;
         Ok(())
     }
 
@@ -17803,6 +17814,7 @@ impl Record for LiveHot {
             talk: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LIVE_HOT_TALK)?,
             concluded: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LIVE_HOT_CONCLUDED)?,
             words_woken: field::read(field::U64, limits, reader, paths::LIVE_HOT_WORDS_WOKEN)?,
+            held_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LIVE_HOT_HELD_SINCE)?,
         })
     }
 }
@@ -19052,7 +19064,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1374;
+    pub const ENCODED_AT_ZERO: u64 = 1383;
 }
 
 impl Record for Value {
@@ -19204,7 +19216,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1380;
+    pub const ENCODED_AT_ZERO: u64 = 1389;
 }
 
 impl Record for Row {

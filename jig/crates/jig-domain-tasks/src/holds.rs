@@ -290,7 +290,7 @@ pub(crate) fn same(a: &Holding, b: &Holding) -> bool {
     name(a) == name(b)
 }
 
-fn holder(domain: &Domain, holding: &Holding) -> Option<u64> {
+pub(crate) fn holder(domain: &Domain, holding: &Holding) -> Option<u64> {
     let name = name(holding);
     for ((_, number), ()) in domain.waits.holders.range((name.clone(), 0)..=(name.clone(), u64::MAX)) {
         let row = record(domain, *number).expect("indexed holder");

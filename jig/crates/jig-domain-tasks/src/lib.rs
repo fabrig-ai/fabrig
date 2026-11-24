@@ -93,6 +93,8 @@ pub use flags::shaped;
 pub use flags::{Closer, EndedBy, Flags, Retention};
 mod funders;
 mod hold_origin;
+mod hold_words;
+pub use hold_words::{HOLD_WORDS, HoldWords, hold_words};
 mod holds;
 mod inbox;
 mod words;

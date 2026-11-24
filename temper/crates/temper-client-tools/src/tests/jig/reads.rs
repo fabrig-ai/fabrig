@@ -1555,12 +1555,12 @@ fn a_worker_wait_keeps_its_worker_and_window_in_text_and_json() {
 #[test]
 fn ctl_names_a_wait_hold_and_prints_its_words_when_supplied() {
     use jig_client::contract as c;
-    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z";
+    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z: subscription 3. Held since 2026-11-25T06:07Z. Release it to wait again, or amend or cancel it.";
     for (words, expected) in [(None, b"A wait passed its bound".as_slice()), (Some(WORDS), WORDS)] {
         let (_, _, task) = fixtures::task_read();
         let mut task = fixtures::held_task(task, c::HoldCategory::Waited);
         task.hold.as_mut().unwrap().words = match words {
-            Some(words) => Some(c::DocumentText::complete(c::Text::new(words.into(), 64).expect("account fits"))),
+            Some(words) => Some(c::DocumentText::complete(c::Text::new(words.into(), 1024).expect("hold words fit"))),
             None => None,
         };
         let printed = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(task));

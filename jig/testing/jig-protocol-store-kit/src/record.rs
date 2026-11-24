@@ -57,6 +57,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         created_at: Wall::from_nanos(11),
         changed: Wall::from_nanos(13),
         phase_since: Wall::from_nanos(17),
+        held_since: None,
         run_since: Some(Wall::from_nanos(19)),
         retry_notice: Some(task::RetryNotice::Failed {
             class: task::Class::Agent,

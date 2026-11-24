@@ -287,7 +287,9 @@ fn connector_hold_accounts_keep_their_own_bound_in_task_and_chip() {
     let task = task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap();
     for hold in [task.hold.unwrap(), task.chip.details.hold.unwrap()] {
         let text = hold.words.unwrap();
-        assert_eq!(text.bytes, words);
+        assert!(text.bytes.starts_with(b"A resource is unavailable: "));
+        assert!(skein_lib::bytes::find(&text.bytes, &words).is_some());
+        assert!(text.bytes.ends_with(b"Release it once access is back, or amend it to drop the resource."));
         assert!(!text.cut);
     }
 }
@@ -330,6 +332,7 @@ fn hold_source_words_reach_the_task_and_chip() {
     let mut row = core.tasks.task(2).unwrap().clone();
     let words: Box<[u8]> =
         Box::from(b"Waited 24 h for news since 2026-11-24T06:07Z: subscriptions 3 and 5.".as_slice());
+    row.held_since = Some(Wall::from_nanos(1_795_501_200_000_000_000));
     row.revisions.hold = 1;
     for (why, source) in [
         (tasks::Hold::Failures(tasks::Class::Permanent), tasks::HoldSource::Preparation { words: words.clone() }),
@@ -341,11 +344,58 @@ fn hold_source_words_reach_the_task_and_chip() {
         let task = task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap();
         for hold in [task.hold.unwrap(), task.chip.details.hold.unwrap()] {
             let text = hold.words.unwrap();
-            assert_eq!(text.bytes, words);
+            let expected = tasks::hold_words(Some(&core.tasks), &row).unwrap();
+            assert_eq!(text.bytes, expected.bytes);
+            assert!(skein_lib::bytes::find(&text.bytes, &words).is_some());
+            assert!(skein_lib::bytes::find(&text.bytes, b"Held since 2026-11-24T06:20Z.").is_some());
             assert!(!text.cut);
             assert_eq!(hold.reason, why);
             assert_eq!(hold.source, None);
             assert_eq!(hold.account, None);
         }
     }
+}
+
+#[test]
+fn a_long_placed_reason_keeps_hold_words_in_the_document_and_delegate_chip() {
+    const REASON_BYTES: u32 = 256 * 1024;
+    let (mut core, mut limits) = make_tree();
+    limits.documents.text_bytes = 128;
+    limits.tasks.message_bytes = REASON_BYTES;
+    let mut reason = skein_lib::bytes::zeroed(usize::try_from(REASON_BYTES).unwrap());
+    reason.fill(b'x');
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Place {
+            reply_to: ReplyTo::new(Token::new(1)),
+            hold: tasks::PlacedHold {
+                number: 12,
+                project: 1,
+                owner: tasks::Owner::Party { person: 1 },
+                mode: tasks::Mode::Stop,
+                scope: tasks::Scope::Subtree { task: 2 },
+                reason,
+                placed_at: 0,
+                revision: 1,
+                exempt: Box::new([]),
+                lifted: false,
+            },
+        },
+    );
+    let row = core.tasks.task(2).unwrap();
+    let document =
+        task_from_row(&core, &limits, 1, row, Wall::EPOCH).expect("a long reason cannot refuse the held document");
+    let held = document.hold.unwrap();
+    assert_eq!(held.placed.as_ref().unwrap().reason.len(), 128);
+    let words = held.words.unwrap();
+    assert!(words.cut);
+    assert!(words.bytes.len() > 128 && words.bytes.len() <= tasks::HOLD_WORDS);
+    assert!(words.bytes.starts_with(b"Hold 12 was placed by person 1: "));
+    assert!(words.bytes.ends_with(b"Person 1 lifts the hold or releases this task from it."));
+    assert_eq!(document.chip.details.hold.unwrap().words.as_ref(), Some(&words));
+    let parent = task_from_row(&core, &limits, 1, core.tasks.task(1).unwrap(), Wall::EPOCH).unwrap();
+    let delegate = parent.delegates.get(0).unwrap();
+    assert_eq!(delegate.chip.number, 2);
+    assert_eq!(delegate.chip.details.hold.as_ref().unwrap().words.as_ref(), Some(&words));
 }

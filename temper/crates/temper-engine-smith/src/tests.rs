@@ -3647,7 +3647,7 @@ fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
         hold: Some(jig_domain_core::reads::run_task::TaskHold {
             revision: 9,
             reason: tasks::Hold::Dependency(5),
-            words: Some(b"restart vetoed; amend authority and release".as_slice().into()),
+            words: Some(b"Dependency task 5 failed. Held since 2026-11-24T06:07Z. Amend it to drop the dependency, then release it.".as_slice().into()),
         }),
     }
 }
@@ -3665,7 +3665,7 @@ fn task_reads_fit_the_host_bound_and_continue_cut_words() {
     let text = first.text();
     assert!(skein_lib::bytes::find(text, b"spec revision 8").is_some());
     assert!(skein_lib::bytes::find(text, b"Hold revision 9: dependency 5").is_some());
-    assert!(skein_lib::bytes::find(text, b"restart vetoed; amend authority and release").is_some());
+    assert!(skein_lib::bytes::find(text, b"Dependency task 5 failed. Held since 2026-11-24T06:07Z. Amend it to drop the dependency, then release it.").is_some());
     let start = skein_lib::bytes::find(text, WORDS).expect("words").checked_add(WORDS.len()).expect("header");
     let body = text.get(start..).expect("words body");
     let cut = skein_lib::bytes::find(body, NEXT).expect("continuation");
@@ -3688,6 +3688,8 @@ fn task_reads_fit_the_host_bound_and_continue_cut_words() {
 
 #[test]
 fn escalations_name_the_subject_revision_and_task_read_recovery() {
+    const WHY: &[u8] =
+        b"Its deadline 2026-11-24T06:00Z passed. Held since 2026-11-24T06:07Z. Move its deadline, then release it.";
     let word = tasks::Word {
         number: 1,
         from: tasks::Party::Task(23),
@@ -3695,10 +3697,10 @@ fn escalations_name_the_subject_revision_and_task_read_recovery() {
         hits: 1,
         eligible: true,
         kind: tasks::MessageKind::Escalation { task: 23, revision: 9 },
-        words: b"Held task needs a decision".as_slice().into(),
+        words: WHY.into(),
     };
     let words = engine::inbox_words(1, &word);
-    assert!(skein_lib::bytes::find(&words, b"Held task needs a decision").is_some());
+    assert!(words.starts_with(WHY));
     assert!(skein_lib::bytes::find(&words, b"Held task 23, hold revision 9").is_some());
     assert!(skein_lib::bytes::find(&words, b"Use read_task on that task").is_some());
 }
@@ -3890,7 +3892,7 @@ mod forge_reads;
 
 #[test]
 fn task_reads_name_the_wait_hold_with_its_words() {
-    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z";
+    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z: subscription 3. Held since 2026-11-25T06:07Z. Release it to wait again, or amend or cancel it.";
     let mut read = held_task_read();
     let hold = read.hold.as_mut().expect("held task fixture");
     hold.reason = tasks::Hold::Waited;

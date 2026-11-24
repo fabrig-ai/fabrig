@@ -675,18 +675,14 @@ fn assert_retry_reason(tree: &Tree) {
 
 #[test]
 fn a_held_chip_shows_its_preparation_reason() {
+    const WHY: &[u8] = b"It ran out of tries for permanent failures: its required sections do not fit its budget. Held since 1970-01-01T00:00Z. Release it to try again; amend it first if its instructions failed it.";
     let mut value = details();
     let mut held = hold();
     held.reason = HoldCategory::Failures { class: HoldFailure::Permanent };
-    held.words = Some(doc(b"brief: its required sections do not fit its budget", false));
+    held.words = Some(doc(WHY, false));
     value.hold = Some(held);
     let tree = build(&value, words()).0;
-    assert!(
-        tree.nodes()
-            .iter()
-            .flat_map(|node| node.text.iter())
-            .any(|run| run.text.as_ref() == b"brief: its required sections do not fit its budget")
-    );
+    assert!(tree.nodes().iter().flat_map(|node| node.text.iter()).any(|run| run.text.as_ref() == WHY));
     Goldens::new("tree/fragments/chip/a_held_chip_shows").check(&tree);
 }
 

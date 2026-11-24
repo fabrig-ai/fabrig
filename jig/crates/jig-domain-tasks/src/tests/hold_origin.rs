@@ -37,18 +37,24 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
     let mut h = Harness::new();
     h.make([task(1, &[])].into());
     claim(&mut h, 1);
-    h.env.wall = Wall::from_nanos(10);
+    let first_at = Wall::from_nanos(1_795_500_435_000_000_000);
+    h.env.wall = first_at;
     h.send(Event::HoldFrom { task: 1, why: Hold::Drift, source: Box::new(resource(b"original")) });
     let first = h.domain.task(1).unwrap().clone();
+    assert_eq!(first.held_since, Some(first_at));
+    let Stored::Hold(line) = &h.stored[&Key::Hold { task: 1, position: first.hold }] else { panic!("first hold line") };
+    assert_eq!(line.at, first_at);
     h.send(Event::Hold { task: 1, why: Hold::Drift });
     h.send(Event::HoldFrom { task: 1, why: Hold::Drift, source: Box::new(resource(b"original")) });
     assert_eq!(h.domain.task(1), Some(&first), "duplicates cannot erase the source or move clocks");
-    h.env.wall = Wall::from_nanos(12);
+    h.env.wall = Wall::from_nanos(1_795_500_480_000_000_000);
     h.send(Event::HoldFrom { task: 1, why: Hold::Drift, source: Box::new(resource(b"changed")) });
     assert_eq!(h.domain.task(1).unwrap().revisions.hold, first.revisions.hold + 1);
     assert_eq!(h.domain.task(1).unwrap().phase_since, h.env.wall);
     h.route(1, crate::EscalationHolder::Person(9), 1);
     h.restart();
+    assert_eq!(h.domain.task(1).unwrap().held_since, Some(first_at));
+    h.env.wall = Wall::from_nanos(1_795_501_200_000_000_000);
     h.send(Event::Activation {
         reply_to: to(),
         task: 1,
@@ -59,6 +65,10 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
     });
     let row = h.domain.task(1).unwrap();
     assert_eq!(origin(&row.phase), Some(&resource(b"changed")));
+    assert_eq!(row.phase_since, h.env.wall);
+    assert_eq!(row.held_since, Some(first_at));
+    let words = crate::hold_words(Some(&h.domain), row).unwrap();
+    assert!(skein_lib::bytes::find(&words.bytes, b"Held since 2026-11-24T06:07Z.").is_some());
     let position = row.milestone;
     h.send(Event::Release {
         reply_to: to(),
@@ -66,6 +76,7 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
         operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
+    assert_eq!(h.domain.task(1).unwrap().held_since, None);
     let Some(Stored::Hold(retained)) = h.stored.get(&Key::Hold { task: 1, position }) else {
         panic!("held row retained")
     };

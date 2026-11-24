@@ -1285,6 +1285,13 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
         return;
     }
     let initial = task.observed_phase.is_none();
+    task.record.held_since = match (&task.observed_phase, &task.record.phase) {
+        (Some(Phase::Held { why: previous, .. }), Phase::Held { why, .. }) if previous == why => {
+            Some(task.record.held_since.unwrap_or(task.record.phase_since))
+        }
+        (_, Phase::Held { .. }) => Some(env.wall),
+        (_, Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_)) => None,
+    };
     task.record.phase_since = env.wall;
     let previous_held = match &task.observed_phase {
         Some(Phase::Held { .. }) => true,
@@ -1713,6 +1720,7 @@ pub(crate) fn make_admitted(
             created_at: env.wall,
             changed: env.wall,
             phase_since: env.wall,
+            held_since: None,
             run_since: None,
             retry_notice: None,
             ended_at: None,

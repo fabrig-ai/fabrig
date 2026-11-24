@@ -558,20 +558,17 @@ fn hold_account(task: u64, reason: tasks::Hold, source: Option<&tasks::HoldSourc
         | tasks::Hold::Procedure => None,
     }
 }
-pub fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldPhaseLine>, Missing> {
+pub fn hold(
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+    domain: Option<&tasks::Domain>,
+) -> Result<Option<HoldPhaseLine>, Missing> {
     match &row.phase {
         tasks::Phase::Held { was, why, source } => Ok(Some(HoldPhaseLine {
             placed: None,
-            words: match source.as_deref() {
-                Some(tasks::HoldSource::Wait { words }) => Some(super::small::text(words, tasks::WAIT_WORDS)),
-                Some(tasks::HoldSource::Preparation { words }) => Some(super::small::text(words, tasks::REASON_BYTES)),
-                Some(tasks::HoldSource::Account { words, .. }) => {
-                    Some(super::small::text(words, tasks::HOLD_ACCOUNT_BYTES))
-                }
-                None
-                | Some(
-                    tasks::HoldSource::Resource(_) | tasks::HoldSource::Effect { .. } | tasks::HoldSource::Circle(_),
-                ) => None,
+            words: {
+                let words = tasks::hold_words(domain, row).expect("held task has words");
+                Some(Text { bytes: words.bytes, cut: words.cut })
             },
             circle: match source.as_deref() {
                 Some(tasks::HoldSource::Circle(circle)) => {
@@ -659,7 +656,7 @@ pub fn overview_bound(limits: &super::DocumentLimits) -> Option<u64> {
         u64::try_from(size_of::<Task>())
             .ok()?
             .checked_add(specification)?
-            .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))?
+            .checked_add(u64::try_from(tasks::HOLD_WORDS).ok()?)?
             .checked_add(text.checked_mul(8)?)?
             .checked_add(path.checked_mul(2)?)?
             .checked_add(chip)?

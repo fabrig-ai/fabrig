@@ -258,6 +258,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         created_at: Wall::EPOCH,
         changed: Wall::EPOCH,
         phase_since: Wall::EPOCH,
+        held_since: None,
         run_since: None,
         retry_notice: None,
         ended_at: None,

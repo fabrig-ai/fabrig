@@ -147,6 +147,9 @@ fn generated_live_records_split_and_join_with_each_parts_own_model_names() {
     for _ in 0_u32..64 {
         let mut row = fixtures::task_record();
         row.number = rng.next_u64();
+        row.phase = tasks::Phase::Held { why: tasks::Hold::Stalled, was: tasks::Was::Waiting, source: None };
+        row.phase_since = skein_lib::Wall::from_nanos(80);
+        row.held_since = Some(skein_lib::Wall::from_nanos(40));
         row.spec.words = vec![b'w'; 4096].into();
         row.instructions = Some(vec![b'i'; usize::try_from(rng.below(100)).unwrap()].into());
         row.authority.models = tasks::Models::Named(1);

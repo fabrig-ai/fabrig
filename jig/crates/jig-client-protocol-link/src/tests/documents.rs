@@ -506,13 +506,16 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
 }
 
 #[test]
-fn hold_accounts_decode_whole_past_the_text_preview_bound() {
-    let limits = fixtures::limits();
-    assert!(limits.client().text < 512);
-    let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 512]), true), (Box::new([b'x'; 513]), false)];
+fn hold_words_decode_whole_past_the_text_preview_bound() {
+    let defaults = fixtures::limits();
+    let client = jig_client_domain::Limits { long_text: 128, ..*defaults.client() };
+    let limits = Limits::new(client, defaults.exchanges()).unwrap();
+    assert_eq!(limits.wire().document_text_bytes, 1024);
+    let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 1024]), true), (Box::new([b'x'; 1025]), false)];
     for (bytes, accepted) in cases {
         let mut parts = jig_client_test_records::hold_record();
         parts.words = Some(w::DocumentText { bytes: bytes.clone(), cut: false });
+        assert_eq!(parts.measure(limits.wire()).is_ok(), accepted);
         let mut task = fixtures::task_record();
         task.hold = Some(parts);
         let decoded = documents::task(task, &limits);
