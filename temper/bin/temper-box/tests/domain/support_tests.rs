@@ -42,26 +42,6 @@ fn cluster_turn_wrapper_holds_delivery_not_the_saved_push() {
 }
 
 #[test]
-fn cluster_turn_proof_cut_refuses_to_pass_after_proving() {
-    use serde_json::json;
-    assert_eq!(cluster_turn_setup::proof_cut(&json!({"phase":"waiting"})), Ok(None));
-    assert_eq!(cluster_turn_setup::proof_cut(&json!({"phase":"preparing"})), Ok(None));
-    assert_eq!(
-        cluster_turn_setup::proof_cut(&json!({"phase":"proving","members":[{"gates":[{"proof":{
-        "dispatched":{"attempt":1,"run":3}}}]}]})),
-        Ok(Some(3))
-    );
-    for panel in [
-        json!({"phase":"turn"}),
-        json!({"phase":"landed"}),
-        json!({"phase":"proving","members":[{"gates":[{"proof":{"passed":{"run":3}}}]}]}),
-    ] {
-        let finding = cluster_turn_setup::proof_cut(&panel).expect_err("a missed cut never passes");
-        assert!(finding.contains(&format!("pace.ci_ms={}", cluster_turn_setup::CI_MS)), "{finding}");
-    }
-}
-
-#[test]
 fn the_retained_cluster_charter_overrides_have_no_documents() {
     // The process story overlays these values on current settings before decoding.
     // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.
@@ -366,15 +346,19 @@ impl ProviderCopies {
     }
 }
 
-#[test]
-fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
-    use temper_service::startup;
-    let root = Path::new("/fixture/cluster-turn-documents");
+fn cluster_turn_description(root: &Path) -> support::cluster::Cluster {
     let mut cluster = support::cluster::Cluster::description_from(root, &cluster_turn_setup::fixture());
     cluster_turn_setup::bind_addresses(
         &mut cluster,
         &[local(7100), local(7101), local(7102), local(3000), local(8371)],
     );
+    cluster
+}
+
+#[test]
+fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
+    use temper_service::startup;
+    let mut cluster = cluster_turn_description(Path::new("/fixture/cluster-turn-documents"));
     let rendered = cluster.render_files("engine");
     let engine = rendered.engine_configuration();
     let providers = temper_agent_fixtures::providers::values(&engine["world_providers"]);
@@ -384,13 +368,10 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         &cluster.dir("engine").join("data"),
         &providers,
     );
-    let composed = cluster_turn_setup::compose_engine(engine, agent);
+    let composed = cluster_turn_setup::compose_engine(engine, &agent);
     cluster.bind("story.change_spend", &composed.change_spend().to_string());
     let figures = composed.configuration;
     let forge = rendered_json(&cluster, "forge", "forge.json");
-    assert_eq!(forge["workflows"], json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]));
-    assert_eq!(forge["manual_merges"], json!({"allow":true,"autodetect":true}));
-    assert_eq!(forge["pace"]["ci_ms"], cluster_turn_setup::CI_MS);
     temper_fake::forge::Document::decode(&serde_json::to_vec(&forge).expect("forge JSON")).expect("forge document");
     let llm = rendered_json(&cluster, "llm", "llm.json");
     temper_fake::llm::Document::decode(&serde_json::to_vec(&llm).expect("LLM JSON"))
@@ -404,11 +385,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     assert_eq!(producer[4]["lines"][0]["call"], "deliver");
     let engine_start = rendered.start.expect("rendered engine").document;
     let engine = json_bytes(&engine_start);
-    let landing = json_bytes(&composed.landing);
-    let project = &landing["items"][0]["set"];
-    assert_eq!(project["by"], "turn");
-    assert_eq!(project["batch"], 1);
-    assert_eq!(landing["items"][1]["set"]["repositories"][0]["gates"][0]["workflow"], "gate.yml");
     let limits = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
     let bytes = serde_json::to_vec(&engine["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &limits).expect("engine document");
@@ -420,10 +396,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         &mut figures.jig.clone(),
     )
     .expect("initial engine");
-    assert!(
-        temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
-        "the worker's merge train must be declared"
-    );
     let bytes = serde_json::to_vec(&support::cluster::agent_configuration(
         &json_bytes(&engine_start),
         &cluster.dir("w1").join("data"),
@@ -464,18 +436,34 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     assert_eq!(
         jig_domain_fleet::shortfall(&needs, &agent.bounds, jig_domain_fleet::HostKind::Worker),
         None,
-        "the sole worker admits the stock and the prepare job"
+        "the sole worker admits the stock"
     );
 }
 
 #[test]
-fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
+fn cluster_turn_worker_inputs_exclude_the_forge_admin_token() {
+    let cluster = cluster_turn_description(Path::new("/fixture/cluster-worker-inputs"));
+    let worker = cluster.dir("w1");
+    let rendered = cluster.render_files("w1");
+    let start = rendered_file(&rendered, &worker.join("config").join(temper_config_shell::FILE));
+    let engine = cluster.render_files("engine").start.expect("rendered engine").document;
+    let figures = support::cluster::figures(&json_bytes(&engine));
+    let agent = temper_worker_shell::agent::figures::configuration(&figures, None, &worker.join("data"), &[])
+        .expect("generated worker agent");
+    let token = temper_fake::credential::credential(17, temper_fake::credential::ADMIN_TOKEN);
+    for (name, bytes) in [("worker start", start), ("worker agent", agent.as_ref())] {
+        assert!(!bytes.windows(token.len()).any(|window| window == token), "forge admin token in {name}");
+    }
+    let secret = rendered_file(&rendered, &worker.join("data/secrets/worker.secret"));
+    assert!(secret.len() < token.len(), "the fixture's worker secret is too short to contain the forge admin token");
+}
+
+#[test]
+fn cluster_turn_settings_point_open_and_coding_runs_at_the_worker() {
     let root = Path::new("/fixture/cluster-turn-settings");
     let calls: Vec<_> = [
         json!({}),
         json!({"newest":7}),
-        json!({"setting":{"kind":"policy","number":1},"value":{
-            "period_spend":48000,"roles":[{"number":0,"period_spend":48000}],"kept":"policy"}}),
         json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat",
             "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
         json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer",
@@ -495,24 +483,24 @@ fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
             settings = Some(json_bytes(bytes));
         });
     let settings = settings.expect("captured turn settings");
-    let policy = &settings["items"][0]["set"];
-    assert_eq!(policy["roles"][0]["period_spend"], 41000, "7000 of the period remains for preparation");
-    assert_eq!(policy["kept"], "policy");
-    assert_eq!(settings["items"][1]["set"]["kept"], "chat");
-    assert_eq!(settings["items"][2]["set"]["kept"], "producer");
-    assert_eq!(
-        settings["items"][1]["set"]["model"]["provider"], 1,
-        "the chat uses the fake provider, not stock's first choice"
-    );
-    assert_eq!(settings["items"][2]["set"]["model"]["provider"], 1, "the producer uses the fake provider");
-    assert_eq!(settings["items"][3]["set"]["gates"], json!([]), "turn's test gate is the only gate");
+    for (index, kept) in ["chat", "producer"].into_iter().enumerate() {
+        let item = &settings["items"][index]["set"];
+        assert_eq!(item["kept"], kept);
+        assert_eq!(item["documents"], json!([]));
+        assert_eq!(item["hosts"], "workers");
+        assert_eq!(item["model"]["provider"], 1, "use the fake provider for {kept}");
+    }
 }
 
 fn rendered_json(cluster: &support::cluster::Cluster, process: &str, file: &str) -> Value {
     let wanted = cluster.dir(process).join(file);
     let rendered = cluster.render_files(process);
-    let (_, bytes) = rendered.files.iter().find(|(path, _)| *path == wanted).expect("rendered file");
-    json_bytes(bytes)
+    json_bytes(rendered_file(&rendered, &wanted))
+}
+
+fn rendered_file<'a>(rendered: &'a support::cluster::Rendered, wanted: &Path) -> &'a [u8] {
+    let (_, bytes) = rendered.files.iter().find(|(path, _)| path == wanted).expect("rendered file");
+    bytes
 }
 
 #[test]

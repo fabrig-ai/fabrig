@@ -1367,7 +1367,19 @@ pub fn run_ctl_with_cut(
     let clock = Clock::new();
     let pair = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let data = PathBuf::from(&pair[1]);
-    let mut binary = cut_binary(directory, flags);
+    let mut binary = Binary::start_with_tree(
+        dying_with_test(Command {
+            program: skein_scratch::paths::binary("temper-box"),
+            arguments: flags.into_iter().map(Into::into).collect(),
+            directory: directory.into(),
+            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+        }),
+        Mode::Pipes,
+        262_144,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("temper box starts");
     let streams = binary.take_streams().expect("box pipes");
     let mut fds = streams.descriptors();
     let root = skein_shell::open_root(directory).expect("client root");
@@ -1434,24 +1446,4 @@ pub fn run_ctl_with_cut(
 fn chosen_fake_ports() -> (std::ffi::OsString, std::ffi::OsString) {
     let ports = super::free_addresses::<9>(&[]).map(|address| address.port().to_string()).join(",");
     ("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into())
-}
-
-fn cut_binary(directory: &Path, flags: Vec<String>) -> Binary {
-    let mut environment = vec![("PATH".into(), "/usr/bin:/bin".into())];
-    if flags.iter().any(|flag| flag == "--fake-backends") {
-        environment.push(chosen_fake_ports());
-    }
-    Binary::start_with_tree(
-        dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper-box"),
-            arguments: flags.into_iter().map(Into::into).collect(),
-            directory: directory.into(),
-            environment,
-        }),
-        Mode::Pipes,
-        262_144,
-        Expectation::Supervise,
-        false,
-    )
-    .expect("temper box starts")
 }

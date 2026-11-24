@@ -4,9 +4,7 @@
 
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
-  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
   the whole document: the ladder's live stories but B0's: `scripts/proof-live.sh` takes
   `rung-b0` alone, on ChatGPT with an owned Forgejo, and

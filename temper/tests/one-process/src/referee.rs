@@ -235,7 +235,11 @@ impl Referee {
             if matches!(self.phase, crate::world::Phase::Drain) {
                 let mut run = self.run.borrow_mut();
                 if let Some(stopped) = run.stopped.as_mut() {
-                    stopped.interrupted = stopped::interrupted(stopped, &self.store.borrow())?;
+                    let store = self.store.borrow();
+                    stopped.interrupted = stopped::interrupted(stopped, &store)?;
+                    if matches!(self.story, crate::world::Story::CodingAtStop) {
+                        stopped::due_after_stop(stopped, &store)?;
+                    }
                 }
             }
         }
