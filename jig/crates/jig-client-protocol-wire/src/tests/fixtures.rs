@@ -11,6 +11,10 @@ use skein_lib::{List, Writer};
 pub use stream::*;
 pub use task_values::task;
 
+// The all-zero Task includes two absent option tags, a four-byte empty waits list prefix,
+// and a four-byte zero wait count.
+const TASK_ZERO_BYTES: u32 = 291;
+
 pub fn limits() -> Limits {
     limits_with_activity_bytes(CEILINGS.activity_page_rows)
 }
