@@ -1,6 +1,8 @@
 # forgejo-operations: status
 
-2026-11-23. Where the tree's code lags or departs from [forgejo-operations.md](forgejo-operations.md).
+2026-11-24. Where the tree's code lags or departs from [forgejo-operations.md](forgejo-operations.md).
+
+- **Not yet:** 1: `Read::Commits` past its first page: the plan refuses a page whose offset reaches `rows` before sending, and keeps every older commit to answer a later one (`skein-forge/src/forgejo/plans/commits.rs`) [in flight: change 15478].
 
 - **Not yet:** 1: `Reviews`, `PullFiles` and a `Remarks` slice sized for real rows and cut at the answer's bytes, read on with `skip`: each holds as many of its listing's largest rows as `answer_bytes` holds (`skein-forge-connection/src/limits.rs`, `page_size`).
 - **Not yet:** 1: `Read::Pull`'s `ci`; `PullFor`'s status read (`plans/reads/done.rs`, `pull_status`).
