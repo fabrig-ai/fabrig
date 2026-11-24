@@ -4,6 +4,21 @@
 
 - **Not yet:** 1.5: the upgrade stories' killed in-flight write, settled image and rehearsal with going back are past the 2 s a story aims at. By the gate's CPU on 11-18, scaled by their measured gains, they come to about 8.2, 6.1 and 2.8 s. That is after the killed story stopped walking a second deployment to measure its cut, the upgrade judge read only new observations, and the layout planner's interning was indexed. What is left is the walks themselves: the service's turns are 36 to 42 per cent, the native person's 17 to 24 per cent, and in the rehearsal, seven fresh service starts and their registry openings. Each walk is what a story checks. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
 - **Not yet:** 1.5: story A and the golden floor's making and opening are past the 2 s a story aims at, about 8.2, 6.5 and 3.1 s by the gate's CPU on 11-18, once the referee read only new commits and the floor's judge cached its mid-run check. Most of what is left is the service, the client, the agents and the simulator that the walks run. The durable observer takes 8 to 19 per cent. These measurements are the user's to decide on (`skein/docs/foundation/testing-strategy.md`, 8.1).
+- **Not yet:** 1.5: GitHub's stories 3, 4, 5, 7 and 8; 1, 2 and 6 run.
+- **Not yet:** 1.1: the client world's line terminal pages, from a reply's first held piece to its committed turn; 1.5: the terminal's sign-in on a spent link's replacement [in flight: change 14478].
+- **Not yet:** 1.5: `ctl sign-in`'s private files and two end waits open while `me` answers [in flight: change 14479].
+- **Not yet:** 1.1: a chat's note rewritten whole after its person's message; 1.5: a webhook's one `204` and adoption through `ctl` [in flight: change 14480].
+- **Not yet:** 1.5: GitHub's story 2, and story 6's picker, stray installation and one local commit [in flight: change 14491].
+- **Not yet:** 1.1: a chat's reply after hearing its change land; 1.2 and 1.5: GitHub's story 1's halves [in flight: change 14492].
+- **Not yet:** 1.5: a model's request held by its provider after a shell call [in flight: change 14493].
+- **Not yet:** 1.5: a chat on a program's source whose reviewed change lands [in flight: change 14508].
+- **Not yet:** 1.1: the ladder's twins: no playback of a twin's document in the composed world, and B0's story [in flight: change 14509].
+- **Not yet:** 1.1: the ladder's twins: B1's story [in flight: change 14510].
+- **Not yet:** 1.5: a private file's key carried by the chat's model request, and a service started again keeping a replied chat and a setting [in flight: change 14514].
+- **Not yet:** 1.5: a lost call answered once from a second DIRECTORY, and a welcome's model check on a program's source [in flight: change 14515].
+- **Not yet:** 1.1: two one-slot workers each running a chat; 1.5: two workers alone taking figures, linking and draining [in flight: change 14516].
+- **Not yet:** 1.1: a person's latch releasing two reports, and the ignored adoption story [in flight: change 14520].
+- **Not yet:** 1.1: the setup's red top in the forge connector's world [in flight: change 14521].
 
 - **Design departs:** 1.1, from the request `merge-job-runs-2` of
   2026-11-09, item 1, decided by its plan's cut: the merge job's story

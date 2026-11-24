@@ -24,5 +24,10 @@
   `playground end`, `forge remove`, and a set up or a connect without
   FORGE, which `temper-client-tools`' own step tests hold alone; the joint component correlates
   forge setting reads, including historical revision values. 3:
-  the real loop's connected Forgejo, its tokens connect, a replace of
+  the one-process world's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
+- **Not yet:** 3: `ctl`'s private files and its two end waits beside `me` run in the real loop, not the one-process world [in flight: change 14479].
+- **Not yet:** 3: a repository adopted through `ctl` and a webhook's `204` run in the real loop, not the one-process world [in flight: change 14480].
+- **Not yet:** 3: a key added from a file and a service restart that retains the work run in the real loop, not the one-process world [in flight: change 14514].
+- **Not yet:** 3: a call whose answer was lost, made once from another DIRECTORY, runs in the real loop, not the one-process world [in flight: change 14515].
+- **Not yet:** 3: GitHub through the manifest runs in the real loop, not the one-process world [in flight: change 14491].
