@@ -1,5 +1,6 @@
 //! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
+use crate::waits::Figures;
 use crate::{CallKey, CallPart, Delegate, EscalationDecisionRecord, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -889,6 +890,7 @@ pub enum Now {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub retention: RetentionLimits,
+    pub waits: Figures,
     pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
     /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).

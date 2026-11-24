@@ -122,6 +122,16 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
         records: skein_lib::Duration::from_secs(30 * 86_400),
         summaries: skein_lib::Duration::from_secs(365 * 86_400),
     },
+    waits: core::Figures {
+        question: Duration::from_secs(2 * 3600),
+        party: Duration::from_secs(8 * 3600),
+        news: Duration::from_secs(24 * 3600),
+        host: Duration::from_secs(2 * 3600),
+        account: Duration::from_secs(2 * 3600),
+        step: Duration::from_secs(30 * 60),
+        room: Duration::from_secs(30 * 60),
+        sign_off: Duration::from_secs(24 * 3600),
+    },
     public: jig_domain_core::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {

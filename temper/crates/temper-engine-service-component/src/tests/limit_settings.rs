@@ -314,6 +314,7 @@ fn a_lowered_setting_names_the_figure_and_the_work_the_store_holds() {
 
 #[test]
 fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
+    const NEWS_MS: u64 = 123_456;
     let input = inputs();
     let mut store = opening(&input, None);
     let stock = store.opening_limits();
@@ -329,7 +330,7 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     fixtures::restart(&mut service);
     save(
         &mut service,
-        Box::new([item(b"tasks.tasks", 1024)]),
+        Box::new([item(b"tasks.tasks", 1024), item(b"waits.news_ms", NEWS_MS)]),
         Box::new([
             item(b"forge.client.entries", 16),
             item(b"forge.entries", 16),
@@ -351,6 +352,8 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     fixtures::restart(&mut service);
     assert_eq!(service.engine.as_ref().unwrap().limits().tasks.tasks, 1024);
     assert_eq!(service.engine.as_ref().unwrap().limits().forge.entries, 16);
+    let limits = temper_engine_domain::core_limits(service.engine.as_ref().unwrap().limits());
+    assert_eq!(limits.waits.news.as_millis(), NEWS_MS);
     save(
         &mut service,
         Box::new([item(b"tasks.tasks", 512)]),

@@ -122,7 +122,7 @@ pub use crate::{
 };
 
 pub use jig_domain_core_vocabulary::{
-    Config, ConfiguredPolicy, EndpointFacts, GATHERING, MadePart, PartAsk, PartFailure, PartInputs, PartsAsk,
+    Config, ConfiguredPolicy, EndpointFacts, Figures, GATHERING, MadePart, PartAsk, PartFailure, PartInputs, PartsAsk,
     RECURRING, RowPart, SeedProject, Settings, ToolFamilies,
 };
 

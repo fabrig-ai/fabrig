@@ -22,6 +22,7 @@ pub mod start;
 pub mod stored;
 pub mod translate;
 pub mod vocabulary;
+pub mod waits;
 
 pub use crate::{
     admission::{
@@ -77,6 +78,7 @@ pub use crate::{
         NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
         StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
     },
+    waits::Figures,
 };
 
 use alloc::boxed::Box;

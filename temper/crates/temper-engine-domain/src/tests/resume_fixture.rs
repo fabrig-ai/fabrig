@@ -55,6 +55,7 @@ pub fn limits() -> engine::Limits {
             records: Duration::from_secs(30 * 86_400),
             summaries: Duration::from_secs(365 * 86_400),
         },
+        waits: jig_protocol_config_fixtures::small().core.waits,
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,
