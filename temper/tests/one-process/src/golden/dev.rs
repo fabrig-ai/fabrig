@@ -127,6 +127,34 @@ pub fn read_dev(directory: &Path) {
     world::lower_store(None);
 }
 
+/// The restart sweep uses the same loader, bridge, census and kept-token reads as `read_dev`.
+pub(crate) fn restart_faults(
+    directory: &Path,
+    settings: world::Settings,
+    injector: &Rc<RefCell<crate::restarts::Injector>>,
+) {
+    stories::set(Story::PlaygroundA);
+    stories::setup_settings(world::Phase::Story);
+    let (mut disk, configuration) = load_reader(directory);
+    let source = Source::read(&mut disk);
+    let store = Rc::new(RefCell::new(Store::new()));
+    files::transcripts(directory, &mut store.borrow_mut());
+    let passes = if injector.borrow().wants_signal() { 2 } else { 1 };
+    let mut previous = None;
+    for _ in 0..passes {
+        UPGRADED.with(|lines| lines.borrow_mut().clear());
+        store.borrow_mut().recovering();
+        let (started, reads) = start_with(disk, &configuration, &store, settings, Some(injector));
+        disk = started;
+        source.unchanged(&mut disk);
+        if let Some(previous) = previous {
+            assert_eq!(reads, previous, "unit restart serves the same kept history");
+        }
+        previous = Some(reads);
+    }
+    world::lower_store(None);
+}
+
 fn layouts(rows: &Image) -> Image {
     rows.iter()
         .filter(|(key, _)| {
@@ -149,6 +177,16 @@ fn start(
     configuration: &temper_playground::documents::Configuration,
     store: &Rc<RefCell<Store>>,
 ) -> (skein_fake_machine::Machine, Vec<serde_json::Value>) {
+    start_with(disk, configuration, store, fixtures::calm(fixtures::SEED), None)
+}
+
+fn start_with(
+    disk: skein_fake_machine::Machine,
+    configuration: &temper_playground::documents::Configuration,
+    store: &Rc<RefCell<Store>>,
+    settings: world::Settings,
+    injector: Option<&Rc<RefCell<crate::restarts::Injector>>>,
+) -> (skein_fake_machine::Machine, Vec<serde_json::Value>) {
     world::lower_store(Some(store.clone()));
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let machine = Machine::new(disk);
@@ -161,22 +199,24 @@ fn start(
         disk: machine.0.clone(),
     };
     let outcome = programs::with(params, || {
-        let mut world = skein_world::World::new_controlled(
-            fixtures::SEED,
-            skein_sim::Config::calm(),
-            skein_world::Memory::Unchecked,
-            |controls| Judge {
-                controls,
-                stopped: false,
-                checked: false,
-                finding: None,
-                store: store.clone(),
-                requests: Vec::new(),
-                seen: 0,
-                transport: start.fakes.forge.clone(),
-            },
-        )
-        .with_machine(machine);
+        let mut world =
+            skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
+                if let Some(injector) = &injector {
+                    injector.borrow_mut().attach(controls.clone());
+                }
+                Judge {
+                    controls,
+                    injector: injector.cloned(),
+                    stopped: false,
+                    checked: false,
+                    finding: None,
+                    store: store.clone(),
+                    requests: Vec::new(),
+                    seen: 0,
+                    transport: start.fakes.forge.clone(),
+                }
+            })
+            .with_machine(machine);
         for (program, roots) in programs::programs::<Golden>() {
             world.host_roots(program, roots);
         }
@@ -191,8 +231,16 @@ fn start(
         );
         world.spawn(|| Proc::Peer(Box::new(SignalHost::new(super::llm_peer(), None))));
         world.spawn(|| Proc::Forge(Box::new(SignalHost::new(start.fakes.peer, None))));
-        world.run()
+        if let Some(injector) = &injector {
+            world.run_with_inputs(|sim, pids, procs| injector.borrow_mut().inputs(sim, pids, procs))
+        } else {
+            world.run()
+        }
     });
+    if let Some(injector) = &injector {
+        injector.borrow_mut().end_phase(outcome.end);
+    }
+    assert!(outcome.procs.iter().all(skein_shell::Host::is_empty), "dev reader drains every process");
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty());
     assert_eq!(service.service.end(), Some(&temper_service::End::Engine(temper_engine_service::End::Drained)));
@@ -296,6 +344,7 @@ fn assert_census(store: &Store) {
 
 struct Judge {
     controls: skein_world::Controls,
+    injector: Option<Rc<RefCell<crate::restarts::Injector>>>,
     stopped: bool,
     checked: bool,
     finding: Option<String>,
@@ -305,7 +354,11 @@ struct Judge {
     transport: temper_fake_git_hosted::Typed,
 }
 impl Judge {
-    fn act_checked(&mut self, procs: &mut [Proc]) -> Result<(), String> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the reader drains only after the complete kept history and optional fault"
+    )]
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, others) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else { return Err("service first".into()) };
         if !self.stopped
@@ -328,6 +381,10 @@ impl Judge {
             }
         }
         if !self.checked && service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready) {
+            if let Some(injector) = &self.injector {
+                injector.borrow_mut().opening(now);
+                crate::referee::Referee::check_roots(&service.service)?;
+            }
             assert_census(&self.store.borrow());
             for proc in others.iter_mut() {
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
@@ -379,7 +436,19 @@ impl Judge {
                     }
                     if self.seen == self.requests.len() {
                         caller.closed = true;
-                        self.controls.signal(0, ServiceSignal::Terminate);
+                        if let Some(injector) = &self.injector {
+                            if !injector.borrow_mut().ready() {
+                                continue;
+                            }
+                            if !injector.borrow().unit_active() {
+                                self.controls.signal(0, ServiceSignal::Terminate);
+                            }
+                        } else {
+                            self.controls.signal(0, ServiceSignal::Terminate);
+                        }
+                        if self.injector.is_some() {
+                            crate::referee::Referee::check_roots(&service.service)?;
+                        }
                         self.stopped = true;
                     }
                 }
@@ -398,9 +467,9 @@ impl Judge {
     }
 }
 impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _: Time, procs: &mut [Proc]) {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
         if self.finding.is_none() {
-            self.finding = self.act_checked(procs).err();
+            self.finding = self.act_checked(now, procs).err();
         }
     }
     fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
@@ -417,6 +486,9 @@ impl skein_world::Referee<Proc> for Judge {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
+        if self.injector.as_ref().is_some_and(|injector| injector.borrow().waiting()) {
+            return Some(Time::ZERO);
+        }
         (!self.stopped).then_some(Time::from_nanos(60_000_000_000))
     }
     fn overdue(&self, now: Time) -> Option<String> {

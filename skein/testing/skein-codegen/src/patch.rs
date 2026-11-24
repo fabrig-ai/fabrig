@@ -11,11 +11,13 @@ mod renumber;
 mod run;
 mod skeleton;
 mod text;
+mod tree;
 
 pub use check::check;
 pub use golden::{Mode, Written, golden, goldens};
-pub use module::{current, module};
+pub use module::{current, current_in, module};
 pub use run::run;
+pub use tree::Tree;
 
 use alloc::collections::BTreeMap;
 use core::fmt;
@@ -48,15 +50,6 @@ impl Landed {
     #[must_use]
     pub const fn new(files: BTreeMap<PathBuf, Vec<u8>>) -> Self {
         Self { files }
-    }
-
-    /// The tree's own `patches/`, `schema/kept/` and `schema/wires`, as if landed.
-    ///
-    /// # Errors
-    ///
-    /// [`Error::Io`] for a directory or file that cannot be read.
-    pub fn read(owner: &Path) -> Result<Self, Error> {
-        files::landed(owner).map(Self::new)
     }
 
     /// Nothing landed: a crate before its baseline.

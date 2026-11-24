@@ -1,5 +1,5 @@
 //! LLM account sign-in against the shipped process and the existing independent issuer/browser.
-use crate::support::{Person, Process, issuer, private, start};
+use crate::support::{Person, Process, diagnostics::premature_exit, issuer, private, start};
 use jig_client::{Asker, Key, contract as c};
 use jig_client_protocol_kit::native::Received;
 use jig_client_protocol_kit::native::{NativeClient, Script};
@@ -86,7 +86,6 @@ const SHUTDOWN_WAIT: Duration = Duration::from_secs(10);
 const SETUP_WAIT: Duration = Duration::from_secs(20);
 const WORLD_WAIT: Duration = Duration::from_secs(40);
 const STDERR_WAIT: Duration = Duration::from_secs(1);
-const STDERR_TAIL: usize = 4096;
 
 struct PrematureExit {
     status: Exit,
@@ -169,37 +168,6 @@ pub fn sigterm() {
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "SIGTERM must end without SIGKILL");
 }
 
-/// Never repeat a printed link or an authorization URL in a failure. Scan before
-/// cutting the tail so a URL crossing its boundary cannot leave its query behind.
-fn premature_exit(status: Exit, milestone: &str, stderr: &[u8]) -> String {
-    let start = stderr.len().saturating_sub(STDERR_TAIL);
-    let mut safe = Vec::new();
-    let mut at = 0;
-    while at < stderr.len() {
-        let rest = &stderr[at..];
-        if rest.starts_with(b"http://") || rest.starts_with(b"https://") {
-            let length = rest
-                .iter()
-                .position(|byte| byte.is_ascii_whitespace() || b"\"'<>".contains(byte))
-                .unwrap_or(rest.len());
-            at += length;
-            if at > start {
-                safe.extend_from_slice(b"[address omitted]");
-            }
-        } else {
-            if at >= start {
-                safe.push(stderr[at]);
-            }
-            at += 1;
-        }
-    }
-    let tail = &safe[safe.len().saturating_sub(STDERR_TAIL)..];
-    format!(
-        "binary exited before SIGTERM: status={status:?}; last milestone={milestone}; stderr tail (up to {STDERR_TAIL} bytes):\n{}",
-        String::from_utf8_lossy(tail)
-    )
-}
-
 impl Shutdown {
     fn observe_exit(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         let Process::Binary(binary) = procs.first().ok_or("binary")? else { return Err(String::from("binary")) };
@@ -271,44 +239,5 @@ impl Shutdown {
         self.sent = Some(now);
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_premature_exit_names_its_status_milestone_and_safe_stderr_tail() {
-        assert_eq!(
-            premature_exit(
-                Exit::Code(1),
-                "sign-in asked",
-                b"jig-test: stopped: Listener: an io event no component owns\n\xff"
-            ),
-            "binary exited before SIGTERM: status=Code(1); last milestone=sign-in asked; stderr tail (up to 4096 bytes):\njig-test: stopped: Listener: an io event no component owns\n\u{fffd}"
-        );
-        assert_eq!(
-            premature_exit(
-                Exit::Signal(9),
-                "client live",
-                b"link=\"https://issuer.example/authorize?secret=private\"\nlast error"
-            ),
-            "binary exited before SIGTERM: status=Signal(9); last milestone=client live; stderr tail (up to 4096 bytes):\nlink=\"[address omitted]\"\nlast error"
-        );
-        let mut stderr = vec![b'x'; STDERR_TAIL];
-        stderr.extend_from_slice(b"last error");
-        let finding = premature_exit(Exit::Code(2), "binary started", &stderr);
-        assert_eq!(
-            finding.split_once('\n').expect("stderr follows heading").1,
-            format!("{}last error", "x".repeat(STDERR_TAIL - 10))
-        );
-        let mut stderr = b"https://issuer.example/authorize?state=".to_vec();
-        stderr.extend(vec![b's'; STDERR_TAIL]);
-        stderr.extend_from_slice(b"\nlast error");
-        assert_eq!(
-            premature_exit(Exit::Code(1), "AccountSignInStarted seen", &stderr),
-            "binary exited before SIGTERM: status=Code(1); last milestone=AccountSignInStarted seen; stderr tail (up to 4096 bytes):\n[address omitted]\nlast error"
-        );
     }
 }
