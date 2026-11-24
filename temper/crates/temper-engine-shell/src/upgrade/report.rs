@@ -1,11 +1,13 @@
 //! One report renderer for shells and worlds (protocol/binaries.md, upgrade).
-use jig_protocol_store::{BackRefusal, Event, KeptMap, KeptWire, Owner, Undecoded, WorkerOpening};
+use jig_protocol_store::{
+    BackRefusal, Event, KeptMap, KeptOpening, KeptWire, KeptWorker, Owner, Undecoded, WorkerOpening,
+};
 #[cfg(test)]
 #[path = "report/tests.rs"]
 mod decode_tests;
 use jig_protocol_engine_workers::{Stated, Statement, Unfit, judge};
 use skein_lib::{List, Wall};
-use std::fmt::Write;
+use std::{collections::BTreeMap, fmt::Write};
 use temper_engine_service::upgrade::{Report, Workers};
 use temper_shell::directories::Directories;
 
@@ -191,18 +193,20 @@ fn verdict(text: &mut String, binary: &str, report: &Report, count_files: bool) 
     let mut kept = None;
     let mut openings = &[][..];
     let mut counts = None;
+    let mut workers_kept = None;
     for event in &report.events {
-        if let Event::Rehearsing { wires, openings: stated, linked, copied, .. } = event {
+        if let Event::Rehearsing { wires, openings: stated, workers, linked, copied, .. } = event {
             counts = Some((*linked, *copied));
             kept = wires.as_deref();
             openings = stated;
+            workers_kept = workers.as_deref();
         }
     }
     if count_files && let Some((linked, copied)) = counts {
         writeln!(text, "{binary} upgrade: rehearsal linked {linked} files, copied {copied}").expect("string write");
     }
     if counts.is_some() || report.end.is_some() {
-        workers(text, binary, kept, openings, &report.workers);
+        workers(text, binary, kept, openings, workers_kept, &report.workers);
     }
     counts.is_some()
 }
@@ -230,7 +234,8 @@ fn workers(
     text: &mut String,
     binary: &str,
     kept: Option<&[KeptWire]>,
-    openings: &[WorkerOpening],
+    openings: &[KeptOpening],
+    workers_kept: Option<&[KeptWorker]>,
     configured: &Workers,
 ) {
     let Some(kept) = kept else {
@@ -238,8 +243,42 @@ fn workers(
         return;
     };
     let mut allowed = host_tools(text, binary, kept);
-    for opening in openings {
-        let name = &opening.worker;
+    let Some(workers_kept) = workers_kept else {
+        writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy's workers cannot be read")
+            .expect("string write");
+        return;
+    };
+    // Settings changes replace defaults by number; a removal masks its default.
+    let current: BTreeMap<_, _> = configured.defaults.iter().chain(workers_kept).map(|w| (w.number, w)).collect();
+    let by_name: BTreeMap<_, _> = openings
+        .iter()
+        .map(|opening| {
+            let name = match opening {
+                KeptOpening::Current(current) => &current.worker,
+                KeptOpening::BeforeLayouts { worker } => worker,
+            };
+            (name.as_bytes(), opening)
+        })
+        .collect();
+    for worker in current.values().filter(|worker| !worker.withdrawn) {
+        let name = String::from_utf8_lossy(&worker.name);
+        let opening = match by_name.get(worker.name.as_ref()) {
+            Some(KeptOpening::Current(opening)) => opening,
+            Some(KeptOpening::BeforeLayouts { .. }) => {
+                allowed = false;
+                writeln!(text, "{binary} upgrade: worker {name} unknown: opened before layouts").expect("string write");
+                continue;
+            }
+            None => {
+                allowed = false;
+                writeln!(
+                    text,
+                    "{binary} upgrade: worker {name} unknown: no opening kept since the engine's last start"
+                )
+                .expect("string write");
+                continue;
+            }
+        };
         match judge(&configured.spoken, &configured.roots, configured.room, &configured.limits, &statement(opening)) {
             Ok(_) => writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
                 .expect("string write"),
@@ -290,9 +329,7 @@ fn statement(opening: &WorkerOpening) -> Statement {
             opening
                 .wires
                 .iter()
-                .filter_map(|wire| {
-                    Some(Stated { name: wire.name.clone(), layout: *wire.layouts.last()?, text: Box::new([]) })
-                })
+                .map(|wire| Stated { name: wire.name.clone(), layout: wire.layout, text: wire.text.clone() })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         ),

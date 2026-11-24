@@ -28,6 +28,7 @@ pub struct Workers {
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
     roots: List<jig_protocol_worker_wire::Root>,
+    defaults: List<jig_protocol_store::KeptWorker>,
     figures: temper_engine_service_vocabulary::figures::Composer,
     composed: Option<Composed>,
     copy: Option<AgentsCopy>,
@@ -83,6 +84,7 @@ impl Workers {
             notes: Queue::uncapped(),
             opening_limits: *limits,
             roots,
+            defaults: List::with_capacity(0),
             composed: None,
             copy: None,
             local: None,
@@ -270,8 +272,22 @@ impl Workers {
         self.host.close(now);
         self.pull(events);
     }
+    pub(crate) fn default_workers(&mut self, defaults: &[jig_domain_core::settings::WorkerSetting]) {
+        let mut workers = List::with_capacity(u32::try_from(defaults.len()).expect("configured worker count"));
+        for worker in defaults {
+            workers
+                .push(jig_protocol_store::KeptWorker {
+                    number: worker.number,
+                    name: worker.name.clone(),
+                    withdrawn: worker.withdrawn,
+                })
+                .expect("one row per default worker");
+        }
+        self.defaults = workers;
+    }
     pub(crate) fn judgement(&self) -> crate::upgrade::Workers {
         crate::upgrade::Workers {
+            defaults: self.defaults.clone(),
             room: self.opening_limits.room,
             limits: *self.host.component.codec(),
             spoken: self.host.component.spoken().clone(),
@@ -298,7 +314,7 @@ impl Workers {
                 self.notes.push(crate::Note::WorkerOpened { worker, converted });
                 events.push(root::Event::Worker(root::WorkerInput::Opened {
                     worker: name,
-                    statement: statement_to_root(statement, self.host.component.spoken()),
+                    statement: statement_to_root(statement),
                 }));
             }
             kit::host::Output::FiguresTaken { worker } => {
@@ -349,20 +365,12 @@ fn worker_name(name: &[u8]) -> Box<str> {
     core::str::from_utf8(name).expect("configured worker name is UTF-8").into()
 }
 
-fn statement_to_root(
-    statement: kit::Statement,
-    spoken: &List<jig_protocol_worker_wire::Spoken>,
-) -> root::WorkerStatement {
+fn statement_to_root(statement: kit::Statement) -> root::WorkerStatement {
     let mut wires = List::with_capacity(statement.wires.len());
     for wire in statement.wires.into_boxed() {
-        for ours in spoken {
-            if ours.name == wire.name.as_ref() {
-                wires
-                    .push(root::OpenedWire { name: wire.name, lowest: ours.version, layouts: Box::new([wire.layout]) })
-                    .expect("at most one root wire per stated wire");
-                break;
-            }
-        }
+        wires
+            .push(root::OpenedWire { name: wire.name, layout: wire.layout, text: wire.text })
+            .expect("one root wire per stated wire");
     }
     let mut terms = List::with_capacity(statement.terms.len());
     for term in statement.terms.into_boxed() {

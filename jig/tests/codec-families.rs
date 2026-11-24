@@ -140,7 +140,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/openings.rs"],
-        bounds: compiled_bounds!(jig_protocol_store::openings_v1),
+        bounds: compiled_bounds!(jig_protocol_store::openings_v2),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/openings.maps")),
         translation: Some("crates/jig-protocol-store/src/generated/openings.rs"),
     },

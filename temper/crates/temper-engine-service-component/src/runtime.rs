@@ -111,8 +111,9 @@ impl engine::Engine {
             .expect("checked forge limits");
         forge.log_origin_limit = settings.limits.forges.log_origins;
         let notes = Queue::with_capacity(settings.limits.forge.forges);
-        let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
+        let mut workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let mut core = core_config(&settings.jig, seeds);
+        workers.default_workers(&core.defaults.workers);
         core.kinds.clone_from(&settings.kinds);
         core.jobs = limits::jobs(&settings.jig.limits);
         let places = crate::places::Places::new(&settings);

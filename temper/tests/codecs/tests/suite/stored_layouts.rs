@@ -104,6 +104,11 @@ fn registered(build: &str, sets: &OwnerSets, family: &KeptFamily, texts: &BTreeM
 
 fn outside(build: &str, old: &Schema, old_held: &[&Schema], new: &Schema, new_held: &[&Schema]) -> Vec<String> {
     if old.version() != new.version() {
+        // temper/docs/design/protocol/floor.md, 6: version 1 openings are read by head
+        // alone and cleared by the next start, without translating their bodies.
+        if (name(old), name(new), old.version(), new.version()) == ("jig-store-openings", "jig-store-openings", 1, 2) {
+            return vec![];
+        }
         return vec![format!(
             "{build} {}: version changed outside the registry from {} to {}; provide an upgrade path",
             name(old),
@@ -205,6 +210,23 @@ fn floor_bridge_layouts_open() {
 #[test]
 fn running_build_layouts_open() {
     deployed(RUNNING, "13efa77461");
+}
+
+#[test]
+fn deployed_layouts_allow_only_the_named_openings_version_move() {
+    let current = parsed(jig_protocol_store::STORE_FAMILIES[1].current);
+    deployed(BRIDGE, "3d1c717d379e");
+    let (sources, deployed) = deployed_texts(RUNNING, "13efa77461");
+    assert_eq!(guard(RUNNING, &OWNER_SETS, &deployed, &sources), Vec::<String>::new());
+    let old = &deployed["jig-store-openings"];
+    assert_eq!((old.version(), current.version()), (1, 2));
+    assert_eq!(outside("mutation", old, &[], &current, &[]), Vec::<String>::new());
+    let unrelated = parsed("family fixture-map 1\nversioned record Value { count: u32 }");
+    let moved = parsed("family fixture-map 2\nversioned record Value { count: u32 }");
+    assert_eq!(outside("mutation", &unrelated, &[], &moved, &[]).len(), 1);
+    let too_far =
+        parsed(&jig_protocol_store::STORE_FAMILIES[1].current.replace("jig-store-openings 2", "jig-store-openings 3"));
+    assert_eq!(outside("mutation", old, &[], &too_far, &[]).len(), 1);
 }
 
 fn held_family(schema: &Schema, mut ty: TypeIx) -> Option<&str> {

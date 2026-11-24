@@ -8,6 +8,7 @@ use skein_io::file;
 use skein_lib::{Queue, Token};
 mod decode;
 pub(crate) mod frames;
+mod workers;
 
 #[derive(Debug)]
 enum Stage {
@@ -233,7 +234,8 @@ pub(crate) fn announce(store: &mut Store, above: &mut Queue<Event>) {
     let (linked, copied) = (state.linked, state.copied);
     let wires = kept_wires(store, owner);
     let openings = crate::openings::kept(store).unwrap_or(Box::new([]));
-    above.push(Event::Rehearsing { owner, wires, openings, linked, copied });
+    let workers = workers::kept(store);
+    above.push(Event::Rehearsing { owner, wires, openings, workers, linked, copied });
 }
 fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     let key = crate::keys::encode_own(&crate::keys::Own::Wires, store.limits.store.key)?;

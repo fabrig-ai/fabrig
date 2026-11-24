@@ -1309,11 +1309,14 @@ fn opening_layouts_and_each_refusals_text_reach_shell_notes() {
     assert_eq!(
         statement,
         root::WorkerStatement {
-            wires: Box::new([root::OpenedWire {
-                name: "smith-charter".into(),
-                lowest: 5,
-                layouts: Box::new([[5; 32]])
-            }]),
+            wires: Box::new([
+                root::OpenedWire { name: "example-wire".into(), layout: [4; 32], text: b"extra".as_slice().into() },
+                root::OpenedWire {
+                    name: "smith-charter".into(),
+                    layout: [5; 32],
+                    text: b"peer text".as_slice().into()
+                },
+            ]),
             output: 4096,
             terms: Box::new([root::OpenedTerm { kind: 12, largest: 34 }]),
         }

@@ -136,7 +136,8 @@ fn workers_lines_count_files_before_the_checks_verdict_for_yes_no_and_unknown() 
         let mut report = super::tests::report(Event::Rehearsing {
             owner: Token::new(1),
             wires: if verdict == "unknown" { None } else { Some(kept()) },
-            openings: Box::new([w1, w2]),
+            openings: Box::new([KeptOpening::Current(w1), KeptOpening::Current(w2)]),
+            workers: Some(Box::new([])),
             linked: 12,
             copied: 3,
         });
@@ -412,7 +413,8 @@ fn rehearsal() -> Report {
     super::tests::report(Event::Rehearsing {
         owner: Token::new(1),
         wires: Some(kept()),
-        openings: Box::new([opening("w1"), opening("w2")]),
+        openings: Box::new([opening("w1"), opening("w2")].map(KeptOpening::Current)),
+        workers: Some(Box::new([])),
         linked: 12,
         copied: 3,
     })
@@ -423,6 +425,7 @@ pub(super) fn configured() -> Workers {
     let application =
         temper_protocol_worker_wire::application(&temper_protocol_worker_wire::v1::CEILINGS).expect("application");
     Workers {
+        defaults: List::from_boxed(Box::new([kept_worker(1, "w1", false), kept_worker(2, "w2", false)])),
         room: 4096,
         limits: jig_protocol_worker_wire::CEILINGS,
         spoken: List::from_boxed(jig.iter().chain(&application.spoken).cloned().collect()),
@@ -449,8 +452,8 @@ fn opening(name: &str) -> WorkerOpening {
             .iter()
             .map(|wire| jig_protocol_store::OpenedWire {
                 name: wire.name.into(),
-                lowest: wire.version,
-                layouts: Box::new([wire.layout]),
+                layout: wire.layout,
+                text: wire.text.as_bytes().into(),
             })
             .collect(),
         output: configured.room,
@@ -464,10 +467,34 @@ fn opening(name: &str) -> WorkerOpening {
     }
 }
 
+fn kept_worker(number: u32, name: &str, withdrawn: bool) -> KeptWorker {
+    KeptWorker { number, name: name.as_bytes().into(), withdrawn }
+}
+
 fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>) -> String {
-    let mut report =
-        super::tests::report(Event::Rehearsing { owner: Token::new(1), wires, openings, linked: 12, copied: 3 });
-    report.workers = configured();
+    verdict_with_workers(
+        wires,
+        openings.into_iter().map(KeptOpening::Current).collect(),
+        Some(Box::new([])),
+        configured().defaults,
+    )
+}
+
+fn verdict_with_workers(
+    wires: Option<Box<[KeptWire]>>,
+    openings: Box<[KeptOpening]>,
+    workers: Option<Box<[KeptWorker]>>,
+    defaults: List<KeptWorker>,
+) -> String {
+    let mut report = super::tests::report(Event::Rehearsing {
+        owner: Token::new(1),
+        wires,
+        openings,
+        workers,
+        linked: 12,
+        copied: 3,
+    });
+    report.workers.defaults = defaults;
     report.restored = true;
     let dirs =
         temper_shell::directories::resolve(&[], &[(b"HOME".as_slice().into(), b"/home/test".as_slice().into())], b"/")
@@ -483,29 +510,55 @@ const COMPATIBLE: &str = "temper-box upgrade: worker w1 may stay: opened 2026-11
 const NO: &str = "temper-box upgrade: workers may stay: no\n";
 
 #[test]
-fn compatible_openings_follow_the_stored_openings() {
+fn compatible_openings_follow_worker_number_not_opening_order() {
     let mut wires = kept().into_vec();
     // Only the engine's own contracts are read from Wires, not a worker's wires.
     wires.retain(|wire| wire.name.as_ref() != "smith-charter");
     wires.push(KeptWire { name: "retired".into(), version: 999 });
-    assert_eq!(verdict(Some(wires.into_boxed_slice()), Box::new([opening("w1"), opening("w2")])), COMPATIBLE);
     assert_eq!(
-        verdict(Some(kept()), Box::new([opening("unconfigured")])),
-        "temper-box upgrade: worker unconfigured may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: workers may stay: yes\n"
+        verdict(Some(wires.into_boxed_slice()), Box::new([opening("w2"), opening("unconfigured"), opening("w1")])),
+        COMPATIBLE
     );
+}
+
+#[test]
+fn an_opening_with_derived_wire_plans_may_stay() {
+    let mut derived = opening("w2");
+    let wire = derived.wires.iter_mut().find(|wire| wire.name.as_ref() == "jig-worker-wire").expect("channel");
+    // Each side has a defaulted field and an optional kind the other lacks, with roots unchanged.
+    let text = jig_protocol_worker_wire::SCHEMA
+        .replace("    fresh: bool = false\n", "")
+        .replace("value: FactValue }", "value: FactValue worker_note: u32 = 19 }")
+        .replace("enum FromWorker {", "record WorkerOnly { value: u8 }\nenum FromWorker {")
+        .replace("paused: Paused, part: Part", "paused: Paused, part: Part, worker_only: WorkerOnly")
+        .replace(", part_busy: PartBusy", "");
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("derived text");
+    let layout = schema.fingerprints().family().digest();
+    assert_ne!(wire.layout, layout);
+    wire.layout = layout;
+    wire.text = text.into_bytes().into_boxed_slice();
+    // The responder's remaining kinds keep their tags and byte bounds.
+    derived.terms = derived
+        .terms
+        .into_iter()
+        .filter(|term| term.kind != jig_protocol_worker_wire::Kind::PartBusy.number())
+        .collect();
+    assert_eq!(verdict(Some(kept()), Box::new([opening("w1"), derived])), COMPATIBLE);
 }
 
 #[test]
 fn worker_refusals_keep_the_openings_wire_and_limits_words() {
     let mut layout = opening("w2");
-    *layout
-        .wires
-        .iter_mut()
-        .find(|wire| wire.name.as_ref() == "smith-charter")
-        .expect("charter")
-        .layouts
-        .last_mut()
-        .expect("current layout") = [0xcd; 32];
+    let charter = layout.wires.iter_mut().find(|wire| wire.name.as_ref() == "smith-charter").expect("charter");
+    charter.layout = [0xcd; 32];
+    charter.text = b"not a schema".as_slice().into();
+    let mut no_plan = opening("w2");
+    let charter = no_plan.wires.iter_mut().find(|wire| wire.name.as_ref() == "smith-charter").expect("charter");
+    let text =
+        str::from_utf8(&charter.text).expect("schema text").replace("instructions: text 262144", "instructions: u32");
+    charter.layout =
+        skein_codec::schema::parse(text.as_bytes()).expect("retyped schema").fingerprints().family().digest();
+    charter.text = text.into_bytes().into_boxed_slice();
     let mut missing = opening("w2");
     missing.wires = missing.wires.into_iter().filter(|wire| wire.name.as_ref() != "smith-charter").collect();
     let mut output = opening("w1");
@@ -514,6 +567,12 @@ fn worker_refusals_keep_the_openings_wire_and_limits_words() {
     terms.terms[0].largest = 7;
     for (opening, name, other, reason) in [
         (layout, "w2", "w1", "wires: wire smith-charter: the worker's text does not parse at line 1"),
+        (
+            no_plan,
+            "w2",
+            "w1",
+            "wires: wire smith-charter Charter: no plan to the worker: retyped at Charter.instructions",
+        ),
         (missing, "w2", "w1", "wires: wire smith-charter: the worker states none"),
         (
             output,
@@ -523,14 +582,50 @@ fn worker_refusals_keep_the_openings_wire_and_limits_words() {
         ),
         (terms, "w2", "w1", "limits: 384"),
     ] {
-        // The failing worker precedes the compatible worker in stored opening order.
-        assert_eq!(
-            verdict(Some(kept()), Box::new([opening, self::opening(other)])),
-            format!(
-                "temper-box upgrade: worker {name} may not stay: {reason}\ntemper-box upgrade: worker {other} may stay: opened 2026-11-13T10:00:00Z\n{NO}"
-            )
-        );
+        let first = format!("temper-box upgrade: worker {name} may not stay: {reason}\n");
+        let second = format!("temper-box upgrade: worker {other} may stay: opened 2026-11-13T10:00:00Z\n");
+        let expected = if name == "w1" { format!("{first}{second}{NO}") } else { format!("{second}{first}{NO}") };
+        assert_eq!(verdict(Some(kept()), Box::new([opening, self::opening(other)])), expected);
     }
+}
+
+#[test]
+fn earlier_and_missing_openings_have_distinct_unknown_lines() {
+    assert_eq!(
+        verdict_with_workers(
+            Some(kept()),
+            Box::new([KeptOpening::BeforeLayouts { worker: "w1".into() }]),
+            Some(Box::new([])),
+            configured().defaults,
+        ),
+        format!(
+            "temper-box upgrade: worker w1 unknown: opened before layouts\ntemper-box upgrade: worker w2 unknown: no opening kept since the engine's last start\n{NO}"
+        )
+    );
+}
+
+#[test]
+fn stored_worker_settings_overlay_defaults_by_number_and_hide_withdrawals() {
+    let defaults = List::from_boxed(Box::new([kept_worker(1, "local", false), kept_worker(3, "retired", false)]));
+    let changes =
+        Box::new([kept_worker(1, "local", true), kept_worker(2, "w2", false), kept_worker(3, "retired", true)]);
+    assert_eq!(
+        verdict_with_workers(
+            Some(kept()),
+            Box::new([opening("local"), opening("retired"), opening("w2")].map(KeptOpening::Current)),
+            Some(changes),
+            defaults,
+        ),
+        "temper-box upgrade: worker w2 may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: workers may stay: yes\n"
+    );
+}
+
+#[test]
+fn unreadable_worker_settings_make_the_verdict_unknown() {
+    assert_eq!(
+        verdict_with_workers(Some(kept()), Box::new([]), None, configured().defaults),
+        "temper-box upgrade: workers may stay: unknown; the copy's workers cannot be read\n"
+    );
 }
 
 #[test]

@@ -7,6 +7,7 @@ use skein_lib::{Duration, List, Queue, Time, Token};
 /// What the configured engine would require at an opening (protocol/wires.md, 10.2).
 #[derive(Debug)]
 pub struct Workers {
+    pub defaults: List<jig_protocol_store::KeptWorker>,
     pub room: u32,
     pub limits: jig_protocol_worker_wire::v22::Limits,
     pub spoken: List<jig_protocol_worker_wire::Spoken>,
