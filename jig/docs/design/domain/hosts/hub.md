@@ -359,8 +359,9 @@ pub enum ModelEvidence { Unsent, Unknown, Response }
   kept until the engine says `part kept`, sent again after every hello
   and after a backoff when the engine answers `part busy`, and before
   the answer. It reads only a part's numbers and size. The link sets
-  `tell_parts` from its agreed version: a link without `part` takes no
-  part, so its runs are asked for none.
+  `tell_parts` from its engine's terms: a link whose engine does not
+  take `part` takes no part, so its runs are asked for none
+  (`../../protocol/channel/layouts.md`, 4.2).
 
   ```rust
   // jig-domain-link
@@ -662,8 +663,8 @@ continue to reflect the owner's own pause and drain.
   their protocol layers' routing, which also runs smith's components
   where it composes them. Never the hub, the core, or jig's channel's components,
   which pass smith's bytes through (`jig/docs/design/protocol/channel/owners.md`, 1.1),
-  translating them by smith's bridges, as bytes, between versions
-  (`../../protocol/channel/bridges.md`, 5.3).
+  the engine's converting them, as bytes, between the two sides'
+  layouts (`../../protocol/channel/layouts.md`, 2.1).
 - **A call carries its charter's contract.** The worker's routing, as it
   decodes a start, hands the hub the version of the host's tools
   contract its charter names (smith's `protocol/charter.md`, 2), a
@@ -768,7 +769,8 @@ and reports a check's results when they end (temper's
   an ask lost with an engine's restart is never answered, and its
   asker's clock ends it.
 - **Bytes the hub never reads,** as a call's input and a job's spec: the
-  application's codecs encode and decode them, and its wires translate
-  them across versions (`../../protocol/channel/bridges.md`, 5.4).
+  application's codecs encode and decode them, and the engine converts
+  them between the two sides' layouts by the application's roots
+  (`../../protocol/channel/layouts.md`, 2.1 and 7).
 - **The engine's own hub** asks the same way, its root routing the ask
   to the fleet as it routes a call.

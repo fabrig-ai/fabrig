@@ -136,6 +136,11 @@ fn lazy_fetch_failures_are_remote_and_local_failures_stay_broken() {
             Command::Merge { theirs: fixtures::COMMIT },
             git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None },
         ),
+        (
+            Kind::Merge,
+            Command::MergeHistory { theirs: fixtures::COMMIT },
+            git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None },
+        ),
     ] {
         for (tail, expected) in [
             (b"fatal: unable to access 'x': The requested URL returned error: 401\n".as_slice(), Fault::Refused),

@@ -50,6 +50,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn invocation_keeps_the_parent_program_and_status_arguments() {
+        let arguments = ["42", "/fixture/claude", "auth", "status"].map(OsString::from);
+        let invocation = parse(&arguments).expect("program-child invocation");
+        assert_eq!(invocation.parent, 42);
+        assert_eq!(invocation.program, "/fixture/claude");
+        assert_eq!(invocation.arguments, ["auth", "status"]);
+    }
+
+    #[test]
     fn malformed_arguments_refuse_without_exec() {
         for (arguments, why) in [
             (Vec::new(), "missing parent"),

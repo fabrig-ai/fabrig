@@ -1,13 +1,19 @@
 # layouts-both-ways: status
 
-2026-11-17. Where the design lags or departs from [layouts-both-ways.md](layouts-both-ways.md).
+2026-11-24. Where the design lags or departs from [layouts-both-ways.md](layouts-both-ways.md).
 
 - **Design lags:**
   - 3: `skein/docs/design/data/codec/README.md`, 5, and `temper/docs/design/draft/redeploys.md`, 3.1, move a wire's version at each layout change; `temper/docs/design/draft/redeploys.md`, 3.2, agrees a highest common version.
-  - 4: `skein/docs/design/data/codec/layouts.md`, 2, derives one direction, from a written layout to the binary's.
   - 5 and 9: `skein/docs/design/data/codec/patches.md`, `skein/docs/design/data/codec/bridges.md` and `skein/docs/design/data/codec/command.md`, 2 and 6, keep texts and patches in the repository and bridge through them.
   - 6: `temper/docs/design/draft/redeploys.md`, 4.1, has the newer side translate, through the bridges.
   - 8: `jig/docs/design/protocol/store/opening-rehearsal.md`, 1, goes back to the previous generation only; `jig/docs/design/protocol/store/layouts.md`, 1, keeps the transcripts' frames outside the registry.
   - 9: `AGENTS.md`, 2, says a wire's change brings its patch.
-- **Design departs:** none.
-- **Open:** none.
+- **Design departs:**
+  - 4.2: in Keep mode, an absent `option` that the target takes away is refused, where the table has Keep do as Read and take the target's default (`skein/docs/design/data/codec/layouts.md`, 2). Writing the default would come back present by the Read plan, so the value would not mean the same at the target, against 4.2's Keep, and 4.5's round trip would not hold. Decided by goal L1's designer, 2026-11-24, where two of the draft's lines contradict.
+  - 4.4: the store keeps its derivation, the Read mode with every part a value could be refused at refused as the plan's, so its plans and refusals are unchanged and a value type whose Read plan would refuse a value still needs its owner's written job (`skein/docs/design/data/codec/layouts.md`, 2 and 7). Whether a store opens with plans that refuse per value is L2's to decide, beside 8.1. Decided by goal L1's designer, 2026-11-24, since L1 is in `skein-codec` alone and its acceptance asks the store's plans to derive unchanged.
+  - 5: a worker sends every wire's text in every credential, not only those whose fingerprints differ (`jig/docs/design/protocol/channel/wires.md`, 2), and the engine accepts with the worker's kinds' table (`skein/docs/design/net/channel.md`, 5.2). The worker cannot know which differ before the engine answers, and the engine needs the worker's table before it accepts; a text still travels once per connection. Decided by goal L3's designer, 2026-11-24, where the draft's letter cannot hold and its intent is kept.
+  - 3 and 9: `smith-transcript` keeps its moving version, its kept texts and its patch, though the engine converts turns by plans on the wire like the frozen wires (`temper/docs/design/protocol/wires.md`, 3.1): the store's frame patcher reads the turns it keeps by their version until 8.3 names their layout, and removing them first would leave dev.fabrig.ai's older turns unread (`store-floor.md`). Decided by goal L3's designer, 2026-11-24, where L3's removal and 8.3's order contradict; L2 and L6 retire them.
+  - 3 and 6: `smith-pieces` is compared at the opening and never converted: the engine keeps a call's name and a delivery's evidence as bytes that name no layout, so a worker whose layout of it differs is refused by name (`jig/docs/design/protocol/channel/layouts.md`, 2.1). Decided by goal L3's designer, 2026-11-24, since 2's table puts the pieces with smith's channel, and converting them on the wire alone would leave stored ones misread.
+- **Open:**
+  - 3: the landing of L3 changes the workers' opening itself, so its redeploy restarts every part together once (`temper/docs/design/protocol/wires.md`, 3.2); asked of the milestone, 2026-11-24.
+  - 7.3: written converters' hook built with the first converter a change needs, a value type with no plan refusing the opening by name meanwhile (`jig/docs/design/protocol/channel/layouts.md`, 6); asked of the milestone, 2026-11-24.

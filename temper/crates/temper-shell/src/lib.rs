@@ -11,6 +11,9 @@ pub mod link_file;
 pub mod lookup;
 pub mod table;
 
+#[cfg(test)]
+mod test_disk;
+
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }

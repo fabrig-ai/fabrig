@@ -493,6 +493,40 @@ fn history_failure(failure: jig_protocol_store::restore::HistoryFailure) -> &'st
     }
 }
 
+// A landing's waits, temper/docs/design/domain/landing-waits.md, 4.
+fn landing_read_line(binary: &str, note: temper_engine_domain_forge::LandingReadNote) -> String {
+    use temper_engine_domain_forge::LandingReadNoteKind;
+    let temper_engine_domain_forge::LandingReadNote { task, round, reading, kind } = note;
+    let reading = String::from_utf8_lossy(&reading);
+    match kind {
+        LandingReadNoteKind::Started { why } => format!(
+            "{binary} serve: landing {task} round {round} waits for a fresh read: {reading}: {}\n",
+            String::from_utf8_lossy(&why),
+        ),
+        LandingReadNoteKind::Read { elapsed } => format!(
+            "{binary} serve: landing {task} round {round} has its fresh read after {}: {reading}\n",
+            landing_read_age(elapsed),
+        ),
+        LandingReadNoteKind::Held { elapsed, why } => format!(
+            "{binary} serve: warning: landing {task} round {round} held after {} waiting for a fresh read: {reading}: {}\n",
+            landing_read_age(elapsed),
+            String::from_utf8_lossy(&why),
+        ),
+    }
+}
+
+fn landing_read_age(elapsed: skein_lib::Duration) -> String {
+    let seconds = elapsed.as_nanos() / 1_000_000_000;
+    for (unit, next, suffix, next_suffix) in [(86_400, 3600, 'd', 'h'), (3600, 60, 'h', 'm'), (60, 1, 'm', 's')] {
+        if seconds >= unit {
+            let count = seconds / unit;
+            let rest = seconds % unit / next;
+            return format!("{count}{suffix} {rest}{next_suffix}");
+        }
+    }
+    format!("{seconds}s")
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive note match keeps the engine vocabulary beside its words")]
 #[must_use]
 pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
@@ -506,6 +540,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::StartupWarning { line } => {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
+        temper_engine_service::Note::LandingRead(note) => landing_read_line(binary, note),
         temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
             let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
             format!(

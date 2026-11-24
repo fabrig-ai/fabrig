@@ -66,6 +66,12 @@ impl Call {
         &self.arguments
     }
 
+    /// The executable of a direct command, rather than a ctl call.
+    #[must_use]
+    pub fn program(&self) -> Option<&Path> {
+        self.program.as_deref()
+    }
+
     #[must_use]
     pub fn new(arguments: &[&str]) -> Self {
         Self {

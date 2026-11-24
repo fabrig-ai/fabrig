@@ -7,6 +7,7 @@ use std::path::{Component, Path, PathBuf};
 
 use smith_events::{Event, Verdict};
 
+use crate::files::Files;
 use crate::{CheckVerdict, Fault, Measure};
 
 use super::Observer;
@@ -23,13 +24,20 @@ pub(super) fn relative(path: &Path) -> Option<PathBuf> {
     Some(normalized)
 }
 
-pub(super) fn check(observer: &Observer, path: &Path, minimum: u64, workspace: &Path) -> CheckVerdict {
+pub(super) fn check(
+    files: &dyn Files,
+    observer: &Observer,
+    path: &Path,
+    minimum: u64,
+    workspace: &Path,
+) -> CheckVerdict {
     let mut evidence = Vec::new();
-    let passed = evaluate(observer, path, minimum, workspace, &mut evidence);
+    let passed = evaluate(files, observer, path, minimum, workspace, &mut evidence);
     CheckVerdict { check: "written-file".into(), passed, evidence }
 }
 
 fn evaluate(
+    files: &dyn Files,
     observer: &Observer,
     path: &Path,
     minimum: u64,
@@ -107,7 +115,7 @@ fn evaluate(
     if writes.len() != 1 || skein_lib::len_u64(writes[0].len()) < minimum {
         return measured(false);
     }
-    match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(Fault::from)) {
+    match crate::grade::file_with(files, workspace, path).and_then(|file| files.read(&file).map_err(Fault::from)) {
         Ok(bytes) => {
             evidence.push(format!("saved_bytes={}; saved_equals_call_content={}", bytes.len(), bytes == writes[0]));
             measured(bytes == writes[0])

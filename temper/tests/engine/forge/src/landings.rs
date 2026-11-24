@@ -54,6 +54,7 @@ pub fn turn_in(mut world: World) -> World {
 #[must_use]
 pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     top::LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

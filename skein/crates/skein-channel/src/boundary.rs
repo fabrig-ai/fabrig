@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Token, stream};
 
-use super::{Frame, Term};
+use super::{Frame, Term, Version};
 
 /// The most owner events one entry point emits.
 pub const MAX_UP: u32 = 3;
@@ -17,6 +17,8 @@ pub enum Request {
     Open { credential: Box<[u8]> },
     /// The responder selects a version offered by both peers.
     Accept { version: u16 },
+    /// The responder selects a common version and supplies that version's kinds.
+    AcceptWith { table: Version },
     /// Either owner ends with a bounded reason and text.
     Refuse { reason: u16, text: Box<[u8]> },
     /// The owner grants one application frame read.
@@ -37,6 +39,7 @@ impl core::fmt::Debug for Request {
         match self {
             Self::Open { credential } => f.debug_struct("Open").field("credential_len", &credential.len()).finish(),
             Self::Accept { version } => f.debug_struct("Accept").field("version", version).finish(),
+            Self::AcceptWith { table } => f.debug_struct("AcceptWith").field("table", table).finish(),
             Self::Refuse { reason, text } => {
                 f.debug_struct("Refuse").field("reason", reason).field("text", text).finish()
             }

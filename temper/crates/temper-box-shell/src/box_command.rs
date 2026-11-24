@@ -15,8 +15,12 @@ pub(crate) fn link_form(
     stdout: &impl std::io::IsTerminal,
     environment: &[super::EnvironmentEntry],
 ) -> temper_box_machine::terminal::LinkForm {
+    link_form_with(stdout.is_terminal(), environment)
+}
+
+fn link_form_with(terminal: bool, environment: &[super::EnvironmentEntry]) -> temper_box_machine::terminal::LinkForm {
     let term = temper_shell::environment::TERM.value(environment);
-    temper_box_machine::terminal::LinkForm::of(stdout.is_terminal(), term)
+    temper_box_machine::terminal::LinkForm::of(terminal, term)
 }
 
 pub(crate) const ECHO_SETTINGS: skein_shell::Settings = skein_shell::Settings {
@@ -220,7 +224,15 @@ pub(super) fn held_listeners(held: Vec<(Fd, std::num::NonZeroU16)>) -> Result<Ve
 pub(super) fn first_link(
     named: &temper_service::startup::Named,
     steps: &temper_forge_setup::Steps,
-) -> Result<Option<temper_box_machine::host::FirstLink>, String> {
+) -> Result<Option<FirstLink>, String> {
+    first_link_with_seed(named, steps, skein_shell::crypto_seed)
+}
+
+pub(super) fn first_link_with_seed(
+    named: &temper_service::startup::Named,
+    steps: &temper_forge_setup::Steps,
+    seed: fn() -> Result<skein_lib::Secret, i32>,
+) -> Result<Option<FirstLink>, String> {
     if !named.link
         || steps
             .always
@@ -234,12 +246,12 @@ pub(super) fn first_link(
     if address.port() == 0 {
         return Ok(None);
     }
-    let secret = skein_shell::crypto_seed().map_err(|errno| format!("first link: system randomness: errno {errno}"))?;
+    let secret = seed().map_err(|errno| format!("first link: system randomness: errno {errno}"))?;
     let url = temper_service::clients::first_link_url(address, named.public.as_ref(), &secret);
     if url.len() > 4096 {
         return Err("serve: sign-in link too long".into());
     }
-    Ok(Some(temper_box_machine::host::FirstLink { url, secret, local: None }))
+    Ok(Some(FirstLink { url, secret, local: None }))
 }
 
 fn open_listeners(

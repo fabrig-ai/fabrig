@@ -709,6 +709,7 @@ impl Protocol {
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
                 | top::Request::LandingUnmade { .. }
+                | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)

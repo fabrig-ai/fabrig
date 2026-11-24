@@ -49,6 +49,7 @@ impl RootChecks {
 #[expect(clippy::struct_excessive_bools, reason = "independent party, injection and settlement controls")]
 pub struct Referee {
     pub(crate) finding: Option<String>,
+    pub(crate) controls: Option<skein_world::Controls>,
     pub(crate) redial_ceiling: skein_lib::Duration,
     pub(crate) cut_ready: Rc<std::cell::Cell<u32>>,
     pub(crate) accounts: crate::account_setup::Setup,
@@ -83,6 +84,11 @@ impl skein_world::Referee<Proc> for Referee {
         reason = "the referee settles the channel story and its application read together"
     )]
     fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        // A cut replaces the process between act and watch. Reattach the
+        // previous wire observations on the next act before checking them.
+        if self.views.borrow().restart.saved_wire.is_some() {
+            return Ok(());
+        }
         if let Some(why) = &self.finding {
             return Err(why.clone());
         }
@@ -98,7 +104,7 @@ impl skein_world::Referee<Proc> for Referee {
             .find_map(|proc| if let Proc::Engine(host) = proc { Some(host) } else { None })
             .ok_or("engine")?;
         self.observe_engine(now, engine)?;
-        if matches!(self.story, crate::stories::Story::Resume(_)) {
+        if matches!(self.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
             crate::restarts::observe(now, procs, &self.store.borrow(), &mut self.views.borrow_mut().restart)?;
         }
         let store = self.store.borrow();
@@ -155,6 +161,7 @@ impl skein_world::Referee<Proc> for Referee {
                     crate::stories::Story::InvalidCharter
                         | crate::stories::Story::Shutdown
                         | crate::stories::Story::Resume(_)
+                        | crate::stories::Story::Crash(_)
                         | crate::stories::Story::Drain
                         | crate::stories::Story::BeyondGrace
                 ) || smith_agent_process_world::fake::replied(peer)
@@ -485,6 +492,11 @@ impl Rules {
         if self.running.get(&task).is_some_and(|(_, until)| now < *until) {
             self.fail("a lost attempt ends only after its worker's stop bound");
         }
+        self.unhosted_ended(task, attempt);
+    }
+
+    /// A fresh hello proves the old process gone without waiting its grace.
+    pub fn unhosted_ended(&mut self, task: u64, attempt: u64) {
         if !self.lost_ends.insert((task, attempt)) {
             self.fail("a lost attempt ends once");
         }
@@ -704,7 +716,20 @@ impl Referee {
             crate::restarts::act(point, now, procs, &mut self.views.borrow_mut());
             self.injected = self.views.borrow().restart.drain.is_some();
         }
+        if let crate::stories::Story::Crash(point) = self.story {
+            crate::restarts::crash(
+                point,
+                now,
+                procs,
+                &mut self.views.borrow_mut().restart,
+                self.controls.as_ref().expect("controlled crash world"),
+            );
+            self.injected = self.views.borrow().restart.killed_at.is_some();
+        }
         self.shutdown_worker(procs)?;
+        if matches!(self.story, crate::stories::Story::Crash(_)) {
+            self.observe_resumed_tries(procs)?;
+        }
         let (engine, worker) = match self.story {
             crate::stories::Story::Partition { engine, worker } => (engine, worker),
             crate::stories::Story::BeyondGrace => {
@@ -721,6 +746,7 @@ impl Referee {
             | crate::stories::Story::Reconnect
             | crate::stories::Story::Shutdown
             | crate::stories::Story::Resume(_)
+            | crate::stories::Story::Crash(_)
             | crate::stories::Story::Drain
             | crate::stories::Story::Refusals(_)
             | crate::stories::Story::Opening(_)
@@ -1008,11 +1034,12 @@ impl Referee {
                 && host.service.is_empty()
                 && let Some(root) = host.restart_root.take()
             {
-                let replacement = if matches!(self.story, crate::stories::Story::Resume(_)) {
-                    crate::restarts::worker(root)
-                } else {
-                    crate::processes::worker(root)
-                };
+                let replacement =
+                    if matches!(self.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+                        crate::restarts::worker(root)
+                    } else {
+                        crate::processes::worker(root)
+                    };
                 let Proc::Worker(replacement) = replacement else {
                     return Err(String::from("replacement worker"));
                 };
@@ -1021,6 +1048,11 @@ impl Referee {
                 host.stopping = false;
             }
         }
+        self.observe_resumed_tries(procs)?;
+        Ok(())
+    }
+
+    fn observe_resumed_tries(&mut self, procs: &[Proc]) -> Result<(), String> {
         if self.views.borrow().resumed_tries.is_none()
             && crate::world::check_worker_wire(procs)?.frames.iter().filter(|(_, kind, _)| *kind == 0x0180).count() >= 2
         {

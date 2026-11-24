@@ -5,7 +5,7 @@ use skein_codec::Record;
 #[test]
 fn an_earlier_finding_reply_keeps_its_result_and_defaults_repair_and_blame_context() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -31,7 +31,7 @@ fn an_earlier_finding_reply_keeps_its_result_and_defaults_repair_and_blame_conte
             landing: None,
         })),
     };
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut earlier = skein_lib::Buffer::with_capacity(4096);
@@ -78,7 +78,7 @@ fn landing_layout_defaults(field: &str) {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::{Stored, settings as d};
@@ -89,7 +89,7 @@ fn landing_layout_defaults(field: &str) {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"setting")).unwrap();
     let new_root = new.root(b"Row", Some(b"setting")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = Stored::Setting(d::SettingRow {
@@ -189,7 +189,7 @@ fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::{Protection, Stored};
@@ -201,7 +201,7 @@ fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"repository")).unwrap();
     let new_root = new.root(b"Row", Some(b"repository")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = fixtures::adopted(Protection::Absent);
@@ -226,7 +226,7 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
     use super::{fixtures, jobs};
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::{ApplicationOutcome, Stored};
@@ -242,7 +242,7 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"application")).unwrap();
     let new_root = new.root(b"Row", Some(b"application")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut stored = jobs::application(fixtures::REPO);
@@ -270,7 +270,7 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
 #[test]
 fn earlier_landing_members_and_change_rows_default_goal_facts() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -327,7 +327,7 @@ fn earlier_landing_members_and_change_rows_default_goal_facts() {
     ] {
         let old_root = old.root(b"Row", Some(variant)).unwrap();
         let new_root = new.root(b"Row", Some(variant)).unwrap();
-        let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+        let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
         let mut work = Workspace::new();
         assert!(work.fit(&write_old));
         let mut earlier = skein_lib::Buffer::with_capacity(4096);
@@ -347,7 +347,7 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::Stored;
@@ -363,7 +363,7 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"finding")).unwrap();
     let new_root = new.root(b"Row", Some(b"finding")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut row = fixtures::finding();
@@ -386,7 +386,7 @@ fn an_earlier_tier_defaults_its_last_judged_run_number_to_none() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::Stored;
@@ -397,7 +397,7 @@ fn an_earlier_tier_defaults_its_last_judged_run_number_to_none() {
     let new = schema::parse(family.current.as_bytes()).expect("current tier schema");
     let old_root = old.root(b"Row", Some(b"tier")).expect("earlier tier root");
     let new_root = new.root(b"Row", Some(b"tier")).expect("current tier root");
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).expect("drop run number");
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).expect("drop run number");
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut row = fixtures::tier_row();
@@ -418,7 +418,7 @@ fn an_earlier_finding_defaults_repair_and_blame_move() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::{BlameStrength, Stored};
@@ -437,7 +437,7 @@ fn an_earlier_finding_defaults_repair_and_blame_move() {
     let new = schema::parse(family.current.as_bytes()).expect("current schema");
     let old_root = old.root(b"Row", Some(b"finding")).expect("earlier finding root");
     let new_root = new.root(b"Row", Some(b"finding")).expect("current finding root");
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).expect("drop additions");
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).expect("drop additions");
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut row = fixtures::finding();
@@ -473,7 +473,7 @@ fn an_earlier_landing_red_defaults_test_ids_and_many_names() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -484,7 +484,7 @@ fn an_earlier_landing_red_defaults_test_ids_and_many_names() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
     let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = d::Stored::LandingLog(d::LandingLog {
@@ -550,7 +550,7 @@ fn an_earlier_landing_red_defaults_test_ids_and_many_names() {
 #[test]
 fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -563,7 +563,7 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
     let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = d::Stored::LandingLog(d::LandingLog {
@@ -610,7 +610,7 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
 #[test]
 fn an_earlier_landing_member_defaults_fixes() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -642,7 +642,7 @@ fn an_earlier_landing_member_defaults_fixes() {
             }]),
         }]),
     });
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut earlier = skein_lib::Buffer::with_capacity(4096);
@@ -661,7 +661,7 @@ fn an_earlier_landing_member_defaults_fixes() {
 #[test]
 fn an_earlier_tier_defaults_waiting_and_unkept() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::Stored;
@@ -672,7 +672,7 @@ fn an_earlier_tier_defaults_waiting_and_unkept() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"tier")).unwrap();
     let new_root = new.root(b"Row", Some(b"tier")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut row = super::fixtures::tier_row();

@@ -5,15 +5,14 @@
 
 use crate::{Fault, Input, Mismatch, bound, format, input, io, mismatch, refuse_if};
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-
+use crate::files::{Files, Kind, Native};
 use crate::guard::Guard;
+use serde::{Deserialize, Serialize};
 
 const CLONE_MARKER: &[u8] = b"smith-bench owned clone, version 1\n";
 
@@ -172,19 +171,14 @@ fn prepare_clone(guard: &Guard, root: &Path, source: &Path, commit: &str) -> Res
 
 /// SHA-256 a regular binary in bounded chunks; symlinks are refused.
 pub fn binary_digest(path: &Path) -> Result<String, Fault> {
-    let metadata = fs::symlink_metadata(path)?;
-    refuse_if(!metadata.is_file() || metadata.is_symlink(), Input, "arm executable must be a regular file")?;
-    let mut file = fs::File::open(path)?;
-    let mut digest = Sha256::new();
-    let mut bytes = [0; 8192];
-    loop {
-        let read = file.read(&mut bytes)?;
-        if read == 0 {
-            break;
-        }
-        digest.update(&bytes[..read]);
-    }
-    Ok(format!("{:x}", digest.finalize()))
+    binary_digest_with(&Native, path)
+}
+
+/// Digest a regular binary on the supplied filesystem in a step test.
+pub fn binary_digest_with(files: &dyn Files, path: &Path) -> Result<String, Fault> {
+    let metadata = files.symlink_metadata(path)?;
+    refuse_if(metadata.kind != Kind::File, Input, "arm executable must be a regular file")?;
+    Ok(files.sha256(path)?)
 }
 
 fn cargo_binaries(clone: &Path, target: &Path) -> Result<Vec<PathBuf>, Fault> {
@@ -236,10 +230,15 @@ fn record_arm(commit: &str, toolchain: String, executables: &[PathBuf]) -> Resul
 }
 
 fn verify_arm(directory: &Path, arm: &BuiltArm) -> Result<(), Fault> {
-    let recorded: BuiltArm = serde_json::from_slice(&fs::read(directory.join("arm.json"))?)?;
+    verify_arm_with(&Native, directory, arm)
+}
+
+/// Verify an arm manifest and its binary digests on the supplied filesystem in a step test.
+pub fn verify_arm_with(files: &dyn Files, directory: &Path, arm: &BuiltArm) -> Result<(), Fault> {
+    let recorded: BuiltArm = serde_json::from_slice(&files.read(&directory.join("arm.json"))?)?;
     refuse_if(&recorded != arm, Mismatch, "existing arm metadata disagrees with this build; refusing overwrite")?;
     for binary in &arm.binaries {
-        if binary_digest(&directory.join(&binary.name))? != binary.sha256 {
+        if binary_digest_with(files, &directory.join(&binary.name))? != binary.sha256 {
             return Err(mismatch("existing arm binary digest mismatch"));
         }
     }
@@ -248,16 +247,21 @@ fn verify_arm(directory: &Path, arm: &BuiltArm) -> Result<(), Fault> {
 
 /// Read and verify the immutable arm beside its selected product executable.
 pub fn read_build(program: &Path) -> Result<Build, Fault> {
+    read_build_with(&Native, program)
+}
+
+/// Read and verify a built arm's inventory on the supplied filesystem in a step test.
+pub fn read_build_with(files: &dyn Files, program: &Path) -> Result<Build, Fault> {
     if program.file_name().and_then(|name| name.to_str()) != Some("smith") {
         return Err(input("a built smith arm must select its smith executable"));
     }
     let directory = program.parent().ok_or_else(|| input("arm executable needs its immutable directory"))?;
     let manifest = directory.join("arm.json");
-    let metadata = fs::symlink_metadata(&manifest)?;
-    if !metadata.is_file() || metadata.is_symlink() || metadata.len() > 65_536 {
+    let metadata = files.symlink_metadata(&manifest)?;
+    if metadata.kind != Kind::File || metadata.size > 65_536 {
         return Err(bound("arm manifest must be a bounded ordinary file"));
     }
-    let arm: BuiltArm = serde_json::from_slice(&fs::read(&manifest)?)?;
+    let arm: BuiltArm = serde_json::from_slice(&files.read(&manifest)?)?;
     if arm.version != 1
         || directory.file_name().and_then(|name| name.to_str()) != Some(&arm_name(&arm.commit, &arm.sha256)?)
     {
@@ -275,13 +279,13 @@ pub fn read_build(program: &Path) -> Result<Build, Fault> {
         {
             return Err(input("arm manifest has an unsafe or repeated binary identity"));
         }
-        let metadata = fs::symlink_metadata(directory.join(&binary.name))?;
-        refuse_if(!metadata.is_file() || metadata.is_symlink(), Input, "arm binary must be an ordinary file")?;
+        let metadata = files.symlink_metadata(&directory.join(&binary.name))?;
+        refuse_if(metadata.kind != Kind::File, Input, "arm binary must be an ordinary file")?;
     }
     if !arm.binaries.iter().any(|binary| binary.name == "smith" && binary.sha256 == arm.sha256) {
         return Err(input("arm manifest omits its product binary identity"));
     }
-    verify_arm(directory, &arm)?;
+    verify_arm_with(files, directory, &arm)?;
     Ok(Build { directory: directory.into(), arm })
 }
 

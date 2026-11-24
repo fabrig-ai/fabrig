@@ -31,6 +31,10 @@ pub struct Evidence {
     pub resumed: Vec<wire::KeptPart>,
     pub retired_at_turn: bool,
     pub suspended: bool,
+    pub suspension_cause: Option<jig_domain_tasks::SuspendWhy>,
+    pub fresh_hello_at: Option<Time>,
+    pub suspended_at: Option<Time>,
+    pub unknown_time: bool,
     pub same_worker: bool,
     pub queries: usize,
     pub outputs: Vec<String>,
@@ -57,6 +61,10 @@ pub struct State {
     observations_seen: usize,
     saw_resumed_turn: bool,
     check_tree: Option<Vec<u8>>,
+    pub(crate) check_marked: bool,
+    pub(crate) killed_at: Option<Time>,
+    pub(crate) killed_agents: usize,
+    pub(crate) saved_wire: Option<crate::processes::Wire>,
 }
 
 impl State {
@@ -97,13 +105,15 @@ impl State {
                         }
                         self.evidence.interrupted_output |= text.contains("interrupted by a worker restart after")
                             && text.contains(std::str::from_utf8(OUTPUT).expect("fixture text").trim());
+                        self.evidence.unknown_time |=
+                            text.contains("interrupted by a worker restart after an unknown time");
                         self.evidence.delivered |= text.contains("delivered") || text.contains("Delivered");
                     }
                 }
             }
         }
         self.observations_seen = observations.len();
-        if self.evidence.queries >= 3 && self.evidence.outputs.is_empty() {
+        if self.killed_at.is_none() && self.evidence.queries >= 3 && self.evidence.outputs.is_empty() {
             return Err(
                 "the resumed provider request replanned the cut answer instead of carrying its call result".into()
             );
@@ -162,8 +172,7 @@ pub(crate) fn worker_restarting(inherited: &skein_world::Inherited) -> Proc {
     let mut proc = worker(root);
     let Proc::Worker(host) = &mut proc else { unreachable!("worker") };
     host.service.adopt_signals(inherited.signal).expect("worker signal");
-    host.restart_root =
-        Some(inherited.roots.iter().find(|(name, _)| name.as_ref() == b"replacement").expect("replacement").1);
+    host.restart_root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"replacement").map(|(_, fd)| *fd);
     proc
 }
 
@@ -188,13 +197,13 @@ pub(crate) fn command_roots(spawn: &kernel::Spawn) -> Vec<skein_world::StartupRo
 fn is_check(spawn: &kernel::Spawn) -> bool {
     spawn.args.iter().any(|arg| arg.windows(CHECK.len()).any(|piece| piece == CHECK))
 }
-pub(crate) fn files() -> Vec<skein_fake_machine::Item> {
+pub(crate) fn files(first_check_passes: bool) -> Vec<skein_fake_machine::Item> {
     vec![
         skein_fake_machine::Item::directory(b".smith"),
         skein_fake_machine::Item::file(CHECK, b"#!/bin/sh\n").mode(0o700),
         skein_fake_machine::Item::file(b"tree.txt", b"same tree across the restart\n"),
         skein_fake_machine::Item::directory(b"results"),
-        skein_fake_machine::Item::file(b"results/check-started", b"0"),
+        skein_fake_machine::Item::file(b"results/check-started", if first_check_passes { b"1" } else { b"0" }),
     ]
 }
 
@@ -270,11 +279,7 @@ pub(crate) fn act(point: Point, now: Time, procs: &mut [Proc], views: &mut Views
     if views.restart.drain.is_some() {
         return;
     }
-    let ready = match point {
-        Point::Answer => procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if peer.is_held(HOLD))),
-        Point::Check => views.restart.evidence.checks == 1,
-        Point::Command => views.restart.evidence.commands == 1,
-    };
+    let ready = ready(point, procs, &views.restart);
     if ready {
         views.restart.drain = Some(now);
         for proc in procs {
@@ -286,6 +291,56 @@ pub(crate) fn act(point: Point, now: Time, procs: &mut [Proc], views: &mut Views
     }
 }
 
+fn ready(point: Point, procs: &[Proc], state: &State) -> bool {
+    match point {
+        Point::Answer => procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if peer.is_held(HOLD))),
+        Point::Check => state.evidence.checks == 1,
+        Point::Command => state.evidence.commands == 1,
+    }
+}
+
+/// Kill the worker's unit, including its agent and commands, without a drain
+/// or settle. The worker alone starts again through its registered factory.
+pub(crate) fn crash(point: Point, now: Time, procs: &mut [Proc], state: &mut State, controls: &skein_world::Controls) {
+    if let Some(previous) = state.saved_wire.take() {
+        let host = procs
+            .iter_mut()
+            .find_map(|proc| if let Proc::Worker(host) = proc { Some(host) } else { None })
+            .expect("worker");
+        host.wire.preceded_by(previous);
+    }
+    if state.killed_at.is_some() {
+        // The provider scripts by conversation position, so the abandoned turn
+        // is asked again. Release only after the resumed query has arrived.
+        if point == Point::Answer && state.evidence.queries >= 3 {
+            for proc in procs {
+                if let Proc::Peer(peer) = proc
+                    && peer.is_held(HOLD)
+                {
+                    peer.release(HOLD).expect("release resumed answer");
+                }
+            }
+        }
+        return;
+    }
+    if !ready(point, procs, state) || point == Point::Check && !state.check_marked {
+        return;
+    }
+    let worker_at = procs.iter().position(|proc| matches!(proc, Proc::Worker(_))).expect("worker");
+    let Proc::Worker(host) = &mut procs[worker_at] else { unreachable!("worker") };
+    let sent = host.wire.frames.iter().filter(|(_, kind, _)| *kind == wire::Kind::Part.number()).count();
+    if sent != state.evidence.acknowledged_parts
+        || point == Point::Check && state.evidence.kept.len() != 1
+        || point == Point::Command && state.evidence.kept.len() != 2
+    {
+        return;
+    }
+    state.killed_at = Some(now);
+    state.saved_wire = Some(std::mem::take(&mut host.wire));
+    state.killed_agents = procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count();
+    controls.kill_unit(worker_at);
+}
+
 pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut State) -> Result<(), String> {
     let worker = crate::world::check_worker_wire(procs)?;
     state.observe_assignments(&worker.frames)?;
@@ -294,17 +349,37 @@ pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut Stat
             state.evidence.kept.push(part.clone());
         }
     }
-    state.evidence.suspended |= store.terminals().any(|end| {
-        end.attempt == 1
-            && matches!(
-                end.end,
-                jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended {
-                    worker: 1,
-                    why: jig_domain_tasks::SuspendWhy::Stopped,
-                    ..
-                })
-            )
-    });
+    for end in store.terminals() {
+        if end.attempt == 1
+            && let jig_domain_tasks::End::Suspended(suspension) = end.end
+            && suspension.worker == 1
+        {
+            state.evidence.suspended |= suspension.why
+                == if state.killed_at.is_some() {
+                    jig_domain_tasks::SuspendWhy::Restarted
+                } else {
+                    jig_domain_tasks::SuspendWhy::Stopped
+                };
+            state.evidence.suspension_cause = Some(suspension.why);
+            state.evidence.suspended_at.get_or_insert(now);
+        }
+    }
+    if state.killed_at.is_some() && state.evidence.fresh_hello_at.is_none() {
+        let engine = procs
+            .iter()
+            .find_map(|proc| if let Proc::Engine(host) = proc { Some(host) } else { None })
+            .expect("engine");
+        for (at, kind, bytes) in &engine.wire.frames {
+            if *kind == wire::Kind::Hello.number() && Some(*at) >= state.killed_at {
+                let hello =
+                    wire::Hello::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("worker hello");
+                if hello.fresh {
+                    state.evidence.fresh_hello_at = Some(*at);
+                    break;
+                }
+            }
+        }
+    }
     if state.assignments_seen >= 2 {
         state.evidence.same_worker |=
             store.core_rows(core::CoreKey::RunProof(0), core::CoreKey::RunProof(u64::MAX)).any(
@@ -320,12 +395,13 @@ pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut Stat
                 &mut skein_lib::Reader::new(&turn.transcript),
             )
             .expect("committed turn");
-            let answer = state
-                .evidence
-                .kept
-                .iter()
-                .find(|part| part.kind == jig_domain_link::PartKind::Answer)
-                .expect("cut answer kept");
+            let answer = state.evidence.kept.iter().find(|part| part.kind == jig_domain_link::PartKind::Answer);
+            let Some(answer) = answer else {
+                if state.killed_at.is_some() && state.evidence.kept.is_empty() {
+                    continue;
+                }
+                return Err("the drained cut answer was kept".into());
+            };
             let cut =
                 smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(&answer.body))
                     .expect("answer part");

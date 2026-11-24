@@ -51,6 +51,11 @@ fn restore_terminals_render_exact_lines_and_exits_for_each_binary() {
         ] {
             assert_eq!(lines(binary, VALUE, Err(&why), b"/deployment"), (format!("{prefix}: {text}\n"), 1));
         }
+        let missing = CheckpointName { store: u64::MAX, suffix: 0 };
+        assert_eq!(
+            lines(binary, missing, Err(&RestoreRefusal::Source { why: CheckpointRefusal::Missing }), b"/deployment"),
+            (format!("{prefix}: no checkpoint 18446744073709551615-0000000000000000\n"), 1)
+        );
         for why in [OpenRefusal::Unready { why: Unready::Empty }, OpenRefusal::Failed] {
             assert_eq!(
                 lines(binary, VALUE, Err(&RestoreRefusal::Open { why: why.clone() }), b"/deployment"),

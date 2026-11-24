@@ -193,7 +193,12 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its configuration:** init's owned example as init writes it, both
     Anthropic endpoints and Claude Code's program included, but the
     `anthropic` provider without `keep` and `drop`, so that its accounts
-    read no list (jig's `domain/accounts-lists.md`, 1). A key's first read
+    read no list (jig's `domain/accounts-lists.md`, 1). The store keeps
+    the providers and `providers.setting` is only its copy
+    (`../protocol/configuration/providers.md`, 3), so a fresh store's
+    sitting changes provider 2 as a setting
+    (`../protocol/configuration/providers.md`, 6), and a start has taken
+    it before the key is added. A key's first read
     would add Anthropic's models at the catalogue's highest free numbers
     while the sitting adds Haiku there by name, and the two racing would
     stale the apply's revision or double the name. Its catalogue is the
@@ -203,7 +208,11 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
     name with `claude-fable-5-1`'s figures, `low` its default, then has
     charters 1 and 2 name it. The run takes the key's direct endpoint
     whatever endpoint the model's row names, since the endpoint is the
-    chosen source's (`../draft/claude-api.md`, section 4).
+    chosen source's (`../draft/claude-api.md`, section 4). A focused test
+    builds both files from the stock settings as a fresh deployment shows
+    them and has the settings' parse and check admit them in order, so
+    that a change of the model setting's shape reddens the gate, not the
+    live run.
   - **Its store** is `forge-land-claude-key` under
     `TEMPER_TEST_LIVE_STORE`.
 - **Its referee:** the process tier's, without the restart; and the

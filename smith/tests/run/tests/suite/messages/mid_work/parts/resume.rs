@@ -24,6 +24,138 @@ fn outputs(world: &World) -> Vec<u8> {
 }
 
 #[test]
+fn a_crashed_command_resumes_its_start_without_running_again() {
+    let mut first = command_world();
+    while !first.boundaries().iter().any(|(_, b)| matches!(b, Boundary::Io { op: tools::Op::Spawn { .. } })) {
+        assert!(!first.drive(1));
+    }
+    assert_eq!(first.parts().len(), 2);
+    assert_start(&first.parts()[1].3);
+    assert_eq!(first.turns(), []);
+    let mut next = resume_from(
+        &first,
+        &settings(),
+        Box::new([call(b"shell", br#"{"command":"long command"}"#), done()]),
+        Fixture::new(),
+    );
+    next.run(10_000);
+    assert_eq!(next.completions().len(), 1);
+    assert!(next.boundaries().iter().all(|(_, b)| !matches!(b, Boundary::Io { .. })));
+    let output = String::from_utf8_lossy(&outputs(&next)).into_owned();
+    assert!(output.contains("interrupted by a worker restart after an unknown time"));
+    assert!(output.contains("This call may be run again"));
+    assert!(!output.contains("step 1"));
+    assert_eq!(next.turns()[0].sequence, first.parts()[0].3.body.sequence);
+}
+
+#[test]
+fn a_command_exit_supersedes_its_start_when_another_command_crashes() {
+    let mut fixture = Fixture::new();
+    fixture.checkout.program(b"long command", program(20_000, b"unfinished", Exit::Code(0), &[]));
+    let batch = smith_agent_world::fixture::calls(
+        Box::new([
+            Line::Call {
+                name: b"shell".as_slice().into(),
+                arguments: br#"{"command":"cargo build"}"#.as_slice().into(),
+            },
+            Line::Call {
+                name: b"shell".as_slice().into(),
+                arguments: br#"{"command":"long command"}"#.as_slice().into(),
+            },
+        ]),
+        1,
+    );
+    let mut first = scripted_in(&settings(), Box::new([batch.clone(), done()]), vec![], fixture);
+    first.command_writes(b"cargo build", vec![(Duration::ZERO, b"Finished\n".to_vec())]);
+    first.tell_parts();
+    while first.boundaries().iter().filter(|(_, b)| matches!(b, Boundary::Io { op: tools::Op::Spawn { .. } })).count()
+        < 2
+    {
+        assert!(!first.drive(1));
+    }
+    assert_eq!(first.parts().len(), 4);
+    assert_start(&first.parts()[1].3);
+    assert!(matches!(result(&first.parts()[2].3).1, Returned::Owned { outcome: tools::Outcome::Exited { .. } }));
+    assert_start(&first.parts()[3].3);
+    let mut next = resume_from(&first, &settings(), Box::new([batch, done()]), Fixture::new());
+    next.run(10_000);
+    assert_eq!(next.completions().len(), 1);
+    assert!(next.boundaries().iter().all(|(_, b)| !matches!(b, Boundary::Io { .. })));
+    let results: Vec<_> = next.turns()[0]
+        .messages
+        .iter()
+        .flat_map(|m| &m.content)
+        .filter_map(|block| if let Block::ToolResult { result, .. } = block { Some(result) } else { None })
+        .collect();
+    assert_eq!(results.len(), 2);
+    assert!(
+        matches!(results[0], Returned::Owned { outcome: tools::Outcome::Exited { head, .. } } if head.as_ref() == b"Finished\n")
+    );
+    assert!(matches!(results[1], Returned::Owned { outcome: tools::Outcome::Interrupted { ran: None, .. } }));
+}
+
+#[test]
+fn a_crashed_check_reuses_the_tree_and_results_directory() {
+    let mut setup = settings();
+    setup.job = Job::MidReport;
+    setup.check = Span::millis(20_000, 20_000);
+    let mut fixture = Fixture::new();
+    fixture.checkout.write(b"work/temper/src/lib.rs", b"pub fn answer() -> u32 { 43 }\n");
+    fixture.checkout.write(b"work/temper/.temper/pre-pr", b"#!checks\n");
+    let turns = || Box::new([call(b"deliver", br#"{"ticket":"resume"}"#), done()]) as Box<[Turn]>;
+    let mut first = scripted_in(&setup, turns(), vec![], fixture);
+    first.results_directory(b"/work/temper/check-results");
+    first.check_marker(b"passed");
+    first.tell_parts();
+    while !first.boundaries().iter().any(|(_, b)| matches!(b, Boundary::Check { .. })) {
+        assert!(!first.drive(1));
+    }
+    assert_eq!(first.parts().len(), 1);
+    assert_eq!(first.parts()[0].3.kind, PartKind::Answer);
+    assert_eq!(first.turns(), []);
+    assert_eq!(first.check_results(), [(Box::from(b"/work/temper/check-results".as_slice()), false)]);
+    let mut fixture = Fixture::new();
+    fixture.checkout = first.take_crashed_checkout();
+    setup.check = Span::millis(1, 1);
+    let mut next = resume_from(&first, &setup, turns(), fixture);
+    next.results_directory(b"/work/temper/check-results");
+    next.check_marker(b"passed");
+    next.run(10_000);
+    assert_eq!(next.check_results(), [(Box::from(b"/work/temper/check-results".as_slice()), true)]);
+    assert_eq!(next.delivery_names().len(), 1);
+    assert_eq!(next.completions().len(), 1);
+    assert_eq!(next.code(), b"pub fn answer() -> u32 { 43 }\n");
+}
+
+#[test]
+fn an_answer_in_flight_at_a_crash_is_planned_afresh() {
+    let mut first = scripted(
+        &settings(),
+        Box::new([call(b"read", br#"{"path":"src/lib.rs"}"#), call(b"shell", br#"{"command":"cargo build"}"#), done()]),
+        vec![],
+    );
+    first.tell_parts();
+    while first.completions().len() < 2 {
+        assert!(!first.drive(1));
+    }
+    assert_eq!(first.turns().len(), 1);
+    assert!(first.parts().iter().all(|(_, _, turn, _)| *turn == 1));
+    let mut next = resume_from(
+        &first,
+        &settings(),
+        Box::new([call(b"read", br#"{"path":"src/lib.rs"}"#), call(b"shell", br#"{"command":"cargo build"}"#), done()]),
+        Fixture::new(),
+    );
+    next.run(10_000);
+    assert_eq!(next.completions().len(), 2);
+    assert_eq!(next.turns()[0].sequence, 2);
+    assert_eq!(
+        next.boundaries().iter().filter(|(_, b)| matches!(b, Boundary::Io { op: tools::Op::Spawn { .. } })).count(),
+        1
+    );
+}
+
+#[test]
 fn cut_checks_reuse_the_tree_and_results_directory_before_delivery() {
     let mut setup = settings();
     setup.job = Job::MidReport;

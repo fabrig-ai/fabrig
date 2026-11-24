@@ -245,10 +245,13 @@ TUI's loop.
   line, none, two and a malformed one; each bound, passed by one byte;
   a redirect to the same origin and one elsewhere; and the progress
   lines' rule.
-- **The host,** in its unit tests on a scratch directory: the lock taken
-  before the cache is read, staging files removed, the publication's
-  order, and a refusal leaving no staging file. The fetch over TLS is
-  the forge's fetch's host's, tested there.
+- **The host,** in its step tests over the cache's effects and a
+  candidate's facts (`../testing/shells.md`, 3.6): the lock taken before
+  the cache is read, staging files removed, a candidate's identity and
+  its bound, and a refusal leaving no staging file; and on a scratch
+  directory, one real candidate's run and one whole publication under
+  the native lock, with its order and modes (`../testing/shells.md`, 4).
+  The fetch over TLS is the forge's fetch's host's, tested there.
 - **The process tier,** written and compiled, run after landing: a fake
   site, a loopback HTTPS server holding a gzipped `temper-box` and its
   sums under `TEMPER_INTERNAL_SITE` and an `SSL_CERT_FILE` naming its

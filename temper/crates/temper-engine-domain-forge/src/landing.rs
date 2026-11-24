@@ -13,6 +13,10 @@ use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as policy;
 pub use temper_engine_domain_forge_vocabulary::landing::*;
 
+#[path = "landing_read_wait.rs"]
+mod read_wait;
+pub(crate) use read_wait::unavailable as read_unavailable;
+
 #[path = "landing_follow.rs"]
 mod saved_follow;
 pub(crate) use saved_follow::rebuild;
@@ -39,7 +43,8 @@ pub(crate) struct State {
     repairs: Map<u32, Result<crate::settings::Repairs, &'static [u8]>>,
     pub(crate) held: bool,
     pub(crate) pending: Map<Token, Pending>,
-    decisions: Map<u64, (Token, Pending)>,
+    decisions: Map<u64, Ready>,
+    read_runs: Map<u64, read_wait::Run>,
     pub(crate) keys: Map<Position, (api::Commit, Option<api::Commit>, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
     pub(crate) flights: Map<ReceiptKey, runs::Follow>,
@@ -47,6 +52,21 @@ pub(crate) struct State {
     /// Effect status and whether its outcome is a known refusal (domain/landing-turn.md, 1).
     pub(crate) results: Map<(u64, u16, u16, u8), (policy::Status, bool)>,
     pub(crate) limits: Limits,
+}
+#[derive(Hash, Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the common coherent gather moves into its bounded handoff slot without allocating"
+)]
+enum Ready {
+    Gathered { owner: Token, pending: Pending },
+    Read(ReadStep),
+}
+#[derive(Hash, Debug)]
+enum ReadStep {
+    Failed(read_wait::Failure),
+    Stalled,
+    Held { released: bool },
 }
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
@@ -222,6 +242,7 @@ impl State {
             held: false,
             pending: Map::with_capacity(l.landings),
             decisions: Map::with_capacity(l.landings),
+            read_runs: Map::with_capacity(l.landings),
             keys: Map::with_capacity(slots),
             main_keys: Map::with_capacity(l.repositories.checked_mul(l.gates).expect("gate bounds")),
             flights: Map::with_capacity(slots),
@@ -1197,11 +1218,34 @@ pub(crate) fn step(
                 evidence: None,
             },
             d,
+            env,
         );
         return;
     }
+    let pending = pending_for(d, task);
     // The start leaves a real step's entry and hearing untouched (landing-preparing.md, 3).
-    if entry == 0 && pending_for(d, task).is_some() {
+    if entry == 0 && pending.is_some() {
+        return;
+    }
+    if heard.released || heard.cancelled {
+        read_wait::clear(d, task);
+    }
+    if let Some(row) = d.landing.rows.get(&task)
+        && let policy::Phase::Held { why: policy::Hold::Read, .. } = row.landing.phase
+    {
+        if entry == 0 {
+            emit(out, Request::WakeProcedure { task });
+        } else {
+            read_ready(d, task, ReadStep::Held { released: heard.released }, out);
+        }
+        return;
+    }
+    if entry != 0
+        && pending.is_none()
+        && let Some(until) = read_wait::bound(d, task)
+        && until <= env.now
+    {
+        read_ready(d, task, ReadStep::Stalled, out);
         return;
     }
     if let Some(job) = heard.job.take() {
@@ -1219,15 +1263,19 @@ pub(crate) fn step(
                 out,
                 Request::LandingDecision { task, decision: policy::Decision::Cancel, entry: None, evidence: None },
                 d,
+                env,
             );
         }
         return;
     }
-    if let Some(token) = pending_for(d, task) {
+    if let Some(token) = pending {
         let pending = d.landing.pending.get_mut(&token).expect("pending step");
         pending.entry = entry;
         pending.heard = heard;
         pending.woken = true;
+        if pending.retry == Retry::Waiting {
+            read_in_line(d, env, token, out);
+        }
         return;
     }
     let Some(mut row) = d.landing.rows.get(&task).cloned() else {
@@ -1237,10 +1285,8 @@ pub(crate) fn step(
     for member in &mut row.landing.members {
         let Some(change) = d.changes.get(&member.change) else { return };
         let Some(pull) = change.pull else {
-            let repository = change.repository;
-            row.landing.phase = policy::Phase::Waiting;
-            save(d, row, out);
-            wait(d, task, entry, env, repository, out);
+            let failure = read_wait::Failure::missing_pull(change.repository, member.change);
+            wait(d, task, entry, failure, out);
             return;
         };
         member.pull = pull;
@@ -1403,39 +1449,109 @@ fn poll_at(d: &Domain, env: &Env<Limits>, task: u64) -> Wall {
 fn wall_at(env: &Env<Limits>, at: skein_lib::Time) -> Wall {
     Wall::from_nanos(env.wall.as_nanos().saturating_add(at.as_nanos().saturating_sub(env.now.as_nanos())))
 }
-fn wait(
-    d: &mut Domain,
-    task: u64,
-    entry: u64,
-    env: &Env<Limits>,
-    repository: api::Repository,
-    out: &mut Queue<Request>,
-) {
-    if let Some(mut row) = d.landing.rows.get(&task).cloned()
-        && row.room.is_some()
-    {
-        leave_room(d, &mut row);
-        save(d, row, out);
-    }
+fn wait(d: &mut Domain, task: u64, entry: u64, failure: read_wait::Failure, out: &mut Queue<Request>) {
     // Every end of the start's read is a wake, never a decision (landing-preparing.md, 3).
     if entry == 0 {
         emit(out, Request::WakeProcedure { task });
-        return;
+    } else {
+        read_ready(d, task, ReadStep::Failed(failure), out);
     }
-    emit_decision(
-        out,
-        Request::LandingDecision {
-            task,
-            decision: policy::Decision::Wait {
-                until: Some(wall_at(env, d.poll_at(env, repository))),
-                on: policy::Awaited::Read,
-            },
-            entry: None,
-            evidence: None,
-        },
-        d,
-    );
 }
+
+fn read_failed(d: &mut Domain, row: &LandingRow, p: &Pending, error: Option<api::Error>, out: &mut Queue<Request>) {
+    let failure = read_wait::Failure::pending(row, p, read_wait::Cause::answered(error));
+    wait(d, p.task, p.entry, failure, out);
+}
+
+fn read_ready(d: &mut Domain, task: u64, step: ReadStep, out: &mut Queue<Request>) {
+    ready(d, task, Ready::Read(step), out);
+}
+
+fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, out: &mut Queue<Request>) {
+    let Some(mut row) = d.landing.rows.get(&task).cloned() else { return };
+    let prior = row.clone();
+    let decision = match step {
+        ReadStep::Held { released } => {
+            let stepped = policy::held(row.landing, released, env.wall);
+            row.landing = stepped.landing;
+            if released {
+                row.read_hold = None;
+            }
+            stepped.decision
+        }
+        ReadStep::Failed(_) | ReadStep::Stalled => {
+            let repository = if let ReadStep::Failed(failure) = step {
+                let repository = failure.repository();
+                read_wait::record(d, env, task, failure, false, out);
+                repository
+            } else {
+                let Some(repository) = read_wait::repository(d, task) else {
+                    emit(out, Request::WakeProcedure { task });
+                    return;
+                };
+                repository
+            };
+            if let Some(until) = read_wait::bound(d, task)
+                && until <= env.now
+            {
+                read_wait::held(d, env, &mut row, out);
+                row.landing.phase = policy::Phase::Held { was: Box::new(row.landing.phase), why: policy::Hold::Read };
+                policy::Decision::Hold(policy::Hold::Read)
+            } else {
+                let poll = d.poll_at(env, repository);
+                let at = match read_wait::bound(d, task) {
+                    Some(until) => until.min(poll),
+                    None => poll,
+                };
+                policy::Decision::Wait { until: Some(wall_at(env, at)), on: policy::Awaited::Read }
+            }
+        }
+    };
+    leave_room(d, &mut row);
+    if row != prior {
+        crate::landing_history::transition(d, env.wall, &prior, &row, out);
+        if row.landing.round.ending.is_some() && prior.landing.round.ending.is_none() {
+            end_runs(d, env, &prior, &mut row, crate::history::GateVerdict::Superseded, None, out);
+        }
+        save(d, row, out);
+    }
+    if let policy::Decision::Hold(policy::Hold::Read) = decision {
+        for (member, _) in prior.landing.members.iter().enumerate() {
+            emit(
+                out,
+                Request::LandingNews {
+                    task,
+                    member: u16::try_from(member).expect("bounded members"),
+                    step: crate::LandingNews::Held,
+                },
+            );
+        }
+    }
+    emit_decision(out, Request::LandingDecision { task, decision, entry: None, evidence: None }, d, env);
+}
+
+fn read_in_line(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    let p = d.landing.pending.get(&owner).expect("pending gather");
+    let Some(row) = d.landing.rows.get(&p.task) else { return };
+    if p.entry != 0 && !read_wait::running(d, p.task) {
+        let failure = read_wait::Failure::pending(row, p, read_wait::Cause::Pending);
+        let exempt = crate::domain::outage::reading(d, owner);
+        read_wait::record(d, env, p.task, failure, exempt, out);
+    }
+}
+
+pub(crate) fn read_deadline(d: &Domain) -> Option<skein_lib::Time> {
+    read_wait::deadline(d)
+}
+
+pub(crate) fn fire_reads(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    read_wait::fire(d, env, out);
+}
+
+pub(crate) fn read_connection(d: &mut Domain, env: &Env<Limits>, forge: u16, connected: bool) {
+    read_wait::connection(d, env, forge, connected);
+}
+
 pub(crate) fn answered(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -1483,16 +1599,22 @@ fn advance(
                 // Admission made no call. Keep the coherent prefix and wait for this read.
                 d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
                 wait_in_line(d, owner, env.now, out);
+                read_in_line(d, env, owner, out);
                 return;
             }
             Err(api::Error::NotConnected) => {
                 p.retry = Retry::Disconnected;
+                read_wait::pause(d, p.task);
                 d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
                 return;
             }
             Ok(_) | Err(_) => {}
         }
     }
+    if p.entry != 0 {
+        read_wait::resume(d, env, p.task, p.repository);
+    }
+    let error = answer.as_ref().err().copied();
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {
         return;
     };
@@ -1595,11 +1717,11 @@ fn advance(
                                 }
                             };
                             let Some(head) = landed else {
-                                wait(d, p.task, p.entry, env, p.repository, out);
+                                read_failed(d, &row, &p, error, out);
                                 return;
                             };
                             if member.left.is_none() && member.landed.is_none() && Some(head) != member.candidate {
-                                wait(d, p.task, p.entry, env, p.repository, out);
+                                read_failed(d, &row, &p, error, out);
                                 return;
                             }
                             head
@@ -1611,7 +1733,7 @@ fn advance(
                 }
                 Stage::Main(_) => {
                     let Ok(api::Answer::Commit(main)) = answer else {
-                        wait(d, p.task, p.entry, env, p.repository, out);
+                        read_failed(d, &row, &p, error, out);
                         return;
                     };
                     fact.main = main;
@@ -1647,7 +1769,7 @@ fn advance(
                         change::Status::Passed => policy::Status::Passed,
                         change::Status::Failed => policy::Status::Failed,
                         change::Status::Unknown | change::Status::Pending => {
-                            wait(d, p.task, p.entry, env, p.repository, out);
+                            read_failed(d, &row, &p, error, out);
                             return;
                         }
                     };
@@ -1656,7 +1778,7 @@ fn advance(
                 }
                 Stage::Pull(_) => {
                     let Ok(api::Answer::Pull(pull)) = answer else {
-                        wait(d, p.task, p.entry, env, p.repository, out);
+                        read_failed(d, &row, &p, error, out);
                         return;
                     };
                     let evidence = &mut p.evidence.get_mut(usize::from(index)).expect("member evidence").facts;
@@ -1757,7 +1879,7 @@ fn advance(
         }
         Stage::TurnPull => {
             let Ok(api::Answer::Pull(pull)) = answer else {
-                wait(d, p.task, p.entry, env, p.repository, out);
+                read_failed(d, &row, &p, error, out);
                 return;
             };
             p.round_pull = if let Some(commit) = pull.merged {
@@ -1771,7 +1893,7 @@ fn advance(
         }
         Stage::CleanupPull => {
             let Ok(api::Answer::Pull(pull)) = answer else {
-                wait(d, p.task, p.entry, env, p.repository, out);
+                read_failed(d, &row, &p, error, out);
                 return;
             };
             if pull.state == api::State::Closed {
@@ -1786,7 +1908,7 @@ fn advance(
                     p.facts.get_mut(usize::from(member)).expect("cleanup member").deleted = policy::Status::Passed;
                 }
                 Ok(_) | Err(_) => {
-                    wait(d, p.task, p.entry, env, p.repository, out);
+                    read_failed(d, &row, &p, error, out);
                     return;
                 }
             }
@@ -1945,7 +2067,7 @@ fn advance(
         }
         Stage::Tree { member, gate, candidate, object, page, main, reading_base } => {
             let Ok(api::Answer::Tree { entries, more }) = answer else {
-                wait(d, p.task, p.entry, env, p.repository, out);
+                read_failed(d, &row, &p, error, out);
                 return;
             };
             let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
@@ -2080,6 +2202,7 @@ fn advance(
                                 evidence: None,
                             },
                             d,
+                            env,
                         );
                     }
                 }
@@ -2240,6 +2363,7 @@ fn round_read(
     answer: Result<api::Answer, api::Error>,
     out: &mut Queue<Request>,
 ) {
+    let error = answer.as_ref().err().copied();
     let member = row.landing.members.get(usize::from(index)).expect("member");
     let fresh = p.facts.get(usize::from(index)).expect("member fact");
     let base = member.base.unwrap_or(fresh.main);
@@ -2272,7 +2396,7 @@ fn round_read(
     let (stage, read) = match stage {
         RoundRead::Upstream => {
             let Ok(api::Answer::Commit(tip)) = answer else {
-                wait(d, p.task, p.entry, env, p.repository, out);
+                read_failed(d, row, &p, error, out);
                 return;
             };
             p.upstream = Some(tip);
@@ -2284,14 +2408,14 @@ fn round_read(
                 Ok(api::Answer::Commit(tip)) => Some(tip),
                 Err(api::Error::Missing) => None,
                 Ok(_) | Err(_) => {
-                    wait(d, p.task, p.entry, env, p.repository, out);
+                    read_failed(d, row, &p, error, out);
                     return;
                 }
             };
             let combined = crate::preparation::combined(&row.landing.round.failure, index);
             if chain && let Some(combined) = combined {
                 let Some(tip) = candidate else {
-                    wait(d, p.task, p.entry, env, p.repository, out);
+                    read_failed(d, row, &p, error, out);
                     return;
                 };
                 fact.candidate = Some((tip, combined));
@@ -2305,7 +2429,7 @@ fn round_read(
         }
         RoundRead::Prefix(page) => {
             if answer.is_err() {
-                wait(d, p.task, p.entry, env, p.repository, out);
+                read_failed(d, row, &p, error, out);
                 return;
             }
             let mut merge = false;
@@ -2327,8 +2451,11 @@ fn round_read(
                         merge = true;
                     }
                 }
-                if !seen && more && page < env.limits.client.rows {
-                    let page = page.checked_add(1).expect("bounded commit pages");
+                if !seen && more {
+                    let Some(page) = page.checked_add(1) else {
+                        read_failed(d, row, &p, None, out);
+                        return;
+                    };
                     p.stage = Stage::Round { member: index, stage: RoundRead::Prefix(page), candidate };
                     let repo = repository(member);
                     ask(d, env, owner, p, repo, api::Read::Commits { before: below, after: tip, page }, out);
@@ -2347,7 +2474,7 @@ fn round_read(
                 change::Status::Passed => fact.candidate = Some((candidate.expect("prefix"), policy::Combine::Merge)),
                 change::Status::Failed => {}
                 change::Status::Unknown | change::Status::Pending => {
-                    wait(d, p.task, p.entry, env, p.repository, out);
+                    read_failed(d, row, &p, error, out);
                     return;
                 }
             }
@@ -2741,8 +2868,12 @@ fn result(d: &Domain, task: u64, member: u16, gate: u16, operation: u8) -> polic
 }
 fn decide(d: &mut Domain, owner: Token, p: Pending, out: &mut Queue<Request>) {
     let task = p.task;
+    ready(d, task, Ready::Gathered { owner, pending: p }, out);
+}
+
+fn ready(d: &mut Domain, task: u64, ready: Ready, out: &mut Queue<Request>) {
     assert!(
-        d.landing.decisions.insert(task, (owner, p)).expect("one decision per landing").is_none(),
+        d.landing.decisions.insert(task, ready).expect("one decision per landing").is_none(),
         "the root settles each handoff before the next event"
     );
     emit(out, Request::LandingReady { task });
@@ -2752,9 +2883,12 @@ impl Domain {
     /// Admit gathered facts before any decision state or write is kept
     /// (domain/landing-waits.md, 3). A refused handoff gathers again in its next due step.
     pub fn decide_landing(&mut self, env: &Env<Limits>, task: u64, due: bool, out: &mut Queue<Request>) {
-        let Some((owner, pending)) = self.landing.decisions.remove(&task) else { return };
+        let Some(ready) = self.landing.decisions.remove(&task) else { return };
         if due {
-            commit_decision(self, env, owner, pending, out);
+            match ready {
+                Ready::Gathered { owner, pending } => commit_decision(self, env, owner, pending, out),
+                Ready::Read(step) => read_decision(self, env, task, step, out),
+            }
         } else {
             emit(out, Request::WakeProcedure { task });
         }
@@ -3415,6 +3549,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                             evidence: None,
                         },
                         d,
+                        env,
                     );
                     return;
                 }
@@ -3566,7 +3701,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     } else {
         decision
     };
-    emit_decision(out, Request::LandingDecision { task: p.task, decision, entry: committed, evidence }, d);
+    emit_decision(out, Request::LandingDecision { task: p.task, decision, entry: committed, evidence }, d, env);
 }
 fn end_runs(
     d: &mut Domain,
@@ -4664,6 +4799,7 @@ fn continue_flake_rerun(
                 evidence: None,
             },
             d,
+            env,
         );
         return true;
     }
@@ -4711,6 +4847,7 @@ fn continue_flake_rerun(
             evidence: None,
         },
         d,
+        env,
     );
     true
 }
@@ -4774,6 +4911,7 @@ fn continue_retry(
                 evidence: None,
             },
             d,
+            env,
         );
         return true;
     }
@@ -4798,6 +4936,7 @@ fn continue_retry(
                 evidence: None,
             },
             d,
+            env,
         );
         return true;
     }
@@ -4817,6 +4956,7 @@ fn continue_retry(
             evidence: None,
         },
         d,
+        env,
     );
     true
 }
@@ -4991,6 +5131,7 @@ fn retire_finished(d: &mut Domain, out: &mut Queue<Request>) -> bool {
         return false;
     };
     d.stall_words.remove(&task);
+    read_wait::clear(d, task);
     let retired = d.landing.rows.remove(&task).expect("selected finished landing");
     crate::room::leave(d, crate::room::Waiter::Landing(task));
     emit(
@@ -5054,6 +5195,7 @@ impl Domain {
         let failure = crate::preparation::failure(&row.landing.round.failure);
         let policy::Phase::Held { why, .. } = row.landing.phase else { return None };
         match why {
+            policy::Hold::Read => row.read_hold.clone(),
             policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &failure])),
             policy::Hold::Record { member } => Some(concat(&[
                 b"turn: record of #",
@@ -5106,7 +5248,7 @@ impl Domain {
                             jig_domain_tasks::HOLD_ACCOUNT_BYTES,
                         ));
                     }
-                    policy::Hold::Prepare | policy::Hold::Record { .. } | policy::Hold::Turn => {
+                    policy::Hold::Prepare | policy::Hold::Read | policy::Hold::Record { .. } | policy::Hold::Turn => {
                         unreachable!("gate hold")
                     }
                 }
@@ -5533,6 +5675,8 @@ pub(crate) fn closing(
         }
         row.landing.round.told |= !told.is_empty();
         row.landing.phase = policy::Phase::Cancelled;
+        row.read_hold = None;
+        read_wait::clear(d, task);
         if prior.landing.phase != policy::Phase::Cancelled {
             saved_follow::cancelled(d, &mut row, out);
         }
@@ -5711,6 +5855,7 @@ fn admit_entry(
             evidence: None,
         },
         d,
+        env,
     );
     false
 }
@@ -6014,6 +6159,8 @@ pub(crate) fn release_repository(
     for task in &tasks {
         d.landing.rows.remove(task);
         d.landing.due.remove(task);
+        read_wait::clear(d, *task);
+        d.landing.decisions.remove(task);
         groups.push(Box::new([Key::Landing(*task)]));
         out.push(Request::Marked { tasks: Box::new([*task]) });
     }
@@ -6115,8 +6262,9 @@ pub(crate) fn erase_repository_receipts(d: &mut Domain, repository: api::Reposit
 }
 
 /// Keep the wait of the decision carried out by the top (domain/landing-waits.md, 4).
-fn emit_decision(out: &mut Queue<Request>, request: Request, d: &mut Domain) {
+fn emit_decision(out: &mut Queue<Request>, request: Request, d: &mut Domain, env: &Env<Limits>) {
     if let Request::LandingDecision { task, decision, .. } = &request {
+        read_wait::decided(d, env, *task, *decision, out);
         let waiting = if let policy::Decision::Wait { on, .. } = decision { Some(*on) } else { None };
         if let Some(mut row) = d.landing.rows.get(task).cloned()
             && row.waiting != waiting

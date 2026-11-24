@@ -22,6 +22,9 @@
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
+  - 2.5, 7: the chat store's layout cases run over a real directory in
+    `smith-local-protocol::suite`, not on the fake disk. [in flight:
+    change 13947]
 - **Departs:**
   - 2: domain worlds use domains and fakes only, never protocol crates,
     but `tests/agent/src/backend.rs` uses `smith-protocol-llm`,

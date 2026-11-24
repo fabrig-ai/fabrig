@@ -336,7 +336,6 @@ default-filter = """
   (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
   & ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/))
 )) & (
-  binary_id(=github-conformance::suite) |
   binary_id(=skein-browser-world::browser_facts) |
   binary_id(=skein-browser-world::browser_real) |
   binary_id(=skein-codegen::suite) |
@@ -473,7 +472,6 @@ default-filter = """
   binary_id(=temper-client-gallery::suite) |
   binary_id(=temper-client-journeys-tool::real) |
   binary_id(=temper-client-journeys::suite) |
-  binary_id(=temper-client-shell-tui::real) |
   binary_id(=temper-client-walk::suite) |
   binary_id(=temper-config-shell::real) |
   binary_id(=temper-engine-service-component::real) |
@@ -489,8 +487,6 @@ default-filter = """
   binary_id(=temper-qa::suite) |
   binary_id(=temper-real-loop-world::live_text) |
   binary_id(=temper-real-loop-world::suite) |
-  binary_id(=temper-service-shell::real) |
-  binary_id(=temper-shell::real) |
   binary_id(=temper-stage-one::suite) |
   binary_id(=temper-twin::suite) |
   binary_id(=temper-worker-checkout-world::suite) |

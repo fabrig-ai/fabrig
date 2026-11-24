@@ -20,6 +20,7 @@ pub mod csv_repair;
 pub mod ctl;
 #[expect(clippy::must_use_candidate, reason = "shared opening fixtures retain their helpers' signatures")]
 pub mod fake_opening;
+pub mod fake_readiness;
 pub mod fetch;
 pub mod first_repository;
 pub mod github;

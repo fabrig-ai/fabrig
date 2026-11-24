@@ -1,4 +1,46 @@
 use super::*;
+use crate::test_disk::{Disk, USER};
+use skein_fake_machine::Item;
+#[test]
+fn roots_are_private_and_checked_at_their_own_names() {
+    let target = Path::new("/parent/root");
+    for (row, entries, private) in [
+        ("absent", vec![], true),
+        ("private", vec![Item::directory(b"parent"), Item::directory(b"parent/root").mode(0o700)], true),
+        ("public", vec![Item::directory(b"parent"), Item::directory(b"parent/root").mode(0o755)], false),
+        (
+            "link",
+            vec![
+                Item::directory(b"parent"),
+                Item::directory(b"private-target").mode(0o700),
+                Item::link(b"parent/root", b"../private-target"),
+            ],
+            false,
+        ),
+        ("file", vec![Item::directory(b"parent"), Item::file(b"parent/root", b"").mode(0o600)], false),
+        ("parent-link", vec![Item::directory(b"real"), Item::link(b"parent", b"real")], true),
+    ] {
+        let mut disk = Disk::new(&entries);
+        let result = make_private_with(target, USER, &mut disk);
+        if private {
+            result.expect(row);
+            assert_eq!(disk.symlink_stat(target).expect(row).mode, 0o700, "{row}");
+        } else {
+            assert_eq!(
+                result.expect_err(row),
+                format!("{}: must be a private directory of this user's, not reached through a link", target.display()),
+                "{row}"
+            );
+        }
+        if row == "absent" {
+            assert_eq!(disk.symlink_stat(Path::new("/parent")).expect("made parent").mode, 0o700);
+        }
+        if row == "parent-link" {
+            assert_eq!(disk.symlink_stat(Path::new("/real/root")).expect("made through link").mode, 0o700);
+        }
+    }
+}
+
 fn args(values: &[&str]) -> Vec<Argument> {
     values.iter().map(|s| Box::from(s.as_bytes())).collect()
 }

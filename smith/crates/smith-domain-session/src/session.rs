@@ -1815,6 +1815,7 @@ fn resume_tools(
 /// the session rests on the ready list before it starts another, so that
 /// the runs it ended are reclaimed first, and what one step emits and the runs
 /// a session holds stay bounded ([`crate::limits`]).
+#[expect(clippy::too_many_lines, reason = "the batch schedules and records each call in block order")]
 fn advance(
     conversation: &mut Conversation,
     id: Id<Session>,
@@ -1878,6 +1879,7 @@ fn advance(
                 let Some((answered, result)) = heard.answer else {
                     batching::put_next(&mut tools, Slot::Running { run });
                     tools.running = tools.running.saturating_add(1);
+                    tell::started(conversation, block, out);
                     continue;
                 };
                 assert!(answered == run, "the tools answer at once only the call they were given");

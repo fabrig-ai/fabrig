@@ -134,7 +134,7 @@ fn planned(plan: &Plan, work: &mut Workspace, bytes: &[u8]) -> Result<Box<[u8]>,
                 | Misconverted::Bool
                 | Misconverted::Bound
                 | Misconverted::Trailing
-                | Misconverted::Dropped(_),
+                | Misconverted::Refused(_),
             ) => return Err("unreadable test id value"),
         }
     }

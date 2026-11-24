@@ -49,8 +49,8 @@ mod command;
 mod plan;
 mod report;
 
-pub use calibrate::record_calibration;
 use calibrate::{finish_calibration, selected_task};
+pub use calibrate::{record_calibration, record_calibration_with};
 pub use command::command;
 pub use plan::plan;
 use plan::{archived, check_parent, codex, prepare, task};

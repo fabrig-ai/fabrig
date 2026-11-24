@@ -203,6 +203,7 @@ fn each_status_reads_as_programs_md_says() {
             Status::Otherwise(Method::new(b"oidc_federation").expect("printable method")),
         ),
         (0, br#"{"loggedIn":false,"authMethod":"none"}"#, Status::NotSignedIn),
+        (1, b"{\"loggedIn\":false}\n", Status::NotSignedIn),
         (1, b"whatever", Status::NotSignedIn),
         (0, b"not JSON", Status::Unreadable),
         (0, br#"{"loggedIn":true}"#, Status::Unreadable),

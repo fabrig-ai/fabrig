@@ -1,5 +1,5 @@
 //! Explicit span-reader and conversion stacks (data/codec/layouts.md, 3).
-use super::{Inner, Kind, Misconverted, Plan, ReadKind, Source, Variant, Workspace, add};
+use super::{Absent, Inner, Kind, Misconverted, Narrowed, Plan, ReadKind, Source, Workspace, add};
 use crate::schema::Span;
 use skein_lib::{Buffer, usize_of};
 
@@ -44,6 +44,29 @@ fn count(old: &[u8], pos: &mut u32, end: u32, bound: u32) -> Result<u32, Misconv
         return Err(Misconverted::Bound);
     }
     Ok(value)
+}
+fn check_bound(value: u32, narrowed: Option<Narrowed>) -> Result<(), Misconverted> {
+    if let Some(narrowed) = narrowed
+        && value > narrowed.bound
+    {
+        return Err(Misconverted::Refused(narrowed.refusal));
+    }
+    Ok(())
+}
+fn integer(old: &[u8], out: &mut Buffer, from: u32, to: u32, refusal: Option<u16>) -> Result<(), Misconverted> {
+    if let Some(refusal) = refusal {
+        let trim = from.checked_sub(to).expect("narrowed width");
+        let (high, low) = old.split_at_checked(usize_of(trim)).ok_or(Misconverted::Short)?;
+        for &byte in high {
+            if byte != 0 {
+                return Err(Misconverted::Refused(refusal));
+            }
+        }
+        return put(out, low);
+    }
+    let zeros = to.checked_sub(from).expect("widened integer");
+    put(out, [0; 8].get(..usize_of(zeros)).expect("at most eight padding bytes"))?;
+    put(out, old)
 }
 fn put(out: &mut Buffer, value: &[u8]) -> Result<(), Misconverted> {
     match out.put(value) {
@@ -92,8 +115,36 @@ pub(super) fn convert(plan: &Plan, old: &[u8], out: &mut Buffer, work: &mut Work
         }
         return put(out, bytes(old, Span { start: pos, end })?);
     }
+    pass(plan, plan.root, old, end, out, work)
+}
+
+pub(super) fn convert_payload(
+    plan: &Plan,
+    node: Option<u32>,
+    old: &[u8],
+    out: &mut Buffer,
+    work: &mut Workspace,
+) -> Result<(), Misconverted> {
+    let Ok(end) = u32::try_from(old.len()) else { return Err(Misconverted::Room) };
+    if plan.keeps() {
+        return put(out, old);
+    }
+    match node {
+        Some(node) => pass(plan, node, old, end, out, work),
+        None => check_end(0, end),
+    }
+}
+
+fn pass(
+    plan: &Plan,
+    node: u32,
+    old: &[u8],
+    end: u32,
+    out: &mut Buffer,
+    work: &mut Workspace,
+) -> Result<(), Misconverted> {
     let mut depth = 0;
-    push(work, &mut depth, Frame::Enter { node: plan.root, span: Span { start: 0, end } });
+    push(work, &mut depth, Frame::Enter { node, span: Span { start: 0, end } });
     for _ in 0..turns(end, out.capacity(), plan.nodes.len()) {
         if depth == 0 {
             return Ok(());
@@ -166,13 +217,11 @@ fn enter(
     match &node.kind {
         Kind::Pending => unreachable!("derive finishes every conversion"),
         Kind::Copy => put(out, bytes(old, span)?),
-        Kind::Integer { old: width, new } => {
+        Kind::Integer { old: width, new, refusal } => {
             if span.end.checked_sub(span.start) != Some(*width) {
                 return Err(Misconverted::Short);
             }
-            let zeros = new.checked_sub(*width).expect("widened integer");
-            put(out, [0; 8].get(..usize_of(zeros)).expect("at most eight padding bytes"))?;
-            put(out, bytes(old, span)?)
+            integer(bytes(old, span)?, out, *width, *new, *refusal)
         }
         Kind::Named(child) => {
             push(work, depth, Frame::Enter { node: *child, span });
@@ -196,9 +245,27 @@ fn enter(
             push(work, depth, Frame::Enter { node: *child, span: Span { start: pos, end: span.end } });
             Ok(())
         }
-        Kind::List { bound, item } => {
+        Kind::Unwrap { child, absent } => {
+            let mut pos = span.start;
+            match byte(old, &mut pos, span.end)? {
+                0 => {
+                    check_end(pos, span.end)?;
+                    match absent {
+                        Absent::Default(bytes) => put(out, bytes),
+                        Absent::Refuse(index) => Err(Misconverted::Refused(*index)),
+                    }
+                }
+                1 => {
+                    push(work, depth, Frame::Enter { node: *child, span: Span { start: pos, end: span.end } });
+                    Ok(())
+                }
+                _ => Err(Misconverted::Tag),
+            }
+        }
+        Kind::List { bound, item, narrowed } => {
             let mut pos = span.start;
             let count = count(old, &mut pos, span.end, *bound)?;
+            check_bound(count, *narrowed)?;
             precheck(plan, plan.node(*item).read, count, span.end.checked_sub(pos).expect("input cursor"))?;
             put(out, &count.to_be_bytes())?;
             if plan.node(*item).empty {
@@ -207,7 +274,7 @@ fn enter(
             push(work, depth, Frame::List { item: *item, left: count, rest: Span { start: pos, end: span.end } });
             Ok(())
         }
-        Kind::Record { old_head, head, .. } => {
+        Kind::Record { old_head, head, dropped, .. } => {
             let fields = read_fields(plan, node.read);
             let mut pos = span.start;
             if *old_head {
@@ -221,6 +288,13 @@ fn enter(
                 pos = end;
             }
             check_end(pos, span.end)?;
+            for field in dropped {
+                let span =
+                    *work.spans.get(span_slot(*depth, work.fields, field.offset)).expect("old field was scanned");
+                if Some(bytes(old, span)?) != field.default.as_deref() {
+                    return Err(Misconverted::Refused(field.refusal));
+                }
+            }
             if let Some(head) = head {
                 put(out, &head.to_be_bytes())?;
             }
@@ -230,11 +304,7 @@ fn enter(
         Kind::Enum(variants) => {
             let mut pos = span.start;
             let tag = byte(old, &mut pos, span.end)?;
-            let variant = variants.get(u32::from(tag)).copied().flatten().ok_or(Misconverted::Tag)?;
-            let (tag, payload) = match variant {
-                Variant::Dropped(index) => return Err(Misconverted::Dropped(index)),
-                Variant::Kept { tag, payload, .. } => (tag, payload),
-            };
+            let (tag, payload) = super::variant(variants, tag)?;
             put(out, &[tag])?;
             if let Some(payload) = payload {
                 push(work, depth, Frame::Enter { node: payload, span: Span { start: pos, end: span.end } });
@@ -243,11 +313,13 @@ fn enter(
                 check_end(pos, span.end)
             }
         }
-        Kind::Content { bound, inner } => {
+        Kind::Content { bound, inner, narrowed } => {
             let mut pos = span.start;
             let len = count(old, &mut pos, span.end, u32::MAX)?;
+            check_bound(len, *narrowed)?;
             let content = take(old, &mut pos, span.end, len)?;
             check_end(pos, span.end)?;
+            let Some(inner) = inner else { return put(out, bytes(old, span)?) };
             let at = out.len();
             put(out, &[0; 4])?;
             match inner {
@@ -283,6 +355,7 @@ fn record(
         | Kind::Integer { .. }
         | Kind::Named(_)
         | Kind::Wrap(_)
+        | Kind::Unwrap { .. }
         | Kind::Option(_)
         | Kind::List { .. }
         | Kind::Enum(_)

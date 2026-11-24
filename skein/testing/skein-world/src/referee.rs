@@ -193,6 +193,7 @@ fn broke(seed: u64, now: Time, expectation: &dyn Debug, why: &str) -> String {
 pub(crate) enum Control {
     Signal { host: usize, signal: ServiceSignal },
     Cut { host: usize, cut: Cut },
+    KillUnit { host: usize },
 }
 
 /// Referee access to world signals, simulated cuts and real-loop scheduler accounting.
@@ -217,6 +218,12 @@ impl Controls {
     /// Root ids come from `spawn`; the cut uses its registered restart factory.
     pub fn cut(&self, host: usize, cut: Cut) {
         self.pending.borrow_mut().push(Control::Cut { host, cut });
+    }
+
+    /// Kills a simulated restartable root and all its hosted descendants before
+    /// the next turn. Only the root restarts, using its registered factory.
+    pub fn kill_unit(&self, host: usize) {
+        self.pending.borrow_mut().push(Control::KillUnit { host });
     }
 }
 

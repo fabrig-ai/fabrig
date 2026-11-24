@@ -5,7 +5,6 @@ use temper_box_shell::testing::{scripted, serve};
 
 mod box_kinds;
 mod box_link_form;
-mod upgrade;
 
 // Linux's passwd entry is the reference for macOS's command lookup.
 #[cfg(target_os = "linux")]
