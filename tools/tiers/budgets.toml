@@ -610,6 +610,12 @@ to = "temper.system"
 cpu_s = 2
 why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): fuzzy simulated fell 12.70 s as the four fixed-cut upgrade wrappers and two chat/merge wrappers were retired for composed-system holders (the user, 2026-11-22)."
 
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.simulated"
+cpu_s = 2.4
+why = "The lower-tier stories in temper-real-loop-world's suite and live_text left the real loop, most for temper-one-process-world::suite (temper/docs/design/draft/slow-tests-down.md, 5.4; temper/docs/design/testing/real-loop.md, Moved below). The user's rule of 2026-11-24 for the goal's own move down sizes it at 7.98e9 instructions past the allowance, divided by 4.478e9 instructions per CPU s (main's counts at 362c345f74), x1.33."
+
 [gate.fuzzy.hearth]
 ideal_s = 120
 
