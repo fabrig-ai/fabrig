@@ -19,12 +19,6 @@ crash lifetime are ../protocol/programs-claude-code.md, section 1.1, and ../prot
   - 2.3: no adoption of `-o`'s directory and the private chat that a
     world can call: `compose` alone hands them to `Local` [in flight:
     change 13996]
-  - 2.3: `Local` opens a `program` account's directory itself
-    (`local_host/credentials/programs.rs`) [in flight: change 13997]
-  - 2.3: `smith check`'s report runs each program's inspection inside
-    its decision [in flight: change 14001]
-  - 2.3: `smith logout` removes as it decides, and login's words are
-    rendered only on the command's way out [in flight: change 14002]
 - **Departs:**
   - 2.5: in `smith/crates/smith-agent-document/src/config/`,
     `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the
