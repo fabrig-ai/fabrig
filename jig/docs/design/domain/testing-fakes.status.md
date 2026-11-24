@@ -8,6 +8,7 @@
   [in flight: change 13093]
   1: the conformance harness keeps one commit per story, rehearsed in
   `Harness::finish`. [in flight: change 13095]
+- **Not yet:** 1.1: the `subscriptions` table's capacity counts a topic asked apart one past `tasks.subscriptions` [in flight: change 16484].
 - **Not yet:**
   1.1: jig's inspection adapter, `jig-inspect`'s `tasks` and `core`, with
   the reads they take. [in flight: change 11665]

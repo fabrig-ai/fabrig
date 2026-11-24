@@ -1,8 +1,9 @@
 # tasks: status
 
-2026-11-16. Where jig's code lags or departs from [README.md](README.md).
+2026-11-24. Where jig's code lags or departs from [README.md](README.md).
 
 
+- **Not yet:** 4, *Dependencies*: a task's batch names no task its tree's requester reads unless the task references it [in flight: change 16485].
 - **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4).
 - **Not yet:** 3: a standing task's session (`standing.md`, 5.1).
 

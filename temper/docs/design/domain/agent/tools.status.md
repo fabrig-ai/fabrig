@@ -1,8 +1,10 @@
 # tools: status
 
-2026-11-19. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-24. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
+- **Not yet:** *A run's subscriptions take its task's room*: the room is `tasks.subscriptions` with the findings topic apart, and `subscribe`'s refusal says at most 4 [in flight: change 16484].
+- **Not yet:** *A run's subscriptions take its task's room*: `subscribe` to a task names only one the task references [in flight: change 16485].
 
 - **Not yet:** the `finding` tool: its declaration to the charters naming the delegate family, its decoding, its acts dispatched to the forge, and its answers [in flight: change 750].
 

@@ -1,8 +1,9 @@
 # changes: status
 
-2026-11-11. Where the tree's code lags or departs from [changes.md](changes.md).
+2026-11-24. Where the tree's code lags or departs from [changes.md](changes.md).
 
 - **Not yet:** an owner's deletion of a project with live tasks cancels them, where it is refused [in flight: change 628].
+- **Not yet:** *Adding and removing dependencies*, *An ended one*: a task amender reaches no task by its tree's requester's reading [in flight: change 16485].
 
 
 - **Not yet:**  the drain, placed-hold scope, release proposal and parked hold remain `lifecycle-holds.status.md`, 2.
