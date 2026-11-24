@@ -5,7 +5,6 @@ use temper_box_kit as support;
 mod agent_modes;
 mod box_front;
 mod box_listeners;
-mod configuration;
 mod fake;
 mod fake_opening;
 mod forge;
@@ -27,6 +26,5 @@ fn admission(directories: &temper_box_shell::directories::Directories, bytes: &[
     result
 }
 
-mod admission_edges;
 mod support_tests;
 mod wiring;

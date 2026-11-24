@@ -166,13 +166,19 @@ pub struct Setting {
     pub providers: Box<[jig_protocol_config::ProviderSetting]>,
 }
 impl Setting {
-    /// Retain the two copies that a fixture's native start reads.
-    pub fn lay(&self, directory: &std::path::Path) {
+    /// The encoded kind-21 startup copy, before it is laid.
+    #[must_use]
+    pub fn bytes(&self) -> Box<[u8]> {
         use temper_client_protocol_wire::v1::CEILINGS;
         let mut bytes =
             skein_lib::Writer::new(skein_lib::usize_of(self.figures.measure(&CEILINGS).expect("within ceilings")));
         self.figures.write(&CEILINGS, &mut bytes).expect("setting bytes");
-        std::fs::write(directory.join("agents.setting"), bytes.finish()).expect("fixture setting copy");
+        bytes.finish()
+    }
+
+    /// Retain the two copies that a fixture's native start reads.
+    pub fn lay(&self, directory: &std::path::Path) {
+        std::fs::write(directory.join("agents.setting"), self.bytes()).expect("fixture setting copy");
         providers::remember(directory, &self.providers);
     }
 }

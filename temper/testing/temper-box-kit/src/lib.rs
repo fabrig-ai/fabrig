@@ -15,7 +15,7 @@ pub mod cluster;
 pub mod cluster_turn;
 pub mod configuration;
 mod recipe;
-pub use recipe::{Recipe, configuration, lay_configuration, recipe};
+pub use recipe::{Recipe, configuration, lay_configuration, prepare_agent, recipe};
 pub mod configuration_fixture;
 pub mod csv_repair;
 pub mod ctl;

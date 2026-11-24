@@ -30,6 +30,12 @@ impl Recipe {
         serde_json::from_slice(&self.start.document).expect("start document")
     }
 
+    /// The agent and provider startup copies that back the prospective agent.
+    #[must_use]
+    pub fn agent_setting(&self) -> &Setting {
+        &self.setting
+    }
+
     fn lay(&self, root: &Path, forge: &Forge<'_>) {
         for name in ["accounts", "secrets", "state"] {
             fs::create_dir_all(root.join(name)).expect("deployment directory");
@@ -120,7 +126,7 @@ fn compose(
     let start = parse_with_key(&temper_config_shell::render(&file, Shape::Standalone), Shape::Standalone, provider_key);
     let document = serde_json::from_slice(&start.document).expect("start document");
     let document = temper_agent_fixtures::with_figures(&document, &setting.figures, root, &setting.providers);
-    let agent = prepare(&document);
+    let agent = prepare_agent(serde_json::to_vec(&document).expect("agent JSON").into_boxed_slice());
     configuration.agent_bounds(&agent.agent);
     let given = providers::given_with(setting.providers.clone(), Some(([127, 0, 0, 1], 8370).into()));
     Recipe { configuration, files: files(root), agent, given, start, setting }
@@ -147,9 +153,11 @@ fn files(root: &Path) -> Files {
     Files { entries }
 }
 
-fn prepare(agent: &Value) -> temper_worker_shell::agent::Prepared {
+/// Prepare fixture agent bytes with an unopened programs path, fixture addresses and fixture trust.
+#[must_use]
+pub fn prepare_agent(bytes: Box<[u8]>) -> temper_worker_shell::agent::Prepared {
     temper_worker_shell::agent::prepare_bytes_resolving(
-        serde_json::to_vec(agent).expect("agent JSON").into_boxed_slice(),
+        bytes,
         |_| Ok(()),
         |decoded| {
             decoded.resolve_with(

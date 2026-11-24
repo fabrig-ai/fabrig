@@ -186,10 +186,25 @@ pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::
     value
 }
 
-/// Hold the prepare job and the batch call under the standard engine profile.
+/// Lay the message-room setting over a native story's preceding agent and providers.
 pub fn message_room(root: &Path, value: &mut temper_playground::documents::Configuration) {
+    use temper_agent_fixtures::providers;
+
+    let agent = temper_agent_fixtures::read(root);
+    let providers = providers::take(value).unwrap_or_else(|| providers::values(&providers::read(root)));
+    compose_message_room(value, agent, &providers).lay(root);
+    value.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
+}
+
+/// Hold the prepare job and the batch call under the standard engine profile.
+/// The caller applies the prospective agent's bounds after preparing it with the returned setting.
+#[must_use]
+pub fn compose_message_room(
+    value: &mut temper_playground::documents::Configuration,
+    mut agent: Value,
+    providers: &[jig_protocol_config::ProviderSetting],
+) -> temper_agent_fixtures::Setting {
     // The one model call carries three independent change authorities and a latch.
-    let mut agent = temper_agent_fixtures::read(root);
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
         endpoint["limits"]["output"] = 48_000.into();
@@ -233,8 +248,7 @@ pub fn message_room(root: &Path, value: &mut temper_playground::documents::Confi
     }
     value.temper_over("root.loads.read_bytes", 16_777_216);
     value.temper_over("root.journal.transcript_bytes", 8_388_608);
-    temper_agent_fixtures::apply(value, root, &agent);
-    value.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
+    temper_agent_fixtures::compose_setting(value, &agent, providers)
 }
 
 fn get(forge: &Throwaway, route: &str) -> Value {

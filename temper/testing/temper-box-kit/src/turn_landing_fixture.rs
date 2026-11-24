@@ -1,4 +1,4 @@
-//! Turn-landing documents shared by value and real-directory admission tests.
+//! Composed turn-landing documents and agent (temper/docs/design/testing/qa/setups.md, 5–6).
 use crate::configuration_fixture::DOCUMENT;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -56,6 +56,14 @@ pub fn engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let given = temper_service::stock::Given::Stock
         .with_providers(temper_agent_fixtures::providers::parse(&rendered("providers.json")), Box::new([]));
     startup::engine_with(&document, 0, &jig_protocol_config::Directories::working(), &given).expect("stock engine")
+}
+
+/// Prepare the agent from the engine's figures with the programs-directory verdict supplied.
+pub fn agent(data: &Path, figures: &jig_protocol_worker_wire::Figures) -> temper_worker_shell::agent::Prepared {
+    let configuration = temper_worker_shell::agent::figures::configuration(figures, None, data, &[])
+        .expect("agent document from the engine's figures");
+    temper_worker_shell::agent::prepare_bytes_with(configuration, &mut std::io::sink(), |_| Ok(()))
+        .expect("setup agent")
 }
 
 pub fn figures() -> jig_protocol_worker_wire::Figures {
