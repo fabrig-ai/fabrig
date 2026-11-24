@@ -67,6 +67,7 @@ fn a_browser_that_never_closes_is_ended_before_its_server() {
 
     exited(&mut closing, &mut requests);
     assert_eq!(requests.pop_front(), Some(terminate(SERVER_CHILD)));
+    assert_eq!(requests.pop_front(), Some(io::Request::Close { entity: SERVER_CHILD }));
     assert!(requests.is_empty());
 }
 
@@ -95,5 +96,6 @@ fn forced_closing_waits_for_a_browser_still_spawning() {
     assert!(requests.is_empty());
     exited(&mut closing, &mut requests);
     assert_eq!(requests.pop_front(), Some(terminate(SERVER_CHILD)));
+    assert_eq!(requests.pop_front(), Some(io::Request::Close { entity: SERVER_CHILD }));
     assert!(requests.is_empty());
 }

@@ -1,10 +1,10 @@
 //! Finding files and kept evidence (qa/findings.md, 2; qa/ledger.md, 4.11 and 5).
+use crate::faces::{ClockFace, DirectoryMode, FilesFace, PathFacts, PathKind, RemoveMode, WriteOptions};
 use crate::{FindingInput, Home, Refusal, document, refused};
 use serde_json::Value;
 use std::{
     collections::BTreeSet,
     ffi::OsStr,
-    fs::{self, File},
     io::Read,
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
@@ -65,39 +65,38 @@ impl FindingInput {
     }
 }
 
-pub(crate) fn finding(home: &Home, session: u64, file: &[u8]) -> Result<String, Refusal> {
+pub(crate) fn finding(
+    home: &Home,
+    session: u64,
+    file: &[u8],
+    files: &mut impl FilesFace,
+    clock: &impl ClockFace,
+    stdin: &mut impl Read,
+) -> Result<String, Refusal> {
     let mut copied = None;
-    let result = home.transact(|ledger| {
+    let result = home.transact(files, |ledger, files| {
         let pass = ledger.pass_command_session(session)?.pass.expect("pass session");
         let label = String::from_utf8_lossy(file);
-        let bytes = if file == b"-" {
-            let mut bytes = Vec::new();
-            std::io::stdin()
-                .read_to_end(&mut bytes)
-                .map_err(|why| refused(format!("finding refused: {label}: {why}")))?;
-            bytes
-        } else {
-            fs::read(Path::new(OsStr::from_bytes(file)))
-                .map_err(|why| refused(format!("finding refused: {label}: {why}")))?
-        };
+        let bytes = crate::cli::read_argument(file, files, stdin)
+            .map_err(|why| refused(format!("finding refused: {label}: {why}")))?;
         let mut input = FindingInput::decode(&bytes, &label)?;
-        let setups = setups(&home.directory.join("passes").join(pass.to_string()).join("setups"))?;
+        let setups = setups(&crate::pass_files::setups(home, pass), files)?;
         input.check(pass, &setups)?;
         let case = ledger.pass_command_case(session, input.case)?;
         let area = home.configuration.finding_area(&case.surface);
-        let sources = evidence(&input.evidence)?;
+        let sources = evidence(&input.evidence, files)?;
         input.evidence = sources.iter().map(|(_, name)| name.clone()).collect();
-        let now = skein_shell::Clock::new().now().wall.as_secs();
+        let now = clock.now().wall;
         // The lock keeps this number available until the operation records it.
         let number = crate::ledger::next_number(ledger.findings.iter().map(|finding| finding.number));
         if !sources.is_empty() {
             let root = home.directory.join("evidence");
-            fs::create_dir_all(&root).map_err(|why| evidence_refusal(&root, why))?;
+            files.directory(&root, DirectoryMode::Parents).map_err(|why| evidence_refusal(&root, why))?;
             let directory = root.join(number.to_string());
-            fs::create_dir(&directory).map_err(|why| evidence_refusal(&directory, why))?;
+            files.directory(&directory, DirectoryMode::One).map_err(|why| evidence_refusal(&directory, why))?;
             copied = Some(directory.clone());
             for (source, name) in sources {
-                copy(&source, &directory.join(name))?;
+                copy(&source, &directory.join(name), files)?;
             }
         }
         let answer = ledger.record_finding(session, &input, &setups, area, now)?;
@@ -106,13 +105,13 @@ pub(crate) fn finding(home: &Home, session: u64, file: &[u8]) -> Result<String, 
     if result.is_err()
         && let Some(directory) = copied
     {
-        fs::remove_dir_all(&directory).map_err(|why| evidence_refusal(&directory, why))?;
+        files.remove(&directory, RemoveMode::Tree).map_err(|why| evidence_refusal(&directory, why))?;
     }
     result
 }
 
-fn setups(directory: &Path) -> Result<Vec<String>, Refusal> {
-    let entries = match fs::read_dir(directory) {
+fn setups(directory: &Path, files: &mut impl FilesFace) -> Result<Vec<String>, Refusal> {
+    let entries = match files.scan(directory) {
         Ok(entries) => entries,
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(why) => return Err(refused(format!("{}: {why}", directory.display()))),
@@ -120,20 +119,22 @@ fn setups(directory: &Path) -> Result<Vec<String>, Refusal> {
     let mut names = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-        if entry.file_type().map_err(|why| refused(format!("{}: {why}", entry.path().display())))?.is_dir() {
-            names.push(
-                entry
-                    .file_name()
-                    .into_string()
-                    .map_err(|_| refused(format!("{}: setup name must be UTF-8", entry.path().display())))?,
-            );
+        let kind = entry.kind.map_err(|why| {
+            let path = directory.join(OsStr::from_bytes(&entry.name));
+            refused(format!("{}: {why}", path.display()))
+        })?;
+        if kind == PathKind::Directory {
+            names.push(String::from_utf8(entry.name.into_vec()).map_err(|why| {
+                let path = directory.join(OsStr::from_bytes(why.as_bytes()));
+                refused(format!("{}: setup name must be UTF-8", path.display()))
+            })?);
         }
     }
     names.sort();
     Ok(names)
 }
 
-fn evidence(paths: &[String]) -> Result<Vec<(PathBuf, String)>, Refusal> {
+fn evidence(paths: &[String], files: &mut impl FilesFace) -> Result<Vec<(PathBuf, String)>, Refusal> {
     let mut names = BTreeSet::new();
     let mut sources = Vec::new();
     for path in paths {
@@ -146,31 +147,32 @@ fn evidence(paths: &[String]) -> Result<Vec<(PathBuf, String)>, Refusal> {
         if !names.insert(name.to_owned()) {
             return Err(evidence_refusal(source, format!("duplicate file name {name}")));
         }
-        let metadata = fs::metadata(source).map_err(|why| evidence_refusal(source, why))?;
-        check_file(source, &metadata)?;
+        let metadata = files.facts(source, true).map_err(|why| evidence_refusal(source, why))?;
+        check_file(source, metadata)?;
         sources.push((source.to_owned(), name.to_owned()));
     }
     Ok(sources)
 }
-fn check_file(path: &Path, metadata: &fs::Metadata) -> Result<(), Refusal> {
-    if !metadata.is_file() {
+fn check_file(path: &Path, metadata: PathFacts) -> Result<(), Refusal> {
+    if metadata.kind != PathKind::File {
         return Err(evidence_refusal(path, "not a regular file"));
     }
-    if metadata.len() > EVIDENCE_BYTES {
+    if metadata.size > EVIDENCE_BYTES {
         return Err(evidence_refusal(path, "file exceeds 16 MiB"));
     }
     Ok(())
 }
-fn copy(source: &Path, destination: &Path) -> Result<(), Refusal> {
-    let file = File::open(source).map_err(|why| evidence_refusal(source, why))?;
-    check_file(source, &file.metadata().map_err(|why| evidence_refusal(source, why))?)?;
-    let mut output = File::create(destination).map_err(|why| evidence_refusal(source, why))?;
+fn copy(source: &Path, destination: &Path, files: &mut impl FilesFace) -> Result<(), Refusal> {
+    let file = files.open_read(source).map_err(|why| evidence_refusal(source, why))?;
+    check_file(source, files.reader_facts(&file).map_err(|why| evidence_refusal(source, why))?)?;
+    let mut output =
+        files.open_write(destination, WriteOptions::REPLACE).map_err(|why| evidence_refusal(source, why))?;
     let length =
         std::io::copy(&mut file.take(EVIDENCE_BYTES + 1), &mut output).map_err(|why| evidence_refusal(source, why))?;
     if length > EVIDENCE_BYTES {
         return Err(evidence_refusal(source, "file exceeds 16 MiB"));
     }
-    output.sync_all().map_err(|why| evidence_refusal(source, why))?;
+    files.sync_writer(&output).map_err(|why| evidence_refusal(source, why))?;
     Ok(())
 }
 fn evidence_refusal(path: &Path, why: impl std::fmt::Display) -> Refusal {

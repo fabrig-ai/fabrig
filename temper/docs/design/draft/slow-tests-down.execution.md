@@ -8,7 +8,7 @@ Eighteen goals, started on 2026-11-23 on the user's approval, each on its own ra
 
 | Goal | Draft parts | Trees | Needs | State |
 |---|---|---|---|---|
-| D1, the browser's deadlines: every browser step's expiry through the starvation rule, and a red story's wall bounded | 7 | skein, jig, temper | none | started, task 13857 |
+| D1, the browser's deadlines: every browser step's expiry through the starvation rule, and a red story's wall bounded | 7 | skein, jig, temper | none | landed, task 13857 |
 | D2, temper's real Forgejo paths and repeated command paths shortened to their boundary, in `temper-box::process` and `proof_live` | 5.1 | temper | none | landed, task 13858 |
 | D3, temper's public board, history, reading, workers and journeys stories: their data to the client and domain worlds, their geometry left in Chromium | 5.1 | temper | none | landed, task 13859 |
 | D4, skein's browser kit's bookkeeping, patch shapes and refused writes below the browser | 5.1 | skein | D1 | started, task 13870 |
@@ -18,7 +18,7 @@ Eighteen goals, started on 2026-11-23 on the user's approval, each on its own ra
 | D8, `temper-box::suite`'s fake backends, relay, forge setup, landing launcher and listeners | 5.2 | temper | D7 | started, task 13871 |
 | D9, `skein-codegen::suite`'s tables to its step tests, with an in-memory tree for the patch commands | 5.2 | skein | none | landed, task 13856 |
 | D10, `github-conformance::suite` to step and protocol tests on the fake, with a supplied file tree for its journal | 5.2 | skein | none | started, task 13863 |
-| D11, temper's QA tool and CLI policy to a QA domain world and command-table steps | 5.2 | temper | none | started, task 13864 |
+| D11, temper's QA tool and CLI policy to a QA domain world and command-table steps | 5.2 | temper | none | landed, task 13864 |
 | D12, `smith-bench::suite`, smith's store and native setup | 5.2, 5.3 | smith | none | started, task 13865 |
 | D13, smith's shipped CLI, with a file-operation seam around its finalizer | 5.3 | smith | none | started, task 13866 |
 | D14, temper's shells: forge setup, box, common, TUI, service, fetch and engine shells | 5.3 | temper | D8 | started, task 13872 |
