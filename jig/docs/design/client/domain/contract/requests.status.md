@@ -1,7 +1,8 @@
 # requests: status
 
-2026-11-21. Where the tree's code lags or departs from [requests.md](requests.md).
+2026-11-24. Where the tree's code lags or departs from [requests.md](requests.md).
 
+- **Not yet:** 2, `Stop`: it carries no reason [in flight: change 16544].
 
 - **Not yet:** 2: `RemoveProject` of a project with a live task is admitted, not refused *live tasks* [in flight: change 628].
 - **Not yet:** 2: `RemoveProject` sent again under its key after the deletion ended is answered unknown, not removed, and the deleted project's read unknown, not gone [in flight: change 629].
