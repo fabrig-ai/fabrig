@@ -2,8 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [landing-turn.md](landing-turn.md).
 
-- **Not yet:** 1 (*First, freshness*): its reads' `read` waits hold
-  past no stall [in flight: change 15531].
 
 - **Not yet:** 1: the turn's merge of a member reads no comparison of
   main's tip and its candidate, so a rule by path covers every member.

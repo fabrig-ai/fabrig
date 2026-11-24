@@ -2,8 +2,6 @@
 
 2026-11-24. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 4.2 (*No silent wait*): the `read` hold, a run of waits
-  for a fresh read past the stall [in flight: change 15531].
 
 
 

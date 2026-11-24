@@ -6,5 +6,3 @@
   waits has no clock and no bound, and no `read` hold
   (`temper-engine-domain-forge/src/landing.rs`, `wait`) [in flight:
   change 15531].
-- **Not yet:** 4: the engine's three lines for a run of read waits, and
-  `landing show`'s `read` hold [in flight: change 15531].
