@@ -452,12 +452,12 @@ fn deployment_binaries_render_every_member_of_both_clusters() {
 }
 
 #[test]
-#[should_panic(expected = "duplicate binding story.address")]
-fn a_story_cannot_bind_the_same_name_twice() {
+fn a_story_binding_is_refused_a_second_time() {
     let mut cluster =
         support::cluster::Cluster::description_from(Path::new("/fixture/duplicate"), &cluster_turn_setup::fixture());
-    cluster.bind("story.address", "127.0.0.1:1");
-    cluster.bind("story.address", "127.0.0.1:2");
+    cluster.try_bind("story.address", "127.0.0.1:1").expect("first story binding");
+    assert_eq!(cluster.try_bind("story.address", "127.0.0.1:2"), Err("duplicate binding story.address".into()));
+    assert_eq!(cluster.render("{story.address}"), "127.0.0.1:1");
 }
 
 #[test]

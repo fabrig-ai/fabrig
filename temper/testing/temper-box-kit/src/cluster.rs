@@ -10,7 +10,7 @@ use skein_world::{
     real,
 };
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, btree_map::Entry},
     fs,
     os::unix::fs::DirBuilderExt,
     path::{Component, Path, PathBuf},
@@ -327,7 +327,19 @@ impl Cluster {
     }
     /// A story-owned template binding, fixed before rendering any document.
     pub fn bind(&mut self, name: &str, value: &str) {
-        assert!(self.bindings.insert(name.into(), value.into()).is_none(), "duplicate binding {name}");
+        if let Err(error) = self.try_bind(name, value) {
+            panic!("{error}");
+        }
+    }
+    /// Bind an unused name, or return an error without changing the existing binding.
+    pub fn try_bind(&mut self, name: &str, value: &str) -> Result<(), String> {
+        match self.bindings.entry(name.into()) {
+            Entry::Vacant(entry) => {
+                entry.insert(value.into());
+                Ok(())
+            }
+            Entry::Occupied(_) => Err(format!("duplicate binding {name}")),
+        }
     }
     // Deployment selection may replace a default artifact; story bindings are still single-assignment.
     fn replace_artifact(&mut self, name: &str, value: &str) {
