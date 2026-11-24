@@ -4,7 +4,7 @@ use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets};
 use jig_test_domain as root;
-use jig_test_layouts::{SMITH_OWNER, frames::TURN_ROOT, layouts::FRAME_TURN_KEPT};
+use jig_test_layouts::{FIXTURE_SMITH_OWNER, frames::TURN_ROOT, layouts::FRAME_TURN_KEPT};
 
 const TURN: KeptFamily = KeptFamily {
     retired: &[],
@@ -16,7 +16,7 @@ const TURN: KeptFamily = KeptFamily {
     frames: Some(jig_protocol_store::Frames { root: TURN_ROOT, texts: &[FRAME_TURN_KEPT], number: 0 }),
 };
 const FIXTURE: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Smith, name: SMITH_OWNER, families: &[TURN], level: Some(0) };
+    OwnerSet { jobs: &[], owner: Owner::Smith, name: FIXTURE_SMITH_OWNER, families: &[TURN], level: Some(0) };
 pub const SETS: OwnerSets = OwnerSets { sets: &[FIXTURE] };
 // The fixture binary renders the said field of each loaded v1 turn.
 pub const TAIL: &[u8] = b"closed windowwindow continuation";

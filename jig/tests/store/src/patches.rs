@@ -67,7 +67,7 @@ const APPLICATION: OwnerSet = OwnerSet {
     level: Some(0),
 };
 const JIG: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Jig, name: fixture::JIG_OWNER, families: &[NOTE], level: Some(0) };
+    OwnerSet { jobs: &[], owner: Owner::Jig, name: fixture::FIXTURE_JIG_OWNER, families: &[NOTE], level: Some(0) };
 /// A read-only fixture job makes an upgrade without changing any layout or level
 /// (protocol/store/jobs.md, 1–3). Each test's source omits its done row.
 pub const JOB: jig_protocol_store::Job = jig_protocol_store::Job {
@@ -377,7 +377,7 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Jig,
-            name: fixture::JIG_OWNER,
+            name: fixture::FIXTURE_JIG_OWNER,
             level: Some(2),
             families: &[KeptFamily {
                 retired: &[],
@@ -396,7 +396,7 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Smith,
-            name: fixture::SMITH_OWNER,
+            name: fixture::FIXTURE_SMITH_OWNER,
             level: Some(1),
             families: &[KeptFamily {
                 retired: &[],

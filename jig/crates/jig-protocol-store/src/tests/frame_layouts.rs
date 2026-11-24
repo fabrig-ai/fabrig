@@ -14,7 +14,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Jig,
-            name: fixture::JIG_OWNER,
+            name: fixture::FIXTURE_JIG_OWNER,
             level: Some(2),
             families: &[KeptFamily {
                 retired: &[],
@@ -33,7 +33,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Smith,
-            name: fixture::SMITH_OWNER,
+            name: fixture::FIXTURE_SMITH_OWNER,
             level: Some(1),
             families: &[KeptFamily {
                 retired: &[],

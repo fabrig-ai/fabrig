@@ -4,8 +4,8 @@
 extern crate alloc;
 
 pub const NAME: &str = "fixture";
-pub const JIG_OWNER: &str = "fixture-jig";
-pub const SMITH_OWNER: &str = "fixture-smith";
+pub const FIXTURE_JIG_OWNER: &str = "fixture-jig";
+pub const FIXTURE_SMITH_OWNER: &str = "fixture-smith";
 
 pub mod frames;
 pub mod layouts;

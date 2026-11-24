@@ -51,7 +51,7 @@ const APPLICATION: OwnerSet = OwnerSet {
     level: Some(2),
 };
 const JIG: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Jig, name: fixture::JIG_OWNER, families: &[NOTE], level: Some(2) };
+    OwnerSet { jobs: &[], owner: Owner::Jig, name: fixture::FIXTURE_JIG_OWNER, families: &[NOTE], level: Some(2) };
 pub(super) const SETS: OwnerSets = OwnerSets { sets: &[APPLICATION, JIG] };
 pub(super) const BASE: OwnerSets = OwnerSets {
     sets: &[
