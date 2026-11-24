@@ -1,4 +1,4 @@
-//! The packages closure's change in client forms (hearth/docs/design/domain/render/README.md, 4.1).
+//! The packages closure's change in client forms (hearth/docs/design/domain/render/diff.md, 1.1).
 use crate::form::text::Lines;
 use hearth_domain_render_vocabulary::diff::{Listed, Moved, ResolutionChange};
 use skein_json::writer::Encoder;

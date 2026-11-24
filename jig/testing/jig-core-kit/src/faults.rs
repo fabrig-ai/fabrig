@@ -1,4 +1,4 @@
-//! Replayable fault scenarios for `domain/testing.md`, 4, 7. Configuration
+//! Replayable fault scenarios for `domain/testing.md`, 4, `domain/testing-fakes.md`, 1. Configuration
 //! comes from the scenario, choices from a seed, and the referee observes every
 //! drain. Conformance can reuse the independent peers and the chosen cuts.
 use crate::world::Setup;

@@ -105,7 +105,7 @@ differ until its plans fold it in.
   comes later: that time is its completion, distinct from its last
   landing.
 - **A goal that fails or is closed** doesn't stop the others. The goals
-  waiting on it are held (jig's `domain/tasks/lifecycle.md`, section 6),
+  waiting on it are held (jig's `domain/tasks/lifecycle-holds.md`, section 1),
   each a held card in Needs you. Release alone holds it again, since the
   dependency still stands: to go on, the person or the maker removes or
   replaces the dependency and releases it, or closes it (jig's
@@ -113,7 +113,7 @@ differ until its plans fold it in.
 - **Pause, Resume and Close** are a task's (`../client/pages/task.md`,
   section 4). Pause stops every goal under the milestone, and those made
   later, at once, cancelling their runs (jig's
-  `domain/tasks/lifecycle.md`, section 10); Resume lifts it. Close
+  `domain/tasks/lifecycle-holds.md`, section 2); Resume lifts it. Close
   cancels every goal in it that hasn't ended. What landed stays.
 
 ## 4. States and words
@@ -348,7 +348,7 @@ all.
   any live task the party may reach, a sibling or not.
 - **Funding:** the milestone's budget is carved from its maker's, as a
   goal's is; each goal's is carved from the milestone's when the goal is
-  made, waiting or not (jig's `domain/authority.md`, section 7). Its
+  made, waiting or not (jig's `domain/authority-budgets.md`, section 1). Its
   spend is what it and its goals have spent, each task counted once:
   its own, its ended goals' settled spend, and its live goals' own, never
   their reservations.

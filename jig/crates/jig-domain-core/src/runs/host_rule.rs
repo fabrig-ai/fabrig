@@ -1,4 +1,4 @@
-//! Placement protects kept personal logins (accounts.md, 3.4; domain/engine/fleet.md).
+//! Placement protects kept personal logins (domain/accounts-sources.md, 1; domain/engine/fleet.md).
 pub use jig_domain_core_vocabulary::runs::host_rule::*;
 
 use crate::Core;

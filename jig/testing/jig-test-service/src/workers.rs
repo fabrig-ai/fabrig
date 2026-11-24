@@ -1,4 +1,4 @@
-//! The reference's assignments and root events around the workers' host (service.md, 11.3).
+//! The reference's assignments and root events around the workers' host (protocol/service-parts.md, 1.3).
 use crate::{tools, values::Values};
 use alloc::boxed::Box;
 use jig_domain_host as host;

@@ -17,7 +17,7 @@ pub(crate) struct Removing {
 }
 
 /// A deleted project's explicit use leaves shared lists in order
-/// (jig/docs/design/domain/accounts.md, 4.2; jig/docs/design/domain/accounts.md, 4.2).
+/// (jig/docs/design/domain/accounts-uses.md, 1.2; jig/docs/design/domain/accounts-uses.md, 1.2).
 /// A sole use stays: its number is never reused, and an empty list would cover every payer.
 pub(crate) fn forget_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let payer = Use::Project(project);
@@ -430,7 +430,7 @@ pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>)
     out.push(Request::Answer { request, answer: Answer::Refused { refusal } });
 }
 
-/// Facts go in the decision that erases their account (accounts.md, 3.7).
+/// Facts go in the decision that erases their account (domain/accounts-lists.md, 1).
 fn erase_facts(domain: &mut Domain, account: u32, out: &mut Queue<Request>) {
     drop(domain.rates.remove(&account));
     if domain.said.remove(&account).is_some() {

@@ -1,5 +1,5 @@
 //! Source ways and run endpoints, shared by observation, admission and preparation
-//! (jig/docs/design/domain/accounts.md, 3.4 and 4.3). Stored models keep their endpoint.
+//! (jig/docs/design/domain/accounts-sources.md, 1, and jig/docs/design/domain/accounts-uses.md, 1.3). Stored models keep their endpoint.
 use crate::{Core, Model};
 use jig_domain_fleet::ModelNeed;
 

@@ -309,7 +309,7 @@ pub enum Expected {
 }
 
 /// A schema's owned text and bounded tables (data/codec/run-time.md, section 1.3).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Schema {
     text: Box<[u8]>,
     family: Span,

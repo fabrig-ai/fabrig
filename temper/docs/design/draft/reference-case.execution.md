@@ -105,14 +105,14 @@ section 14 it adds.
   into g under the light rules; its result carrying its producer's
   report) and 13 (G's wake policy).
 - **Design, jig's:** a template naming *its own goal branch* (jig's
-  `protocol/configuration.md`, 3.1); an effect of a hold's taking, and
-  of its release (jig's `domain/connectors.md`, 3.3 and 4.6, and
+  `protocol/configuration-templates.md`, 1); an effect of a hold's taking, and
+  of its release (jig's `domain/connectors.md`, 3.3, and `domain/connectors-effects.md`, 1.6, and
   `jig/docs/design/domain/tasks/holds.md`, 5); a held resource a landing queue orders (jig's
   `domain/tasks/holds.md`, 1); writer slots taken by what a run writes
   (jig's `domain/tasks/holds.md`, 3, against its `domain/engine/executors.md`, 1); a
   charter's default wake policy and the vocabulary it needs (jig's
-  `domain/tasks/messages.md`, 3, and jig's `protocol/configuration.md`,
-  section 3); a
+  `domain/tasks/messages.md`, 3, and jig's `protocol/configuration-engine.md`,
+  section 1); a
   result's bound past the settings schema's cap.
 - **Design, temper's:** g as the goal's, not a change's, a change from
   outside G's subtree refused (`../domain/forge/README.md`, section 2 and `../domain/forge/branches.md`);
@@ -163,14 +163,14 @@ section 14 it adds.
 - **Design:** `../domain/agent/tools-change.md`, 1 and `../domain/forge/change/README.md`, 1, and `../domain/forge/change/gates.md`, 3 (`change`
   naming its producer's charter and an LLM choice per role); temper's
   `../protocol/configuration/settings-kinds.md`, 1 (the forge's charters); jig's
-  `domain/tasks/README.md`, section 4, jig's `protocol/configuration.md`, 3.1
+  `domain/tasks/README.md`, section 4, jig's `protocol/configuration-templates.md`, 1
   and jig's `domain/engine/settings.md`, 4 (a batch's LLM choices checked
   against its charter's models); jig's `domain/model.md`, 7.1 (a plan's
   text in the repository's design).
 - **Builds:** temper's `change` and change procedure (a producer's
   charter, an LLM choice per role); jig's check of them; temper's
   kinds as settings, on jig's application settings (jig's
-  `domain/engine/settings.md`, 5 to 7), built once for both: the landing
+  `domain/engine/settings-application.md`, 1, and `domain/engine/settings-proposals.md`, 1, and `domain/engine/settings-store.md`, 1), built once for both: the landing
   rules, out of `Config`'s `landing` member (`../domain/routing.md`, 5 and 6, and `../domain/root-translation.md`, 1
   ; `../domain/forge/change/gates.md`, 3; temper's `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3
   ), and the forge's charters, out of `Config`'s
@@ -233,7 +233,7 @@ section 14 it adds.
   with its dependencies' pushed heads merged in); `../domain/forge/change/README.md`
   (the early start, its once rule, its refusal on a conflict, an
   amendment refused for dropping a dependency started from); `landing.md`,
-  4.1 (a dependent started kept); jig's `domain/connectors.md`, 6.1 (a
+  4.1 (a dependent started kept); jig's `domain/connectors-procedures.md`, 1.1 (a
   procedure that starts kept).
 - **Builds:** jig's kept start; temper's change procedure and the
   worker's checkout.
@@ -260,8 +260,8 @@ section 14 it adds.
   M0, as already designed; M7b, the merge job and its three uses: a
   merge into g and a catch-up (after M1), L's update (after M2). M7b
   also lets a role's authority name a job kind in jig's configuration,
-  which M7a found missing (jig's `protocol/configuration.md`,
-  section 3).
+  which M7a found missing (jig's `protocol/configuration-engine.md`,
+  section 1).
 - **Configures:** `merge_job`, the project's kind that merges and
   recounts its counted baselines; the coordinator's charter:
   catch-ups, landing news paced at most once in 30 minutes (N23).

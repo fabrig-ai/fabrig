@@ -1,4 +1,4 @@
-//! Conversation boundary driving (protocol/programs.md, sections 5.5–5.7).
+//! Conversation boundary driving (protocol/programs-claude-code.md, sections 1.5–1.7).
 //! Keeps correlation separately from delivered domain blocks; the domain alone
 //! accepts outcomes; cancellation fails unanswered calls before settling the child.
 

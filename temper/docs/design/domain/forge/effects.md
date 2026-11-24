@@ -6,11 +6,11 @@ This document holds effects and their recovery across restarts, split from [`REA
 
 Every effect is committed into the outbox and made by `client`, in
 commit order per lane (a pull request, an issue, a repository) and one
-at a time on each (jig's `domain/connectors.md`, 4.2). The top owns the
+at a time on each (jig's `domain/connectors-effects.md`, 1.2). The top owns the
 effects and their identities; the client's keys, its write lanes and its
 recovery are skein's `forge/client-effects.md`, section 1. temper's effects:
 
-| Kind | Effect | What it is | Recovery class (jig's `domain/connectors.md`, 4.3) | Found again after an uncertain failure |
+| Kind | Effect | What it is | Recovery class (jig's `domain/connectors-effects.md`, 1.3) | Found again after an uncertain failure |
 |---|---|---|---|---|
 | 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request alone, never a closed or merged one (`change/README.md`, 2, step 2) |
 | 10 | edit a pull request's title, body or base | a set | idempotent | written again |
@@ -51,7 +51,7 @@ recovery are skein's `forge/client-effects.md`, section 1. temper's effects:
   settles the entry for good or holds it for a person, and saved again
   before a held entry is made again. So the store shows which writes a
   stop left unsettled without decoding an entry. temper's owner set
-  names its range (jig's `protocol/store/opening.md`, 3). The registered
+  names its range (jig's `protocol/store/opening-owners.md`, 1). The registered
   family converts at read; an in-flight write is not an upgrade
   refusal. The forge's restore links a `Flight` row to its entry, and one whose entry
   it does not hold is a writer's bug, a link that cannot be made, which
@@ -102,7 +102,7 @@ recovery are skein's `forge/client-effects.md`, section 1. temper's effects:
   namespace is the deployment's id, 16 bytes. A purpose is derived from
   what the effect is for, never from when it was asked or its entry's
   number, so asking again for the same thing gives the same bytes (jig's
-  `domain/connectors.md`, 4.4):
+  `domain/connectors-effects.md`, 1.4):
 
   | Tag | Purpose | Fields, with their bytes | Bytes with the tag |
   |---|---|---|---|

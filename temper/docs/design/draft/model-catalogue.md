@@ -130,7 +130,7 @@ provider has an account usable now and serving its payer (jig's
 - **The defaults are the binary's,** as a charter's are. A release that adds
   to section 2's table adds to the defaults at its start, decided by the
   release, and a model a person turned off stays off (jig's
-  `domain/engine/settings.md`, 7).
+  `domain/engine/settings-store.md`, 1).
 - **What the files refuse:** under passed defaults, `engine.llm.models` and
   each provider's `models` in `temper.json`; each endpoint's `models` in
   `agent.json`. Providers, endpoints and sources stay (`../protocol/configuration/README.md`, section 2).
@@ -141,7 +141,7 @@ provider has an account usable now and serving its payer (jig's
   `protocol/agent.md`, section 4; `protocol/charter.md`, section 2).
 - **A charter names its first choices and "the rest":** every other model of
   the catalogue, in its order, so that a new model needs no charter's change
-  (jig's `protocol/configuration.md`, section 3).
+  (jig's `protocol/configuration-engine.md`, section 1).
 - **The bound** is the charter's, 64 models (`MODELS` in
   `jig/crates/jig-domain-tasks/src/llm.rs`). A list that would pass it keeps
   the provider's first, and Settings says how many it left out.
@@ -158,7 +158,7 @@ provider has an account usable now and serving its payer (jig's
 | a Claude subscription | nothing: Anthropic allows no other use of its credentials (jig's `domain/providers.md`, 3.1), and Claude Code has no list to read | section 2's table, and names added by a person |
 
 - **Who reads:** a worker, as it checks a program's source (jig's
-  `domain/accounts.md`, 3.4). The core sends it the account's grant, and
+  `domain/accounts-sources.md`, 1). The core sends it the account's grant, and
   smith's agent makes the one request on the endpoint's address and
   transport. It is not a run, and spends no budget.
 - **When:** as an account becomes usable, once a day, and on "Read again".

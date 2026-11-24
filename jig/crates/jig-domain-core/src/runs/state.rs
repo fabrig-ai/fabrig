@@ -1,4 +1,4 @@
-//! Live run and restart correlation held by the core (domain/engine/README.md, 3, and domain/engine/executors.md, 2).
+//! Live run and restart correlation held by the core (domain/engine/README.md, 3, and domain/engine/executors-transcripts.md, 1).
 
 pub use jig_domain_core_vocabulary::runs::state::*;
 
@@ -24,7 +24,7 @@ pub enum RunAdmission {
 
 /// Bounded recent opaque conversation while a due task's store pages are read.
 /// Each retained turn counts its four-byte length beside its opaque body
-/// (domain/engine/executors.md, 2).
+/// (domain/engine/executors-transcripts.md, 1).
 #[derive(Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent load and resume facts for one saved window")]
 pub struct Transcript {
@@ -33,7 +33,7 @@ pub struct Transcript {
     pub closed: bool,
     /// Activation found that this window ran on another endpoint.
     pub moved: bool,
-    /// A loaded turn was past its store page room (domain/engine/executors.md, 2).
+    /// A loaded turn was past its store page room (domain/engine/executors-transcripts.md, 1).
     pub cut: bool,
     /// The preparation has received its final store page.
     pub loaded: bool,
@@ -220,7 +220,7 @@ impl Core {
         }
     }
 
-    /// Only unusable window history closes a window (jig/docs/design/domain/engine/executors.md, 2).
+    /// Only unusable window history closes a window (jig/docs/design/domain/engine/executors-transcripts.md, 1).
     pub(crate) fn close_window(&mut self, task: u64) {
         if let Some(proof) = self.proofs.get_mut(&task)
             && let Some(window) = &mut proof.window
@@ -284,7 +284,7 @@ impl Core {
     }
 
     /// Admit a window turn's fields and length without its body, retaining its
-    /// fixed text in the tail and preventing resume (domain/engine/executors.md, 2).
+    /// fixed text in the tail and preventing resume (domain/engine/executors-transcripts.md, 1).
     #[must_use]
     pub fn append_cut_transcript(&mut self, task: u64, turn: TurnRecord, bytes: u64) -> bool {
         self.append_loaded_transcript(task, turn, Some(Box::from(crate::CUT_TURN_TEXT)), bytes, true)
@@ -459,7 +459,7 @@ pub enum GoalRoute {
 
 impl Core {
     /// The spend a run of `task` reserves: its reserve turns and one completion more of its LLM
-    /// choice's main model (domain/authority.md, 7 and 8.3).
+    /// choice's main model (domain/authority-budgets.md, 1, and domain/authority-checks.md, 1.3).
     pub(crate) fn run_reserve(&self, task: u64) -> u64 {
         // No spend holds a reserve beyond the numbers' range, so no run of it starts.
         reserve_floor(&self.chosen_policy(task)).unwrap_or(u64::MAX)

@@ -4,7 +4,7 @@ use jig_domain_tasks::New;
 use skein_lib::{Map, ReplyTo, Time, Token};
 
 impl Core {
-    /// For the inspection adapter: timers held for the next start (domain/testing.md, 7.1).
+    /// For the inspection adapter: timers held for the next start (domain/testing-fakes.md, 1.1).
     #[must_use]
     pub fn inspection_timer_withheld(&self, timer: Timer) -> bool {
         (self.stopping && timer.waits_while_stopping()) || (self.settling && timer.new_work())

@@ -59,7 +59,7 @@
     (the look request `outside-pages`);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
-    `client/domain/contract/README.md`, 5.1), but in the playground's project
+    `client/domain/contract/watches.md`, 1.1), but in the playground's project
     while the playground runs or is leaving, whose work its scripted
     model runs (`forge/family.md`, 7): a region named "LLM account", its words and three buttons
     (`pages/accounts-words.md`, 1), on every page but the accounts page, `ConnectModel` and
@@ -125,7 +125,7 @@
     printed link is the browser's way in;
   - *signed out, the link's sign-in not taken:* while the link's view
     says why its last sign-in installed nothing and the link stays
-    usable (jig's `client/domain/client/README.md`, section 9,
+    usable (jig's `client/domain/client/sign-in.md`, section 1,
     `not_signed_in`), the paragraph says so in place of the shell's
     words: full, "All N sign-ins are in use; the earliest ends MOMENT
     UTC. This link stays usable until LINK UTC; after that, opening it

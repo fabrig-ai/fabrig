@@ -229,8 +229,8 @@ are for display only, and no decision reads one (`../../domain/forge/adoption.md
   deployment's id; its identity is its effect's purpose and its numbers,
   which the connector's top encodes (`../../domain/forge/effects.md`, section 1).
   So the marker carries the deployment's id, and deployments that share
-  a repository tell their creations apart (jig's `domain/connectors.md`,
-  4.4). The key's first byte is its version; the marker has none of its
+  a repository tell their creations apart (jig's `domain/connectors-effects.md`,
+  1.4). The key's first byte is its version; the marker has none of its
   own.
 - **Decoded** as skein's `forge/README.md`, section 5 says; a body whose marker
   carries another word has no key. Whether to believe a key is the

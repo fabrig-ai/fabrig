@@ -183,7 +183,7 @@ impl Field {
 }
 
 /// Derive this layer from declarations, refusing checked arithmetic overflow.
-/// Contract: smith/docs/design/protocol/limits.md, sections 2 and 3.
+/// Contract: smith/docs/design/protocol/limits.md, section 2, and smith/docs/design/protocol/limits-derivation.md, section 1.
 pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
     if inputs.conversations == 0 {
         return Err(Field::Sessions);

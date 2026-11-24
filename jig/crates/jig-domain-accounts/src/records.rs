@@ -1,4 +1,4 @@
-//! What an account is and what the store keeps of it (accounts.md, 3.1 to 3.5; domain/engine/README.md, 5.4).
+//! What an account is and what the store keeps of it (domain/accounts.md, 3.1 to 3.3, and domain/accounts-sources.md, 1 to 2; domain/engine/decisions.md, 1.4).
 //! An account and each of its sources are numbered by one counter that never gives a number
 //! twice; a source's number is the number its grants and its runs' notices carry.
 use alloc::boxed::Box;
@@ -8,13 +8,13 @@ use skein_lib::Wall;
 pub const SUBJECT: u32 = 255;
 /// The longest display name a holder gives an account.
 pub const DISPLAY: u32 = 64;
-/// The longest program source's name (accounts.md, 3.4).
+/// The longest program source's name (domain/accounts-sources.md, 1).
 pub const NAME: u32 = 32;
 
-/// Maximum explicit payers of an account (accounts.md, 4.2).
+/// Maximum explicit payers of an account (domain/accounts-uses.md, 1.2).
 pub const USES: u32 = 16;
 
-/// Whose work an account pays for (accounts.md, 4.2).
+/// Whose work an account pays for (domain/accounts-uses.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Use {
     Party(u64),
@@ -28,7 +28,7 @@ pub enum Holder {
     Party(u64),
 }
 
-/// A source's kind (accounts.md, 3.4). A program's source keeps its name beside its kind.
+/// A source's kind (domain/accounts-sources.md, 1). A program's source keeps its name beside its kind.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     SignIn,
@@ -38,7 +38,7 @@ pub enum Kind {
 }
 
 /// What runs' agents noticed of a source, kept with a wall reset so that it means the same
-/// after a restart (domain/engine/README.md, 5.4). The component says the rest of a source's state again.
+/// after a restart (domain/engine/decisions.md, 1.4). The component says the rest of a source's state again.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Held {
     Limited { reset: Option<Wall> },
@@ -46,7 +46,7 @@ pub enum Held {
     Moving,
 }
 
-/// What an account's last list reads gave (domain/accounts.md, 3.7).
+/// What an account's last list reads gave (domain/accounts-lists.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ListRecord {
     pub names: u64,
@@ -56,7 +56,7 @@ pub struct ListRecord {
     pub left_out: u32,
 }
 
-/// Why a list read failed, without provider words (domain/accounts.md, 3.7).
+/// Why a list read failed, without provider words (domain/accounts-lists.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ReadFailure {
     Refused { status: u16 },
@@ -68,10 +68,10 @@ pub enum ReadFailure {
 }
 
 /// A record of the accounts' family: its counter, reservations, accounts, sources and facts.
-/// An account's uses name exactly its payers, or leave the default (accounts.md, 4.2).
+/// An account's uses name exactly its payers, or leave the default (domain/accounts-uses.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
-    /// What the provider says, kept apart from the account (accounts.md, 3.7).
+    /// What the provider says, kept apart from the account (domain/accounts-lists.md, 1).
     Facts { account: u32, facts: Box<[crate::AccountFact]> },
     /// The number the counter gives next; no number below it is given again.
     Next { number: u32 },
@@ -93,7 +93,7 @@ pub enum Stored {
     Source { account: u32, number: u32, place: u32, kind: Kind, name: Box<[u8]>, held: Option<Held> },
 }
 
-/// A record's key in the store (jig/docs/design/protocol/store/README.md, 4.4).
+/// A record's key in the store (jig/docs/design/protocol/store/keys.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Next,

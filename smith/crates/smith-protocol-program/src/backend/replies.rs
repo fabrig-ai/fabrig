@@ -1,4 +1,4 @@
-//! Replies to held MCP calls and the run's timeout (smith/docs/design/protocol/programs.md 5.3, 5.7).
+//! Replies to held MCP calls and the run's timeout (smith/docs/design/protocol/programs-claude-code.md 1.3, 1.7).
 //! Keeps no state; every user text in a reply pass belongs to its last held reply.
 
 use super::{Backend, calls};
@@ -48,7 +48,7 @@ pub(super) fn resume(
     let mut nudge: Option<Box<[u8]>> = None;
     let mut synthetic = None;
     // A Complete contains history. Only the tail after the last assistant
-    // belongs to this continuation (protocol/programs.md, section 5.9).
+    // belongs to this continuation (protocol/programs-claude-code.md, section 1.9).
     let from = super::tail::after_assistant(&messages)?;
     let mut text = false;
     let mut result = false;
@@ -67,7 +67,7 @@ pub(super) fn resume(
         }
         // Messages and nudges share the exact tail encoder. Its independent
         // input ceiling admits host offers larger than a tool reply, without
-        // retaining an extra unescaped copy (smith/docs/design/protocol/programs.md 5.9).
+        // retaining an extra unescaped copy (smith/docs/design/protocol/programs-claude-code.md 1.9).
         prompt.messages = messages;
         let rendered = super::tail::render_observed(
             prompt,

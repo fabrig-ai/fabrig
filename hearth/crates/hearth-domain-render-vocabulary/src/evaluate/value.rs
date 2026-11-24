@@ -1,4 +1,4 @@
-//! Validated values (hearth/docs/design/protocol/format/README.md, 5.2).
+//! Validated values (hearth/docs/design/protocol/format/schema.md, 1.2).
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {

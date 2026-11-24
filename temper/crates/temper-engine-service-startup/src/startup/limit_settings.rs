@@ -156,7 +156,7 @@ impl Preflight {
         let (mut store_jig, store_own) = inputs.store_base()?;
         let stock_root = super::engine_limits(&mut store_jig, &store_own, None)?;
         let store = super::checked_store(&stock_root, &store_jig.store, None)?;
-        Ok(Self { stock_jig, stock_own, store })
+        Ok(Self { stock_jig, stock_own, store: *store.limits() })
     }
 
     /// Use the same preflight as startup; composed relations retain the full start.

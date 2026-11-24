@@ -23,7 +23,7 @@ fn quoted(bytes: &[u8]) -> Result<String, Refusal> {
     Ok(serde_json::to_string(text).expect("text JSON"))
 }
 
-/// Smith's fresh Open brief is the opening request (smith/docs/design/domain/run.md, 3.4).
+/// Smith's fresh Open brief is the opening request (smith/docs/design/domain/run-start.md, 1.4).
 /// The transcript records messages, not the system text or the run mode.
 pub(crate) fn asked(take: &Take, turns: &[smith_transcript::Turn]) -> bool {
     // frames::read admits at least one turn.

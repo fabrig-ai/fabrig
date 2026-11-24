@@ -321,16 +321,42 @@ impl Store {
         self.last = u64::MAX;
     }
 
+    #[cfg(test)]
+    pub(crate) fn memory_log_bytes(&mut self, log: u64) -> Option<&mut [u8]> {
+        self.logs.memory_bytes(log)
+    }
+
     /// An in-memory store for protocol tests; commits are applied at once.
     #[must_use]
     pub fn memory(limits: &Limits) -> Store {
         let mut store = Store::new(limits);
         store.state = State::Memory;
+        store.keep_reads(true);
         store
     }
 
+    /// Enable or disable keeping checked payload records in memory (data/kv.md, 6.5).
+    /// Disabling forgets all records; this has no effect on a directory store.
+    pub fn keep_reads(&mut self, keep: bool) {
+        match self.state {
+            State::Memory => self.logs.keep_reads(keep),
+            State::Closed | State::Open { .. } => {}
+        }
+    }
+
+    /// Forget checked payload records without changing whether reads are kept.
+    pub fn forget_reads(&mut self) {
+        self.logs.forget_reads();
+    }
+
+    /// The number of checked payload records kept by this store.
+    #[must_use]
+    pub fn kept_reads(&self) -> u64 {
+        self.logs.kept_reads()
+    }
+
     /// Copy an in-memory store's durable map, census and payload logs, with no
-    /// pending operations or read cache. Later writes belong to the copy alone.
+    /// pending operations or kept records. Later writes belong to the copy alone.
     /// Directory-backed stores cannot be copied through this test fixture face.
     #[must_use]
     pub fn fork_memory(&self, limits: &Limits) -> Option<Store> {
@@ -346,7 +372,7 @@ impl Store {
         copy.last = self.last;
         copy.map = self.map.clone();
         copy.rule.clone_from(&self.rule);
-        copy.logs = self.logs.clone();
+        copy.logs = self.logs.fork_memory();
         Some(copy)
     }
 
@@ -757,6 +783,7 @@ pub fn down(
             }
             State::Memory => {
                 store.hold = Hold::None;
+                store.logs.keep_reads(false);
                 step.above.push(Event::Closed { owner });
                 State::Closed
             }

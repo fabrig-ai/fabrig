@@ -1,0 +1,10 @@
+# Smith's benchmark split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at 6301b3777f8656622d2867c17a0174b5742d0c40.
+# smith/docs/design/benchmarks/README.md: 62,360 bytes. Adapters and model tiers, the result schema and statistics, and isolation get their own pages. The overview, purpose, measurements, run tiers, layout and formats, relationships, additions, world and open questions stay.
+title smith/docs/design/benchmarks/agents.md: Benchmarks: agent adapters and model tiers
+title smith/docs/design/benchmarks/results.md: Benchmarks: results and statistics
+title smith/docs/design/benchmarks/isolation.md: Benchmarks: isolation
+smith/docs/design/benchmarks/README.md 6 -> smith/docs/design/benchmarks/agents.md 1
+smith/docs/design/benchmarks/README.md 7 -> smith/docs/design/benchmarks/agents.md 2
+smith/docs/design/benchmarks/README.md 8 -> smith/docs/design/benchmarks/results.md 1
+smith/docs/design/benchmarks/README.md 9 -> smith/docs/design/benchmarks/results.md 2
+smith/docs/design/benchmarks/README.md 10 -> smith/docs/design/benchmarks/isolation.md 1

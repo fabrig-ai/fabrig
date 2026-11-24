@@ -1,4 +1,4 @@
-//! Flat template instructions (hearth/docs/design/protocol/format/templates.md, 2; hearth/docs/design/domain/render/README.md, 5.3).
+//! Flat template instructions (hearth/docs/design/protocol/format/templates.md, 2; hearth/docs/design/domain/render/crates.md, 1.3).
 use crate::Expression;
 use alloc::boxed::Box;
 /// A compiled template, with the first byte of each line.

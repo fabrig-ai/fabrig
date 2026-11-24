@@ -1,5 +1,5 @@
 //! Main and child yield outcomes; only main changes the run lifecycle.
-//! Contract: smith/docs/design/domain/run.md, sections 5.3 and 6, and smith/docs/design/domain/budget.md, section 1.
+//! Contract: smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/budget.md, section 1.
 
 use core::mem;
 

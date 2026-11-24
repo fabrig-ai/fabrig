@@ -3,7 +3,7 @@
 //! No contract is known while idle or attaching. `attach`, `attached` and `take`
 //! move the Start; `follow` enters it after every mount, and `contract` serves effects.
 //! Contract: smith/docs/design/protocol/agent.md, sections 4–6;
-//! smith/docs/design/domain/run.md, sections 3.1 and 8.4.
+//! smith/docs/design/domain/run-start.md, section 1.1, and smith/docs/design/domain/run-delivery.md, section 1.4.
 
 use super::{Frame, Stages};
 use alloc::boxed::Box;

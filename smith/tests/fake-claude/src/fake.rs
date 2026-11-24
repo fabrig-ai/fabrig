@@ -1,4 +1,4 @@
-//! One invocation's I/O and settlement (smith/docs/design/protocol/programs.md, sections 5 and 8;
+//! One invocation's I/O and settlement (smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8;
 //! smith/docs/design/testing.md, section 4). Startup loads a story and appends names before
 //! entering a command; terminal exits wait for every descriptor to close.
 

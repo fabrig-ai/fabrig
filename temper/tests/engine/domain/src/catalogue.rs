@@ -1,4 +1,4 @@
-//! Catalogue routing before the commit (jig/docs/design/domain/engine/settings.md, 11).
+//! Catalogue routing before the commit (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 use crate::{PartyRequest, Request, StoreRequest};
 use jig_domain_core::{
     self as core,

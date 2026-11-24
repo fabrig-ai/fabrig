@@ -165,7 +165,7 @@ pub fn models() -> Box<[jig_domain_core::Model]> {
 }
 
 /// The deployment's one charter for its agent work.
-/// Its default spend holds its reserve floor (jig's `domain/authority.md`, 7).
+/// Its default spend holds its reserve floor (jig's `domain/authority-budgets.md`, 1).
 #[must_use]
 pub fn charter() -> jig_domain_core::Charter {
     jig_domain_core::Charter {

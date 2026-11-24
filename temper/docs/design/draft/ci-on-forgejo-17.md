@@ -75,7 +75,7 @@ steps between.
   that need it, and answers `204`. Forgejo refuses a job that has not
   completed (`400`).
 - **Its effect:** a transition, conditional (jig's
-  `domain/connectors.md`, 4.3): the job's next attempt, made by the
+  `domain/connectors-effects.md`, 1.3): the job's next attempt, made by the
   forge. Found again after an uncertain failure by reading the job: an
   `attempt` past the one named says it was made; the same attempt,
   completed, says it was not, and the write may be sent again, within

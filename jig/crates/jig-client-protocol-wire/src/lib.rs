@@ -1,4 +1,4 @@
-//! The client contract's records for both ends (protocol/client/wire.md, section 1, and protocol/client/README.md, section 6).
+//! The client contract's records for both ends (protocol/client/wire.md, section 1, and protocol/client/versions.md, section 1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

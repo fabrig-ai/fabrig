@@ -11,7 +11,7 @@ the reference's M1 to M10.
 
 - **Five phases,** P1 to P5 (section 3), set with the user on
   2026-11-02 so that no two designers write one section at once: the
-  reference's M1 and M3 write jig's `domain/engine/settings.md`, 5 to 7
+  reference's M1 and M3 write jig's `domain/engine/settings-application.md`, 1, and `domain/engine/settings-proposals.md`, 1, and `domain/engine/settings-store.md`, 1
   , temper's `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3 and `../protocol/configuration/stock.md`
   and the section M1 adds after 13.8, and `../domain/agent/tools-change.md`, 1,
   and P2 and P3 follow M3 beside them.
@@ -75,7 +75,7 @@ nothing.
   for, in their own words (`configuring.status.md`'s first entry; those
   `../domain/agent/agents.md`, 1 cites are P3's); a change of settings
   touching a project's own policy, decided by one person holding both
-  roles (jig's `domain/engine/settings.md`, 2 and 6, jig's
+  roles (jig's `domain/engine/settings.md`, 2, and `domain/engine/settings-proposals.md`, 1, jig's
   `domain/people/acts.md`, 2, temper's `../protocol/configuration/settings.md`,
   1, `../client/ctl/tools-acts.md`, 1); restore and temper's kinds (jig's
   `domain/engine/settings.md`, 10), the status's entry closed one way or

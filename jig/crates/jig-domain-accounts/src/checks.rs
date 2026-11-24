@@ -33,7 +33,7 @@ pub enum Refusal {
     NotLimited,
     Uses,
     /// A live source holds the program source's name a declaration gives, or another holder's
-    /// reservation does (accounts.md, 3.4).
+    /// reservation does (domain/accounts-sources.md, 1).
     NameTaken,
     /// The program source name remains reserved after its account is forgotten.
     ProgramNameReserved,
@@ -201,7 +201,7 @@ pub const fn room_for_sign_in(limits: &Limits, under_way: u32) -> Result<(), Ref
     Ok(())
 }
 
-/// Why a finish was refused (client/domain/contract/README.md, section 3).
+/// Why a finish was refused (client/domain/contract/answers.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SignInRedirectWhy {
     /// No sign-in of this party's waits for its redirect under that number.

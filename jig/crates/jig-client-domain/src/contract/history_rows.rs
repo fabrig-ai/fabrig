@@ -1,4 +1,4 @@
-//! Whole history rows in source page order (client/domain/contract/README.md, 4).
+//! Whole history rows in source page order (client/domain/contract/reads.md, 1).
 use super::{AttemptLine, HistoryLine, HoldLine};
 use alloc::boxed::Box;
 

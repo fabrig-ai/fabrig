@@ -17,7 +17,7 @@ section 8).
   - what it used and cost.
 
   A window turn is a compaction's: its messages are the new window's
-  opening (domain/session.md, section 8.2).
+  opening (../domain/session-context.md, section 1.2).
 - **A transcript is the current window's turns, in order:** from the
   conversation's first turn, or from its last window turn. A host keeps
   each turn's bytes as it was told and sends back, in order, those from
@@ -27,18 +27,18 @@ section 8).
 - **The affinity, the account and the backend are kept once,** in the
   transcript's opening turn, so a resumed conversation keeps its
   affinity, and a resume knows whether its window ran as its charter
-  now asks (domain/session.md, sections 2 and 8.2).
+  now asks (../domain/session.md, section 2, and ../domain/session-context.md, section 1.2).
 - **A window is carried over, not refused,** when it ran on another
   endpoint, dialect, account or backend: it is compacted on the
   charter's LLM, and a new window opens there (section 4). Whether a
   host offers one from another endpoint or backend at all is the
-  host's decision (domain/run.md, section 6).
+  host's decision (../domain/run-messages.md, section 1).
 - **Usage counts are optional.** A count the provider did not report is
   absent, not zero.
 - **Opaque provider blocks travel verbatim,** tagged with the dialect that
   wrote them, and go back only to the same endpoint and dialect. A
   window carried over sends none of them, and a program backend's turns
-  hold none (programs.md, 5.5).
+  hold none (programs-claude-code.md, 1.5).
 - **Results are kept as the domain holds them.** Text that the domain wrote
   is kept as text. A workspace tool's outcome is kept typed, and rendered
   for the LLM again when the conversation resumes.
@@ -53,7 +53,7 @@ section 8).
 A versioned record. Every turn starts with its version.
 
 - **kind:** ordinary, or window, a compaction that opened a new window
-  (domain/session.md, section 8.2);
+  (../domain/session-context.md, section 1.2);
 - **endpoint:** the name of the endpoint it ran on, as the agent's
   configuration names it, and the dialect of its provider, by its number
   (protocol/agent.md, section 4); for a window turn, those of the window
@@ -63,10 +63,10 @@ A versioned record. Every turn starts with its version.
   the model and effort of the window it opens, the charter's, whatever
   model and effort its compaction ran with. So the last turn always
   names the window's model, which a resume compares with its charter's
-  (domain/session.md, 8.2). The compaction's own model, usage and cost
+  (../domain/session-context.md, 1.2). The compaction's own model, usage and cost
   are its conversation's records in the event stream (events.md, 3.4
   and 3.5), and the window turn's usage and spend stay the compaction's
-  (domain/session.md, 8.2);
+  (../domain/session-context.md, 1.2);
 - **its place in the conversation:** from one, going on across the
   activations that resume it and across windows. The channel numbers turns
   per activation (channel.md, section 4);
@@ -184,24 +184,24 @@ section 3):
 - no unresolved ticket;
 - room for the waking prompt and a completion within its byte limits. A
   history that has that room but fails the window check is compacted
-  before its first ordinary completion (domain/session.md, section 8.1).
+  before its first ordinary completion (../domain/session-context.md, section 1.1).
 
 **A window carried over.** A transcript whose window ran on another
 endpoint or dialect than its charter's main LLM, one the agent's
 configuration does not name, another account or another backend, or
-on a program whose session its host does not hold (programs.md, 5.8),
+on a program whose session its host does not hold (programs-claude-code.md, 1.8),
 is not refused. The session compacts it on the charter's LLM before its
 first ordinary completion, sending its history without opaque blocks or
 provider's replay, which go back only to the dialect that wrote them,
 and opens the new window there; its window turn records the new
-endpoint, dialect, account and backend (domain/session.md, 8.2). A
+endpoint, dialect, account and backend (../domain/session-context.md, 1.2). A
 message that history leaves with no block keeps a fixed text block in
-its place (domain/session.md, 8.2). A host may instead start the run
+its place (../domain/session-context.md, 1.2). A host may instead start the run
 fresh rather than offer a window from another endpoint or backend, and
-jig's engine does (domain/run.md, section 6).
+jig's engine does (../domain/run-messages.md, section 1).
 
 Each refusal is distinct, and the run fails as transient, saying which
-(domain/run.md, section 6):
+(../domain/run-messages.md, section 1):
 
 - another version;
 - malformed;
@@ -238,7 +238,7 @@ jobs of every earlier window and activation.
 - **A resuming reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
   version*, and nothing is translated: its host starts the run afresh
-  from its brief (domain/run.md, section 6). A transcript of an older
+  from its brief (../domain/run-messages.md, section 1). A transcript of an older
   version is refused the same way, and is never carried over to another
   endpoint.
 - **An archival client also reads version 6** by preserving its fields and
@@ -281,7 +281,7 @@ jobs of every earlier window and activation.
   conversation.
 - **Generated bounds** describe one value: `encoded_bound` bounds its
   wire encoding, and `decoded_bound` its decoded ownership. Neither is
-  a process heap sum (limits.md, section 3).
+  a process heap sum (limits-derivation.md, section 1).
 - **A host that keeps turns** bounds what it keeps unacknowledged with the
   channel's window (channel.md, section 7).
 
@@ -328,7 +328,7 @@ jobs of every earlier window and activation.
 
 - **A window too large to carry over:** one larger than the charter's
   model's window fails as a compaction's *context too long* does
-  (domain/session.md, 8.2). Cutting it first, oldest turns first, waits
+  (../domain/session-context.md, 1.2). Cutting it first, oldest turns first, waits
   on a host that needs it.
 - **A search's hits under a patch:** pieces are copied by a patch, not
   opened (skein's `data/codec/patches.md`, 3), so a patch that changes `Hit` is
@@ -406,13 +406,13 @@ other.
   `written` that answers every site `NoSite`. The baseline's run of the
   command (`--baseline`) keeps the current text as the first and
   generates `patches/mod.rs` in its place, under the same name. jig's store takes the constants into its `Smith` slot (jig's
-  `protocol/store/opening.md`, 3), handed by the host's shell.
+  `protocol/store/opening-owners.md`, 1), handed by the host's shell.
 - **The mark:** a smith patch whose change an agent would misread on a
   resume, such as a provider's replay it cannot carry or a call whose
   meaning moved, carries `mark fresh-windows` in its header (skein's
   `data/codec/patches.md`, 1). A host closes each live window across it, and the
   next run starts afresh from its brief with the transcript's tail (jig's
-  `domain/engine/executors.md`, 2), never resumed from patched turns. A patch
+  `domain/engine/executors-transcripts.md`, 1), never resumed from patched turns. A patch
   without it is resumed across. The word is `FRESH_WINDOWS` and its
   meaning smith's; a host reads it from the constant, as data. A patch
   may carry the mark and change no declaration.

@@ -80,7 +80,7 @@ pub(crate) fn valid(choice: Option<&LlmChoice>) -> bool {
         }
 }
 
-/// Why an explicit account cannot fund the prospective task (domain/accounts.md, 4.3).
+/// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AccountWhy {
     Unknown,
@@ -99,7 +99,7 @@ pub enum AccountMoveWhy {
     Moving,
 }
 
-/// Why a finish was refused (client/domain/contract/README.md, section 3).
+/// Why a finish was refused (client/domain/contract/answers.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SignInRedirectWhy {
     /// No sign-in of this party's waits for its redirect under that number.

@@ -205,7 +205,7 @@ world of temper's on a scripted engine (../client/testing.md).
   link the component makes; its stories read the host's frames as text.
 - **A run's live text** has its story there, with a scripted host in
   place of an agent: the host sends a run's text in pieces, held after
-  the first (jig's `protocol/channel/README.md`, 5.4), and the fake person
+  the first (jig's `protocol/channel/owners.md`, 1.4), and the fake person
   reads the chat's words being written, that piece before its "▍", then the
   rest of the held text, and then the committed turn, which replaces it.
   The joint world's front plays the run's worker: at the chat run's
@@ -316,7 +316,7 @@ landing's or a change's wait and a task's resolve across inspections.
     forge read admissions; branch holds and landing rows with their asks.
     Build places are the worker's.
   - **The tasks the root holds** are jig's adapter's
-    (`jig/docs/design/domain/testing.md`, 7), over `Domain::tasks()`:
+    (`jig/docs/design/domain/testing-fakes.md`, 1), over `Domain::tasks()`:
     an engine world runs both, and checks the two inspections together,
     once jig's is built (`engine-checks.md`, 7).
   - **Called** through the engine's world kit (`engine-checks.md`, 3):
@@ -348,7 +348,7 @@ landing's or a change's wait and a task's resolve across inspections.
     domain world's quiet point, and in the git protocol world after each
     operation (`worker.md`, 4).
 - **smith's and jig's** are their trees' (`smith/docs/design/testing.md`,
-  6; `jig/docs/design/domain/testing.md`, 7); the system world calls
+  6; `jig/docs/design/domain/testing-fakes.md`, 1); the system world calls
   each beside the engine's and the worker's.
 
 ### 6.2 Faults, streams and sweeps
@@ -402,11 +402,11 @@ the providers' faults (`smith/docs/design/faults.md`).
   goal; the world records each fault in its ledger, and holds:
   - **3.3 for runs:** no task try is spent for the fault:
     `Counter::TaskTries`, counted from jig's failed attempts
-    (`jig/docs/design/domain/tasks/lifecycle.md`, 6) of the struck
+    (`jig/docs/design/domain/tasks/lifecycle-holds.md`, 1) of the struck
     account's tasks within the fault's interval, stays at zero; spent
     credits or an expired sign-in that is never cleared holds the struck
     goal's tasks with words naming the account
-    (`jig/docs/design/domain/accounts.md`, 3.5); and smith's
+    (`jig/docs/design/domain/accounts-sources.md`, 2); and smith's
     half, by `smith_faults::Runs::judge` over the runs' attempts and ends
     (`smith/docs/design/faults.md`, 4).
   - **3.4:** the other account's goal lands as if the fault weren't

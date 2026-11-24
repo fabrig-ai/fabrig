@@ -26,7 +26,7 @@ pub enum Node {
     Directory { mode: u16, owner: Box<[u8]>, group: Box<[u8]> },
     File { content_digest: Digest, mode: u16, owner: Box<[u8]>, group: Box<[u8]> },
 }
-/// Paths changed in byte order (hearth/docs/design/domain/render/README.md, 4.1).
+/// Paths changed in byte order (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
     pub presets: Box<[PresetKeyed]>,
@@ -43,20 +43,20 @@ pub enum EntryChange {
     Removed { path: Box<[u8]>, node: Node },
     Changed { path: Box<[u8]>, before: Node, after: Node, sizes: Option<Sizes>, hunks: Option<crate::diff::Hunks> },
 }
-/// File sizes before and after (hearth/docs/design/domain/render/README.md, 4.1).
+/// File sizes before and after (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Sizes {
     pub before: u64,
     pub after: u64,
 }
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+/// Changes in key order (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum GroupKeyed {
     Added { key: Box<[u8]>, value: GroupKind },
     Removed { key: Box<[u8]>, value: GroupKind },
     Changed { key: Box<[u8]>, before: GroupKind, after: GroupKind },
 }
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+/// Changes in key order (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum UserKeyed {
     Added { key: Box<[u8]>, value: UserKind },
@@ -68,21 +68,21 @@ pub enum MemberChange {
     Added(Member),
     Removed(Member),
 }
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+/// Changes in key order (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PresetKeyed {
     Added { key: Box<[u8]>, value: Action },
     Removed { key: Box<[u8]>, value: Action },
     Changed { key: Box<[u8]>, before: Action, after: Action },
 }
-/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+/// Changes in key order (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LineKeyed {
     Added { key: Box<[u8]>, value: Line },
     Removed { key: Box<[u8]>, value: Line },
     Changed { key: Box<[u8]>, before: Line, after: Line },
 }
-/// Scripts before and after (hearth/docs/design/domain/render/README.md, 4.1).
+/// Scripts before and after (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ScriptsChange {
     pub before: Box<[Script]>,

@@ -1,5 +1,5 @@
 //! Ops's observability connector (examples.md, sections 3.1 and 5;
-//! domain/connectors.md, sections 5 to 7 and 9).
+//! domain/connectors-facts.md, section 1, and domain/connectors-procedures.md, section 1, and domain/connectors.md, sections 7 and 9).
 //!
 //! The connector keeps current service facts, subscriptions, watch procedures,
 //! staged silences and their durable outbox. It never knows the infrastructure

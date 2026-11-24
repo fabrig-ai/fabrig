@@ -1,4 +1,4 @@
-//! Bundle routing (jig/docs/design/protocol/service.md, 7 and 11.4; skein/docs/design/ui/web/bundle.md, 4).
+//! Bundle routing (jig/docs/design/protocol/service.md, 7, and jig/docs/design/protocol/service-parts.md, 1.4; skein/docs/design/ui/web/bundle.md, 4).
 use super::{Limits, Routed, Server};
 use alloc::boxed::Box;
 pub use bundle::{File, compressed_of, kind};

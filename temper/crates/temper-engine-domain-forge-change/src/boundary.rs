@@ -454,7 +454,7 @@ pub struct Facts {
     pub first: bool,
     pub may_merge: bool,
     pub queue_repair_active: bool,
-    /// The task has a pending dependency (jig's `domain/tasks/lifecycle.md`, 8), so it is not ready.
+    /// The task has a pending dependency (jig's `domain/tasks/lifecycle-endings.md`, 1), so it is not ready.
     pub kept: bool,
     /// An open question of the change's current agent stands (domain/forge/change/repairs.md and domain/forge/change/questions.md, 1).
     pub asking: bool,

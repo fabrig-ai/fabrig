@@ -1,7 +1,7 @@
-//! One user message for a program's tail (protocol/programs.md 5.7–5.8).
+//! One user message for a program's tail (protocol/programs-claude-code.md, 1.7–1.8).
 //! Borrows messages after the last assistant, measuring escaped bytes before
 //! allocating the exact JSON line, including an optional agent pause reason
-//! (protocol/programs.md 5.9). No unescaped tail or quoted copy is kept.
+//! (protocol/programs-claude-code.md 1.9). No unescaped tail or quoted copy is kept.
 //! An opted-in capture is the queued Prompt's separately priced owned payload;
 //! it moves into the measure without another text copy.
 //! A restored activation also sends its current system text (5.8), through
@@ -222,7 +222,7 @@ impl Output {
     // are temporary, so escape each borrowed piece directly (RFC 8259, §7).
     #[expect(
         clippy::disallowed_methods,
-        reason = "protocol/programs.md 5.7: the JSON string encoder checks UTF-8 before output"
+        reason = "protocol/programs-claude-code.md 1.7: the JSON string encoder checks UTF-8 before output"
     )]
     fn text(&mut self, bytes: &[u8]) -> Option<()> {
         core::str::from_utf8(bytes).ok()?;

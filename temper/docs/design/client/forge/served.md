@@ -4,7 +4,7 @@ Each part is the forge's family's (`family.md`): read
 or watched by the forge's client side through the family's own reads
 and subjects, under the forge's owner number, each naming its scope, a
 project, the deployment or the party's own (jig's
-`client/domain/contract/README.md`, 5.5; jig's
+`client/domain/contract/watches.md`, 1.5; jig's
 `client/domain/root.md`, section 7), their records in
 `temper-client-protocol-wire` beside `Adopt` (`records.md`).
 The first read served is the playground's (`records.md` and `family.md`, 7
@@ -19,7 +19,7 @@ and its hold (`README.md`, 2.5) follow.
 |---|---|---|
 | a change's way to landing, its gates, requirements and heads | a panel, on its task's page | `../../domain/forge/change/README.md` |
 | a change's result | a result, on its task's page, in a chat, in an update | `../../domain/forge/change/README.md`, 2 and 4 |
-| its holds | a hold, on the held card | `../../domain/forge/change/repairs.md` and `../../domain/forge/change/drift.md`, 1; jig's `domain/connectors.md`, 4.3 and section 11 |
+| its holds | a hold, on the held card | `../../domain/forge/change/repairs.md` and `../../domain/forge/change/drift.md`, 1; jig's `domain/connectors-effects.md`, 1.3, and `domain/connectors.md`, 11 |
 | what a proposed write would do; the outbox | an effect, on a proposal card; an outbox entry | `../../domain/forge/effects.md`, section 1 |
 | a project's queues, its branches' red and its last landings | temper's `Changes` page, from the subject `changes` (`records.md`) | `../../domain/forge/queues.md`; `../../domain/after-landing-storage.md`, section 1 |
 | approvals | a person task's card; a panel; a change waiting on a review, a card under Needs you from the subject `approvals`, of the party's own scope (`README.md`, 4.1; `records.md`) | `../../domain/forge/change/gates.md`, 1 and 2, and `../../domain/forge/change/questions.md`, 2; jig's `domain/people/README.md`, section 7 |
@@ -35,7 +35,7 @@ and its hold (`README.md`, 2.5) follow.
 | a forge removed | the deployment's request `RemoveForge` (`records.md`), from the Forges page | `../../domain/forge/adoption-connection.md`, 1 |
 | a person's facts: what they dismissed, the goals they started from a chat | the project's request `Dismiss` and the subject `dismissed`, of the party's own scope (`records.md`): the forge side's facts, which no page reads (`../README.md`, section 5) | `../../domain/forge/attention.md`, 1 |
 | a project's stock ways and their paths, and a view of a path, a way, a proposal or a charter | the project's subject `ways`, on Ask temper's page, and the project's read `View`, for a `view` block in a chat (`records.md` and `../pages/settings.md`, 2 and `../pages/chat/conversation.md`, 3), each made by the root from the core and the forge | `../../domain/forge/change/branch-path.md`; `../../protocol/configuration/settings.md`, 8 |
-| temper's settings: a landing rule's value, the forge's charter, a charter's words, a project's questions, ways and words, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../../protocol/configuration/settings-kinds.md`, 1, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine/settings.md`, 6), beside jig's `settings` document, which gives their states and sizes | `../../protocol/configuration/settings-kinds.md`, 1; jig's `domain/engine/settings.md`, 5 |
+| temper's settings: a landing rule's value, the forge's charter, a charter's words, a project's questions, ways and words, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../../protocol/configuration/settings-kinds.md`, 1, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine/settings-proposals.md`, 1), beside jig's `settings` document, which gives their states and sizes | `../../protocol/configuration/settings-kinds.md`, 1; jig's `domain/engine/settings-application.md`, 1 |
 
 The revision-qualified setting read serves an explicit set item from a
 retained revision. It uses jig's authenticated revision read to confirm
@@ -236,7 +236,7 @@ made by the forge connector from what it keeps of the change
 
 - **Its subject** names the change task by its number, in the scope of
   the task's project. jig admits the watch on the party's role in that
-  project (jig's `client/domain/contract/README.md`, 5.2). The connector
+  project (jig's `client/domain/contract/watches.md`, 1.2). The connector
   answers unknown for a task that is not a change into a repository the
   project holds, and the page's slot says the panel is unknown (jig's
   `client/domain/root.md`, section 6). The watch's window is unused:

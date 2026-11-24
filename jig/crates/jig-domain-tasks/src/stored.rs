@@ -185,7 +185,7 @@ fn links(domain: &Domain, task: &TaskRecord) -> Result<(), crate::RestoreCause> 
         retained_link(domain, *target)?;
     }
     // Completed dependencies and retained inputs are store-read identities;
-    // only waiting_on consumes a live dependency here (domain/tasks/lifecycle.md, 8).
+    // only waiting_on consumes a live dependency here (domain/tasks/lifecycle-endings.md, 1).
 
     if let Some(proposal) = &task.proposal {
         match proposal.state {

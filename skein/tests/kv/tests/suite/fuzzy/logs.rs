@@ -9,7 +9,7 @@ struct Model {
     logs: BTreeMap<u64, Vec<Vec<u8>>>,
     rows: BTreeMap<u8, Vec<u8>>,
 }
-fn draw(seed: &mut u64) -> u64 {
+pub(super) fn draw(seed: &mut u64) -> u64 {
     *seed ^= *seed << 13;
     *seed ^= *seed >> 7;
     *seed ^= *seed << 17;

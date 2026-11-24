@@ -1,4 +1,4 @@
-//! Raw retained main-map pages (jig/docs/design/protocol/store/loads.md, 1 and jig/docs/design/protocol/store/secrets.md and jig/docs/design/protocol/store/README.md, 9).
+//! Raw retained main-map pages (jig/docs/design/protocol/store/loads.md, 1 and jig/docs/design/protocol/store/secrets.md and jig/docs/design/protocol/store/testing.md, 1).
 use crate::{Cursor, Store, pages, restore};
 use alloc::boxed::Box;
 use restore::{Arithmetic, Cause, Failure};

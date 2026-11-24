@@ -245,8 +245,8 @@ in the lower world that owns it, never here.
 - **An account first,** with area 5's tools (../client/ctl/areas.md):
   a story whose agents run adds a key the fake LLM peer accepts, from
   the client, before its first task, and waits for its account to be
-  usable: a key needs no sign-in to drive (jig's `domain/accounts.md`,
-  3.4; ../client/ctl/testing.md, 3). The real loop and process tier (`process-tier.md`)
+  usable: a key needs no sign-in to drive (jig's `domain/accounts-sources.md`,
+  1; ../client/ctl/testing.md, 3). The real loop and process tier (`process-tier.md`)
   use runtime key adoption. Lower domain worlds first keep temper's real
   first-start rows at receipt one, then preseed restored fixture keys at receipt two; configuration
   names providers only, and no world hands a record in; ChatGPT's
@@ -278,11 +278,11 @@ in the lower world that owns it, never here.
     world (jig's `protocol/llm.md`, section 8);
   - **a turn limited (exhausted with a reset and without), refused or
     unauthorized,** and the account's state following (jig's
-    `domain/accounts.md`, 3.5): jig's protocol world, "failures of each
+    `domain/accounts-sources.md`, 2): jig's protocol world, "failures of each
     class" and "a source limited and resumed" (jig's `protocol/llm.md`,
     section 8), and jig's accounts world (jig's `domain/testing.md`,
     section 3); the next task waiting for its account until the reset
-    passes (jig's `domain/authority.md`, 8.3): jig's core world (jig's
+    passes (jig's `domain/authority-checks.md`, 1.3): jig's core world (jig's
     `domain/testing.md`, section 4); in temper, the limited notice, the
     next task waiting with `task show TASK` saying why, then `account
     retry` and the run started: `tests/client` (../client/ctl/testing.md,
@@ -291,10 +291,10 @@ in the lower world that owns it, never here.
     are fenced" (jig's `domain/engine/fleet.md`; jig's
     `domain/testing.md`, section 3);
   - **a program source's usage limit and its lost login** (smith's
-    `protocol/programs.md`, 5.6): smith's world over its fake `claude`
+    `protocol/programs-claude-code.md`, 1.6): smith's world over its fake `claude`
     (smith's `protocol/programs.md`, section 8), relayed as limited and
-    as unauthorized in jig's channel world (jig's `protocol/channel/README.md`,
-    section 11); `account verify` answered as each host reports:
+    as unauthorized in jig's channel world (jig's `protocol/channel/testing.md`,
+    section 1); `account verify` answered as each host reports:
     `tests/client` (../client/ctl/testing.md, 2).
 - **Checks between iterations** are the strategy's for the real loop
   (skein/docs/foundation/testing-strategy.md, 2.8 and section 6), with the lower worlds'

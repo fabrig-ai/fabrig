@@ -321,7 +321,12 @@ impl Harness {
         limits.secrets.chunk = CHUNK;
         limits.secrets.value =
             CHUNK.checked_sub(limits.secrets.key).expect("key fits").checked_sub(20).expect("header fits");
-        let mut store = Store::on_directory(&limits, fixtures::APPLICATION, &[], self.seeded);
+        let mut store = Store::on_directory(
+            &crate::check(&limits).expect("fixture store limits"),
+            fixtures::APPLICATION,
+            &[],
+            self.seeded,
+        );
         store.owner_sets(upgrade_sets(0));
         if patch {
             store.owner_sets(upgrade_sets(1));

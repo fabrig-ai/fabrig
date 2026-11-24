@@ -1,4 +1,4 @@
-//! Owner-set admission and binary levels (protocol/store/opening.md, 3).
+//! Owner-set admission and binary levels (protocol/store/opening-owners.md, 1).
 use super::{
     schemas,
     sets::{Owner, OwnerSet, OwnerSets},
@@ -39,7 +39,7 @@ pub(crate) fn set(sets: &OwnerSets, owner: Owner) -> Option<&OwnerSet> {
     }
     None
 }
-/// One check per open (protocol/store/opening.md, 3).
+/// One check per open (protocol/store/opening-owners.md, 1).
 pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
     if let Some(verdict) = store.directory.checked {
         return verdict;
@@ -49,7 +49,7 @@ pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
     verdict
 }
 
-/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening.md, 3): the
+/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening-owners.md, 1): the
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused before a first start writes.
 pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner> {
@@ -76,12 +76,17 @@ pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner>
     let current = current.as_slice();
     super::types::check(sets, prepared, current)?;
     crate::jobs::admission::check(sets)?;
-    frames(sets, prepared, current)?;
+    check_frames(sets, prepared, current)?;
     holds(sets, prepared, current)?;
     Ok(())
 }
+#[cfg(test)]
+pub(crate) fn frames(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner> {
+    check_frames(sets, prepared, &[])
+}
+
 /// The two transcript roots are owners' data, checked even at equal levels.
-fn frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
+fn check_frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
     let mut smith = None;
     for set in sets.sets {
         let refusal = set.owner;
@@ -110,22 +115,19 @@ fn frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(
             // Metadata alone resolves a root's spelling back over renames.
             let empty = crate::transcripts::patches::Room { bytes: 0, nodes: 0 };
             let capacity = crate::transcripts::patches::frame_capacity(frames, empty).ok_or(refusal)?;
-            let machine = crate::transcripts::patches::kept_patcher(frames, capacity).ok_or(refusal)?;
-            let latest = frames.texts.last().expect("nonempty kept texts");
+            let machine = crate::transcripts::patches::kept_patcher(frames, capacity, prepared).ok_or(refusal)?;
+            let kept = machine.schemas().as_slice();
+            let last = kept.last().ok_or(refusal)?.version();
+            let text = family.current.as_bytes();
             let mut parsed = None;
-            let Some(latest) = schemas::frame(prepared, current, latest.as_bytes(), &mut parsed) else {
-                return Err(refusal);
+            let binary = match schemas::find(kept, text) {
+                Some(schema) => schema,
+                None => schemas::frame(prepared, current, text, &mut parsed).ok_or(refusal)?,
             };
-            let last = latest.version();
-            let binary = schemas::get(prepared, current, family.current.as_bytes()).ok_or(refusal)?;
             if last != binary.version() {
                 return Err(refusal);
             }
-            for text in frames.texts {
-                let mut parsed = None;
-                let Some(schema) = schemas::frame(prepared, current, text.as_bytes(), &mut parsed) else {
-                    return Err(refusal);
-                };
+            for schema in kept {
                 if schema.spelled(schema.family()) != family.name.as_bytes() {
                     return Err(refusal);
                 }
@@ -254,7 +256,7 @@ fn holds(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<()
 pub(crate) mod counting;
 
 /// Each range belongs to a declaration in the binary's text, and no two
-/// families claim the same key (protocol/store/opening.md, 3).
+/// families claim the same key (protocol/store/opening-owners.md, 1).
 fn keys(sets: &OwnerSets, prepared: &[Schema], current: &mut List<Schema>) -> Result<(), Owner> {
     for set in sets.sets {
         let refusal = set.owner;

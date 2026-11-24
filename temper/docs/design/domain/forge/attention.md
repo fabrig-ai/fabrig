@@ -188,10 +188,10 @@ and only with something new to say to them
   `Domain::status_owner(task)`, the party and project whose `running`
   names it.
 - **What funds it:** the party's pool in the project (jig's
-  `domain/authority.md`, section 7), within that pool's room, the
+  `domain/authority-budgets.md`, section 1), within that pool's room, the
   project's ceiling and the rules' run cap, which a run returns what it
   leaves of. Its payer is the person, so an account is chosen as for any
-  of their runs (jig's `domain/accounts.md`, 4.3): their own, a plan
+  of their runs (jig's `domain/accounts-uses.md`, 1.3): their own, a plan
   included, then those whose uses name them or the project, then the
   deployment's. The project's period funds no brief; a key whose uses
   name the project still pays each person's, as it pays for any work
@@ -755,7 +755,7 @@ the changes it was given.
 
 - **A person with no account** on a deployment whose key names them or
   the project (`../../draft/brief-per-person.md`, 6). Default: that key
-  pays, by jig's `domain/accounts.md`, 4.3's order.
+  pays, by jig's `domain/accounts-uses.md`, 1.3's order.
 
 - **What lands on a goal's branch and then on main** (`attention.md`, 2) counts twice,
   each a change landed. Default: so, said here and in the design of Home.

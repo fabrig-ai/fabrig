@@ -1,4 +1,4 @@
-//! The default HTTP mapping's engine end (protocol/client/default-http.md, 2 and 4; protocol/service.md, 11.6).
+//! The default HTTP mapping's engine end (protocol/client/default-http.md, 2 and 4; protocol/service-parts.md, 1.6).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -356,7 +356,7 @@ pub fn link_path(settings: &Settings, secret: &Secret) -> Box<[u8]> {
 #[cfg(test)]
 mod tests;
 
-/// The application's printed-link page adds this policy (protocol/browser/README.md, 12.2).
+/// The application's printed-link page adds this policy (protocol/browser/serving.md, 1.2).
 #[must_use]
 pub fn link_page() -> skein_http::Header {
     skein_http::Header { name: Box::from(b"referrer-policy".as_slice()), value: Box::from(b"no-referrer".as_slice()) }

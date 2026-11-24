@@ -1,6 +1,6 @@
 //! Temper's worlds over jig's real store and the service's store routing.
 use jig_protocol_store::core_v6::Record as _;
-use jig_protocol_store::{self as protocol, Below, CheckedLimits, Event, Io, Limits, Request, Stores};
+use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
 use jig_test_store_files::Files;
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
@@ -49,8 +49,7 @@ struct Delayed {
 #[derive(Clone)]
 struct Shape {
     limits: engine::Limits,
-    component_limits: Limits,
-    checked_limits: CheckedLimits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     route_bounds: temper_protocol_store::Bounds,
 }
@@ -76,7 +75,7 @@ impl Image {
 }
 
 /// Numbered root transactions and, in a live world, their durable typed mirror.
-/// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings.md, 11).
+/// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 pub struct Store {
     pub applied: u64,
     pub pending_generation: bool,
@@ -194,19 +193,25 @@ impl Store {
     }
     #[must_use]
     pub fn with_limits(limits: &engine::Limits) -> Store {
-        let component_limits = component_limits(limits);
+        Self::with_read_keeping(limits, true)
+    }
+    /// Choose whether both memory stores keep their checked payload reads for this world.
+    /// A crash reopens the same stores; a fork copies the setting, not the kept reads.
+    #[must_use]
+    pub fn with_read_keeping(limits: &engine::Limits, keep: bool) -> Store {
         let shape = Shape {
             limits: *limits,
-            component_limits,
-            checked_limits: CheckedLimits::new(&component_limits).expect("the store's limits are valid"),
+            checked: component_limits(limits),
             application: temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
                 .expect("checked family sizes"),
             route_bounds: temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
         };
-        let stores = Stores {
-            store: skein_kv::Store::memory(&shape.component_limits.store),
-            secrets: skein_kv::Store::memory(&shape.component_limits.secrets),
+        let mut stores = Stores {
+            store: skein_kv::Store::memory(&shape.checked.limits().store),
+            secrets: skein_kv::Store::memory(&shape.checked.limits().secrets),
         };
+        stores.store.keep_reads(keep);
+        stores.secrets.keep_reads(keep);
         // The worlds' configured models, in their order (jig's store over a configuration's).
         let mut store = Self::empty(shape, crate::walking::models());
         store.reopen(stores);
@@ -455,7 +460,7 @@ impl Store {
                         self.missing.push((record, target));
                         continue;
                     }
-                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     reply @ (engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
@@ -481,12 +486,12 @@ impl Store {
     /// The actual component allowance used by party reads in this world.
     #[must_use]
     pub const fn read_joins(&self) -> u32 {
-        self.shape.component_limits.joins
+        self.shape.checked.limits().joins
     }
     /// The real transcript driver's page room, derived from the world's limits.
     #[must_use]
     pub const fn transcript_page_bytes(&self) -> u32 {
-        self.shape.component_limits.store.page.bytes
+        self.shape.checked.limits().store.page.bytes
     }
     /// Read a historical page through the real store and the service's routing.
     #[must_use]
@@ -497,7 +502,7 @@ impl Store {
                 match reply {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
                     engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
-                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
@@ -521,7 +526,7 @@ impl Store {
         let mut below = Queue::uncapped();
         skein_kv::down(
             &mut stores.store,
-            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.component_limits.store },
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.checked.limits().store },
             skein_kv::Request::Get {
                 owner: Token::new(1),
                 key: protocol::keys::encode_own(&protocol::keys::Own::Wires, u32::MAX).expect("component key fits"),
@@ -558,8 +563,7 @@ impl Store {
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
     fn reopen(&mut self, stores: Stores) {
-        let mut component =
-            protocol::Store::over_checked(&self.shape.checked_limits, self.shape.application, &self.models, stores);
+        let mut component = protocol::Store::over(&self.shape.checked, self.shape.application, &self.models, stores);
         assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
         if let Some(names) = &self.catalogue {
             component.catalogue(names.clone());
@@ -582,7 +586,7 @@ impl Store {
         assert!(!self.failed, "durable stores reopen");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.shape.checked.limits() }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {
@@ -635,7 +639,7 @@ impl Store {
             | Event::Closed { .. } => {
                 unreachable!("an engine store never rehearses or goes back")
             }
-            // This world does not consume the census (jig protocol/store/README.md, 6.3).
+            // This world does not consume the census (jig/docs/design/protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.as_mut().map(|inflight| inflight.remove(&number).expect("root commit"));
@@ -839,7 +843,7 @@ pub fn widest() -> engine::Limits {
     limits.watermark = engine::default_watermark(&limits.journal);
     limits
 }
-fn component_limits(limits: &engine::Limits) -> Limits {
+fn component_limits(limits: &engine::Limits) -> protocol::Checked {
     // These worlds keep the stock's store joins, including the box-allowance
     // stories. Derive that immutable profile once, not its client wire sizes
     // for every new store as well.
@@ -873,7 +877,7 @@ pub fn with_start_mark(mut rows: BTreeMap<Key, Record>) -> BTreeMap<Key, Record>
 
 /// Writer/store oracle for selected families, exclusive walk order and page
 /// continuation. Census owners can repeat; its cursor names an index instead
-/// (temper/docs/design/domain/root-restart.md, 1.1; jig/docs/design/domain/engine/README.md, 9).
+/// (temper/docs/design/domain/root-restart.md, 1.1; jig/docs/design/domain/engine/world.md, 1).
 ///
 /// # Errors
 /// Returns the violated family, ordering or continuation obligation.
@@ -928,5 +932,72 @@ fn walk_position(range: &Range, key: &Key) -> Result<(u32, Key), &'static str> {
         }
         (_, Key::Wires | Key::Opening(_)) => Err("wires are not a load cursor"),
         _ => Ok((0, key.clone())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jig_domain_core::{CoreRecord, Record as Core};
+    use skein_kv::{Direction, Event, Op, Request};
+
+    fn seed_turn(store: &mut Store) {
+        let turn = engine::TurnRecord {
+            task: 1,
+            attempt: 1,
+            turn: 1,
+            spent: 1,
+            read: None,
+            at: Wall::EPOCH,
+            opens_window: false,
+            transcript: Box::from(b"worked".as_slice()),
+        };
+        store.seed(Box::new([Record::Core(Core::Core(CoreRecord::Turn(turn)))]), Box::new([]));
+    }
+
+    // Secrets are not read as payload logs by the component. Exercise one
+    // directly on the extracted backing so a zero count tests the switch.
+    fn read_secret_backing(secrets: &mut skein_kv::Store, limits: skein_kv::Limits) {
+        const LOG: u64 = 1;
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        let record = b"fixture";
+        secrets.logs(skein_kv::LogRule { prefix: Box::from(b"test-extent/".as_slice()) });
+        let frame = secrets.frame(record).expect("fixture frame fits");
+        let owner = Token::new(1);
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        let commit = Request::Commit { owner, ops: Box::new([Op::Append { log: LOG, frame }]) };
+        skein_kv::down(secrets, &env, commit, &mut above, &mut below);
+        assert!(matches!(above.pop(), Some(Event::Committed { .. })));
+        let read = Request::ReadLog { owner, log: LOG, at: 0, direction: Direction::Forward, max: 64, rows: 1 };
+        skein_kv::down(secrets, &env, read, &mut above, &mut below);
+        let Some(Event::LogRead { records, .. }) = above.pop() else { panic!("secrets backing read") };
+        assert_eq!(records.len(), 1);
+    }
+
+    fn read_counts(mut world: Store) -> (u64, u64) {
+        let turns = Range::Core(engine::CoreRange::Turns { task: 1, attempt: 1 });
+        assert_eq!(world.page(&turns, None, 1).0.len(), 1, "the main backing serves its turns log");
+        let mut stores = world.component.take().expect("live component").into_stores();
+        read_secret_backing(&mut stores.secrets, world.shape.checked.limits().secrets);
+        (stores.store.kept_reads(), stores.secrets.kept_reads())
+    }
+
+    #[test]
+    fn read_keeping_reaches_both_backings_through_crash_and_fork() {
+        let mut on = Store::new();
+        seed_turn(&mut on);
+        let (main, secrets) = read_counts(on);
+        assert!(main > 0 && secrets > 0, "both default backings keep checked records");
+
+        let mut off = Store::with_read_keeping(&widest(), false);
+        seed_turn(&mut off);
+        let mut crashed = Store::with_read_keeping(&widest(), false);
+        seed_turn(&mut crashed);
+        crashed.crash(0);
+        let forked = crashed.fork();
+        assert_eq!(read_counts(off), (0, 0), "initial world");
+        assert_eq!(read_counts(crashed), (0, 0), "crashed world");
+        assert_eq!(read_counts(forked), (0, 0), "fork of the crashed world");
     }
 }

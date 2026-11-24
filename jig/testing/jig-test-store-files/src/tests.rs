@@ -80,6 +80,7 @@ fn a_removed_missing_file_answers_not_found() {
 }
 
 mod routes;
+pub(crate) use routes::ended_chat;
 
 #[test]
 fn a_kill_before_the_first_operation_loses_the_commit_and_past_the_last_keeps_it() {

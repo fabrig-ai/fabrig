@@ -9,16 +9,16 @@ answer, and a **notice** is not answered.
 | Record | Fields | Shape |
 |---|---|---|
 | hello | slots; stop bound, a duration; the agent's bounds: for each endpoint it serves, its number and the largest window and output a charter may name on it; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (`README.md`, 4.3); the longest host answer its agent takes, in bytes, if it names one (`../../domain/hosts/README.md`, section 2); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement; `fresh`, whether no hello of the worker's process has yet been admitted, from the workers' wire 19 (`../../domain/engine/executors.md`, 6.5) | first, once |
-| turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (jig/docs/design/protocol/channel/README.md, 5.1) | notice, kept by the hub until acknowledged |
+| turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (jig/docs/design/protocol/channel/owners.md, 1.1) | notice, kept by the hub until acknowledged |
 | call | task, attempt; the run's name for the call, as bytes (`README.md`, section 6); the host tool's name; whether it writes; its input; the time left on its deadline; the version of the host's tools contract its run's charter names (`../../domain/hosts/hub.md`, 8), 1 for a call from an older worker | call |
-| answer | task, attempt; the turns it took; what it spent; the last message it read, by name, if any: the unread fence; the messages refused since the run's last turn, each by name with smith's reason, as a turn carries them; how it ended: refused (busy, or invalid and what), ended with its result, smith's bytes (`README.md`, 5.1), parked, or failed with its typed failure and bounded detail, and, for a failure of its model, the model call where its application names one: endpoint and model, each at most 40 bytes, its kind, its evidence, its HTTP status, if one came, and the name of its refusal's cause, if it was refused before it was sent (`../../domain/hosts/hub.md`, 3); what it left on resources and what it saved, each the application's bytes (`README.md`, 5.2) | answer to an assignment, kept by the hub until acknowledged; a refusal, kept by nothing (below) |
-| job answer | task, attempt; how it ended: refused (busy, or invalid and what), finished with its result, the application's bytes, or failed with its typed failure and bounded detail (4); what it left on resources, the application's bytes (`README.md`, 5.2) | answer to a job, kept by the hub until acknowledged; a refusal, kept by nothing |
-| fact | task, attempt; its value, activity or a piece (the schema's `FactValue`, so that "activity" stays the name of what carries no content): activity: the run's phase, a long operation begun (checks, an LLM completion or a command, with its span) or ended, or a count from smith's channel facts (its kind, its time, its count), all jig's typed activity, never smith's bytes; or a piece of live content: its turn, retry, kind (`text`, `reasoning` or `input`) and offset, and its bytes, when the assignment asked; or, from a host that gives it, a tool begun with its call's name, its tool and its input (`README.md`, 5.4) | notice, best effort |
+| answer | task, attempt; the turns it took; what it spent; the last message it read, by name, if any: the unread fence; the messages refused since the run's last turn, each by name with smith's reason, as a turn carries them; how it ended: refused (busy, or invalid and what), ended with its result, smith's bytes (`owners.md`, 1.1), parked, or failed with its typed failure and bounded detail, and, for a failure of its model, the model call where its application names one: endpoint and model, each at most 40 bytes, its kind, its evidence, its HTTP status, if one came, and the name of its refusal's cause, if it was refused before it was sent (`../../domain/hosts/hub.md`, 3); what it left on resources and what it saved, each the application's bytes (`owners.md`, 1.2) | answer to an assignment, kept by the hub until acknowledged; a refusal, kept by nothing (below) |
+| job answer | task, attempt; how it ended: refused (busy, or invalid and what), finished with its result, the application's bytes, or failed with its typed failure and bounded detail (4); what it left on resources, the application's bytes (`owners.md`, 1.2) | answer to a job, kept by the hub until acknowledged; a refusal, kept by nothing |
+| fact | task, attempt; its value, activity or a piece (the schema's `FactValue`, so that "activity" stays the name of what carries no content): activity: the run's phase, a long operation begun (checks, an LLM completion or a command, with its span) or ended, or a count from smith's channel facts (its kind, its time, its count), all jig's typed activity, never smith's bytes; or a piece of live content: its turn, retry, kind (`text`, `reasoning` or `input`) and offset, and its bytes, when the assignment asked; or, from a host that gives it, a tool begun with its call's name, its tool and its input (`owners.md`, 1.4) | notice, best effort |
 | limited | task, attempt; an LLM account and its source; how long until it may be used again, only where its provider said | notice |
 | refused | task, attempt; an LLM account and its source; its provider's code and reason, as text within the detail's bound | notice |
 | unauthorized | task, attempt; an LLM account and its source; the generation its provider refused, or whose program login was lost | notice |
 | usage | task, attempt; an LLM account and its source, as limited's; one usage window (below) | notice |
-| logins | for each program source the engine named (2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/host.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../../domain/accounts.md`, 3.7) | notice: once checked after each `sources`, then on each change |
+| logins | for each program source the engine named (2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/host.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../../domain/accounts-lists.md`, 1) | notice: once checked after each `sources`, then on each change |
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
 | list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../../domain/hosts/README.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
 | usage read | a read's number; at most 8 usage windows (below), or not signed in, spent, or failed with the source's failure and bounded detail, as `logins`' (`../../domain/hosts/README.md`, 5.1) | answer to a read usage, best effort as a list read's |
@@ -27,7 +27,7 @@ answer, and a **notice** is not answered.
 | paused | the worker's state: taking, paused, draining or drained (`pause.md`) | notice: at each change of its state, and again after each hello while it is not taking, on a channel whose version has it (`../../domain/hosts/hub.md`, 7) |
 
 - **A usage window** is a program's report of one window
-  (`../../domain/accounts.md`, 3.7): its label, 1 to 32 printable ASCII
+  (`../../domain/accounts-lists.md`, 1): its label, 1 to 32 printable ASCII
   bytes; its length, an optional duration; its share used, optional basis
   points to 10,000; its reset, an optional wall time, the provider's own;
   and its state, the registry's number. The hub takes it from its agent's
@@ -60,7 +60,7 @@ opening by an engine of 16 (`bridges.md`, 6.3): the engine goes first,
 as for any moved wire (temper's `draft/redeploys.md`, 7.2). Up from 16
 nothing changes.
 
-Usage windows (`../../domain/accounts.md`, 3.7) take `jig-worker-wire`
+Usage windows (`../../domain/accounts-lists.md`, 1) take `jig-worker-wire`
 19, in one move: `usage` and `usage read` up, `read usage` down. Below
 19 the two up records are unheld, so a worker of 19 is refused at the
 opening by an engine of 18, as above; the engine sends `read usage` only
@@ -70,7 +70,7 @@ fleet and the accounts child all name:
 
 ```rust
 /// A window's value, moved from `jig-domain-accounts`, which re-exports
-/// it and the window states under their names (accounts.md, 3.7).
+/// it and the window states under their names (../../domain/accounts-lists.md, 1).
 pub struct FactWindow { pub length: Option<Duration>, pub used: Option<u16>, pub resets: Option<Wall>, pub state: u16 }
 /// One usage window as a program reports it.
 pub struct UsageWindow { pub label: Box<[u8]>, pub window: FactWindow }
@@ -104,7 +104,7 @@ The floor stays 16 and the block is not breaking.
   by the same name crosses again: the engine answers it busy while it is
   still deciding the first, so the run asks again, and from the record it
   kept once the first is decided, never deciding it twice
-  (`../../domain/engine/executors.md`, 3).
+  (`../../domain/engine/executors-tools.md`, 1).
 - **Live call capacity is retryable.** After checking the current hosting
   channel and bounded opaque name, the fleet answers a call beyond its
   capacity as busy at that original channel, run, attempt and name. It
@@ -120,18 +120,18 @@ The floor stays 16 and the block is not breaking.
   (smith's `protocol/channel.md`, section 4): limited, refused,
   unauthorized and usage, each naming the account and source by the grant's
   number. They are LLM accounts' only (`README.md`, section 7), and the core decides
-  what each changes (`../../domain/accounts.md`, 3.5). Unsupported is the
+  what each changes (`../../domain/accounts-sources.md`, 2). Unsupported is the
   run's failure, never a notice. A limited notice preserves an absent
   reset as absent; an explicit zero span is a supplied reset. The core
   converts a supplied span to engine time once on receipt, and the accounts
-  child keeps its wall reset across restarts (`../../domain/accounts.md`,
-  3.5).
+  child keeps its wall reset across restarts (`../../domain/accounts-sources.md`,
+  2).
 
 ## 2. Down, engine to worker
 
 | Record | Fields | Shape |
 |---|---|---|
-| assignment | task, attempt; the run's identity, 16 bytes (`README.md`, section 6); the workstream key and the workspace's items, the application's bytes; whether to save unfinished work; the ask for live content, a boolean for each kind (`../../domain/hosts/README.md`, section 2); the charter, smith's bytes; the transcript, when the run resumes: its current window's turns, smith's bytes, from the last that opens a window (`README.md`, 5.1); the calls committed since its last turn, each with its name, its tool and its answer; the start's messages: those waiting in the task's inbox, oldest first, as many as the run's inbox takes, each with its name, its sender's label and its words, the rest relayed as message records as the run reads (`../../domain/tasks/messages.md`, 2); its credential grants, each naming its form, which selects the table its value comes from, with their values: a credential with its scheme, or a program source's name (`README.md`, section 7) | call |
+| assignment | task, attempt; the run's identity, 16 bytes (`README.md`, section 6); the workstream key and the workspace's items, the application's bytes; whether to save unfinished work; the ask for live content, a boolean for each kind (`../../domain/hosts/README.md`, section 2); the charter, smith's bytes; the transcript, when the run resumes: its current window's turns, smith's bytes, from the last that opens a window (`owners.md`, 1.1); the calls committed since its last turn, each with its name, its tool and its answer; the start's messages: those waiting in the task's inbox, oldest first, as many as the run's inbox takes, each with its name, its sender's label and its words, the rest relayed as message records as the run reads (`../../domain/tasks/messages.md`, 2); its credential grants, each naming its form, which selects the table its value comes from, with their values: a credential with its scheme, or a program source's name (`README.md`, section 7) | call |
 | job | task, attempt; its kind; its spec, the application's bytes; its deadline; the workstream key and the workspace's items, the application's bytes; its credential grants, the application's only (`README.md`, section 7) (4) | call |
 | message | task, attempt; the message's name; its sender's label; its words | notice |
 | relayed | task, attempt; the call's name; the engine's answer: its text for the LLM and whether it is an error, or busy, to ask again after a backoff | answer to a call |
@@ -211,12 +211,12 @@ The floor stays 16 and the block is not breaking.
   - **One record for temper's too.** temper's translation fits a charter
     before it builds the assignment and refuses with this record, naming
     its fitting's fields (temper's `domain/agent/room.md`, 3).
-- **A start the link cannot carry ends there too** (`README.md`, section 8, *A start
+- **A start the link cannot carry ends there too** (`liveness.md`, section 1, *A start
   past the room fails its run, never the link*): an assignment or a job
   whose frame is past the room the engine's stream grants at once, or
   that skein's channel refuses at its entrance for anything but a full
   queue, is answered the same way, with no record sent. An assignment's
-  committed calls are fitted to the room first (`README.md`, section 8, *A resumed
+  committed calls are fitted to the room first (`liveness.md`, section 1, *A resumed
   start fits its room first*), so an assignment is past the room only
   with every host answer cut. Its diagnostic
   names the record, its frame's bytes and the bound: `assignment of
@@ -226,7 +226,7 @@ The floor stays 16 and the block is not breaking.
   reason's words (`job cannot encode: FIELD`), rather than discarded.
 - **Busy, sent again.** A turn answered busy is held by the worker's
   link component, which sends it again after a jittered backoff, as it
-  keeps the grace's clock (`README.md`, 9.1); the hub arms no timers
+  keeps the grace's clock (`worker-link.md`, 1.1); the hub arms no timers
   (`../../domain/hosts/hub.md`, 2). Turn busy is not in the hub's link
   vocabulary (`../../domain/hosts/hub.md`, 1): `jig-protocol-engine-workers`
   encodes it from the fleet's request, beside the hub's records; the

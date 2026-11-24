@@ -1,7 +1,7 @@
 //! A shared fake-git merge precedes Start. The parent refuses the
 //! unresolved tree, then commits the LLM's checked resolution with both
 //! original parents. No marker fixture or anticipated outcome stands in for git.
-//! Contract: smith/docs/design/domain/run.md, sections 3.2 and 8.1–8.4 and 12; skein/docs/foundation/testing-strategy.md, section 4.3.
+//! Contract: smith/docs/design/domain/run-start.md, section 1.2, and smith/docs/design/domain/run-delivery.md, sections 1.1–1.4, and smith/docs/design/domain/run.md, section 12; skein/docs/foundation/testing-strategy.md, section 4.3.
 
 use std::collections::BTreeMap;
 

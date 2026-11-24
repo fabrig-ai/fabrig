@@ -1,4 +1,4 @@
-//! Read allowance observations without floating point (protocol/programs.md, 5.6).
+//! Read allowance observations without floating point (protocol/programs-claude-code.md, 1.6).
 //! No observation is retained here; every well-shaped event is sent to its owner.
 
 use crate::mcp::json;

@@ -13,7 +13,7 @@ Section 2.2 has no known gap in Linux's `--program-child` startup for
 programs that die when their agent aborts. The shell supplies its own
 process ID on Linux and no parent on macOS; the child mode is Unix-only
 and absent from the portable face. macOS's direct launch and deferred
-crash lifetime are ../protocol/programs.md, sections 5.1 and 9's.
+crash lifetime are ../protocol/programs-claude-code.md, section 1.1, and ../protocol/programs.md, section 9's.
 
 - **Departs:**
   - 2.5: in `smith/crates/smith-agent-document/src/config/`,

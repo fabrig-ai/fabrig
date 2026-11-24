@@ -7931,6 +7931,7 @@ dependencies = [
  "smith-protocol-translate",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
@@ -8376,6 +8377,7 @@ name = "temper-service-shell"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
+ "rustix",
  "skein-io",
  "skein-json",
  "skein-lib",

@@ -1,4 +1,4 @@
-//! The bounded local usage result (protocol/programs.md, 5.11).
+//! The bounded local usage result (protocol/programs-claude-code.md, 1.11).
 //! Reuses the program JSON reader and retains no state; the host reads the
 //! result's spend and words only after the command has settled.
 

@@ -13,7 +13,7 @@ tested. What is open is listed in section 10.
 
 - **jig's records, temper's bytes.** temper's parts ride in jig's records
   as the application's bytes, which jig's components never read (jig's
-  `protocol/channel/README.md`, 5.2). temper's protocol layer encodes them before
+  `protocol/channel/owners.md`, 1.2). temper's protocol layer encodes them before
   a record goes down or up, and decodes them before a root sees the
   record, so each root routes typed values only.
 - **Its parts and one value:**

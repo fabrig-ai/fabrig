@@ -1,4 +1,4 @@
-//! Deployment procedures spend at the effect (jig/docs/design/domain/authority.md, 6–7).
+//! Deployment procedures spend at the effect (jig/docs/design/domain/authority.md, 6, and jig/docs/design/domain/authority-budgets.md, 1).
 use core::effects::connector;
 use jig_core_world::fixtures::{CONNECTOR, PROJECT};
 use jig_core_world::world::fixture;

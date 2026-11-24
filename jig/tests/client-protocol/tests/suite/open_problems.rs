@@ -1,4 +1,4 @@
-//! The client part of P77 (jig/docs/design/domain/testing.md, 7.3).
+//! The client part of P77 (jig/docs/design/domain/testing-fakes.md, 1.3).
 use jig_client::{Answered, Ask, Asker, Handle, Key, Outcome, Readable, Readout, contract as c};
 use jig_client_protocol_world::{client::Story, fixtures};
 use skein_lib::{Duration, List};

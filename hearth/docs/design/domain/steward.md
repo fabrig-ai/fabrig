@@ -91,8 +91,8 @@ a machine
   probes, each bounded, with names resolved by `getent`: the one tool
   it runs, on a name a check carries, never a build tool
   (hearth/docs/design/domain/operating.md, 2.5) [M5].
-- **What it writes:** its records in the store's `state/` (hearth/docs/design/domain/store/README.md,
-  6.3), and nothing else of the store.
+- **What it writes:** its records in the store's `state/` (hearth/docs/design/domain/store/state.md,
+  1.3), and nothing else of the store.
 - **New work joins the side the rule says.** A responsibility that must
   read the repository or a layer, or run a tool on IaC's inputs, is a
   job; one that watches, decides or answers is the steward's. The
@@ -202,7 +202,7 @@ kind's limit before the body is read.
   store's root directory when it starts, and holds it until it exits; a
   directory no rename replaces. A second builder over the same store, a
   daemon's or a client's in-process on a developer's store, waits for it
-  (hearth/docs/design/domain/store/README.md, 6.2).
+  (hearth/docs/design/domain/store/state.md, 1.2).
 - **Bounds:** at most 16 jobs queued per lane; a client's job beyond it
   is refused as busy (exit 75).
 
@@ -222,7 +222,7 @@ kind's limit before the body is read.
 
 ### 4.2 Every start a recovery
 
-- **The builder's start is the store's startup scan** (hearth/docs/design/domain/store/README.md, 6.2):
+- **The builder's start is the store's startup scan** (hearth/docs/design/domain/store/state.md, 1.2):
   what an earlier builder left half-made, after a crash, a kill or a
   power cut, is settled before the first job. The recovery path runs at
   every pass, not only after a failure.
@@ -319,7 +319,7 @@ The steward's `Shutdown` (hearth/docs/design/domain/activator/README.md, 3.4):
   builder of this machine made its output. What render would have to
   fetch, it does not, and its answer stops there, which still counts.
 - **The revision** is the commit of the pass that prepared the slot,
-  which the steward records in its state (hearth/docs/design/domain/store/README.md, 6.3); under an
+  which the steward records in its state (hearth/docs/design/domain/store/state.md, 1.3); under an
   engine [M4], the prepare order's.
 - **Answered with a spec:** the condition holds, whatever the output
   key. A key that differs from the slot's output is a fact: the new

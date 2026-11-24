@@ -153,7 +153,7 @@ impl Service {
         io_limits: io::Limits,
         box_line_bytes: Option<u32>,
         program_login: Option<Box<[u8]>>,
-        opening: Option<&jig_protocol_store::CheckedLimits>,
+        opening: Option<&jig_protocol_store::Checked>,
     ) -> Result<Self, Problems> {
         let links = settings.limits.sign_in.pending;
         let notes = settings.limits.forge.forges;
@@ -218,7 +218,7 @@ impl Service {
     }
     /// The directory component's checked bounds before runtime settings.
     #[must_use]
-    pub fn checked_opening_limits(&self) -> Option<&jig_protocol_store::CheckedLimits> {
+    pub fn checked_opening_limits(&self) -> Option<&jig_protocol_store::Checked> {
         match &self.engine {
             Some(engine) => Some(engine.checked_opening_limits()),
             None => None,

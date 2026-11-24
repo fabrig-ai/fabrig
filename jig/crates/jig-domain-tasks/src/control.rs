@@ -1,4 +1,4 @@
-//! Root-authorized changes to live tasks (domain/tasks/lifecycle.md, section 6 and domain/tasks/changes.md).
+//! Root-authorized changes to live tasks (domain/tasks/lifecycle-holds.md, section 1 and domain/tasks/changes.md).
 //! The child keeps only current state; root owns durable call decisions and
 //! commits every emitted save before any worker sees a control outcome.
 use crate::compound::Staged;
@@ -25,7 +25,7 @@ pub struct Fail {
     pub reason: Box<[u8]>,
 }
 
-/// Lift a task's hold and reset its failure counts (domain/tasks/lifecycle.md, 6).
+/// Lift a task's hold and reset its failure counts (domain/tasks/lifecycle-holds.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Release {
     pub task: u64,
@@ -55,7 +55,7 @@ pub struct Amendment {
     pub release: Option<u64>,
     pub spec: Option<Spec>,
     pub wake: Option<WakePolicy>,
-    /// Whole replacement dependency list, at any mutable phase (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
+    /// Whole replacement dependency list, at any mutable phase (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
     pub dependencies: Option<Box<[u64]>>,
     pub authority: Option<Authority>,
     /// A new LLM choice for an agent task's next run; `None` keeps its choice (domain/tasks/changes.md
@@ -272,7 +272,7 @@ pub struct DependencyPlace {
 /// Amend a task with its root-issued message (domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Amend {
-    /// The giver's source for a widening or an accepted proposal (domain/authority.md, 7 and 9).
+    /// The giver's source for a widening or an accepted proposal (domain/authority-budgets.md, 1, and domain/authority.md, 9).
     pub funder: Option<crate::Funder>,
     pub task: u64,
     pub message: u64,
@@ -320,7 +320,7 @@ pub(crate) fn amend(
     }
 }
 
-/// Check the whole dependency list at every mutable phase (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
+/// Check the whole dependency list at every mutable phase (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
 pub(crate) fn check_amend(
     domain: &Domain,
     staged: &Staged,
@@ -1176,7 +1176,7 @@ pub(crate) fn returned_phase(
     }
 }
 
-/// Judge ended prerequisites in list order, except while settling (domain/tasks/lifecycle.md, 1 and 6).
+/// Judge ended prerequisites in list order, except while settling (domain/tasks/lifecycle.md, 1, and domain/tasks/lifecycle-holds.md, 1).
 pub(crate) fn failed_dependency(domain: &Domain, phase: &Phase, dependencies: &[u64]) -> Option<u64> {
     match phase {
         Phase::Closing(_) | Phase::Held { was: Was::Closing(_), .. } => return None,
@@ -1193,7 +1193,7 @@ pub(crate) fn failed_dependency(domain: &Domain, phase: &Phase, dependencies: &[
     None
 }
 
-/// Rejudge a release before resuming it (domain/tasks/lifecycle.md, 6, and domain/tasks/holds.md, 7).
+/// Rejudge a release before resuming it (domain/tasks/lifecycle-holds.md, 1, and domain/tasks/holds.md, 7).
 pub(crate) fn return_to_waits(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let row = record(domain, number).expect("released task");
     if let Some(task) = failed_dependency(domain, &row.phase, &row.dependencies) {

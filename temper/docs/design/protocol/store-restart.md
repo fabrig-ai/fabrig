@@ -53,7 +53,7 @@ This document holds the store's restart and restore protocol, split from [`store
   setup's pull starts it once its forge is connected
   (`../domain/forge/adoption.md`, 5).
 - **The core's ranges are jig's, filtered.** jig's restart ranges
-  (jig's `protocol/store/README.md`, 4.3, and `jig/docs/design/protocol/store/loads.md`, 2) are coarser than the root's
+  (jig's `protocol/store/keys.md`, 1.3, and `jig/docs/design/protocol/store/loads.md`, 2) are coarser than the root's
   core ranges. The routing asks for the jig ranges holding a root range,
   keeping each row the root's range admits: `CoreRange::Tasks` (the tasks child's live
   families and the goals' projections, core rows) is jig's `[Core, Tasks]`,

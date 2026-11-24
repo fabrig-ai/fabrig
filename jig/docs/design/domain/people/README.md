@@ -105,14 +105,14 @@ inbox are the views child's (../engine/views.md).
 - **An identity is an identity provider and a subject.** An identity
   provider, a *provider* in this document and in the configuration's
   `providers`, is one of the application's ways of signing in, numbered
-  in its configuration (`../../protocol/configuration.md`, section 3): an
+  in its configuration (`../../protocol/configuration-engine.md`, section 1): an
   OAuth server, a company's directory, a chat platform's identity, or
   the deployment itself, for services' credentials. The subject is the
   provider's stable id for the party; a login and a name come with it,
   for display only.
 - **An LLM provider is no identity provider.** OpenAI, Anthropic or a
   local model's server is configured and numbered apart
-  (`../../protocol/configuration.md`, section 3), and signs nobody in to
+  (`../../protocol/configuration-engine.md`, section 1), and signs nobody in to
   jig. An LLM account's subject is the LLM provider's for the account,
   never a party's identity: signing an LLM account in changes no one's
   identity, and one person may hold several (../accounts.md, 3.1 and 3.3).
@@ -231,14 +231,14 @@ inbox are the views child's (../engine/views.md).
   comes from the application's server code, never from a client. It
   names a provider the configuration gives as the application's; one
   naming any other, the printed link's or the deployment's, is refused
-  (`../../protocol/configuration.md`, section 3; `../../protocol/client/sign-in.md`
+  (`../../protocol/configuration-engine.md`, section 1; `../../protocol/client/sign-in.md`
   ).
 - **The domain sees an authenticated identity,** and the kind of party it
   is, never how it was verified. jig is given no identity provider's
   token: what the application's sign-in received is the application's,
   and jig acts on no system as a party (section 11). An LLM provider's
   record is an LLM account's, kept by the protocol layer and lent only to
-  pay for runs (../accounts.md, 3.4; `../../protocol/store/secrets.md`).
+  pay for runs (../accounts-sources.md, 1; `../../protocol/store/secrets.md`).
 - **Whose sign-in, for the OpenID provider.** The clients' component,
   as the deployment's OpenID provider (`../../protocol/client/openid.md`
   ), names a signed-in person to the deployment's other applications
@@ -272,13 +272,13 @@ inbox are the views child's (../engine/views.md).
   (../accounts.md, 3.2).
 - **The deployment's roles** are a roster of their own, kept as
   project 0's: a party's role in the deployment, on which the
-  deployment's scope is admitted (`../../client/domain/contract/README.md`, 5.5).
+  deployment's scope is admitted (`../../client/domain/contract/watches.md`, 1.5).
   - *The first start* makes each first owner its owner, whether or not
     configuration seeds a project. It is seeded then only: a later start
     reads it from the store, and seeds it into no store that lacks it
     (`../../protocol/configuration.md`, section 7).
   - *Project 0 is no project.* Configuration names none
-    (`../../protocol/configuration.md`, section 3), and a party's projects,
+    (`../../protocol/configuration-engine.md`, section 1), and a party's projects,
     in their frame, in `me` and in an account's readiness, leave it out:
     it is read only as the party's role in the deployment, `me`'s
     `deployment_role`.
@@ -380,7 +380,7 @@ entry naming the task or proposal it is and its project:
   so a conversation never answers for its person; the person's answer
   reaches the asking task as its requester's answer, and the asked task
   hears a notice naming the question answered, with the answer words cut
-  at 256 bytes on a UTF-8 boundary and marked when cut (../tasks/lifecycle.md, 8). A
+  at 256 bytes on a UTF-8 boundary and marked when cut (../tasks/lifecycle-endings.md, 1). A
   delegate's question to a conversation waits with the conversation, not
   here (../tasks/messages.md, 5).
 - **A conversation** is a task its creator flagged so (../tasks/README.md,
@@ -399,13 +399,13 @@ entry naming the task or proposal it is and its project:
     loaded on demand; the child holds none of them in memory, a read of
     the conversation or a task query's row joins it by a point read, and
     the inbox's census reads the family through at start
-    (`../../protocol/store/README.md`, 4.4, and `../../protocol/store/loads.md`, 2 and 4).
+    (`../../protocol/store/keys.md`, 1.4, and `../../protocol/store/loads.md`, 2 and 4).
   - *A mark on an ended conversation,* a `Seen` over its turns, loads
     its record and its position, and is decided on them: the position
     moves to the larger of the two, never back. One such mark loads at a
     time: while it does, the party's next `Seen` over that
     conversation's turns, or over results that would forget it, is
-    answered busy (../engine/README.md, 5.3). Its loads are held behind the
+    answered busy (../engine/decisions.md, 1.3). Its loads are held behind the
     commits before them, so a mark sent after another was decided sees
     that one's position, and no mark saves a position over a newer one,
     or saves one for a task already forgotten.
@@ -414,7 +414,7 @@ entry naming the task or proposal it is and its project:
 - **A task's retention class** says what becomes of it once it has ended
   (../tasks/README.md, section 3):
   - *kept:* its records stay to the deployment's retention horizon, and
-    whole while none is set (`../../protocol/store/README.md`, 6.1). jig's chat
+    whole while none is set (`../../protocol/store/growth.md`, 1.1). jig's chat
     template keeps, so closed conversations stay readable;
   - *forgotten once read:* once it has ended, its requester has read its
     result and, for a conversation, its turns, and no live task names it,
@@ -432,7 +432,7 @@ entry naming the task or proposal it is and its project:
     position before it is decided, and forgets in that decision.
     Retention's next pass forgets the others: one the inbox no longer
     held when it was read, or one a live task named then. Its other
-    remains go at retention's next pass (`../../protocol/store/loads.md`, 4, and `../../protocol/store/README.md`, 6.1
+    remains go at retention's next pass (`../../protocol/store/loads.md`, 4, and `../../protocol/store/growth.md`, 1.1
     ). A task whose requester is not a party is kept, whatever its
     class: no party reads it.
 - **Unread counts.** A conversation's unread turns are counted from its
@@ -441,7 +441,7 @@ entry naming the task or proposal it is and its project:
   (`../../client/domain/contract/documents.md`, 1).
 - **Across projects,** since a party who works in several decides in one
   place; a client filters it by project, kind or root
-  (`../../client/domain/contract/README.md`, section 4, and 5.1). It is not a task
+  (`../../client/domain/contract/reads.md`, section 1, and `../../client/domain/contract/watches.md`, section 1.1). It is not a task
   query: proposals, escalations and questions are entries, not tasks.
 - **What is addressed to a role** is in the inbox of every party holding
   it, until one of them acts, when it leaves every one.
@@ -475,7 +475,7 @@ entry naming the task or proposal it is and its project:
   in the application's configuration, which an application keeps,
   changes or drops. Filled in, it is a `Create` of one agent task, its
   spec the party's first words, flagged conversation and kept, with the
-  fields `../../protocol/configuration.md`, 3.1 gives template 1. Its
+  fields `../../protocol/configuration-templates.md`, 1 gives template 1. Its
   executor is an agent under the application's charter for chats, which
   a project's policy may override: its instructions for chats, its
   models, the tools it gives, and a wake policy that wakes it on its
@@ -484,7 +484,7 @@ entry naming the task or proposal it is and its project:
   template, as `me` serves it merged with the project's policy's
   overrides (../authority.md, section 6; `../../client/domain/contract/requests.md`,
   6), into an ordinary `Create`, which the engine checks as one
-  written by hand (`acts.md`, 1; `../../protocol/configuration.md`, 3.1). A client
+  written by hand (`acts.md`, 1; `../../protocol/configuration-templates.md`, 1). A client
   that ignores it makes only its own lists inconsistent.
 - **Permissions stay primitive.** A party may hold a chat when their role
   may create with the chat charter, within its spend and depth, and their
@@ -492,8 +492,8 @@ entry naming the task or proposal it is and its project:
   (../authority.md, section 6).
 - **Turn by turn, live.** The party's words, each a `Message`, wake it,
   or reach its live run at once; its replies stream to the client as the
-  run reports them, and each turn is committed as it ends (../engine/executors.md,
-  2), so the conversation the client shows is the transcript in the
+  run reports them, and each turn is committed as it ends (../engine/executors-transcripts.md,
+  1), so the conversation the client shows is the transcript in the
   store.
 - **Waiting, then parked.** A chat waits for the next words holding its
   host's slot; idle past its charter's threshold it parks, and the next
@@ -511,8 +511,8 @@ entry naming the task or proposal it is and its project:
   its documents (`../../client/domain/client/helpers.md`), never the
   engine's state.
 - **A party's chats** are a task query by requester and label 1, live
-  and ended (`../../client/domain/contract/README.md`, 4.1), each line carrying its
-  unread count (section 5).
+  and ended (`../../client/domain/contract/reads.md`, 1.1), each line carrying its
+  unread count (`README.md`, section 5).
 - **Closing, through a helper.** jig's helper for chats, in `jig-client`
   (`../../client/domain/client/helpers.md`), composes one compound
   request (`acts.md`, 1): each live delegate cancelled or moved to the party, as
@@ -570,7 +570,7 @@ A task whose executor is a party, or a role (../model.md, 3.2):
   addressed to, and answer it through its requests.
 - **Stalled,** past its bound, it is news for its requester, which may
   amend, cancel or address it to someone else.
-- **Kept** by a dependency an amendment added (../tasks/lifecycle.md, 8), it stays
+- **Kept** by a dependency an amendment added (../tasks/lifecycle-endings.md, 1), it stays
   in its party's inbox, shown waiting on its dependencies, and an
   `Answer` is refused, naming them; once they are done, it is answered
   as ever. A take stands while it is kept. A task that depends on a
@@ -638,7 +638,7 @@ its surface owe this domain:
 ## 10. The world
 
 The people child domain has its world, with its parent scripted. In the
-core's world (../engine/README.md, section 9), scripted parties sign in and act
+core's world (../engine/world.md, section 1), scripted parties sign in and act
 through operations: a member creates a chat from jig's template, which
 proposes a goal they cannot fund, routed to a maintainer who accepts it;
 a member's `Create` beyond their authority is refused, naming what it

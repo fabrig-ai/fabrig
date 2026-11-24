@@ -1,5 +1,5 @@
 //! Independent check cells, fitting laws and bounded policy memory
-//! (domain/authority.md, sections 5, 8, 9 and 11).
+//! (domain/authority.md, section 5, and domain/authority-checks.md, section 1, and domain/authority.md, sections 9 and 11).
 
 use alloc::boxed::Box;
 

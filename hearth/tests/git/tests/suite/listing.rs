@@ -37,7 +37,7 @@ fn a_stream_that_fails_mid_listing_fails_the_listing() {
     }
 }
 
-/// An outcome answers its request (hearth/docs/design/domain/render/README.md, 5.5).
+/// An outcome answers its request (hearth/docs/design/domain/render/crates.md, 1.5).
 #[test]
 fn an_end_or_a_fault_before_the_list_answers_the_list() {
     use hearth_protocol_git::listing::{self, Event, Listing, Request};

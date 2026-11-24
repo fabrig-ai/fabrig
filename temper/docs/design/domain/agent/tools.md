@@ -6,7 +6,7 @@
   modifying and the shell in the workspace, and sub-agents, each as the
   charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
   `deliver`, for a finite change's contract and for a goal's run (below)
-  (jig's `domain/hosts/charters.md`; smith's `domain/run.md`, 8.4),
+  (jig's `domain/hosts/charters.md`; smith's `domain/run-delivery.md`, 1.4),
   never in an Open run (`charter.md`, 5). A run that cannot deliver cannot modify
   files: jig's charter translation grants `modify` only with `deliver`
   and the charter's permission (jig's `domain/hosts/charters.md`). A
@@ -15,7 +15,7 @@
   disables `modify`; repository edits, including small fixes, go through
   `change` (1). The stock coder has read, write, edit and remove: a
   file the change drops is removed once read.
-- **`save`, for a change's producer** (smith's `domain/run.md`, 8.5; jig's
+- **`save`, for a change's producer** (smith's `domain/run-delivery.md`, 1.5; jig's
   `domain/hosts/charters.md`): granted with `deliver` to a finite run with
   a change among its outcomes, and to no other run, a goal's included. It
   pushes the checkout's tree to the change's own branch at once, with no
@@ -30,7 +30,7 @@
   writer of it (`../forge/branches.md`, 3), with a `title` and a `body` as a
   change's delivery has them, at any point in its run and as often as it
   likes, and the project's checks run at it (`README.md`, section 5; smith's
-  `domain/run.md`, 8.1). A design delivery carries Markdown alone, takes
+  `domain/run-delivery.md`, 1.1). A design delivery carries Markdown alone, takes
   the goal branch's moved tip first and is never stale (`README.md`, section 5); code
   goes through `change`. Delivering isn't finishing: it has no change
   among its outcomes, its `finish` offers a report and a failure, and it
@@ -64,8 +64,8 @@
   family's tools, whatever they name. Authority decides
   each call by its family as for every charter: `see`, `document` and
   `remember` by the asking family, `propose_settings` by the settings family. The task's authority decides
-  each call by its family (jig's `domain/authority.md`, sections 3 and
-  8.5): a call beyond it is answered beyond authority, naming what it
+  each call by its family (jig's `domain/authority.md`, section 3, and `domain/authority-checks.md`, section 1.5
+  ): a call beyond it is answered beyond authority, naming what it
   lacked, and the run may `propose` it instead. A refused tool family
   is named from the call's tool, and repeated findings for that family
   print once; the refusal grants no additional authority.
@@ -119,7 +119,7 @@
   closer, by the number its messages name. The dependencies of the run's
   task's requester, live or retained, are read too, read only: a change's
   coding agent, and a repair or resolution under that change, read the changes
-  its `after` names (1) (jig's `domain/engine/executors.md`, 3).
+  its `after` names (1) (jig's `domain/engine/executors-tools.md`, 1).
   `field=result` reads kept terminal reports. A live task's `field=result`
   read answers as its specification read does: its header, with its state,
   hold and questions, then the line `Result: none yet; it comes when the task
@@ -143,7 +143,7 @@
   (`../forge/topics.md`, 1.2) count too, and so does the project's
   findings topic the root keeps for a finding's holder, which alone is
   admitted one past that room (`../areas.md`, section 5). A call past that room is refused, saying
-  why, as jig's `domain/engine/executors.md`, 3 has every refusal do:
+  why, as jig's `domain/engine/executors-tools.md`, 1 has every refusal do:
   `subscribe` answers "Refused: task 4 busy: it holds its most
   subscriptions (at most 4, counting the topics the engine keeps for a
   goal); unsubscribe one it made to make room", and `subscribe_forge`
@@ -319,7 +319,7 @@ Moved to [`tools-forge.md`](tools-forge.md), section 1.
   call's input decoded into the root's `Tool`, or answered at once as an
   error naming what is wrong, deciding nothing; an answer rendered as
   smith's text, marked an error or not (`../../protocol/llm.md`, section 4).
-- **Calls are named and decided once** (jig's `domain/engine/executors.md`, 3):
+- **Calls are named and decided once** (jig's `domain/engine/executors-tools.md`, 1):
   the engine answers a call it has seen before from its record, and smith
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
@@ -341,12 +341,12 @@ Moved to [`tools-forge.md`](tools-forge.md), section 1.
   the run as smith's `TooLarge`, which says the answer was too large
   and not shown, and the run goes on. The engine keeps the answer it
   decided, so a call asked again gets the same reply.
-- **A call names what it saw** (jig's `domain/engine/executors.md`, 3): the
+- **A call names what it saw** (jig's `domain/engine/executors-tools.md`, 1): the
   revisions above are those its brief, its messages and its earlier
   answers showed it. One whose object has moved since is answered moved,
   with what it is now, and the run decides again on that.
 - **Not the engine's:** `wait`, `finish` and `deliver` (jig's
-  `domain/engine/executors.md`, 3). `deliver` is a push (`README.md`, section 5).
+  `domain/engine/executors-tools.md`, 1). `deliver` is a push (`README.md`, section 5).
 - **Jobs are smith's** (smith's `domain/tools.md`), not `read_ci`'s `job`,
   which reads a CI job's log. A `shell` command that runs past its
   yield goes on as a job in the agent's process, under the charter's
@@ -377,5 +377,4 @@ Moved to [`tools-goal.md`](tools-goal.md), section 1.
   open. Default: the charters' words.
 
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
-  (jig's `domain/engine/executors.md`, 3); temper's takes none.
-
+  (jig's `domain/engine/executors-tools.md`, 1); temper's takes none.

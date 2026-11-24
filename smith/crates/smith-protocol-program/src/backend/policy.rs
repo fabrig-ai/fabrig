@@ -1,4 +1,4 @@
-//! Built-in permission policy (protocol/programs.md 5.3–5.4; domain/tools.md 10).
+//! Built-in permission policy (protocol/programs-claude-code.md, 1.3–1.4; domain/tools.md 10).
 //! Keeps no filesystem knowledge: admission uses only grants and lexical mounts.
 
 use super::Mount;
@@ -16,7 +16,7 @@ const MISSING: &[u8] = b"missing field ";
 const WRONG_TYPE: &[u8] = b"wrong field type ";
 const TOOLS_FLAG_BYTES: u32 = 30;
 
-/// A Claude built-in, checked before the program executes it (smith/docs/design/protocol/programs.md 5.4).
+/// A Claude built-in, checked before the program executes it (smith/docs/design/protocol/programs-claude-code.md 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Builtin {
     /// Inspect one file.

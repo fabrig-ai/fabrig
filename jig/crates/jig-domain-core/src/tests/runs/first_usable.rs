@@ -1,5 +1,5 @@
 //! Omitted choices follow current accounts; a successful claim keeps its provider
-//! (jig/docs/design/domain/accounts.md, 4.3).
+//! (jig/docs/design/domain/accounts-uses.md, 1.3).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

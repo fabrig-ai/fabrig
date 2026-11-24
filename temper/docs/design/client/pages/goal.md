@@ -261,7 +261,7 @@ A plan on the other pages, an agent's task's (`task.md`, 2) and a change's or a 
   `Dependency.added`, matched by number): a paragraph, "Added by you"
   when the person signed in added it, "Added by party P", "Added by
   task M" or "Added by the deployment" otherwise; then, while it keeps
-  the row's task (jig's `keeps`, jig's `domain/tasks/lifecycle.md`, 8), " ·
+  the row's task (jig's `keeps`, jig's `domain/tasks/lifecycle-endings.md`, 1), " ·
   keeps task N from ending". No time is drawn: `ctl task show TASK`
   prints when (`../ctl/results.md`, 1). A dependency the facts
   don't name, or one not added, has no mark; the line keeps its shape

@@ -72,24 +72,17 @@ type RowKey = (Box<str>, u16, u16);
 #[derive(Debug)]
 struct Text {
     bytes: Box<[u8]>,
-    schema: Option<ReadSchema>,
+    schema: Option<texts::Cached>,
     stored: bool,
     current: bool,
 }
 impl Text {
     fn schema(&self) -> Option<&Schema> {
-        match &self.schema {
-            Some(ReadSchema::Owned(schema)) => Some(schema),
-            Some(ReadSchema::Borrowed(schema)) => Some(*schema),
-            None => None,
+        match self.schema.as_ref()? {
+            texts::Cached::Parsed(schema) => Some(schema),
+            texts::Cached::Prepared(schema) => Some(schema),
         }
     }
-}
-#[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "owning a parsed text needs no extra allocation")]
-enum ReadSchema {
-    Owned(Schema),
-    Borrowed(&'static Schema),
 }
 #[derive(Debug)]
 struct Row {

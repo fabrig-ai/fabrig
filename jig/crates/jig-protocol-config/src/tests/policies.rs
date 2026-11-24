@@ -1,4 +1,4 @@
-//! Configured policies use the seed policy's parser and checks (configuration.md, 3).
+//! Configured policies use the seed policy's parser and checks (protocol/configuration-engine.md, 1).
 use crate::{
     Path, Problem, Segment, What,
     tests::{domain, fixtures},
@@ -130,7 +130,7 @@ fn configured_policies_reach_the_core_configuration() {
 }
 
 /// A role's delegation preserves job kinds through core configuration
-/// (jig/docs/design/protocol/configuration.md, 3).
+/// (jig/docs/design/protocol/configuration-engine.md, 1).
 #[test]
 fn a_roles_delegation_may_name_a_job_kind() {
     let mut document = configured();
@@ -150,7 +150,7 @@ fn a_roles_delegation_may_name_a_job_kind() {
 }
 
 /// Unknown delegation kinds are refused at the entry's kind
-/// (jig/docs/design/protocol/configuration.md, 3).
+/// (jig/docs/design/protocol/configuration-engine.md, 1).
 #[test]
 fn an_unknown_delegation_kind_is_refused_at_its_kind() {
     let document = fixtures::with(

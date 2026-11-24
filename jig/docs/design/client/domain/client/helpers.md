@@ -7,7 +7,7 @@
   nothing, and any application may write its own instead.
 - **`shapes`:** functions composing plumbing requests from templates,
   the application's data that `me` serves (../contract/requests.md, 6;
-  `../../../protocol/configuration.md`, 3.1):
+  `../../../protocol/configuration-templates.md`, 1):
   - `shapes::chat(me, project, words)` fills the chat template into a
     `Create`, and `shapes::chat_from(me, project, template, words)`
     fills a chat's template named by its number the same way, for an
@@ -52,7 +52,7 @@
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
     by configured names (../contract/requests.md, 2), none being the charter's default
-    taken at each run's check (`../../../domain/accounts.md`, 4.3). Shapes copy
+    taken at each run's check (`../../../domain/accounts-uses.md`, 1.3). Shapes copy
     configured intent, never `resolved_default`, the separate preview served
     in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
@@ -102,7 +102,7 @@
     refused; ../contract/documents.md, 3), and what a decision will do, where the
     act is offered with it (../contract/documents.md, 4); read, never inferred;
   - *a refusal and why:* an offer's refusal, with its facts
-    (../contract/README.md, section 3); a request's comes with them in its answer
+    (../contract/answers.md, section 1); a request's comes with them in its answer
     (`requests.md`);
   - *whether an act is dangerous:* a cancel, a proposal's rejection and
     a note's deletion are, and no other act. A presentation that

@@ -1,4 +1,4 @@
-//! Whole external durable snapshots (`domain/testing.md`, 4, 7;
+//! Whole external durable snapshots (`domain/testing.md`, 4, `domain/testing-fakes.md`, 1;
 //! `client/domain/testing.md`, 5–6), independent of root state and replies.
 use crate::Store;
 use jig_test_domain::{Key, Record};

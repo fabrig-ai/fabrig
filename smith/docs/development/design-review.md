@@ -26,7 +26,7 @@ summaries and the same subject's different layers. No moves done.
 
 `smith/docs/design/benchmarks/README.md`, 14 still asks what permits
 headless edits/commands and whether `CLAUDE_CONFIG_DIR` excludes the
-person's files. `smith/docs/design/protocol/programs.md`, 4.2 and 5.1 now
+person's files. `smith/docs/design/protocol/programs.md`, 4.2, and `smith/docs/design/protocol/programs-claude-code.md`, 1.1 now
 specify a source-private directory, the filtered environment,
 `--setting-sources user`, the command's tools and permission mode.
 **Owner:** `smith/docs/design/benchmarks/README.md`, 14.

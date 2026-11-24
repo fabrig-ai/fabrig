@@ -1,1 +1,1 @@
-//! Worker wire schema drift and decoder world (protocol/channel/README.md, 11).
+//! Worker wire schema drift and decoder world (protocol/channel/testing.md, 1).

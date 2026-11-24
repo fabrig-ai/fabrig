@@ -1,4 +1,4 @@
-//! Bounded JSON collection and spelling for protocol/programs.md, section 5.3.
+//! Bounded JSON collection and spelling for protocol/programs-claude-code.md, section 1.3.
 //! The collector retains complete values; subtree spelling preserves numbers
 //! and decoded strings without guessing spans in escaped source text.
 
@@ -217,7 +217,7 @@ pub(crate) fn outcome_input(document: &Document, object: u32, bound: u32) -> Opt
     raw(document, outcome_value(document, object)?, bound)
 }
 
-/// Program children read only (protocol/programs.md, 5.10); every other schema byte is kept.
+/// Program children read only (protocol/programs-claude-code.md, 1.10); every other schema byte is kept.
 pub(crate) fn sub_agent_schema(schema: &[u8]) -> Box<[u8]> {
     let families = br#"["inspect","modify","shell"]"#;
     let start = skein_lib::bytes::find(schema, families).expect("direct sub_agent tool families");

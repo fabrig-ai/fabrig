@@ -1,4 +1,4 @@
-//! Configuration seeds project policies and first owners once (configuration.md, 3).
+//! Configuration seeds project policies and first owners once (protocol/configuration-engine.md, 1).
 
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures::sign_in as signin;

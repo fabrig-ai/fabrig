@@ -129,7 +129,7 @@ worker commits exactly the tree the run checked, with the result's
 `title` and `body`, and pushes it as a fast-forward, never forced, to the
 branch the assignment names; a merge in progress is committed as the
 merge, with both parents. Its outcomes, in smith's terms (smith's
-`domain/run.md`, 8.2):
+`domain/run-delivery.md`, 1.2):
 
 | The push | smith's delivery |
 |---|---|
@@ -149,7 +149,7 @@ pushes that head again and answers delivered
 the stock charter's `deliver`, then `finish` as a change
 (`../../../charters/stock/implementer.md`), holds across a question.
 smith still refuses a genuine nothing, a clean tree with no delivery of
-the task's own (smith's `domain/run.md`, 8.2).
+the task's own (smith's `domain/run-delivery.md`, 1.2).
 
 A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worker/checkouts.md
 ) has outcomes of its own, and is never stale:
@@ -216,7 +216,7 @@ forge's change procedure goes on from it (../forge/change/README.md).
 
 Turns are smith's bytes (smith's `domain/session.md`, section 3), which
 the worker relays and the engine keeps opaque, by conversation and
-window (jig's `domain/engine/executors.md`, 2; jig's `domain/hosts/hub.md`, 4).
+window (jig's `domain/engine/executors-transcripts.md`, 1; jig's `domain/hosts/hub.md`, 4).
 temper's client decodes them as jig's client does (jig's
 `client/domain/client/conversations.md`). A run that resumes is given its
 transcript's current window and the calls committed after its last turn;
@@ -224,7 +224,7 @@ past the resume limit, or when smith refuses the transcript, the next
 run starts fresh, its brief carrying the tail when it is readable. If
 the saved window is unread, the first load spends a transient try; its
 retry starts fresh without the tail, keeping the person's pending words
-(jig's `domain/engine/executors.md`, 2).
+(jig's `domain/engine/executors-transcripts.md`, 1).
 
 An unidentified startup fault keeps its agent-failure classification and
 bounded operator diagnostic through cleanup (jig's `domain/hosts/hub.md`, 3).

@@ -1,4 +1,4 @@
-//! Attempts and held phases (client/domain/contract/README.md, 4).
+//! Attempts and held phases (client/domain/contract/reads.md, 1).
 use super::{ChipEnding, HoldCategory, Part, PriorPhase, RunEnd};
 use skein_lib::Wall;
 

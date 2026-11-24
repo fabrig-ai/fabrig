@@ -4,7 +4,7 @@
 //! Five peers are behind it, and each record names which by its variant:
 //!
 //! - The engine, over jig's worker link (jig's `domain/hosts/hub.md`, 1;
-//!   jig's `protocol/channel/README.md`, section 9), which dials, redials, keeps the
+//!   jig's `protocol/channel/worker-link.md`, section 1), which dials, redials, keeps the
 //!   grace and the relays across channels, and tells the domain what it
 //!   notices: a channel [`Event::Ready`], [`Event::Lost`], the grace passed
 //!   ([`Event::GracePassed`]), a turn to send again ([`Event::Resend`]), a
@@ -90,8 +90,8 @@ pub enum Event {
         outcome: jig_domain_link::ListOutcome,
     },
     /// From the engine: an assignment, jig's record, with temper's workspace
-    /// items with their per-repository saved-work branches (jig's `protocol/channel/README.md`,
-    /// 5.2). The record's workspace, if it has one, names the workstream the
+    /// items with their per-repository saved-work branches (jig's `protocol/channel/owners.md`,
+    /// 1.2). The record's workspace, if it has one, names the workstream the
     /// checkout is keyed by; the root names the items to the hub itself.
     Assign {
         assignment: host::Assignment,

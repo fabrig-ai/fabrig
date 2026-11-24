@@ -132,7 +132,7 @@
   you". A line of the chats page reads the same wake policy, from its
   chip's (`OwnerChipDetails`' `wake`), and says "waiting on your words"
   as the status line does: a chat at rest after its reply, which only its
-  person's words or Close move on (jig's `domain/tasks/lifecycle.md`, 9). A
+  person's words or Close move on (jig's `domain/tasks/lifecycle-endings.md`, 2). A
   chat whose host refuses its start says jig's "Cannot start yet", and
   the feedback above its composer says why (below); a line of the Chats page holds
   no run wait, so it is never refused, and says jig's word for its

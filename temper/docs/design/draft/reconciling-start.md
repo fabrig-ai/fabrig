@@ -38,7 +38,7 @@ That cycle is one case of a wider gap. The start waits on its forge as one barri
   - Read-afresh and the settle have no bound. A forge that stays down keeps the fresh pass and the reads the outage wrapper retries waiting forever. An uncertain write whose find keeps failing keeps the settle waiting forever. A read that is rate-limited again and again requeues forever (`skein/crates/skein-forge-client/src/keep/answer.rs`; `temper/crates/temper-engine-domain-forge/src/outage.rs`; `skein/crates/skein-forge-client/src/outbox/retry.rs`; `calls.rs`).
 - **Wanted:**
   - **Opening needs the store, not the forge.** The script opens after adopt runs. Read-afresh and the settle become the forge's reconciliation, run after the opening, and the forge reports it reconciled when both end.
-  - **Facts are read before a decision depends on them, one resource at a time.** That is already jig's rule for working sets (`jig/docs/design/domain/connectors.md`, 5.1). A restart's reads don't add a second, global barrier. While a forge reconciles:
+  - **Facts are read before a decision depends on them, one resource at a time.** That is already jig's rule for working sets (`jig/docs/design/domain/connectors-facts.md`, 1.1). A restart's reads don't add a second, global barrier. While a forge reconciles:
     - a decision that reads a resource whose watch is still pending its first fresh read waits for that read, as a change's read session waits today;
     - a procedure that judges several resources (a landing's gather, a tier's state) waits for its own reads, as in steady state;
     - nothing judges a resource from what the store held before the restart alone.
@@ -46,7 +46,7 @@ That cycle is one case of a wider gap. The start waits on its forge as one barri
   - **What goes on at once:** people signing in and out, chats, settings, task and census reads, worker links and adopted runs, due tasks whose work doesn't touch the forge. A run's call that needs the forge waits in that call, within the run's own deadlines, as it does when the forge is slow.
   - **What waits for the forge:** forge pages show "reconciling" and what they wait for (section 5). Landing trains, tiers, change openings and goal-branch makings start their next decision once their own reads are fresh.
   - **The audit comes first.** Before the script changes, the milestone that builds this section lists every procedure that today decides on a forge fact without its own read, relying on the start's barrier instead. Each one gains its read, or waits for the forge's reconciled report, by name. The list goes into this draft's status.
-  - Revise `jig/docs/design/domain/model.md`, 4 (a restart's reads, per resource), `jig/docs/design/domain/engine/restart.md` (the script and its phases), `jig/docs/design/domain/connectors.md`, 5.1 (a connector's reconciliation after opening), `jig/docs/design/protocol/service.md`, 3 (when clients are admitted), and temper's forge design (`temper/docs/design/domain/forge/`) for what each forge procedure waits on, with their status files.
+  - Revise `jig/docs/design/domain/model.md`, 4 (a restart's reads, per resource), `jig/docs/design/domain/engine/restart.md` (the script and its phases), `jig/docs/design/domain/connectors-facts.md`, 1.1 (a connector's reconciliation after opening), `jig/docs/design/protocol/service.md`, 3 (when clients are admitted), and temper's forge design (`temper/docs/design/domain/forge/`) for what each forge procedure waits on, with their status files.
 
 ## 4. A stop is heard in every phase
 

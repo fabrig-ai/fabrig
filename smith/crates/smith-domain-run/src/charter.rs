@@ -1,4 +1,4 @@
-//! Host policy retained by one admitted run (smith/docs/design/domain/run.md, section 3.1).
+//! Host policy retained by one admitted run (smith/docs/design/domain/run-start.md, section 1.1).
 //! Admission checks counts and owned bytes before effects; this module knows no
 //! task vocabulary, provider credentials or meaning behind the supplied text.
 //!
@@ -28,7 +28,7 @@ pub struct Reserve {
     pub time: Duration,
 }
 
-/// Host-selected lifecycle of main; the run answers once in either mode (smith/docs/design/domain/run.md, section 3.1).
+/// Host-selected lifecycle of main; the run answers once in either mode (smith/docs/design/domain/run-start.md, section 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
     /// The host permits main to finish with a result accepted by the run.

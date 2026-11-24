@@ -1,4 +1,4 @@
-//! The run's finishing phase and deferred wind-down effects (smith/docs/design/domain/run.md, section 6, and smith/docs/design/domain/budget.md, section 1
+//! The run's finishing phase and deferred wind-down effects (smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/budget.md, section 1
 //! ). This keeps the cause, final requests made,
 //! and bounded ready runs. It never knows provider syntax or child results.
 

@@ -1,8 +1,8 @@
-//! Each text parsed, layout computed and text's held texts found once in planning,
-//! then dropped when the plans are made (jig/docs/design/protocol/store/layouts.md, 7).
-use super::{Digest, Layouts, ReadSchema, Text};
-use crate::upgrade::schemas;
-use crate::{OpenRefusal, OwnerSets};
+//! Planning takes each text from the shell or parses it, computes each layout
+//! and finds each text's held texts once. It releases them when the plans are
+//! made (jig/docs/design/protocol/store/layouts.md, 7).
+use super::{Digest, Layouts, Text};
+use crate::{OpenRefusal, OwnerSets, upgrade::schemas::find};
 use alloc::boxed::Box;
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Type, TypeIx};
 use skein_lib::{List, Map};
@@ -16,6 +16,23 @@ pub(super) fn digest(bytes: &[u8]) -> Digest {
 pub(super) fn string(bytes: &[u8]) -> Option<Box<str>> {
     Some(Box::from(core::str::from_utf8(bytes).ok()?))
 }
+#[derive(Debug)]
+pub(super) enum Cached {
+    Parsed(Box<Schema>),
+    Prepared(&'static Schema),
+}
+impl Cached {
+    #[cfg_attr(not(test), expect(unused_variables, reason = "only the test parse tally needs the digest"))]
+    fn read(prepared: &'static [Schema], bytes: &[u8], digest: Digest) -> Option<Self> {
+        if let Some(schema) = find(prepared, bytes) {
+            return Some(Self::Prepared(schema));
+        }
+        #[cfg(test)]
+        super::counting::parsed(digest);
+        Some(Self::Parsed(Box::new(schema::parse(bytes).ok()?)))
+    }
+}
+
 type LayoutKey = (Digest, Box<[u8]>, Option<Box<[u8]>>, Box<[Digest]>);
 #[derive(Debug)]
 pub(super) struct Binary {
@@ -38,14 +55,16 @@ impl Binary {
                 if let Some(held) = layouts.texts.get_mut(&digest) {
                     held.current = true;
                 } else {
-                    let parsed = read(layouts.prepared_schemas, text.as_bytes(), digest).ok_or(refusal)?;
+                    let Some(schema) = Cached::read(layouts.prepared_schemas, text.as_bytes(), digest) else {
+                        return Err(refusal);
+                    };
                     layouts
                         .texts
                         .insert(
                             digest,
                             Text {
                                 bytes: Box::from(text.as_bytes()),
-                                schema: Some(parsed),
+                                schema: Some(schema),
                                 stored: false,
                                 current: true,
                             },
@@ -164,19 +183,9 @@ pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
         if self::digest(&text.bytes) != digest {
             return None;
         }
-        text.schema = Some(read(layouts.prepared_schemas, &text.bytes, digest)?);
+        text.schema = Some(Cached::read(layouts.prepared_schemas, &text.bytes, digest)?);
     }
     Some(())
-}
-
-fn read(prepared: &'static [Schema], bytes: &[u8], digest: Digest) -> Option<ReadSchema> {
-    if let Some(schema) = schemas::matching(prepared, bytes) {
-        return Some(ReadSchema::Borrowed(schema));
-    }
-    #[cfg(test)]
-    super::counting::parsed(digest);
-    let _: Digest = digest;
-    Some(ReadSchema::Owned(schema::parse(bytes).ok()?))
 }
 
 pub(super) fn row(layouts: &mut Layouts, key: &super::RowKey) -> Option<()> {

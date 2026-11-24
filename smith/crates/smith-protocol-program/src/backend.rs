@@ -1,4 +1,4 @@
-//! One lazy program conversation (protocol/programs.md, sections 3 and 5).
+//! One lazy program conversation (protocol/programs.md, section 3, and protocol/programs-claude-code.md, section 1).
 //! Keeps a source grant, private run files, status child, MCP listener and
 //! program pipes; never reads login contents. `from_domain` starts on demand and
 //! handles cancellation and yield requests. `from_io` and `fire` advance startup,
@@ -119,7 +119,7 @@ impl Pipes {
     }
 }
 
-/// One normalized start directory, supplied by the service before Complete (smith/docs/design/protocol/programs.md 5.4).
+/// One normalized start directory, supplied by the service before Complete (smith/docs/design/protocol/programs-claude-code.md 1.4).
 #[derive(Clone, Debug)]
 pub struct Mount {
     pub root: Token,
@@ -158,7 +158,7 @@ pub struct Settings {
     pub grace: Duration,
     pub startup: Duration,
     /// `Some` launches through the relay's binary to die with this agent;
-    /// `None` launches the program itself (smith/docs/design/protocol/programs.md, 5.1).
+    /// `None` launches the program itself (smith/docs/design/protocol/programs-claude-code.md, 1.1).
     pub parent: Option<u32>,
 }
 
@@ -167,7 +167,7 @@ impl Settings {
         self.receiving.max_completion_blocks.checked_mul(5)
     }
 
-    /// Retained program JSON tokens: `N = line_bytes` (smith/docs/design/protocol/programs.md, section 5.5).
+    /// Retained program JSON tokens: `N = line_bytes` (smith/docs/design/protocol/programs-claude-code.md, section 1.5).
     /// Each reader record consumes at least one distinct encoded byte; both
     /// opening and closing container brackets are retained records. With bytes
     /// alone as the input this is tight: nested arrays around an empty array
@@ -224,7 +224,7 @@ pub enum Given {
     Init(Box<[u8]>),
 }
 
-/// The run's program adapter, driven by the service (smith/docs/design/protocol/programs.md, sections 3, 5).
+/// The run's program adapter, driven by the service (smith/docs/design/protocol/programs.md, section 3, smith/docs/design/protocol/programs-claude-code.md, section 1).
 pub struct Backend {
     given: Option<Queue<Given>>,
     mounts: Box<[Mount]>,
@@ -409,7 +409,7 @@ impl Backend {
         self.settings.max_turns = turns;
     }
 
-    /// Supply the admitted run time for the program's MCP timeout (smith/docs/design/protocol/programs.md 5.7).
+    /// Supply the admitted run time for the program's MCP timeout (smith/docs/design/protocol/programs-claude-code.md 1.7).
     pub fn run_time(&mut self, time: Duration) {
         self.run_time = time;
     }
@@ -744,7 +744,7 @@ impl Backend {
 // malformed sequences, keeping the same byte ceiling even at a split UTF-8 tail.
 #[expect(
     clippy::disallowed_methods,
-    reason = "protocol/programs.md, section 5.6: the protocol validates stderr at its text boundary"
+    reason = "protocol/programs-claude-code.md, section 1.6: the protocol validates stderr at its text boundary"
 )]
 fn diagnostic(bytes: &[u8], maximum: u32) -> Box<[u8]> {
     let length = bytes.len().min(usize::try_from(maximum).expect("failure cap"));

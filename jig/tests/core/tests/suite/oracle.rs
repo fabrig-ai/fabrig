@@ -44,6 +44,56 @@ fn a_readback_finding_reaches_finish_without_a_second_restart() {
     assert_eq!(world.store.applied, applied);
 }
 
+const PARKED_TASK: u64 = 1;
+const CALLER_SIGN_IN: u64 = 1;
+const READER_SIGN_IN: u64 = 2;
+
+fn parked_conversation(seed: u64, keep_reads: bool) -> World {
+    let mut world = World::new(Setup { seed, keep_reads, ..Setup::default() });
+    world.turn(1, 1, None, b"durable answer");
+    world.end(tasks::End::Parked, 1);
+    world
+}
+
+#[test]
+fn closing_oracle_agrees_with_and_without_read_reuse() {
+    const SEED: u64 = 1913;
+    let close = |keep_reads| {
+        let mut world = parked_conversation(SEED, keep_reads);
+        world.send(jig_core_world::fixtures::sign_in(skein_lib::Token::new(902), 0, b"another", b"reader", b"Reader"));
+        world.finish().expect("closing oracle");
+        (world.closed_documents.take().expect("oracle read set and answers"), world.store.applied)
+    };
+    let expected = close(true);
+    let read_set = [
+        (CALLER_SIGN_IN, None),
+        (CALLER_SIGN_IN, Some(PARKED_TASK)),
+        (READER_SIGN_IN, None),
+        (READER_SIGN_IN, Some(PARKED_TASK)),
+    ];
+    assert!(expected.0.before.keys().copied().eq(read_set));
+    assert!(expected.0.after.keys().copied().eq(read_set));
+    assert_eq!(close(false), expected);
+}
+
+#[test]
+fn a_read_transcript_still_fails_after_a_frame_changes() {
+    const SEED: u64 = 1914;
+    let finish = |keep_reads| {
+        let mut world = parked_conversation(SEED, keep_reads);
+        world.store.transcript(PARKED_TASK, false).expect("transcript before changing a frame");
+        world.store.unread_transcript(PARKED_TASK);
+        let finding = world.finish().expect_err("the committed transcript is unread");
+        assert!(finding.contains("restart oracle readback: Transcript { task: 1, backwards: false"), "{finding}");
+        assert!(finding.contains("terminal: Unread"), "{finding}");
+        let applied = world.store.applied;
+        assert_eq!(world.finish(), Ok(()));
+        assert_eq!(world.store.applied, applied);
+        finding
+    };
+    assert_eq!(finish(true), finish(false));
+}
+
 #[test]
 fn a_forgotten_chats_remains_can_disappear_on_restart() {
     use crate::read_support::request;

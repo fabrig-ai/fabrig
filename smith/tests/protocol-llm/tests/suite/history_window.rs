@@ -1,5 +1,5 @@
 //! Derived history ownership at its boundary, through an observed shared Client.
-//! Contract: protocol/limits.md, section 3.2; domain/session.md, section 4.
+//! Contract: protocol/limits-derivation.md, section 1.2; domain/session.md, section 4.
 
 use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::{Duration, Queue, Token};

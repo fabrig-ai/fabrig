@@ -142,7 +142,7 @@ fn no_retry_piece_follows_its_turns_record() {
     assert!(last_piece < turn, "no piece follows its turn");
 }
 
-// smith/docs/design/protocol/limits.md 3.6's held-byte bound; one frame leaves no room for live pieces.
+// smith/docs/design/protocol/limits-derivation.md 1.6's held-byte bound; one frame leaves no room for live pieces.
 const HELD_BYTES: usize = 16_384;
 const NO_LIVE_ROOM: u32 = 1;
 static HELD_REPLY: [u8; HELD_BYTES] = [b'x'; HELD_BYTES];

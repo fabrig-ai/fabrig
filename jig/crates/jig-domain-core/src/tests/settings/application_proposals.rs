@@ -1,4 +1,4 @@
-//! Proposal admission for application settings (jig/docs/design/domain/engine/settings.md, 6).
+//! Proposal admission for application settings (jig/docs/design/domain/engine/settings-proposals.md, 1).
 #![expect(
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,

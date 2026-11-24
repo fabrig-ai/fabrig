@@ -1,4 +1,4 @@
-//! Seed changes by name; text prints the new row (hearth/docs/design/domain/render/README.md, 4.1).
+//! Seed changes by name; text prints the new row (hearth/docs/design/domain/render/diff.md, 1.1).
 use super::{Lines, SeedGroupKeyed, SeedIds, SeedUserKeyed, SeedsChange};
 use skein_json::writer::Encoder;
 

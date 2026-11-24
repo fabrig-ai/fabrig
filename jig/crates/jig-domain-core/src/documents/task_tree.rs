@@ -611,7 +611,7 @@ pub(super) fn dependency_facts(core: &Core, limits: &Limits, row: &tasks::TaskRe
     }
     facts
 }
-/// A retained ended root has no live subtree (client/domain/contract/README.md, 5.2).
+/// A retained ended root has no live subtree (client/domain/contract/watches.md, 1.2).
 pub(crate) fn ended_tree(core: &Core, limits: &Limits, party: u64, row: &tasks::TaskRecord) -> Result<Tree, Missing> {
     if !(core.open_project(row.project) && core.people.role(party, row.project).is_some() || person_funded(row, party))
     {

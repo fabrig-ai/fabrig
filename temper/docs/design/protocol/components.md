@@ -1,6 +1,6 @@
 # Components and crates
 
-**jig's,** composed as they are (jig's `protocol/README.md`, section 5):
+**jig's,** composed as they are (jig's `protocol/components.md`, section 1):
 
 | Crate | In | What temper uses it for |
 |---|---|---|
@@ -9,11 +9,11 @@
 | `jig-protocol-worker-wire` | engine, worker | the channel's records; temper's parts ride in them as bytes (channel.md) |
 | `jig-protocol-engine-workers` | engine | the worker's link, the engine's side: opening, the payload version, grants' values filled in |
 | `jig-protocol-worker-link` | worker | the worker's link, the worker's side: dialling, grants' values taken out |
-| `jig-protocol-worker-agents` | worker | the program sources and the worker route, between smith's host half and the link (jig's `protocol/service.md`, 11.2) |
+| `jig-protocol-worker-agents` | worker | the program sources and the worker route, between smith's host half and the link (jig's `protocol/service-parts.md`, 1.2) |
 | `jig-protocol-accounts` | engine | LLM accounts on skein's accounts driver: signed-in records and keys from jig's secrets' store, a loopback listener for each sign-in's redirect, the access tokens and keys lent (credentials-llm-accounts.md, section 1) |
 | `jig-client-protocol-wire` | engine, client | jig's records for clients; the forge's client family's records ride in them as bytes (`../client/README.md`) |
 | `jig-protocol-engine-clients` | engine | the clients' component: jig's messages with their credentials, the printed link's secret, sign-ins, credentials (`../client/engine.md`) |
-| `jig-protocol-engine-clients-http` | engine | jig's default HTTP mapping, its engine end, with its example guards, mounted on temper's clients' listener under `/jig`, and the server part that listener stands on (jig's `protocol/service.md`, 11.4) |
+| `jig-protocol-engine-clients-http` | engine | jig's default HTTP mapping, its engine end, with its example guards, mounted on temper's clients' listener under `/jig`, and the server part that listener stands on (jig's `protocol/service-parts.md`, 1.4) |
 | `jig-client` | client | the client temper's client root holds: the link, watches by handle, the request table, kept work, families; jig's helpers (`../client/root.md`, section 1) |
 | `jig-client-protocol-link` | client | `jig-client`'s half toward its transport: jig's messages and the small store's records as bytes (jig's `protocol/client/wire.md`, 2.3) |
 | `jig-client-protocol-http` | client | jig's default HTTP mapping, its client end, under `jig-client-shell-native` and `jig-client-shell-web` |

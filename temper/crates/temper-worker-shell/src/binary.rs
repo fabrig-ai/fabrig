@@ -18,6 +18,7 @@ pub const WORKER: Table = Table {
     settings: &[&directories::SETTINGS],
     variables: &[
         &environment::JOB,
+        &temper_service_shell::DISK_BUDGET,
         &INTERNAL_WORKSPACE_REUSE,
         &environment::INTERNAL_DUMP_LLM,
         &temper_shell::environment::INTERNAL_COMMIT,

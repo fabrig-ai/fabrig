@@ -1,4 +1,4 @@
-//! Connector-owned effects and recovery (domain/connectors.md, section 4).
+//! Connector-owned effects and recovery (domain/connectors-effects.md, section 1).
 //!
 //! The root commits each `Save` before releasing the accompanying `Make` or
 //! `System` request. A restored entry is already durable, so its first action

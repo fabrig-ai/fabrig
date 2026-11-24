@@ -1,6 +1,6 @@
 //! Bounded discovery retains paths and parent evidence from rollout openings alone.
 //! It walks without following links and never reads credentials or a state database.
-//! Contract: smith/docs/design/benchmarks/README.md, 6.3.
+//! Contract: smith/docs/design/benchmarks/agents.md, 1.3.
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read};

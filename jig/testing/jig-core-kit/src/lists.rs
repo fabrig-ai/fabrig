@@ -1,4 +1,4 @@
-//! An account list's worker seam (jig/docs/design/domain/engine/settings.md, 12).
+//! An account list's worker seam (jig/docs/design/domain/engine/settings-catalogue.md, 2).
 use crate::world::World;
 use jig_domain_accounts::ProviderList;
 use jig_domain_core as core;

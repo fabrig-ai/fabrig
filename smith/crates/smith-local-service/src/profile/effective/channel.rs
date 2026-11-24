@@ -1,5 +1,5 @@
 //! The spawned adapter's own derived codec bounds, apart from the agent half.
-//! Contract: protocol/limits.md, sections 3.6 and 9.
+//! Contract: protocol/limits-derivation.md, section 1.6, and protocol/limits.md, section 9.
 
 use alloc::boxed::Box;
 use smith_agent_service::profile::{Layer, Limit, Value};

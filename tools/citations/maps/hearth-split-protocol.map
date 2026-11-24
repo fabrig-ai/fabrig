@@ -1,0 +1,16 @@
+# Hearth's protocol split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at 21bca82d6c688732409c9c0a251c2a16ba3f2776.
+# hearth/docs/design/protocol/format/README.md: 61,607 bytes. Targets, the schema and exports get their own pages; the opening, overview, repository, merging, secrets and identity, software, checks, changes from os and open questions stay.
+title hearth/docs/design/protocol/format/targets.md: The IaC format: targets
+title hearth/docs/design/protocol/format/schema.md: The IaC format: the schema
+title hearth/docs/design/protocol/format/exports.md: The IaC format: exports
+hearth/docs/design/protocol/format/README.md 3 -> hearth/docs/design/protocol/format/targets.md 1
+hearth/docs/design/protocol/format/README.md 5 -> hearth/docs/design/protocol/format/schema.md 1
+hearth/docs/design/protocol/format/README.md 6 -> hearth/docs/design/protocol/format/exports.md 1
+
+# hearth/docs/design/protocol/format/tasks.md: 55,374 bytes. Reserved names and paths, the hearth task and live changes get their own pages; the declaration, entries, packages, boot, file tree, accounts, data, escape hatches, requirements, task data and units that may fail stay.
+title hearth/docs/design/protocol/format/tasks-reserved.md: The format's tasks: what hearth reserves
+title hearth/docs/design/protocol/format/tasks-hearth.md: The format's tasks: the hearth task
+title hearth/docs/design/protocol/format/tasks-live.md: The format's tasks: live changes
+hearth/docs/design/protocol/format/tasks.md 11 -> hearth/docs/design/protocol/format/tasks-reserved.md 1
+hearth/docs/design/protocol/format/tasks.md 12 -> hearth/docs/design/protocol/format/tasks-hearth.md 1
+hearth/docs/design/protocol/format/tasks.md 14 -> hearth/docs/design/protocol/format/tasks-live.md 1

@@ -85,7 +85,7 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
 /// still be answered, and the resend must receive the parked act's answer. Today
 /// the gone caller and resend both count as active, so the other request gets busy.
 #[test]
-#[ignore = "P117, open: bounded waits (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "P117, open: bounded waits (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_parked_act_holds_no_exchange() {
     // jig-protocol-config's standard profile: two exchanges per shared sign-in.
     const STOCK_EXCHANGES_PER_SIGN_IN: u32 = 2;

@@ -64,7 +64,7 @@ This document holds a change's holds and releases, split from [`repairs.md`](rep
   clears a hold placed during a dependency's wait before the stall
   stopped counting there (`stalls.md`, 1). A dependency that ends
   failed or cancelled ends no hold: it holds the change as any failed
-  dependency does (jig's `domain/tasks/lifecycle.md`, 6), as before.
+  dependency does (jig's `domain/tasks/lifecycle-holds.md`, 1), as before.
   A hold of any other cause, or a stall at producing with its producer
   asked for, stays for a party's release.
 - **A release** lifts what it releases: repairs, resolutions and updates
@@ -100,7 +100,7 @@ This document holds a change's holds and releases, split from [`repairs.md`](rep
   4. **Decided** on those facts alone, by the rules for the step it
      was held at, below and in `README.md`, 2.
   A party's release of the change's task (a party's stop is a placed
-  hold: jig's `domain/tasks/lifecycle.md`, 10) does the same, though
+  hold: jig's `domain/tasks/lifecycle-holds.md`, 2) does the same, though
   the change itself was not held. A producer that fails for good holds the change at
   producing, whatever it delivered first: its pushed work stays on its
   branch, no pull request opens, and the hold carries its words whole

@@ -56,7 +56,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      `deployment readiness:` only for observations different from the party's.
      A row names whose payment it is for. A project payer's row is the
      project paying for its own work, which a plan account covers only
-     as jig's `domain/accounts.md`, 4.2 allows; work paid from a party's
+     as jig's `domain/accounts-uses.md`, 1.2 allows; work paid from a party's
      pool uses the party payer's row. So an unavailable project payer
      beside a usable party payer is no fault: the first readiness list
      that prints a project payer's row is followed, once in the text, by
@@ -96,14 +96,14 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      newline, within the bound of `bounds.md`, section 1. The tool reads it, sends
      it once, and keeps no copy (`requests.md`, section 1).
    - **`PROVIDER` is an LLM provider's number,** as `model list` and
-     `account list` print it (jig's `protocol/configuration.md`, section
-     3); `ADAPTER` is the program's name in smith's agent configuration,
+     `account list` print it (jig's `protocol/configuration-engine.md`, section
+     1); `ADAPTER` is the program's name in smith's agent configuration,
      `claude_code` (smith's `protocol/agent.md`, section 4).
    - **`SOURCE` names one of the account's sources** by its kind,
      `sign_in`, `key` or `program`, as `account list` prints it (`README.md`, section 12
      ).
    - **A declaration after forgetting** may use the same NAME for its
-     original holder (jig's `domain/accounts.md`, 3.4). Use a fresh
+     original holder (jig's `domain/accounts-sources.md`, 1). Use a fresh
      request key for the new declaration, since a key keeps its first
      answer.
 
@@ -131,7 +131,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
 
      NAME and P are the declaration's own. A forgotten program source's
      name is declared again by the person who held it, as jig's
-     `domain/accounts.md`, 3.4, has it, and is answered as a first
+     `domain/accounts-sources.md`, 1, has it, and is answered as a first
      declaration is.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
@@ -139,7 +139,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      `domain/tasks/README.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's
-     `protocol/configuration.md`, 3.1), a model at most once, its effort its
+     `protocol/configuration-templates.md`, 1), a model at most once, its effort its
      default where left out as `--model`'s is; given,
      they replace the template's sub-agents whole, and they need
      `--model`. Without them the choice keeps the template's sub-agents,

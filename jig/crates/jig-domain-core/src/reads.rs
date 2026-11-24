@@ -1,4 +1,4 @@
-//! Authenticated unkeyed reads (`client/domain/contract/README.md`, section 4).
+//! Authenticated unkeyed reads (`client/domain/contract/reads.md`, section 1).
 //! Live documents are copied at admission; past rows load in bounded owner
 //! ranges. The core keeps only each load's reply, sign-in and query. A terminal
 //! consumes it, checks current visibility and moves the answer to the journal.

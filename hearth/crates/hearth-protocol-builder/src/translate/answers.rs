@@ -1,4 +1,4 @@
-//! Render answers become the client's typed records (hearth/docs/design/domain/render/README.md, 5.1).
+//! Render answers become the client's typed records (hearth/docs/design/domain/render/crates.md, 1.1).
 use crate::{records::outcome as target, render::vocabulary::Outcome};
 
 #[must_use]
@@ -68,7 +68,7 @@ pub fn failed(
         },
     }
 }
-/// The store full at a limit, as an operational error of kind store (hearth/docs/design/domain/store/README.md, 6.1).
+/// The store full at a limit, as an operational error of kind store (hearth/docs/design/domain/store/state.md, 1.1).
 #[must_use]
 pub fn full(
     limit: crate::builder::store::vocabulary::Limit,

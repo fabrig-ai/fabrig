@@ -1,4 +1,4 @@
-//! Store key, interval and codec properties (protocol/store/README.md, section 9).
+//! Store key, interval and codec properties (protocol/store/testing.md, section 1).
 const COMPONENT_SCHEMA: &str = crate::STORE_FAMILIES[0].current;
 
 mod admission;
@@ -45,7 +45,7 @@ mod frame_patches;
 mod settings_patch;
 
 #[test]
-fn valid_refuses_each_unrepresentable_limit() {
+fn check_refuses_each_unrepresentable_limit() {
     let limits = fixtures::store_limits();
     for (name, limits, accepted) in [
         ("fixture", limits, true),
@@ -89,12 +89,51 @@ fn valid_refuses_each_unrepresentable_limit() {
             false,
         ),
     ] {
-        let checked = crate::CheckedLimits::new(&limits);
+        let checked = crate::check(&limits);
         assert_eq!(checked.is_some(), accepted, "{name}");
         if let Some(checked) = checked {
             assert_eq!(checked.limits(), &limits, "{name}");
         }
-        assert_eq!(crate::valid(&limits), accepted, "{name}");
+    }
+}
+
+#[test]
+fn checked_bounds_are_kept_at_construction_and_reopen() {
+    let stock = fixtures::store_limits();
+    let mut custom = stock;
+    custom.checkpoints.keep = 3;
+    custom.core.tasks.tasks += 1;
+    custom.reads += 1;
+    for limits in [stock, custom] {
+        let checked = crate::check(&limits).expect("admitted fixture limits");
+        assert_eq!(checked.limits(), &limits);
+        assert_eq!(Some(*checked.codec()), limits.codec_view());
+        let store = crate::Store::over(
+            &checked,
+            fixtures::APPLICATION,
+            &[],
+            crate::Stores {
+                store: skein_kv::Store::memory(&limits.store),
+                secrets: skein_kv::Store::memory(&limits.secrets),
+            },
+        );
+        assert_eq!(store.limits, limits);
+        assert_eq!(&store.codec_limits, checked.codec());
+        assert_eq!(store.checked(), checked);
+        let mut reopened = crate::Store::over(&checked, fixtures::APPLICATION, &[], store.into_stores());
+        let events = fixtures::run(
+            &mut reopened,
+            crate::Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: skein_lib::Token::new(1),
+                root: fixtures::ROOT,
+                installation: fixtures::INSTALLATION,
+            },
+        );
+        let [crate::Event::Opened { last: 0, .. }, crate::Event::Census { .. }] = events.as_ref() else {
+            panic!("reopened store: {events:?}");
+        };
+        assert_eq!(reopened.checked(), checked);
     }
 }
 
@@ -102,7 +141,7 @@ mod sizes;
 mod startup_limits;
 
 #[test]
-fn valid_requires_room_for_transcript_work() {
+fn check_requires_room_for_transcript_work() {
     let limits = fixtures::store_limits();
     for (name, limits, accepted) in [
         ("empty queue", crate::Limits { queue: 0, ..limits }, false),
@@ -124,11 +163,10 @@ fn valid_requires_room_for_transcript_work() {
             true,
         ),
     ] {
-        let checked = crate::CheckedLimits::new(&limits);
+        let checked = crate::check(&limits);
         assert_eq!(checked.is_some(), accepted, "{name}");
         if let Some(checked) = checked {
             assert_eq!(checked.limits(), &limits, "{name}");
         }
-        assert_eq!(crate::valid(&limits), accepted, "{name}");
     }
 }

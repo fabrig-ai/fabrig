@@ -1,4 +1,4 @@
-//! One socket, optionally carrying TLS (protocol/client/README.md, 9).
+//! One socket, optionally carrying TLS (protocol/client/shells.md, 1).
 use crate::Engine;
 use skein_io as io;
 use skein_lib::{

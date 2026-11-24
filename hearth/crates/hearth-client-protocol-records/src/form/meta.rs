@@ -1,4 +1,4 @@
-//! Meta's changed fields (hearth/docs/design/domain/render/README.md, 4.1).
+//! Meta's changed fields (hearth/docs/design/domain/render/diff.md, 1.1).
 use crate::form::{json::field, text::Lines};
 use hearth_domain_render_vocabulary::parts::meta::{
     Change as MetaChange, MemberPair, NamePair, Placement, PlacementPair,

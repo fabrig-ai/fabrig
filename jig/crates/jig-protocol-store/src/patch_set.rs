@@ -1,4 +1,4 @@
-//! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening.md, 3).
+//! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening-owners.md, 1).
 use crate::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 
 /// The store's part of jig's owner set; accounts adds its kept family.

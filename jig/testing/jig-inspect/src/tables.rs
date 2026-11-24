@@ -143,7 +143,7 @@ fn holding_table(
         if blockers.as_slice() == [resource] {
             refused.push(Refused {
                 key: format!("task {task}"),
-                // The child's saved wait start is Wall, not monotonic Time (testing.md, 7.1).
+                // The child's saved wait start is Wall, not monotonic Time (domain/testing-fakes.md, 1.1).
                 since: Time::ZERO,
                 bound: if core.is_some_and(|core| core.inspection_timer_withheld(jig_domain_core::Timer::Tasks)) {
                     None

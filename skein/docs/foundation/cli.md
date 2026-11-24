@@ -349,7 +349,7 @@ otherwise.
    (`skein/docs/design/data/codec/command.md`, 3); a patch author's
    `pNNNN.rs` and `context.rs` are read. The tokens `SKEIN_SET`,
    `SMITH_SET`, `JIG_STORE_SET` and `JIG_SET` name owner sets, Rust
-   constants (`jig/docs/design/protocol/store/opening.md`, 3), not
+   constants (`jig/docs/design/protocol/store/opening-owners.md`, 1), not
    variables, and are not findings. This exemption is those four names,
    not a suffix rule.
    The check reads each file once and splits it into its words (maximal

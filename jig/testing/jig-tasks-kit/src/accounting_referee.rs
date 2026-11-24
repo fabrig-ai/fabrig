@@ -127,7 +127,7 @@ impl Accounting {
         if self.amendments.get(&before.number) == Some(&(before.funder, after.numbers.budget)) {
             return true;
         }
-        // A closer yields on its task's claim and takes its idle task's available budget (domain/tasks/lifecycle.md, 11).
+        // A closer yields on its task's claim and takes its idle task's available budget (domain/tasks/lifecycle-endings.md, 3).
         let Funder::Task(parent) = after.funder else { return false };
         let (Some(old), Some(parent)) = (live(&self.before, parent), live(rows, parent)) else { return false };
         if old.closer != Some(before.number) || parent.closer != Some(after.number) {

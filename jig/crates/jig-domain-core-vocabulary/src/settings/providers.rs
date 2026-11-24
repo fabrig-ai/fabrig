@@ -25,9 +25,9 @@ pub struct Provider {
     /// Its name for showing.
     pub name: Box<[u8]>,
     pub number: u32,
-    /// The endpoint its added models take (configuration.md, 3).
+    /// The endpoint its added models take (protocol/configuration-engine.md, 1).
     pub endpoint: Option<Box<[u8]>>,
-    /// The program-free endpoint its sign-ins and keys take (configuration.md, 3).
+    /// The program-free endpoint its sign-ins and keys take (protocol/configuration-engine.md, 1).
     pub direct: Option<Box<[u8]>>,
     pub list: Option<ProviderList>,
     pub signed_in_plan: bool,
@@ -508,7 +508,10 @@ enum LabelByte {
     Other,
 }
 
-#[expect(clippy::disallowed_methods, reason = "configuration parses an address's IPv6 literal (configuration.md, 3)")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "configuration parses an address's IPv6 literal (protocol/configuration-engine.md, 1)"
+)]
 pub fn public_authority(authority: &[u8]) -> bool {
     if let Some(rest) = authority.strip_prefix(b"[") {
         let Some(end) = skein_lib::bytes::find(rest, b"]") else {

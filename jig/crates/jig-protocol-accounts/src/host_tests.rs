@@ -1,4 +1,4 @@
-//! The host's ordered pass and the owner's outputs (service.md, 11.1).
+//! The host's ordered pass and the owner's outputs (protocol/service-parts.md, 1.1).
 use super::*;
 use crate::tests::fixtures;
 use jig_domain_link::{Form, Scheme};

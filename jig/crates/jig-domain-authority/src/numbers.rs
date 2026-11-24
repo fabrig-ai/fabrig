@@ -1,4 +1,4 @@
-//! Carved funding and exact spend (domain/authority.md, section 7).
+//! Carved funding and exact spend (domain/authority-budgets.md, section 1).
 //!
 //! These functions own no counters: the tasks child keeps its own numbers,
 //! and the root translates their values. An arithmetic or accounting
@@ -11,7 +11,7 @@ use crate::{Authority, Rules};
 
 /// The four numbers against one current allotment. Every recorded charge fits within its budget.
 /// Caller-owned allotment snapshot; value queries return replacements without keeping a ledger or
-/// recognizing duplicate settlements. (domain/authority.md, section 7).
+/// recognizing duplicate settlements. (domain/authority-budgets.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Numbers {
     /// Full amount reserved for this current allotment.
@@ -34,7 +34,7 @@ pub fn left(numbers: Numbers) -> u64 {
 /// A run holds back at most half of what its task has left, where half funds a run.
 /// Where the authority may start a delegate and half, rounded down, is above the deployment's
 /// minimum, take half; otherwise take what is left. Either share is capped by the deployment
-/// (jig/docs/design/domain/authority.md, section 7).
+/// (jig/docs/design/domain/authority-budgets.md, section 1).
 #[must_use]
 pub fn run_spend(rules: &Rules, authority: &Authority, numbers: Numbers) -> u64 {
     let delegation = &authority.delegation;

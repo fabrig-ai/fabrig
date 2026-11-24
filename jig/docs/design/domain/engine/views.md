@@ -4,10 +4,10 @@ The views child domain keeps parties' watches, and paces what each is
 delivered; the core makes the documents they deliver, and answers
 parties' reads, from what its children hold. What a watch shows, and
 what a client reads, is the client's contract
-(`../../client/domain/contract/documents.md` and `../../client/domain/contract/README.md`, sections 4 to 5); what the core
+(`../../client/domain/contract/documents.md` and `../../client/domain/contract/reads.md`, section 1, and `../../client/domain/contract/watches.md`, section 1); what the core
 computes for them is said below (1 to 5).
 
-- **Watches:** jig's subjects (`../../client/domain/contract/README.md`, 5.1):
+- **Watches:** jig's subjects (`../../client/domain/contract/watches.md`, 1.1):
   `me`, the signed-in party's own document (1); a task; a task's
   tree; chips, a bounded set of tasks; the party's inbox, across
   projects; a task query's live lines (2); a task's live run; the
@@ -23,8 +23,8 @@ computes for them is said below (1 to 5).
   role in that scope, the party's own on the sign-in alone, and on the
   views' limits, as it admits jig's; whether the subject is in that
   scope, and what the party may see of it, is the connector's to judge
-  (../connectors.md, 5.5). Its watches and reads carry a window, as jig's
-  do (`../../client/domain/contract/README.md`, 5.5). Only the document, or why
+  (../connectors-facts.md, 1.5). Its watches and reads carry a window, as jig's
+  do (`../../client/domain/contract/watches.md`, 1.5). Only the document, or why
   there is none, crosses back; the root only routes.
 - **Public reads** (../people/public-reading.md) are the public party's,
   with no sign-in: the core admits one only on its public index
@@ -58,8 +58,8 @@ computes for them is said below (1 to 5).
   core through the people's timer (../people/README.md, section 3); stopping still
   completes watch endings and the drain notification (`restart.md`, section 1).
 - **An ended task or tree opens as a finished read**
-  (`../../client/domain/contract/README.md`, 5.2). Construction uses a bounded
-  task load (`README.md`, 5.3), held behind preceding commits. The core
+  (`../../client/domain/contract/watches.md`, 1.2). Construction uses a bounded
+  task load (`decisions.md`, 1.3), held behind preceding commits. The core
   checks the sign-in and retained row's project on completion, makes the
   final document without restoring the row, and closes the watch after
   its delivery terminal. A close during the load drains construction
@@ -87,9 +87,9 @@ computes for them is said below (1 to 5).
     ended: the `accounts` of the parties it concerns, and the
     deployment's (../accounts.md, section 5).
 
-  A connector marks its own subjects (../connectors.md, 5.5).
+  A connector marks its own subjects (../connectors-facts.md, 1.5).
 - **Durable before shown:** a delivery waits for the last commit made
-  before it, as every read's answer does (`README.md`, 5.2).
+  before it, as every read's answer does (`decisions.md`, 1.2).
 - **A run's text as it is written** is the one stream: kept per live run
   being watched, within a bound, named by the turn and the retry the host
   reports it for (../hosts/hub.md, 5), and delivered from the offset each
@@ -98,13 +98,13 @@ computes for them is said below (1 to 5).
   Reasoning is dropped and counted at that boundary. So is a piece whose
   offset is past the 32 bits the views count, where a host counts
   smith's 64 (`jig/docs/design/domain/hosts/hub.md`, 5). The protocol layer carries every kind
-  and offset as it is (`../../protocol/channel/README.md`, 5.4), and the same root
+  and offset as it is (`../../protocol/channel/owners.md`, 1.4), and the same root
   route serves the engine's own hub and its workers'. A later retry
   replaces an earlier one's text; text that starts past what the views
   hold of its retry, because facts were dropped between, marks that
   turn's text cut, as text past its bound does. It decides nothing and
-  leaves at once (`README.md`, 5.2). A committed turn reaches a client through the
-  task's activity, read (`executors.md`, 2).
+  leaves at once (`decisions.md`, 1.2). A committed turn reaches a client through the
+  task's activity, read (`executors-transcripts.md`, 1).
   Input retains the call being written in the current-call slot, within
   the same id + tool + input allowance. A later call replaces it; gaps and
   trimming the oldest bytes mark it cut. A begun call replaces it, so the
@@ -113,7 +113,7 @@ computes for them is said below (1 to 5).
   change it. Deliveries carry the current input suffix whole as `writing`.
 - **History is the store's.** What a client shows of the past (a task's
   results, its activity, a plan's revisions and why, the ended tasks a
-  query finds) is read (`README.md`, 5.3), paged, never held.
+  query finds) is read (`decisions.md`, 1.3), paged, never held.
 
 Nothing the core decides depends on a view arriving.
 
@@ -135,7 +135,7 @@ Nothing the core decides depends on a view arriving.
   (`../../client/domain/contract/documents.md`, 1).
 - **Templates are served, never used.** The core keeps the
   current templates, the newest revision's (`settings.md`;
-  `../../protocol/configuration.md`, 3.1), and
+  `../../protocol/configuration-templates.md`, 1), and
   each project's policy's overrides of them (../authority.md, section 6)
   only to merge them, per project, into `me`. No decision reads one: the
   client fills a template into an ordinary request, which the core
@@ -145,7 +145,7 @@ Nothing the core decides depends on a view arriving.
   carries `resolved_default: Option<LlmChoice>` beside its configured
   LLM choice. An explicit template choice previews itself. For an omitted
   choice, the core takes what a run's check would take now for a task
-  keeping no account (../accounts.md, 4.3): the first model in charter order
+  keeping no account (../accounts-uses.md, 1.3): the first model in charter order
   with an account usable now, at its default effort, under the effective
   creating authority and with the
   current receiving party as payer. No usable model, or an executor still
@@ -153,12 +153,12 @@ Nothing the core decides depends on a view arriving.
   an account reservation. The client's shapes keep the configured
   intent, never copy the preview into a request. A task made with an
   omitted choice keeps none, and each of its runs' checks takes its
-  models (../tasks/README.md, section 3; ../accounts.md, 4.3);
+  models (../tasks/README.md, section 3; ../accounts-uses.md, 1.3);
   the preview changes no task or core store layout.
 - **The offer** (`../../client/domain/contract/documents.md`, 1), per project: each
   model of configuration's order that the party's authority there allows and
-  an account usable now for the party as payer can run (../accounts.md, 4.3) and
-  allows (../accounts.md, 3.7), with those accounts. A direct source's account needs no host, so that a
+  an account usable now for the party as payer can run (../accounts-uses.md, 1.3) and
+  allows (../accounts-lists.md, 1), with those accounts. A direct source's account needs no host, so that a
   worker's restart takes no model away and what `account list` calls usable
   is offered; a program's source needs a connected host that has reported
   its login usable. A
@@ -178,14 +178,14 @@ Nothing the core decides depends on a view arriving.
   order and a window: its keys among project, requester (a party or a
   task), root, parent, label, phase class, executor kind and tracked;
   its order one of number, last change, last activity, priority and
-  ended at; its window by cursor (`../../client/domain/contract/README.md`, 4.1).
+  ended at; its window by cursor (`../../client/domain/contract/reads.md`, 1.1).
   Its rows are task lines, the one record every list of tasks is made of
   (`../../client/domain/contract/documents.md`, 1): its live tasks first, in its
   order, then its ended ones, each group with its own cursor. Its live
   lines are watched; its ended ones are read, a page at a time. The core
   admits it on the party's role in the project it names, or, naming
   none, for tasks whose requester the party is
-  (`../../client/domain/contract/README.md`, 5.1).
+  (`../../client/domain/contract/watches.md`, 1.1).
 - **Live tasks are scanned.** The tasks child keeps no secondary index,
   and its live tasks are bounded by its limits (../tasks/README.md, section 6), so
   a query's live part is one pass over them, whatever its keys, keeping
@@ -209,7 +209,7 @@ Nothing the core decides depends on a view arriving.
   examined. A query whose keys choose none has no ended part, and its
   answer says so. The decision that forgets a task forgotten once read
   erases its index rows (4); retention erases the rest with their
-  tasks (`../../protocol/store/README.md`, 6.1).
+  tasks (`../../protocol/store/growth.md`, 1.1).
 - **What a query never finds:** words in a text (`../../protocol/store/README.md`,
   section 11); ended tasks by outcome, resource or spend; tasks by a
   procedure's parameters, which belong in the application's own records
@@ -229,7 +229,7 @@ Nothing the core decides depends on a view arriving.
   kinds in the core's configuration, each a `PartKind`: its `owner` (the
   family's number), its `kind`, the `connector` that makes it, its
   `bytes`, and its `inputs` (`PartInputs`: `line`, `notes`, `delegates`,
-  `delegate_notes`, `records`; `../connectors.md`, 5.5). The core's
+  `delegate_notes`, `records`; `../connectors-facts.md`, 1.5). The core's
   `TaskQuery` carries the parts the clients' component passed it as
   served, each a `PartAsk { owner, kind, version }`, and its `TaskLine`
   their answers, each a `RowPart`: `Made` with its record's bytes,
@@ -250,10 +250,10 @@ Nothing the core decides depends on a view arriving.
     and a watch in the views' *making*; it checks each part against its
     kind's `bytes`, answering one past them `TooLarge`, and an answer of
     the wrong shape `Unreadable` for every part it was to give; then holds
-    the answer or the delivery until durable, as any (`README.md`, 5.2).
+    the answer or the delivery until durable, as any (`decisions.md`, 1.2).
     A read ended or a watch closed while it waits drops the answer when it
     comes. Each pending answer holds one load slot until its parts are in,
-    so the asks under way are bounded as reads are (`README.md`, 5.3).
+    so the asks under way are bounded as reads are (`decisions.md`, 1.3).
 - **Marked by a part's inputs** (`../../client/domain/contract/parts.md`,
   5): besides the marks above, a task is touched for an input, and marks
   the watches whose query names a kind with that input and which it
@@ -292,20 +292,20 @@ section 3):
     role, and how many wait;
   - *nothing,* when it is working: its run live and not waiting;
   - *its question,* when it is active and kept by its own unanswered
-    question to its requester (../tasks/lifecycle.md, 8), which no
+    question to its requester (../tasks/lifecycle-endings.md, 1), which no
     entry for a party covers since its requester is a task: the number
     of the oldest such question, the one the keep names. It comes
     before its dependencies and its delegates, since its requester's
     answer is what moves it, and an idle task kept so is never shown as
     waiting for news. A question asked or answered commits on the
     asking task, so its watches are marked as its other waits' are;
-  - *its dependencies,* when it is kept (../tasks/lifecycle.md, 8): the pending
+  - *its dependencies,* when it is kept (../tasks/lifecycle-endings.md, 1): the pending
     ones, the oldest first, and how many;
   - *its delegates,* when it has live delegates;
   - *news,* when it is idle, its run parked or waiting, or its procedure
     waiting on its facts: what moves it next is a message its wake
     policy lets through, or a fact its connector reads (../tasks/messages.md, 3;
-    ../connectors.md, 6.2);
+    ../connectors-procedures.md, 1.2);
   - *nothing,* otherwise: its phase says what it waits for (its
     dependencies, its holds, its closing), or it has ended.
 
@@ -324,7 +324,7 @@ section 3):
 
 - **Known by its flag,** never by its charter, its label, or the
   template that made it (../tasks/README.md, section 3). Only an agent's task
-  carries it, so its turns are its transcript's (`executors.md`, 2).
+  carries it, so its turns are its transcript's (`executors-transcripts.md`, 1).
 - **Its turns are entries for its requester,** while that requester is a
   party: a turn committed is an update for them, and marks their `me`,
   their inbox, and the queries the task matches.
@@ -336,7 +336,7 @@ section 3):
   - *a live task's,* in the people child, restored at start (`restart.md`);
   - *an ended task's,* moved to the store by the decision that ends it,
     never held, and joined by a point read where a party reads the
-    conversation or a query's ended row (`README.md`, 5.3), so an ended conversation
+    conversation or a query's ended row (`decisions.md`, 1.3), so an ended conversation
     reads with what its party had read.
 - **A task's retention class** says what becomes of it once ended
   (../people/README.md, section 5; ../tasks/README.md, section 3 defines the flag); the

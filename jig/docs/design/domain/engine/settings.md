@@ -7,7 +7,7 @@ over them. A change is one decision; each makes a revision; a task's
 runs read their charter from the revision the task was made in. This
 section is the mechanics; the model is ../model.md, section 13; who asks
 is ../people/acts.md, 1; what crosses to a connector is ../connectors.md,
-section 17; the records are `../../protocol/store/README.md`, 4.4.
+section 17; the records are `../../protocol/store/keys.md`, 1.4.
 
 ## 1. What a setting is
 
@@ -16,8 +16,8 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
 
   | Kind | Number | Value | Read |
   |---|---|---|---|
-  | charter | the charter's, 1 to 64, the defaults' 1 to 32 (below) | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration.md`, section 3); or, over a default, an overlay: the fields it replaces and the text it adds after the default's (`overlays.md`) | at each run's preparation, from the run's revision (3), an overlay laid over its default |
-  | template | the template's, 1 to 64, the defaults' 1 to 32 (below) | a template whole (`../../protocol/configuration.md`, 3.1) | when `me` is served (`views.md`, 1): the newest |
+  | charter | the charter's, 1 to 64, the defaults' 1 to 32 (below) | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration-engine.md`, section 1); or, over a default, an overlay: the fields it replaces and the text it adds after the default's (`overlays.md`) | at each run's preparation, from the run's revision (3), an overlay laid over its default |
+  | template | the template's, 1 to 64, the defaults' 1 to 32 (below) | a template whole (`../../protocol/configuration-templates.md`, 1) | when `me` is served (`views.md`, 1): the newest |
   | policy | the policy's, 1 to 64, the defaults' 1 to 32 (below) | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
   | limits | none: one setting | overrides of jig's limits, at most 256, each a limit's dotted name, a value and a reason of at most 120 bytes, ascending by name; none is the application's stock (`../../protocol/limits.md`, limits as settings) | by the application, at its start, never by the core |
@@ -30,7 +30,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   values when it builds the core (`Config`'s defaults): its models, charters,
   policies and rules, its templates, jig's chat and goal among them
   where it wants them, which jig gives as values made for the charter
-  they run (`../../protocol/configuration.md`, 3.1); its own kinds'
+  they run (`../../protocol/configuration-templates.md`, 1); its own kinds'
   defaults it gives the connectors that own them, never the core
   (5). An application that passes none has `jig-protocol-config`
   read them from the document (7).
@@ -82,7 +82,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
     kinds numbered by a charter or a template bound their numbers in
     their connectors (5), as their owner designs.
 - **Checked whole, by one check.** The core checks settings as a start
-  has always checked the document (`../../protocol/configuration.md`, sections 3 and 3.1 and `../../protocol/limits.md`
+  has always checked the document (`../../protocol/configuration-engine.md`, section 1, and `../../protocol/configuration-templates.md`, section 1 and `../../protocol/limits.md`
   ): each value in its shape and within its bound
   (a charter's instructions within the journal's run bytes, its budgets
   above its reserve and holding one of its default model's costliest
@@ -152,7 +152,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   counted toward *empty*. Committed, it replaces the project's policy
   whole in the change's decision, as its owners' edits apply (../people/acts.md,
   2): the open period and the parties' pools resized to its spends
-  (../authority.md, section 7), and every later decision under it. It makes
+  (../authority-budgets.md, section 1), and every later decision under it. It makes
   no setting and is never pinned (4): the revision's record keeps
   the item as any other, its value whole and the project's policy it
   replaced (10). A change, and a pending proposal (6), naming one
@@ -197,8 +197,8 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   a project's policy the change itself sets. The
   next `MakeProject` copies the policy as changed; a project made before
   keeps its own copy (../people/acts.md, 2). Clients re-read `me`'s templates,
-  and a template removed leaves its number unused (`../../protocol/configuration.md`,
-  3.1). A task made after the change reads its
+  and a template removed leaves its number unused (`../../protocol/configuration-templates.md`,
+  1). A task made after the change reads its
   charter from the new revision; running work, 17.4.
 - **Asking is deciding.** A change is an owner's direct request,
   decided as it is admitted. One proposed by someone who may not make it
@@ -274,7 +274,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   an owner cancels it, and holds that revision until then.
 - **A conversation moves at its next run.** A task flagged
   conversation, which its requester ends and which never ends on its
-  own (../tasks/lifecycle.md, 9), moves as each of its runs begins to be prepared,
+  own (../tasks/lifecycle-endings.md, 2), moves as each of its runs begins to be prepared,
   when it may. So a fix to its charter reaches its next turn.
 - **A change may move running work:** committed with *moves*, it moves,
   in its decision, every live agent task on an older revision that may
@@ -290,350 +290,15 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
 
 ## 5. An application's settings
 
-An application's own settings ride the same mechanism: defaulted,
-changed, proposed and decided as jig's are, each change in a revision.
-Their values are the application's, kept by the connector that owns
-their kind, in its own family: jig keeps what it decides, whether a
-setting follows its default, which revision changed it and the size of
-its value, never the value. No trait and no generic: a kind is a
-number, a value crosses jig as bytes it never reads, and its connector
-judges and keeps it within the change's decision.
-
-- **Declared at the start.** For each of its kinds the application
-  gives the core its number, in a space of its own beside jig's kinds;
-  its scope, the deployment or each project; the connector that owns
-  it, by number (../model.md, 3.5), which the root may route to any child
-  of its own; and its bounds, a value's largest bytes and the values
-  per scope, which the core's worst case prices for what it keeps of
-  them, and the connector's for the values. Its defaults, each a number
-  and bytes, it gives that connector, never the core.
-- **The connector keeps the values,** in its own family, written in the
-  core's decisions as every child's records are (../model.md, section 4):
-  its kinds' defaults as the application last gave them, each setting's
-  current change, and the items of each pending proposal of settings
-  that name its kinds. A value is a record of the connector's own, so
-  that its registered layout converts at read like any of the
-  application's records (`../../protocol/store/layouts.md`, 4). A
-  change no plan derives brings the owner's written job
-  (`../../protocol/store/jobs.md`, 4), and jig's families hold no bytes
-  of another owner's.
-- **The core keeps the rest,** as it keeps its own kinds' (7): for
-  each setting of an application's kind, whether it follows its
-  default, is changed and by which revision, or is removed, and its
-  value's size; in each revision's record, each item's edit and the
-  size of what it set; in a pending proposal's set, its items' edits
-  and sizes. jig's documents carry no value of an application's
-  (`../../client/domain/contract/documents.md`, 1): they say the state and the
-  size, and the application's own reads serve the value.
-- **Judged in the change's decision.** A change naming items of a kind
-  hands them, each with the value it would leave (a reset as the
-  default it returns to, a removal as none) and the revision they would
-  make, to that kind's connector through the root, within the
-  decision's step (`README.md`, 4.3), as a requirement's verdict is asked
-  (../connectors.md, section 7): the values a party's change carried, or,
-  for an accepted proposal, those the connector kept. The connector
-  accepts, refuses with its reason, which the change's refusal carries,
-  or answers that an item leaves its setting as it is, which the core
-  counts toward *empty* (2). A set commits only when every connector
-  it names accepts.
-  During `JudgeSettings`, the root may read the templates the active
-  decision would offer a project through the core's
-  `settings_project_templates` query, named by the judge's owner token.
-  This applies the same set, removal and reset selection as 1's check,
-  including the project's policy overrides the change would leave, without
-  publishing or mutating the current settings.
-- **Kept in the same decision.** Once a change commits, each connector
-  saves its items' values as their settings' changes, a removal as a
-  change with no value, so that a removed setting is never taken for
-  one following its default, and erases the changes of those reset;
-  it acts on them from then on, its
-  state running ahead of the commit as every child's does (`README.md`, 5.1). A
-  proposal of settings naming its kinds hands the connector its items'
-  values in the decision that makes the proposal, which the connector
-  checks against its kinds' bounds alone and keeps; the decision that
-  withdraws or rejects it erases them, and the one that accepts it
-  turns them into the changes, with the same edits a party's change
-  makes.
-- **At each start,** before its records are restored (`restart.md`, step
-  2), each connector is given its kinds' defaults by the application,
-  compares them with those it stored, and tells the core which of its
-  settings' defaults differ and their sizes, so that a changed default
-  no change is over joins the release's revision (7), the decision
-  in which the connector saves the new ones. It also names, by kind,
-  scope and number, each default it stored that the application no
-  longer gives: a setting that follows one of those is removed in that
-  revision, its state erased. A setting that follows a default its
-  connector neither reports nor names, as one a reset returned to a
-  default the application gives its connector for no one scope, or
-  gives none of, keeps its state, its size and its slot (below), and
-  the release's revision does not name it. A stored value it cannot
-  read refuses the start, naming it, as a record it cannot read does; a
-  default past its kind's bounds refuses it, naming the kind; and a
-  stored setting, the core's or the connector's, of a kind the
-  application no longer declares, or past its kind's values per scope,
-  refuses it, naming the kind, scope and number. A release that drops a
-  kind brings jobs at open to erase both owners' records of it
-  (`../../protocol/store/jobs.md`, 4). Nothing is judged
-  again: a stored value was judged when its change was made, and the
-  defaults are the application's own.
-- **Charters a value names.** A kind may declare that its values name
-  charters, at most a number per value it declares. The connector says
-  which a value names when it judges an item and when it reports a
-  default, and the core keeps those numbers with the setting's state and
-  holds them in its check of references (1, *reference*), as it
-  holds a template's charter: a change that would leave such a charter
-  unoffered is refused, naming the setting that names it, and a start
-  whose defaults would is refused the same way.
-- **Read by the application.** The root, and through it the
-  application's own children and clients, read a value from the
-  connector that owns its kind, by kind, scope and number: the newest,
-  whatever revision a task was made in. Never pinned.
-- **History** keeps, for an application's kind, each revision's edits
-  and sizes, and the state and size of what each item replaced; the
-  connector keeps the current values, the defaults, and, beside each
-  change it saves, the value the setting held before, by the revision
-  that made the change, for as long as the history keeps that
-  revision's record (10), so that a restore proposes them again:
-  every past value a restore reaches is one a later change replaced,
-  and no other is kept.
-- **The root routes, never judges** (../root.md, section 11): the judging
-  and the keeping are the connector's, in its own terms.
-
-The values-per-scope bound counts every setting state the core keeps in that
-scope: changed, removed and following its default after a reset. Removing or
-resetting a number does not free its slot. A set naming a new number past
-that bound is refused as count before judging; editing a number already kept
-adds no slot (decided 2026-11-03).
+Moved to [`settings-application.md`](settings-application.md), section 1.
 
 ## 6. A proposal of settings
 
-- **Proposed by a member or a run.** A party with a role in the
-  deployment or in a project proposes a set with `Propose` (../people/acts.md,
-  1); a run with its `propose` call, when its charter gives it the
-  settings family (`executors.md`, 3), which reads the settings and proposes a set;
-  never a procedure. A proposal names its revision, its items and its
-  reason, as a change does, and leaves to its accepter whether running
-  work moves. The reason is bounded by `people.words` bytes for both a
-  party and a run. A run past that bound is refused with the words limit
-  and may shorten its reason and propose again. The pending review shows
-  every admitted reason whole, independently of the document snippet bound.
-- **In the deployment's scope.** No task's authority covers settings,
-  so a proposal of settings waits for parties from the start: the
-  deployment's owners for the deployment's items, and a project's owners
-  for that project's; a set touching both waits for parties holding all
-  of them. One no party may accept is refused at its entrance, as every
-  proposal nobody may accept is (../tasks/proposals.md).
-- **It belongs to the projects its items touch.** An application's item of
-  a project's scope and a project's own policy touch that project; a
-  proposal's `projects` are those, ascending and distinct, at most 32, worked
-  out by the core from its items, which never change once it is made, and never
-  by a client. One whose items touch no project, or that has no items, is the
-  deployment's, and has none. A set of both a project's items and the
-  deployment's belongs to that project. It stays in the deployment's scope, as
-  above: its `project` and its holder are the deployment's and its decision is
-  made there. A reader's inbox row and project-filtered reads show it in each of
-  its `projects`, and one of the deployment's in each project that reader owns,
-  at most 32, the lowest numbers first (`../../client/domain/contract/documents.md`, 1).
-  A row counts once across projects, and once in each project it shows in.
-- **The owner keeps the value.** The tasks child keeps the proposal as
-  it keeps every proposal: its proposer, reason, where it waits and its
-  state. The core keeps its set, by the proposal's number, in memory and
-  in the store, restored with it, but for the values of its items of an
-  application's kinds, which their connectors keep (5).
-- **A project's own policy among its items** (2) is proposed as a
-  change names it, its value kept by the core with the set. The
-  proposal waits for that project's owners, and, beside the
-  deployment's items, for the parties who own both: one decision by one
-  party, refused at its entrance where no party owns both. Its owners'
-  own edits of the policy while it waits make no revision and withdraw
-  nothing: the review shows the policy as it is then. A project deleted
-  while it waits withdraws it as no longer applying, in the deletion's
-  decision, and its proposer hears so.
-- **Accepting it is the change** of 2, with the accepter's choice of
-  whether running work moves, checked again then. An acceptance refused
-  (out of shape, judged, full) leaves the proposal pending, and the
-  accepter is told why. Its revision records the proposal and its
-  accepter.
-- **Its proposer hears the outcome** as every proposer does, a message
-  in its inbox or the party's updates (../tasks/proposals.md): accepted,
-  naming the revision it made; rejected, with the accepter's reason;
-  withdrawn as stale, naming the newest. A run that proposed reads it
-  as any message, and may propose again.
-- **Stale is withdrawn.** The decision that makes a revision withdraws
-  each pending proposal of settings made against an older one, as no
-  longer applying (../tasks/proposals.md), and its proposer hears so; a
-  fresh proposal names the newest.
-- **A run's fresh one replaces its own.** A run whose task's proposal of
-  settings waits may propose settings again: admitted, it withdraws the
-  one that waits in the same commit, whose set goes as any withdrawn
-  set does (../tasks/proposals.md). Refused, by a stale revision, a bad
-  item or a full bound, it changes nothing. A party's proposal is not
-  replaced.
-- **Reviewed against its own revision.** A pending proposal is always
-  against the newest, the stale ones withdrawn, so the core serves its
-  review from the current settings: for each item, the setting, what
-  becomes of it (set, removed, reset), what it is now (its value, and
-  whether it follows its default or the change of which revision, or
-  that it is not offered) and what it would be (the value set, none, or
-  its default's), an application's items with their sizes alone, the
-  application serving their values (5), and a project's policy as
-  it is now and as it would be, each whole. A reviewer never compares against a later revision
-  than the proposal's; once decided or withdrawn, a proposal carries its
-  items alone, and an accepted one names the revision it made
-  (`../../client/domain/contract/documents.md`, 1).
-- **Bounded:** pending proposals of settings in the deployment are a
-  limit of their own, each priced at a whole set (8), beside the
-  tasks child's limits on pending proposals.
-
-Each settings proposal naming an application's items receives a
-deployment-unique `u64` key when it is made. Connector asks to keep, judge,
-accept or drop its values use this key, since proposal numbers are only
-unique within a proposer. The settings review document exposes the key with
-the set so the client can name the application's proposal-value read
-(2026-11-04).
-
-A review of an application's item carries its current state, size and
-charter references. A set gives the size it would set; a removal gives none;
-a reset says it returns to its default without giving that default's size.
-The core keeps no separate default size for this review, makes no connector
-ask during it, and supplies neither zero nor an unknown-size marker. The
-application's own reads serve its default and size (decided 2026-11-03).
-
-Deleting a project withdraws pending settings proposals naming its policy
-before the project state changes. Those proposals are a subset of the
-deployment's pending settings sets, at most `settings.proposals`, so their
-writes fit `settings::withdrawal_writes`, the allowance already included in
-the settings write bound checked against `journal.writes`. Message-number
-capacity is checked before any withdrawal or deletion mutation; this
-requires no additional limit or root-to-core allowance (decided 2026-11-03).
+Moved to [`settings-proposals.md`](settings-proposals.md), section 1.
 
 ## 7. In the store, and at a start
 
-- **What the store keeps** (the core's settings family,
-  `../../protocol/store/README.md`, 4.4): the defaults the newest revision was
-  made with, setting by setting; the changes, each a setting's value whole or its
-  removal, with the revision that made it, and of an application's
-  kind its state and size alone, its value the connector's (5); a
-  record per revision, with
-  its number, the revision it was made against, when, who decided it (a
-  party, the release, the first start, a provider's list), the proposal it came from,
-  whether it moved running work, and its items with the values they
-  set and what each replaced (10), an application's items with
-  their sizes alone; each charter
-  version a held revision reads and the newest does
-  not; and pending proposals' sets. The tasks family keeps each
-  task's revision, live and ended, and each claim's.
-- **History** is the revision records, kept for every revision held
-  and for the latest ones within the history limit (8); the decision
-  that makes a revision, or that ends the last holder of one, erases
-  those that fall out. A version is restored by a proposal of the
-  settings as it left them (10). History is read from
-  the store, a revision by its number and the records a page at a
-  time, newest first, each with what it changed; a revision erased is
-  answered as forgotten, naming the oldest kept
-  (`../../client/domain/contract/README.md`, section 4). The store keeps the
-  history's extent, the oldest revision it holds, among the live
-  settings. Each commit that makes a revision, and a start whose history
-  limit was lowered, erases from the oldest up to the limit's cutoff,
-  within the settings commit's write budget, and records the new
-  oldest. A revision below the cutoff is answered as forgotten even while
-  a row that commit had no room for remains; later revisions' commits
-  erase the rest.
-- **Settings writes** are checked at configuration against the store's
-  commit edge (`../../protocol/store/records.md`, 4).
-  `jig_domain_core::settings::writes_bound` bounds the first start's or
-  a revision's writes; it must fit `JournalSizes.writes`, which supplies
-  the store's `commits.writes`. An overflow or a bound past that edge
-  refuses the configuration.
-- **A start** reads the settings right after the deployment's
-  numbers, before any other record of the core's (`restart.md`, step 1):
-  the stored defaults, the changes, the held revisions' records and the
-  charter versions. It then compares the
-  defaults it is given with those stored:
-  - *a first start* makes revision 1 from its defaults, recorded as the
-    first start's;
-  - *defaults that differ* are stored, and when they change the current
-    settings (a setting no change is over), they make a revision
-    recorded as the release's, with no proposal, once the core's
-    records are restored and every connector has said which of its
-    kinds' defaults differ (`restart.md`, steps 1 and 2; 5), with the
-    connectors' new defaults saved in it; like any revision, it
-    withdraws stale proposals of settings (6); new work takes it,
-    running work keeps its own. A model a change is over stays as that
-    change left it, so one a person turned off stays off, and a release's
-    new model comes in at its default. An overlay masks nothing: a
-    charter's default that differs under its overlay changes the
-    current settings, the overlay laid over the new default
-    (`overlays.md`, 4);
-  - *the numbers first* (1): every default of a charter, template,
-    policy or model out of its range, and every stored change of one
-    past 64, refuses the
-    start in one refusal naming them all, ascending by kind and number,
-    each a default or a change, before the whole check, so that an
-    owner moves them all at once (`upgrade --check` rehearses the start
-    and names them before a redeploy). The core's `start::Failure`
-    carries it as `Numbers { settings: Box<[Numbered]> }`, each
-    `Numbered { setting: Setting, changed: bool }`, `changed` false
-    for a default, the list no longer than the defaults and changes the
-    start holds;
-  - *then a release's default on a kept number* (1): a default the start
-    is given that the stored defaults lack, at the number of a stored
-    change that sets a value (a withdrawn model's too), refuses the start
-    in one refusal naming them all, ascending by kind and number, before
-    the whole check. Laid under that change, the release's item would be
-    masked by the deployment's own, unseen. The core's `start::Failure`
-    carries it as `Taken { settings: Box<[Setting]> }`; its words name
-    each and both ranges, and say to move each to 33 to 64 on the build
-    that runs, then start the new one; `upgrade --check` names it before
-    a redeploy;
-  - *kept items are warned of* (1): every stored change setting a value
-    at 1 to 32 that no default the start is given has is kept where it
-    is and checked whole as any setting is. The core names them,
-    ascending by kind and number, through `Core::settings_kept(&self) ->
-    Box<[Setting]>` (`check::kept(&Current)` in its vocabulary), and the
-    application warns of them in one line once the start has ended,
-    naming each and both ranges and saying that a release whose stock
-    brings one of their numbers refuses its start;
-  - *the current settings are checked whole* (1): a start whose
-    settings fail is refused, naming the setting, the change over it if
-    any, and what fails, as a document failing its check always was;
-  - *past limits:* held revisions or charter versions past limits
-    lowered since, or a release's revision that would pass them, refuse
-    the start, saying which, as a live set past lowered limits does. A
-    task or a claim naming a revision the store holds no record of is a
-    link that cannot be made, and refuses the start (`restart.md`).
-
-  A saved project policy above the current policy byte budget refuses the
-  start naming its project and policy; the named restore failure is retained
-  until the shell reports it.
-
-  All of it, the release's revision included, is committed before the
-  core admits anything.
-
-  The release's withdrawals are in its decision (6), so a crash
-  leaves the revision and its withdrawals both or neither: a start after
-  the commit finds the revision made and the proposals withdrawn, and
-  makes no second one; a start after a commit that was lost makes them
-  both. They run at `Phase::Link`, with every link made. The decision
-  holds their records: the tasks child's, the core's set erased, and a
-  connector's dropping of an application's values, a settings ask like
-  the release's others. The people child's projections of them follow
-  in memory: it takes a projection event once its census is whole, at
-  its link and again once its start has ended, never while loading or
-  sweeping, and a restart rebuilds them from the records. What acts on
-  them waits, by `restart.md`: a proposer left due is activated when the
-  tasks child is told it is restored, and a word left
-  for a live run is relayed after that run's next turn, as any restored
-  task's are. Nothing is activated or relayed from the decision itself,
-  so a first start and a second after a crash do the same.
-- **The document's members as defaults.** An application that passes
-  no defaults gives the document's `llm` models, `charters`, `templates`, `policies`
-  and `rules` (`../../protocol/configuration.md`, section 3), and the
-  store's changes lie over them as over any defaults. A deployment that
-  restarts with the same document and no change behaves as it did; a
-  document edited between starts gives the release's new defaults
-  (above); a stored change wins over the document's member; a reset
-  returns the setting to the document's value.
+Moved to [`settings-store.md`](settings-store.md), section 1.
 
 ## 8. Bounds
 
@@ -660,8 +325,8 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   priced by the endpoints' bound, so that it can judge the host against
   changed needs and name its runs' reply bound (`fleet.md`).
 - **History** is a third number, of revision records the store keeps
-  beyond those held, within the store's fill (`../../protocol/store/README.md`,
-  6.2). The core holds none of it.
+  beyond those held, within the store's fill (`../../protocol/store/growth.md`,
+  1.2). The core holds none of it.
 - **Proposals of settings** bring a fourth limit, of pending ones, each
   priced at a whole set (6).
 - **A change fits one request:** its items within the clients'
@@ -792,8 +457,8 @@ decided by the owners of what it touches.
   deleted since, which went with it (../people/acts.md, 2), and the answer
   names each one left out.
 - **Its decision loads the records after R** before it decides, a page
-  at a time as `revisions` reads them (`../../client/domain/contract/README.md`,
-  section 4), at most the history's limit of records; the decision is
+  at a time as `revisions` reads them (`../../client/domain/contract/reads.md`,
+  section 1), at most the history's limit of records; the decision is
   made against the newest it loaded, and a revision made meanwhile
   refuses it as stale, naming the newest, as any change against an
   older one is. A restore of a revision erased is refused as forgotten,
@@ -806,7 +471,7 @@ decided by the owners of what it touches.
 - **Reviewed as any proposal,** each value whole within the document's
   bound or with its size; a value past it is read whole by
   `setting{kind, scope, number, proposal}`, a pending proposal's item
-  (`../../client/domain/contract/README.md`, section 4), and an application's
+  (`../../client/domain/contract/reads.md`, section 1), and an application's
   items from the application's own read of a proposal's items (5).
 
 The restore's size is counted before any deleted project's items are left
@@ -824,122 +489,8 @@ boundary (2026-11-04).
 
 ## 11. The catalogue
 
-The current settings of kind `model`, in number order, are the
-deployment's **catalogue**: what a task's LLM choice, an authority's
-models and a charter name.
-
-- **A number is a position.** Model `i` of a task's choice and bit `i` of
-  an authority's models are the setting numbered `i + 1`
-  (`../tasks/README.md`, section 3; `../authority.md`, section 3), so the store's and
-  the wire's indices hold across a change and a release. The bound is
-  `MODELS`, 64, for the deployment's life; a number no setting has is a
-  hole, which nothing offers or resolves. The binary's defaults take low
-  numbers, 1 to 32, and keep them; a model a person or a provider's list
-  adds takes the highest free number from 64 down to 33, a deployment's
-  own range (1), so a release's new default never meets one. With none
-  free there, an owner's add is refused as *count*, as a full catalogue
-  is, and a list's names past it are left out (12); a number below 33 is
-  never given to an added model.
-- **A number keeps its name.** A set naming another name than its
-  default's or its stored change's is out of shape; so are a dialect or
-  program its endpoint doesn't have, a name out of `valid_name`, and a
-  zero window, output or price unit. An unknown provider or endpoint is a
-  reference fault. Nonzero window and output values no agent's bounds
-  hold make a run wait, as a charter's does (`fleet.md`).
-- **A model stays for the tasks that hold it.** A *removed* item keeps the
-  setting, *withdrawn*: out of the offer (`views.md`, 1) and of every charter's
-  resolution, with its number and name. A *reset* returns one with a
-  default to it, and one with no default is out of shape. A run reads the
-  charter version of its revision (3), whose records are the models as
-  they were, so a task keeps the model it has, and no change of a model
-  moves one.
-- **A charter's models are names, resolved.** A charter names its first
-  choices, in order, and whether **the rest** follow
-  (`../../protocol/configuration.md`, section 3). Its resolution is each
-  name's record in the catalogue, at the effort the charter selects for
-  it where it selects one (`../tasks/README.md`, section 3), withdrawn ones dropped, the main the
-  first left; then, with the rest, every other model in number order,
-  while it stays within `settings.alternatives` and `run_bytes`. A
-  resolution with no model is a *reference* fault. What a run reads, what
-  the fleet needs and what the tasks child checks a choice against is the
-  resolution; a setting's value, a read and a proposal keep the charter as
-  set, so that a new model needs no charter's change.
-- **A change of a resolution is a change of its charter.** A decision or
-  a release whose models change a charter's resolution makes that charter's
-  next version at its revision, and holds the old one (3 and 8),
-  though no item names the charter and its stored value stays. A change of
-  a model's `picker` alone changes no resolution, and so no version.
-- **What the charter left out:** a model past a charter's bounds stays
-  in the catalogue and off that charter. `me` says how many, for a
-  project's chats (`../../client/domain/contract/documents.md`, 1).
-- **Who hears.** A decision or a start's restore that changes the
-  catalogue asks the root to tell the clients' component and the store,
-  before its commit (`Ask::Catalogue`; `../../protocol/store/records.md`);
-  the tasks child hears the efforts with the charters (2), the fleet its
-  needs, and the views mark every `me`.
-- **An owner's act.** `ChangeModel` (`../../client/domain/contract/requests.md`, 2)
-  turns one model's picker on or off, or adds a model by name, a provider
-  and a name, as one change at the newest revision, running work staying,
-  decided as 2's. Adding checks the name's shape alone (`valid_name`),
-  since only a first run shows whether the provider serves it. It takes the
-  highest free number and the provider's dearest stock model's endpoint,
-  window, output and prices, marked estimated, so that a budget stops
-  early rather than late, with no efforts and on the picker. A name the
-  catalogue holds is out of shape, unless withdrawn, which it brings back.
-  A provider with no stock model takes its `endpoint` and the catalogue's
-  dearest stock model's figures.
-- **A person's removal of a list's model** makes it a person's: the item keeps
-  the setting withdrawn, with `source` person, so that a list naming it again
-  doesn't bring it back (12). Adding it by name does.
+Moved to [`settings-catalogue.md`](settings-catalogue.md), section 1.
 
 ## 12. A provider's list
 
-A read of an account's list (../accounts.md, 3.7) comes to the core as an answer.
-The core alone turns it into settings, as the one decider that's neither a party,
-the release nor a first start. It moves no running work.
-
-- **Placing a read.** The core gives the fleet the account's grant and the
-  endpoint its provider names (`../../protocol/configuration.md`, section 3). The
-  fleet holds it until a connected worker's bounds hold that endpoint, sends it to
-  the one with the most free slots, one read in flight per worker, and holds it
-  again if that worker's channel is lost before it answers. A renewal reaches a
-  read still held. Host rule is not asked (../accounts.md, 3.4): no tool runs on a
-  read. With no worker connected, a read waits and nothing says it failed.
-- **What it keeps.** Of the rows, in the provider's order: a name that a `keep`
-  pattern matches and no `drop` pattern does, and that `valid_name` holds. The rest
-  never reach the store.
-- **A name new to the catalogue** takes `new_model` (11), `source` list, off the
-  picker, and the highest free number, in the provider's order, each seeing the
-  last. Its `first_read` is this read's time and never changes, so it's "new" once.
-  Its figures are those of `new_model`, and where the list says them, its shown
-  name, its window and output, no larger than `new_model`'s, since the binary's
-  defaults bound what a run is given, whatever a provider allows, and its
-  efforts, its default effort being `high` where it lists that, else its first.
-  Its prices stay estimated.
-- **The catalogue's room.** With no number free from 64 down to 33 (11),
-  a name takes no number, and the account's `left_out` counts it, so the
-  provider's first are kept.
-- **A name gone from every list:** a model of this provider with `source` list
-  that no account's last good read holds, this one's included, is withdrawn: out of
-  the offer and every charter's resolution, its number and name kept for the tasks
-  that hold it. A withdrawn one with `source` list that a read names again comes
-  back. A read never touches a model of the binary's or a person's, nor another
-  provider's, nor a kept row's picker, prices or figures; the accounts' names narrow
-  those (../accounts.md, 3.7).
-- **What a read decides.** The new, gone and returned models are one change at
-  the newest revision, `Running::Stays`, decided as 2's, by the provider's list
-  (`Decider::List`, naming the provider, in the revision's record). A read that
-  changes nothing makes no revision. Like any revision it withdraws stale proposals
-  (6) and makes the versions of charters whose resolution it changes (11).
-  Refused, for held versions past their limits or a whole set out of shape, it makes
-  none, and the attempt fails as the catalogue's room.
-- **One commit.** The account's record, the revision and its versions commit
-  together, so that a crash leaves both or neither; `settings::writes_bound` prices
-  the record's one write.
-- **What it marks.** A read marks the `accounts` document of whoever holds the
-  account, and the deployment's, since its times moved. `me` is marked only when
-  what it says moved: the decision changed the current settings, or the account's
-  `names` changed, which narrows its offer, or its displayed `left_out` changed
-  (`../../client/domain/contract/documents.md`, 1). A day's alarm alone marks nothing, nor
-  does a failed read, a repeat, a refused act or a read still held.
-- **A failed read** changes no setting and no name (../accounts.md, 3.7).
+Moved to [`settings-catalogue.md`](settings-catalogue.md), section 2.

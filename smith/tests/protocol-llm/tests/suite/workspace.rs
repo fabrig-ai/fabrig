@@ -1,6 +1,6 @@
 //! Observed optional-workspace starts, native parked transcripts and mixed mounts.
 //! All bodies come from the root's Turns; all file effects use the shared checkout.
-//! Contract: domain/run.md, sections 3, 6, 8 and 12; domain/tools.md, sections 2–4.
+//! Contract: domain/run-start.md, section 1, and domain/run-messages.md, section 1, and domain/run-delivery.md, section 1, and domain/run.md, section 12; domain/tools.md, sections 2–4.
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Message, Part, Role, Script, Turn};

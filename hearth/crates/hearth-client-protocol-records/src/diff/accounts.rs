@@ -1,4 +1,4 @@
-//! Account changes in client forms (hearth/docs/design/domain/render/README.md, 4.3).
+//! Account changes in client forms (hearth/docs/design/domain/render/diff.md, 1.3).
 use crate::form::text::Lines;
 use hearth_domain_render_vocabulary::parts::config::{Change as ConfigChange, GroupKeyed, MemberChange, UserKeyed};
 use skein_json::writer::Encoder;

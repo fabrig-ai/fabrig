@@ -303,7 +303,7 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
   thinking as it was given, whole and in order, and its markers move
   without touching a block's content; its caller appends turns and never
   edits one it replays, and smith's own compaction opens its new window
-  with no thinking (smith's `domain/session.md`, 8.2).
+  with no thinking (smith's `domain/session-context.md`, 1.2).
 - **Failures, by the error's type before the status.**
   `authentication_error` is `Unauthorized`; `permission_error` is
   `Refused`; `rate_limit_error` is `RateLimited`; `billing_error` is `Exhausted`

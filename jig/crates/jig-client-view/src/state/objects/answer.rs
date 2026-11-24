@@ -1,7 +1,7 @@
 //! Durable card answers and local retention expiry, kept as distinct facts.
 //! Refusals preserve the engine's judgment; a moved object is read afresh,
 //! while an unknown request is never sent automatically again. See client/domain/client/requests.md
-//! , objects.md, 9, and client/domain/contract/README.md, 3.
+//! , objects.md, 9, and client/domain/contract/answers.md, 1.
 //!
 //! | Card event | State | Effect |
 //! |---|---|---|

@@ -1,5 +1,5 @@
 //! Scripted files, executable checks and their outstanding terminal rights.
-//! Contract: smith/docs/design/domain/run.md, sections 8.1 and 12.
+//! Contract: smith/docs/design/domain/run-delivery.md, section 1.1, and smith/docs/design/domain/run.md, section 12.
 
 use std::collections::{BTreeMap, BTreeSet};
 

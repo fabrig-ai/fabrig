@@ -1,4 +1,4 @@
-//! The local command's one-line windows (protocol/programs.md, 5.11).
+//! The local command's one-line windows (protocol/programs-claude-code.md, 1.11).
 //! Retains at most eight windows, placing UTC resets nearest the host's ask.
 
 use alloc::boxed::Box;

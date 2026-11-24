@@ -1,5 +1,5 @@
 //! Local choices translated into one agent charter (domain/host.md,
-//! sections 5 and 8; domain/run.md, sections 3.1 and 5.3). Configuration owns text,
+//! sections 5 and 8; domain/run-start.md, section 1.1, and domain/run.md, section 5.3). Configuration owns text,
 //! model names and result policy, but neither credential secrets nor files.
 //! `charter` copies those choices without consulting time or the workspace.
 //! One-turn reserve admission stays with the real run entrance (domain/budget.md,

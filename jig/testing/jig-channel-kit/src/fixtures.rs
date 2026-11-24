@@ -1,4 +1,4 @@
-//! One bounded chat deployment and independent provider script (protocol/channel/README.md, 11).
+//! One bounded chat deployment and independent provider script (protocol/channel/testing.md, 1).
 use crate::world::{Script, Settings};
 use jig_domain_link::EndpointBound;
 use jig_protocol_worker_wire::Record;

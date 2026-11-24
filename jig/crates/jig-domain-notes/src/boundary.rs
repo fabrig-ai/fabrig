@@ -1,4 +1,4 @@
-//! The notes child's store and caller vocabulary (jig's domain/engine/README.md, section 5.6, and domain/engine/briefs.md, section 2
+//! The notes child's store and caller vocabulary (jig's domain/engine/decisions.md, section 1.6, and domain/engine/briefs.md, section 2
 //! ). The parent commits writes and returns bounded loads.
 
 use alloc::boxed::Box;
@@ -98,7 +98,7 @@ pub enum Record {
 }
 
 impl Record {
-    /// The durable address of this entry or scope line (domain/engine/README.md, 5.6).
+    /// The durable address of this entry or scope line (domain/engine/decisions.md, 1.6).
     #[must_use]
     pub fn key(&self) -> Key {
         match self {

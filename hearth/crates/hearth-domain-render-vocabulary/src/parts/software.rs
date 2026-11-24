@@ -31,7 +31,7 @@ pub struct Change {
     pub downloads: Box<[DownloadKeyed]>,
     pub scripts: Option<super::config::ScriptsChange>,
 }
-/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
+/// Keyed changes (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum DownloadKeyed {
     Added { key: Box<[u8]>, value: Download },

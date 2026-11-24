@@ -1,7 +1,7 @@
 //! Agent-neutral checks and grader commands after tree settlement.
 //! Reads stay inside the candidate copy; links and special files are scope
 //! evidence and are never followed. No provider or agent state is inspected.
-//! Contracts: ../../docs/design/benchmarks/README.md, sections 3.2, 9 and 10.
+//! Contracts: ../../docs/design/benchmarks/README.md, section 3.2, and ../../docs/design/benchmarks/results.md, section 2, and ../../docs/design/benchmarks/isolation.md, section 1.
 
 use std::collections::BTreeMap;
 use std::fs;

@@ -1,4 +1,4 @@
-//! Provisional writing, bounded per live run (`jig/docs/design/client/domain/contract/README.md`, 5.3).
+//! Provisional writing, bounded per live run (`jig/docs/design/client/domain/contract/watches.md`, 1.3).
 //! Retention starts with a report and ends with the run,
 //! independently of its followers. Opening resumes a matching retained position
 //! or starts at the current retained beginning.

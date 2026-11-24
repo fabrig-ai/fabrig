@@ -40,7 +40,7 @@ impl Account {
         self.uses.as_deref()
     }
     /// A source classified as a plan by configuration, or any program source, makes
-    /// this a plan's account (accounts.md, 3.2; configuration.md, 3).
+    /// this a plan's account (accounts.md, 3.2; protocol/configuration-engine.md, 1).
     #[must_use]
     pub const fn plan(&self) -> bool {
         self.plan
@@ -61,7 +61,7 @@ impl Account {
     }
 }
 
-/// A source, with its own state (accounts.md, 3.5): what the component says of a signed-in
+/// A source, with its own state (domain/accounts-sources.md, 2): what the component says of a signed-in
 /// source's grant, and what runs' agents noticed of any source.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Source {
@@ -104,7 +104,7 @@ impl Source {
         }
     }
 }
-/// What runs' agents noticed, over whatever the component says (domain/accounts.md, 3.5).
+/// What runs' agents noticed, over whatever the component says (domain/accounts-sources.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Hold {
     Limited { until: Option<Deadline> },
@@ -126,14 +126,14 @@ enum Phase {
 }
 /// What an account's runs take: the first source by place that is usable; a program's not
 /// held is passed over, being usable on some host alone; any other unusable source holds
-/// the account until its holder acts on it (accounts.md, 3.4).
+/// the account until its holder acts on it (domain/accounts-sources.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Choice {
     Usable(u32),
     Held(u32),
     Empty,
 }
-/// Where a catalogue model came from (jig/docs/design/domain/accounts.md, 3.7).
+/// Where a catalogue model came from (jig/docs/design/domain/accounts-lists.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ModelKind {
     Stock,
@@ -184,13 +184,13 @@ pub struct Domain {
     phase: Phase,
 }
 impl Domain {
-    /// The account's last list reads (jig/docs/design/domain/accounts.md, 3.7).
+    /// The account's last list reads (jig/docs/design/domain/accounts-lists.md, 1).
     #[must_use]
     pub fn list(&self, account: u32) -> Option<&crate::ListRecord> {
         self.accounts.get(&account)?.list.as_ref()
     }
 
-    /// Whether the provider and the first source give this account a list (accounts.md, 3.7).
+    /// Whether the provider and the first source give this account a list (domain/accounts-lists.md, 1).
     #[must_use]
     pub fn has_list(&self, account: u32) -> bool {
         let Some(entry) = self.accounts.get(&account) else { return false };
@@ -204,7 +204,7 @@ impl Domain {
             Kind::Program | Kind::None => false,
         }
     }
-    /// A person's models always pass; a good read decides the rest (accounts.md, 3.7).
+    /// A person's models always pass; a good read decides the rest (domain/accounts-lists.md, 1).
     #[must_use]
     pub fn allows(&self, account: u32, number: u32, kind: ModelKind) -> bool {
         match kind {
@@ -222,7 +222,7 @@ impl Domain {
         }
         kind == ModelKind::Stock
     }
-    /// The other accounts' good reads for one provider (accounts.md, 3.7).
+    /// The other accounts' good reads for one provider (domain/accounts-lists.md, 1).
     #[must_use]
     pub fn listed_names(&self, provider: u32, except: u32) -> u64 {
         let mut names = 0;
@@ -280,7 +280,7 @@ impl Domain {
             phase: Phase::New,
         }
     }
-    /// What the provider says of this account (accounts.md, 3.7); empty when absent.
+    /// What the provider says of this account (domain/accounts-lists.md, 1); empty when absent.
     #[must_use]
     pub fn account_facts(&self, account: u32) -> &[crate::AccountFact] {
         match self.said.get(&account) {
@@ -297,7 +297,7 @@ impl Domain {
         }
         None
     }
-    /// The rate beside a usage fact, in basis points per hour (accounts.md, 3.7).
+    /// The rate beside a usage fact, in basis points per hour (domain/accounts-lists.md, 1).
     #[must_use]
     pub fn window_rate(&self, account: u32, label: &[u8]) -> Option<u32> {
         self.window_memory(account, label)?.rate
@@ -389,7 +389,7 @@ impl Domain {
         let entry = self.sources.get(&number)?;
         Some(fact(number, entry))
     }
-    /// The number the counter gives next; the store keeps it (domain/engine/README.md, 5.4).
+    /// The number the counter gives next; the store keeps it (domain/engine/decisions.md, 1.4).
     #[must_use]
     pub const fn next_number(&self) -> u32 {
         self.next
@@ -1230,7 +1230,7 @@ pub(crate) fn changed(
     }
 }
 /// A source's record: its place in its account's order, and a limit's reset on the wall clock,
-/// so that it means the same after a restart (domain/engine/README.md, 5.4).
+/// so that it means the same after a restart (domain/engine/decisions.md, 1.4).
 pub(crate) fn stored(domain: &Domain, number: u32) -> Stored {
     let entry = domain.sources.get(&number).expect("a kept source");
     let account = domain.accounts.get(&entry.account).expect("a source's account is kept");

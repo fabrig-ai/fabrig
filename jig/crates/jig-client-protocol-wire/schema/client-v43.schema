@@ -22,7 +22,7 @@ family jig-client-wire 43
 # Reads keep the engine's cursor opaque (protocol/client/README.md, section 4).
 # Unreachable is a local connection outcome; the engine sends no such record.
 # Nested collections are length-prefixed pieces; their owner splits and admits them.
-# Task and run documents (client/domain/contract/documents.md and client/domain/contract/README.md, 5.3).
+# Task and run documents (client/domain/contract/documents.md and client/domain/contract/watches.md, 1.3).
 # Keyed.value: a request's carried value, sent once, never stored (protocol/client/README.md, 3).
 # Dependencies replace the whole list: newly named tasks are added, omitted tasks removed (domain/tasks/changes.md).
 # The description's 512 bytes are MODEL_DESCRIPTION_BYTES (protocol/limits.md).
@@ -31,8 +31,8 @@ family jig-client-wire 43
 # Remaining documents and stream (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 # Account deadlines are optional wall times; absence supplies no deadline.
 # Account changes share the account documents' payer type and ACCOUNT_USES bound.
-# Kept.record: TableEntry's widest encoding (jig/docs/design/protocol/client/README.md, 7).
-# Small store (protocol/client/README.md, 7); TableEntry.request has Keyed.request's ceiling.
+# Kept.record: TableEntry's widest encoding (jig/docs/design/protocol/client/small-store.md, 1).
+# Small store (protocol/client/small-store.md, 1); TableEntry.request has Keyed.request's ceiling.
 # A read value preserves the contract variant as well as its existing document.
 # Chips.rows and Inbox.needs/updates/selection: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece.
 # A delivery preserves its contract variant and the whole document.
