@@ -37,6 +37,8 @@ use temper_worker_domain_world::protocol as worker_protocol;
 
 mod absence;
 pub mod accounts;
+#[cfg(test)]
+mod adoption_hold;
 mod agreement;
 #[cfg(test)]
 mod chat;
@@ -48,6 +50,8 @@ mod delegates;
 mod design_delivery;
 #[cfg(test)]
 mod goals;
+#[cfg(test)]
+mod latched;
 mod link;
 mod long_chat;
 pub mod merge_job;

@@ -43,8 +43,6 @@ mod fuzzy {
     mod repair;
 }
 
-mod adoption_hold;
-
 // Synchronous Usage operations measure this process and its reaped children;
 // the metric's readiness adapter hosts no service and starts no second world.
 fn cpu() -> u64 {

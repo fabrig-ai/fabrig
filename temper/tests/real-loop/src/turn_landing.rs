@@ -1,5 +1,4 @@
-//! A ctl-released report batch and the setup's red top (testing/qa/setups.md, 6).
-pub mod latched;
+//! The turn-landing setup's red top (testing/qa/setups.md, 6).
 
 use crate::{ForgeRecipe, Ran, argv, calls, fixtures, forge, landing, llm};
 use serde_json::{Value, json};

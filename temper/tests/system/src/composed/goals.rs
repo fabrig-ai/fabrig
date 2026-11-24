@@ -15,23 +15,31 @@ fn planner() -> Script {
 }
 
 fn config(seed: u64) -> engine::Config {
+    config_with_executors(seed, &[authority::Executor::Charter(1)])
+}
+
+pub(super) fn config_with_executors(seed: u64, executors: &[authority::Executor]) -> engine::Config {
     let mut config = super::config(seed);
     let mut rules = config.core.defaults.rules.clone();
     rules.maximum_run_spend = 10;
     rules.ceiling.tools = authority::Tools(3);
     rules.ceiling.delegation.depth = 2;
     rules.ceiling.delegation.tasks = 4;
+    rules.ceiling.delegation.kinds = executors.into();
     let mut limits = temper_engine_domain_world::walking::limits().authority;
     limits.roles = 3;
+    limits.executors = u32::try_from(executors.len()).expect("fixture executors");
     let mut domain = authority::Domain::new(rules, limits).expect("goal authority");
     let mut policy = config.core.seed_projects[0].policy.policy.clone();
     policy.ceiling.tools = authority::Tools(3);
     policy.ceiling.delegation.depth = 2;
     policy.ceiling.delegation.tasks = 4;
+    policy.ceiling.delegation.kinds = executors.into();
     let mut owner = policy.roles[0].clone();
     owner.authority.tools = authority::Tools(3);
     owner.authority.delegation.depth = 2;
     owner.authority.delegation.tasks = 4;
+    owner.authority.delegation.kinds = executors.into();
     let mut maintainer = owner.clone();
     maintainer.number = 1;
     let mut member = owner.clone();
@@ -48,7 +56,7 @@ fn config(seed: u64) -> engine::Config {
     config
 }
 
-fn limits(limits: &mut engine::Limits) {
+pub(super) fn limits(limits: &mut engine::Limits) {
     // One worker slot serializes the planner and its child across durable answers.
     limits.fleet.slots = 1;
     limits.fleet.attempts = 8;
@@ -147,20 +155,10 @@ fn proposed_goal() -> (World, u64) {
         },
     );
     assert!(matches!(roles, people::Reply::Outcome(_)), "{roles:?}");
-    let mut proposal = jig_test_profile::fixtures::propose_goal(temper_engine_domain_world::walking::goal(
-        1,
+    let proposal = jig_test_profile::fixtures::propose_goal(finite_goal(
         b"@goalplan Ship the goal",
-        people::TaskExecutor::Agent { charter: 1 },
-        jig_test_profile::fixtures::Goal { budget: 150, priority: 7, deadline: None },
+        &[people::Executor::Charter(1)],
     ));
-    let people::Ask::Propose { action: people::Action::Batch(batch), .. } = &mut proposal else {
-        panic!("goal proposal")
-    };
-    batch[0].authority.tools = 3;
-    batch[0].authority.delegation =
-        people::Delegation { kinds: Box::new([people::Executor::Charter(1)]), tasks: 3, depth: 1 };
-    batch[0].contract = people::Contract::Report { words: 128 };
-    batch[0].wake.as_mut().expect("goal wake").results = people::ResultsWake::LastOrFailure;
     let people::Reply::Outcome(people::Outcome::Proposed { proposal, .. }) =
         ask(&mut world, member_session, 35, proposal)
     else {
@@ -200,6 +198,22 @@ fn proposed_goal() -> (World, u64) {
         })
         .expect("accepted live goal");
     (world, goal)
+}
+
+/// A finite reporting goal that plans one batch and wakes on its last result.
+pub(super) fn finite_goal(words: &[u8], executors: &[people::Executor]) -> people::Ask {
+    let mut ask = temper_engine_domain_world::walking::goal(
+        1,
+        words,
+        people::TaskExecutor::Agent { charter: 1 },
+        jig_test_profile::fixtures::Goal { budget: 150, priority: 7, deadline: None },
+    );
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("goal creation") };
+    batch[0].authority.tools = 3;
+    batch[0].authority.delegation = people::Delegation { kinds: executors.into(), tasks: 3, depth: 1 };
+    batch[0].contract = people::Contract::Report { words: 128 };
+    batch[0].wake.as_mut().expect("goal wake").results = people::ResultsWake::LastOrFailure;
+    ask
 }
 
 #[test]

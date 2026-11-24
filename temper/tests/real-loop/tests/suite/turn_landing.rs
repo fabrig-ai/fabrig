@@ -1,4 +1,4 @@
-//! A ctl answer releases a latched report batch; the setup's scripts prove the red top.
+//! The turn-landing setup's scripts prove the dispatched red top.
 //! testing/real-loop.md, the turn-landing setup's stories; testing/qa/setups.md, 6.
 use crate::cpu;
 use serde_json::Value;
@@ -6,67 +6,6 @@ use skein_fake_forge_domain::{api, object_bytes};
 use temper_real_loop_world::{Exit, Ran, turn_landing as story};
 
 const REPOSITORY: &[u8] = b"acme/app";
-
-#[test]
-fn one_ctl_answer_releases_the_latched_batch() {
-    use story::latched;
-    let start = cpu();
-    let ran = latched::run();
-    for (at, call) in ran.calls().iter().enumerate() {
-        assert_eq!(call.exit, Some(Exit::Code(0)), "call {at}: {call:?}");
-    }
-    assert_eq!(ran.number(1), latched::GOAL);
-    let tree = story::document(&ran, 3);
-    let delegates = tree["delegates"].as_array().expect("goal delegates");
-    let numbers: Vec<_> = delegates.iter().map(|task| task["chip"]["task"].as_u64().expect("delegate")).collect();
-    assert_eq!(numbers, [latched::LATCH, latched::REPORTS[0], latched::REPORTS[1]], "{tree}");
-    for (at, task) in latched::BEFORE.into_iter().zip(latched::REPORTS) {
-        let pending = story::document(&ran, at);
-        assert_eq!(pending["chip"]["task"], task);
-        assert_eq!(
-            pending["chip"]["details"]["owner"]["phase"]["waiting"]["dependencies"],
-            serde_json::json!([latched::LATCH]),
-            "{pending}"
-        );
-        let [fact] = pending["dependency_facts"].as_array().expect("dependency facts").as_slice() else {
-            panic!("one pending latch: {pending}")
-        };
-        assert_eq!(fact["number"], latched::LATCH);
-        assert_eq!(fact["pending"], true);
-        let details = &pending["chip"]["details"]["owner"]["details"];
-        assert!(details["run_since"].is_null(), "not run before release: {pending}");
-        assert!(details["attempt"].is_null(), "no attempt before release: {pending}");
-    }
-    let latch = story::document(&ran, latched::PERSON);
-    assert_eq!(latch["chip"]["task"], latched::LATCH);
-    assert_eq!(latch["chip"]["executor"], serde_json::json!({"party":{"party":1}}));
-    assert_eq!(latch["result_contract"], serde_json::json!({"report":{"words":64}}));
-    assert_eq!(latch["person_revision"]["value"], 0, "revision used by the answer");
-    assert_eq!(ran.calls()[latched::RELEASE].exit, Some(Exit::Code(0)));
-    let latch = story::document(&ran, latched::LATCH_ENDED);
-    let ended = |task: &Value| task["chip"]["details"]["owner"]["details"]["ended_at"].as_u64().expect("ended wall");
-    assert_eq!(latch["chip"]["phase"], "ended");
-    let released = ended(&latch);
-    assert_eq!(latch["result"]["value"]["report"]["bytes"], "Ready together");
-    for ((at, task), report) in latched::AFTER.into_iter().zip(latched::REPORTS).zip(["X ended.", "Y ended."]) {
-        let done = story::document(&ran, at);
-        assert_eq!(done["chip"]["task"], task);
-        assert_eq!(done["chip"]["phase"], "ended");
-        assert!(ended(&done) >= released);
-        let [fact] = done["dependency_facts"].as_array().expect("dependency facts").as_slice() else {
-            panic!("one met latch: {done}")
-        };
-        assert_eq!(fact["number"], latched::LATCH);
-        assert_eq!(fact["pending"], false);
-        let started = done["chip"]["details"]["owner"]["details"]["run_since"].as_u64().expect("report run start");
-        assert!(started >= released, "report started after latch ended: {done}; latch {latch}");
-        assert_eq!(done["result"]["value"]["report"]["bytes"], report);
-    }
-    let goal = story::document(&ran, latched::ENDED);
-    assert_eq!(goal["chip"]["phase"], "ended");
-    assert_eq!(goal["result"]["value"]["report"]["bytes"], "Both reports ended.");
-    eprintln!("latched story CPU: {} ns (user + system, children included)", cpu() - start);
-}
 
 #[test]
 fn a_failing_member_turns_the_dispatched_top_red() {
