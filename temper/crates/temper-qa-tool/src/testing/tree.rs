@@ -1,8 +1,11 @@
 //! The QA world's shared paths and their handles (temper/docs/design/testing/qa/contracts.md, 4).
 use super::Connection;
-use crate::faces::{
-    DirectoryMode, FileEntry, FilesFace, LockMode, Mode, PathFacts, PathKind, RemoveMode, ResolveMode, WriteMode,
-    WriteOptions,
+use crate::{
+    Refusal,
+    faces::{
+        DirectoryMode, FileEntry, FilesFace, LockMode, Mode, PathFacts, PathKind, RemoveMode, ResolveMode, WriteMode,
+        WriteOptions,
+    },
 };
 use std::{
     cell::RefCell,
@@ -439,6 +442,15 @@ impl FilesFace for Tree {
     fn writer_permissions(&mut self, file: &FileHandle, mode: u32) -> io::Result<()> {
         file.entry.borrow_mut().mode = mode;
         Ok(())
+    }
+
+    fn open_log_tail(&mut self, path: &Path) -> Result<FileHandle, Refusal> {
+        let mut log = crate::private::file(path, self, WriteMode::Append, true)?;
+        log.offset = match &log.entry.borrow().contents {
+            Contents::File(bytes) => bytes.len(),
+            _ => unreachable!("opened file"),
+        };
+        Ok(log)
     }
 
     fn rename(&mut self, source: &Path, destination: &Path) -> io::Result<()> {

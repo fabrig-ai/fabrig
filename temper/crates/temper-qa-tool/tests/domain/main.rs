@@ -4,6 +4,7 @@ mod builds;
 mod gaps;
 mod home;
 mod installation;
+mod place;
 mod run_passes;
 
 use temper_qa_tool::testing::{case, passes};
