@@ -54,7 +54,7 @@ impl World {
         world.run();
         for number in 1..EXCHANGES {
             let proposal = world.pending_configuration();
-            world.process.resume(exchange(&world.restart_config, &reply, u32::from(number) + 1));
+            world.lanes[0].process.resume(exchange(&world.restart_config, &reply, u32::from(number) + 1));
             world.act(
                 parties::Ask::Decision { proposer: parties::Proposer::Task(1), proposal, accept: true },
                 [number; 16],
@@ -76,7 +76,7 @@ impl World {
             if mode == 0 { window_config } else { config },
             limits,
         );
-        let bounds = &mut world.worker_env.limits;
+        let bounds = &mut world.lanes[0].worker_env.limits;
         bounds.host.transcript_bytes = u64::from(HISTORY_BYTES);
         bounds.agent.transcript_bytes = u64::from(HISTORY_BYTES);
         bounds.reply_bytes = 8192;
@@ -86,28 +86,28 @@ impl World {
         bounds.agent.turn_bytes = 65536;
         bounds.host.turn_queue_bytes = 131_072;
         bounds.agent.unacknowledged_bytes = 131_072;
-        world.worker = worker::Domain::new(bounds, Box::new([]));
-        world.process.history_messages = Some(257);
+        world.lanes[0].worker = worker::Domain::new(bounds, Box::new([]));
+        world.lanes[0].process.history_messages = Some(257);
         world
     }
 
     fn recover_description(&mut self, mode: u8) {
         match mode {
             0 => {}
-            1 => self.worker_env.limits.agent.transcript_bytes = 32768,
+            1 => self.lanes[0].worker_env.limits.agent.transcript_bytes = 32768,
             2 => {
                 self.restart_long_chat();
-                self.process.history_messages = Some(8);
+                self.lanes[0].process.history_messages = Some(8);
             }
             _ => panic!("unknown history boundary"),
         }
         let mut script = text_script(ANSWER);
         script.cue = INSTRUCTIONS.into();
-        self.process.resume(script);
+        self.lanes[0].process.resume(script);
         self.act(parties::Ask::Say { task: parties::Task::Last, words: DESCRIPTION.into(), release: None }, [80; 16]);
         for _ in 0..20000 {
             self.tick();
-            if self.process.answered.is_some_and(|(turns, _)| turns > 0)
+            if self.lanes[0].process.answered.is_some_and(|(turns, _)| turns > 0)
                 && self.observed.answers > usize::from(EXCHANGES)
             {
                 self.run();
@@ -128,8 +128,8 @@ impl World {
         self.replace_root(config(self.seed));
         self.root_events = super::VecDeque::from([engine::Event::Restart { pending: false }]);
         self.protocol = super::Protocol::default();
-        self.worker = worker::Domain::new(&self.worker_env.limits, Box::new([]));
-        self.worker_events = super::VecDeque::from([worker::Event::Ready]);
+        self.lanes[0].worker = worker::Domain::new(&self.lanes[0].worker_env.limits, Box::new([]));
+        self.lanes[0].worker_events = super::VecDeque::from([worker::Event::Ready]);
         self.opened = false;
         self.ends.restarted(self.env.now);
     }

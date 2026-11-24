@@ -15,7 +15,7 @@ notes, and the engine writes its own once, when its hub accepts the answer
 (`temper-engine-domain/src/link.rs`, `answer`;
 `temper-service-shell/src/host.rs`, `job_line`), an assignment it
 cannot encode included. A preparation's failure carries its detail as
-`checkouts.md`, 1 gives it (`temper-worker-domain-checkout/src/hold.rs`,
+`checkouts-prepare.md`, 12 gives it (`temper-worker-domain-checkout/src/hold.rs`,
 `preparation_detail`), a command's its exit or signal and its error
 output's end (`temper-worker-domain-tooling/src/domain.rs`), and a delivery
 not made names its push's outcome and diagnostic in the answer as well as

@@ -149,18 +149,25 @@ the fake git program over that forge, on one thread and one real ring
 joined to their worker by real pipes. The store and client credentials
 use a scratch directory on the real filesystem.
 
-Its stories sign in, start a chat and wait for its reply, and satisfy one
-client's wait by another client's act; each drains with everything
-settled. Then a service restart retains the work. A call whose answer was
-lost is made once: the tools' root is dropped once the engine holds its
-request, before its answer, and a fresh one, on another DIRECTORY signed
-in as the same party, asks under the same name and is answered the first
-answer; the party has one chat. One signed in again as another party:
-the first party's kept request stays unsent, and the call goes on. The
-forge's stories adopt a repository, and clone, push and land through the
-fake git program over the forge peer's git route, with CI by the fake
-forge's content marker and its webhooks delivered to the engine
-(`../../testing/real-loop.md`). Real git meets a forge in the process
+Its stories are what only the real kernel shows of the tools
+(`../../testing/real-loop.md`): two acts at once on one DIRECTORY
+serialized by its lock, and a sign-in begun from the terminal returning
+to the engine's real listener; each drains with everything settled.
+The tools' other stories are the one-process world's, each call hosted
+on skein's simulator, its DIRECTORY on the fake machine
+(`../../testing/tiers.md`, 1.5): a chat started and its reply waited
+for; one client's wait satisfied by another's act, two waits open while
+`me` answers; DIRECTORY's files private to its user; a service started
+again that retains the work; a call whose answer was lost made once: the
+caller ended once the engine holds its request, before its answer, and
+a fresh one, on another DIRECTORY signed in as the same party, asks under
+the same name and is answered the first answer, the party with one
+chat. One signed in again as another party: the first party's kept
+request stays unsent, and the call goes on. The forge's stories adopt a
+repository, and clone, push and land through the fake git program over
+the forge peer's git route, with CI by the fake forge's content marker
+and its webhooks delivered to the engine: the one-process world's and
+the real loop's case library's. Real git meets a forge in the process
 tier (4). The forge's stories run on `skein-world`'s
 `World::new_controlled`, unchecked, while the fake git program shares
 the fake forge in memory: its memory there outlives the git program
@@ -171,8 +178,9 @@ Every other story here is checked.
 
 Every story whose agents run first adds a key the fake LLM peer
 accepts, `account add-key` from a scratch file, as `README.md`, section 8's harness
-does, and waits for `usable`. Area 5's stories (`../../testing/real-loop.md`
-):
+does, and waits for `usable`. Area 5's stories, the sign-in the real
+loop's (`../../testing/real-loop.md`) and the rest the one-process
+world's (`../../testing/tiers.md`, 1.5):
 
 - **A sign-in:** `account connect` against skein's fake issuer, the
   browser's visit and the redirect to the engine's loopback listener
@@ -188,7 +196,8 @@ does, and waits for `usable`. Area 5's stories (`../../testing/real-loop.md`
   engine's store holds a key's or a record's value in a request, an
   answer or a fact; the secrets' store alone does.
 
-Area 6's stories reach the forge through the tools, on skein's fake
+Area 6's stories, the one-process world's (`../../testing/tiers.md`,
+1.5), reach the forge through the tools, on skein's fake
 forge, whose browser pages are plain HTTP: its manifest post answers
 `200` with a page holding one link, `Create GitHub App` (id `create`),
 and its install page `302` (skein's `testing/fakes/github.md`, 1.1), so the test
@@ -222,21 +231,21 @@ person clicks it, and no story calls github.com:
   in a root, a fact, a record but the secrets' store's, a request or an
   answer, nor in DIRECTORY's store.
 
-Each call of `temper ctl` in these stories is its host,
+Each call of `temper ctl` in the real loop's stories is its host,
 `temper-client-shell-cli`'s, hosted as a program of the real world, one
-per call, on its DIRECTORY: the lock, DIRECTORY's files and the call's
-exit run on the real kernel. Two acts at once on one DIRECTORY are
+per call, on its DIRECTORY: the lock and the call's exit run on the
+real kernel. Two acts at once on one DIRECTORY are
 serialized by the lock: skein's `Lock` is `flock`, held per open
 descriptor (skein's `runtime/kernel.md`), so two programs of one process contend
 as two processes do.
 
-These are smoke, one end-to-end path per feature, at the gate
-(`../../testing/real-loop.md`). A tool's behaviour and corner cases are
+The one-process world's are smoke, one path per feature, at the gate
+(`../../testing/tiers.md`, 1.5). A tool's behaviour and corner cases are
 `tests/client`'s (2) and the lower worlds' (1): a sign-in refused
 or past its deadline, a limit and `account retry`, a record the tools do not
-read. These stories reuse lower worlds' scripts and outside expectations
-where applicable, and add checks of the full transport, persistence and
-teardown on the real kernel; the harness checks memory ownership,
+read. The real loop's stories reuse lower worlds' scripts and outside
+expectations where applicable, and add only what the real kernel shows;
+the harness checks memory ownership,
 outstanding operations and release between iterations.
 A real-loop failure is kept with its trace and reproduced lower down
 where possible; its seed does not replay the kernel's schedule.
@@ -267,8 +276,9 @@ and restore decisions.
 The owned-Forgejo stories (`../../testing/process-tier.md`) share setup where
 one adds a variant: a real turn gate cancelled and retried across restart;
 a first CSV change whose failed CI output reaches its repair, followed by
-a blocking review, landing and a restart that finds it. The lock,
-DIRECTORY's files and a call's exit are the real loop's (3).
+a blocking review, landing and a restart that finds it. The lock
+and a call's exit on the real kernel are the real loop's (3);
+DIRECTORY's files the one-process world's, on the fake machine (3).
 
 ## 5. The agents' help
 

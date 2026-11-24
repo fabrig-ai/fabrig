@@ -98,6 +98,9 @@ pub struct TaskLine {
     pub ended_at: Option<Wall>,
     pub budget: Budget,
     pub waits_on: WaitsOn,
+    /// The engine's first wait, which may belong to a descendant.
+    pub wait: Option<super::Wait>,
+    pub nearest: Option<super::Nearest>,
     pub phases: PhaseCounts,
     /// Direct delegates ended done (jig/docs/design/client/domain/contract/documents.md, 1).
     pub delegates_done: u32,

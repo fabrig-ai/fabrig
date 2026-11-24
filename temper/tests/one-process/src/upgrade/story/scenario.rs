@@ -1,5 +1,5 @@
 //! Scripted acts and the checks after the new build opens.
-use super::{CoreRecord, Record, STATE, fixtures, golden, referee, stories};
+use super::{CoreRecord, Record, STATE, fixtures, golden, referee};
 pub(super) fn provider() -> skein_fake_peers::llm::Peer {
     let mut scripts = golden::llm_scripts();
     let parent = scripts["asked"]
@@ -132,18 +132,7 @@ pub(super) fn continued(store: &referee::Store) -> Result<(), String> {
     STATE.with(|s| {
         let s = s.borrow();
         let maps = s.before.as_ref().ok_or_else(|| String::from("before"))?;
-        let key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment);
-        let encoded = jig_protocol_store::keys::encode(&key, 64).ok_or_else(|| String::from("header key"))?;
-        let Record::Core(CoreRecord::Deployment(header)) = jig_protocol_store::codec::decode(
-            &key,
-            maps.store.get(encoded.as_ref()).ok_or_else(|| String::from("header"))?,
-            &stories::playground::codec(),
-            fixtures::store_names(),
-        )
-        .ok_or_else(|| String::from("header decodes"))?
-        else {
-            return Err(String::from("header"));
-        };
+        let header = maps.deployment().map_err(|problem| format!("old header: {problem}"))?;
         if new <= header.tasks {
             return Err(String::from("new task above every kept task"));
         }

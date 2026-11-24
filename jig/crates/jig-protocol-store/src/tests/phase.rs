@@ -738,8 +738,8 @@ fn fixture_baseline() -> Vec<Item> {
         Write::Put { key: Box::from(b"n/0".as_slice()), value: label() },
     ];
     let note_key = crate::keys::application(b"n/0", store.limits.store.key).expect("tag");
-    assert!(note_key.as_ref() >= jig_test_patches_jig::keys::NOTES_FROM);
-    assert!(note_key.as_ref() < jig_test_patches_jig::keys::NOTES_TO);
+    assert!(note_key.as_ref() >= jig_test_layouts::keys::NOTES_FROM);
+    assert!(note_key.as_ref() < jig_test_layouts::keys::NOTES_TO);
     for number in 0..SHELVES {
         let books = number.checked_add(1).expect("books");
         rows.push(Write::Put { key: fixture_key(b's', number), value: shelf(books, &label()) });
@@ -910,9 +910,7 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
 }
 
 fn jig_store(disk: &Disk, set: crate::OwnerSet) -> Store {
-    let mut limits = fixtures::store_limits();
-    limits.store.budget = 2_097_152;
-    limits.store.ops = 128;
+    let mut limits = fixtures::registered_store_limits();
     limits.commits.writes = 7;
     let mut store = disk.store_with_limits(&limits);
     store.owner_sets(crate::OwnerSets { sets: Box::leak(Box::new([crate::SKEIN_SET, crate::SMITH_SET, set])) });

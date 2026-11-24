@@ -151,6 +151,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Delegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
+            | forge::Event::WaitsRefused { .. }
             | forge::Event::DelegateResult { .. }
             | forge::Event::DependenciesMet { .. }
             | forge::Event::RelayRefused { .. }

@@ -159,6 +159,7 @@ pub fn header(commits: u64) -> jig_test_domain::Write {
         jig_domain_core::CoreRecord::Deployment(jig_domain_core::Deployment {
             id: [18; 16],
             restart_wait_ms: None,
+            wait_floors: None,
             tasks: 21,
             people: 0,
             sign_ins: 0,
@@ -212,7 +213,6 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
         | jig_protocol_store::Request::Back { .. }
         | jig_protocol_store::Request::Close { .. }
         | jig_protocol_store::Request::Switch { .. }
-        | jig_protocol_store::Request::Site { .. }
         | jig_protocol_store::Request::Job { .. }
         | jig_protocol_store::Request::HoldCheckpoint { .. }
         | jig_protocol_store::Request::RemoveCheckpoint { .. }

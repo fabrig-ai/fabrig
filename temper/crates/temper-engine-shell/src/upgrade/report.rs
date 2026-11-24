@@ -153,7 +153,6 @@ fn event_refusal(text: &mut String, binary: &str, event: &Event, mut passed: boo
         | Event::Opened { .. }
         | Event::OpenRefused { .. }
         | Event::Switched { .. }
-        | Event::Site { .. }
         | Event::Job { .. }
         | Event::Committed { .. }
         | Event::Failed { .. }

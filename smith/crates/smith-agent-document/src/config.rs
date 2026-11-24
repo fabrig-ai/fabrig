@@ -228,6 +228,12 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
     let domain_programs = programs::domain(&program_endpoints, &mut limits.domain)?;
     let environment = machine::Environment::encode(&environment, &limits.machine).map_err(environment_refusal)?;
     let endpoints = build_endpoints(document.endpoints, &declarations, &limits, &profile)?;
+    if let Some(trace) = &trace {
+        // Choose the write deadline before deriving the link. The inventory
+        // sizes the sink later, once the configured endpoints are resolved.
+        limits.events = Some(event_limits(&limits, trace.capture, &[], profile.policy.write_deadline)?);
+    }
+    limits.resolve_link(&profile, &endpoints.limits).map_err(ConfigurationRefusal::Profile)?;
     Ok(Decoded {
         program,
         program_endpoints,
@@ -339,12 +345,9 @@ impl Decoded {
         )
         .map_err(|error| format!("LLM endpoints: {error:?}"))?;
         if let Some(trace) = &trace {
-            // First admit the sink, then include its own limits in the receiving header.
-            for _ in 0..2 {
-                let header = effective_header(&profile, &declarations, &limits, &endpoints.channel, &llm_endpoints)?;
-                limits.events =
-                    Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
-            }
+            let header = effective_header(&profile, &declarations, &limits, &endpoints.channel, &llm_endpoints)?;
+            limits.events =
+                Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
         }
         let config = service::Config {
             program: programs::backend(program.as_ref(), &program_endpoints),

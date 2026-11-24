@@ -270,6 +270,11 @@ pub fn job_logs(world: &World, run: &raw::Run) -> Vec<temper_engine_domain_forge
 /// (skein/docs/design/forge/forgejo-operations.md, 1). The root world's generic projection carries
 /// the run alone; the forge world's projection uses the same `run_jobs` builder.
 pub fn tick(world: &mut World) {
+    try_tick(world).unwrap_or_else(|finding| panic!("{finding}"));
+}
+
+/// The same tier-job projection, returning a workload's first finding.
+pub fn try_tick(world: &mut World) -> Result<(), String> {
     for event in &mut world.events {
         if let engine::Event::Forge(event) = event
             && let temper_engine_domain_forge::Event::Client(skein_forge_client::Event::Answered {
@@ -287,7 +292,7 @@ pub fn tick(world: &mut World) {
             run.jobs = temper_engine_forge_world::translate::run_jobs(jobs);
         }
     }
-    world.tick();
+    world.try_tick()
 }
 
 #[must_use]

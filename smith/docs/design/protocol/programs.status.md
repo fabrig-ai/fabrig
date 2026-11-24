@@ -44,7 +44,7 @@ fake status supplies it; this does not establish a real-login render check.
   `df41529d3ee1`, whose Claude Code release is unknown. No after-landing
   run read holds the `programs-claude-code.md`, 1.10 probes of two programs answering at once or
   children answering in a later activation on one configuration directory
-  (../testing.status.md, 2.3).
+  (../testing-tiers.status.md, 3).
   8: no live walk establishes that the stream rejection seen in the advisor
   and the earlier read-only/review sightings is resolved. The step regression
   exercises a reachable `StructuredOutput` boundary; the rejected live record

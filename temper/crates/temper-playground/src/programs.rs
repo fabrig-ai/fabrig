@@ -37,9 +37,20 @@ pub trait Harness: 'static {
     fn agent_profile() -> smith_agent_service::profile::Profile {
         documents::agent_profile()
     }
+    /// Specialize the hosted agent's service configuration and its declared limits together.
+    fn configure_agent(
+        _service: &mut smith_agent_service::Config,
+        _declarations: &mut smith_agent_service::profile::Configuration,
+    ) {
+    }
     #[must_use]
     fn agent_settings() -> temper_service::settings::Agent {
         documents::agent()
+    }
+    /// A harness may bind the hosted agent to a different simulated model peer.
+    #[must_use]
+    fn agent_llm_address() -> Option<std::net::SocketAddr> {
+        None
     }
     /// Override sets for a test phase's open; the playground keeps production's sets.
     #[must_use]
@@ -390,9 +401,13 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
 pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Agent, inherited, b"worker/agent");
     let profile = H::agent_profile();
+    let mut service = H::agent_llm_address().map_or_else(
+        || documents::agent_configuration_for(&profile),
+        |address| documents::agent_configuration_at(&profile, address),
+    );
     if list_arguments(&spawn.args) {
         return Process::List(Box::new(smith_agent_shell::list::Process::with_endpoints(
-            documents::agent_configuration_for(&profile).llm_endpoints,
+            service.llm_endpoints,
             smith_agent_shell::list::Faces {
                 stdin: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
                 stdout: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
@@ -401,8 +416,8 @@ pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
             },
         )));
     }
-    let declarations = documents::agent_declarations_for(&profile);
-    let mut service = documents::agent_configuration_for(&profile);
+    let mut declarations = documents::agent_declarations_for(&profile);
+    H::configure_agent(&mut service, &mut declarations);
     if parameters().deployment["world_settings"]["issuer"].is_string() {
         service.channel_endpoints = issuer::endpoints();
     }

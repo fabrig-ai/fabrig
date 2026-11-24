@@ -79,6 +79,10 @@ fn account_notice(
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive framed host-request projection")]
 pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::Request) {
+    if service.host.gone() {
+        super::orphan::host_request(service, request);
+        return;
+    }
     match &request {
         domain::Request::Turn { number, turn, .. } => {
             program::settled(service, turn);

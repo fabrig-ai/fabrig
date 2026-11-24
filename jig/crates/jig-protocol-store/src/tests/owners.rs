@@ -1,12 +1,11 @@
 //! Fixture owners at fixed levels (protocol/store/opening-owners.md, 1).
 use crate::upgrade::admission::Levels;
 use crate::{KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets};
-use jig_test_layouts::{self as fixture, records as app};
-use jig_test_patches_jig::{self as upstream, patches as jig};
+use jig_test_layouts::{self as fixture, records};
 use skein_lib::Writer;
 const LABEL: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::LABEL_CURRENT,
+    current: records::LABEL_CURRENT,
     types: &[],
     frames: None,
     name: "fixture-label",
@@ -15,7 +14,7 @@ const LABEL: KeptFamily = KeptFamily {
 };
 const SHELF: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::SHELF_CURRENT,
+    current: records::SHELF_CURRENT,
     types: &[],
     frames: None,
     name: "fixture-shelf",
@@ -28,7 +27,7 @@ const SHELF: KeptFamily = KeptFamily {
 };
 const TOKEN: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::TOKEN_CURRENT,
+    current: records::TOKEN_CURRENT,
     types: &[],
     frames: None,
     name: "fixture-token",
@@ -37,12 +36,12 @@ const TOKEN: KeptFamily = KeptFamily {
 };
 const NOTE: KeptFamily = KeptFamily {
     retired: &[],
-    current: jig::kept::fixture_note::TEXTS.last().expect("kept text"),
+    current: records::NOTE_CURRENT,
     types: &[],
     frames: None,
     name: "fixture-note",
     map: KeptMap::Store,
-    keys: &[Keys { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO, root: upstream::keys::NOTES_ROOT }],
+    keys: &[Keys { from: fixture::keys::NOTES_FROM, to: fixture::keys::NOTES_TO, root: fixture::keys::NOTES_ROOT }],
 };
 const APPLICATION: OwnerSet = OwnerSet {
     jobs: &[],
@@ -52,24 +51,20 @@ const APPLICATION: OwnerSet = OwnerSet {
     level: Some(2),
 };
 const JIG: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], level: Some(2) };
+    OwnerSet { jobs: &[], owner: Owner::Jig, name: fixture::FIXTURE_JIG_OWNER, families: &[NOTE], level: Some(2) };
 pub(super) const SETS: OwnerSets = OwnerSets { sets: &[APPLICATION, JIG] };
 pub(super) const BASE: OwnerSets = OwnerSets {
     sets: &[
         OwnerSet {
             families: &[
-                KeptFamily { current: app::LABEL, ..LABEL },
-                KeptFamily { current: app::SHELF, ..SHELF },
-                KeptFamily { current: app::TOKEN, ..TOKEN },
+                KeptFamily { current: records::LABEL, ..LABEL },
+                KeptFamily { current: records::SHELF, ..SHELF },
+                KeptFamily { current: records::TOKEN, ..TOKEN },
             ],
             level: Some(0),
             ..APPLICATION
         },
-        OwnerSet {
-            families: &[KeptFamily { current: jig::kept::fixture_note::TEXTS[0], ..NOTE }],
-            level: Some(0),
-            ..JIG
-        },
+        OwnerSet { families: &[KeptFamily { current: records::NOTE, ..NOTE }], level: Some(0), ..JIG },
     ],
 };
 pub(super) fn levels(application: u32, jig: u32) -> Levels {

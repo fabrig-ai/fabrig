@@ -20,7 +20,9 @@ temper hands them, its fixture and its policy.
   changes. No map patch, eager walk or seeding from code serves an
   older store.
 - **Formats outside the registry are fixed at their versions** (2).
-  The frames' patcher and the wires' patches keep their own rules.
+  The transcripts' frames register their layouts (jig's
+  `protocol/store/transcripts.md`, 6); the wires' patches keep their own
+  rules.
 - **One golden deployment at the floor** opens and serves with the
   production owner sets; a copy without its floor is refused (5).
 - **Dev's build's image opens too** (5): the settled image as the build
@@ -39,11 +41,11 @@ component's own formats:
 | Family | Version | Owner | Where | Registry |
 |---|---|---|---|---|
 | `skein-oauth` | 3 | skein | `SavedToken` held in secrets' `Source` | outside |
-| `smith-transcript` | 7 | smith | `Turn` held in transcript frames | outside |
+| `smith-transcript` | 8 | smith | `Turn` held in transcript frames | frames registered |
 | `jig-store-component` | 3 | jig | the component's own map rows | outside |
 | `jig-store-openings` | 1 | jig | workers' openings | outside |
 | `jig-store-registry` | 1 | jig | layouts, texts and done jobs | outside |
-| `jig-store-core` | 6 | jig | core map rows; `TurnRecord` frame bodies | map value types registered; frames outside |
+| `jig-store-core` | 6 | jig | core map rows; `TurnRecord` frame bodies | map value types and frames registered |
 | `jig-store-tasks` | 13 | jig | tasks' map rows | registered |
 | `jig-store-people` | 17 | jig | people's map rows | registered |
 | `jig-store-notes` | 1 | jig | notes' map rows | registered |
@@ -58,9 +60,9 @@ component's own formats:
   and its crate's `schema/registered`. Values keep their layout ids;
   the read edge converts from the texts in the store's registry to
   the binary's layout (jig's `protocol/store/layouts.md`, 2 and 4).
-  The core's frame body is not a registered map value: it holds
-  smith's `Turn` and uses the frame patcher (jig's
-  `protocol/store/transcripts.md`, 6).
+  The transcripts' frames register too, as value types with no key
+  range: the core's `TurnRecord` body and the smith `Turn` it holds,
+  each by its own layout (jig's `protocol/store/transcripts.md`, 6).
 - **The levels** stay jig 6 and temper 14. `STORE_VERSION` is 25,
   `temper-store`'s version in jig's format row; a registered schema
   change moves neither it nor an owner's level (`store-versions.md`, 1).
@@ -90,7 +92,8 @@ declared in `temper-engine-service-vocabulary`, upstream first:
 - **`OwnerSet`, `OwnerSets` and `KeptFamily`** are jig's data contract
   (`jig/docs/design/protocol/store/opening-owners.md`, 1): current families and key ranges,
   registered value types, retired ranges, jobs and levels. A frames'
-  family also carries its frame root, texts and patches; no set
+  family also carries its frames' root, number and the texts frames
+  were written at before the registry; no set
   carries a map patch history. `JIG_STORE_SET` owns the store's metadata;
   accounts appends its held family without the store naming that
   consumer.
@@ -219,7 +222,8 @@ start afresh. Staging is made again at dev's build for each drill
 - **Formats outside the registry are fixed at their versions.** A
   landing changing one designs how dev.fabrig.ai's store gets there:
   an executor, conversion at read, or registration (`AGENTS.md`, 2).
-  The frame patcher stays (jig's `protocol/store/transcripts.md`, 6).
+  The transcripts' frames are registered and converted as read (jig's
+  `protocol/store/transcripts.md`, 6).
 - **`tests/boundary/tests/patches.rs` holds the wires and the formats
   outside the registry.** Its owner inventory covers the crates with
   `schema/kept/`; `patch_modules_are_current` checks their generated

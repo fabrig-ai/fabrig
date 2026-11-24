@@ -9,6 +9,13 @@ publish.workspace = true
 
 [dependencies]
 jig-conformance.workspace = true
+jig-inspect.workspace = true
+temper-worker-inspect.workspace = true
+temper-engine-inspect.workspace = true
+temper-workload.workspace = true
+temper-landing-fixtures.workspace = true
+temper-engine-domain-forge-tiers.workspace = true
+temper-engine-domain-forge-landing.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
@@ -33,6 +40,7 @@ temper-protocol-worker-wire.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 temper-faults.workspace = true
+temper-blame = { path = "../../testing/temper-blame" }
 skein-llm-kit.workspace = true
 smith-faults.workspace = true
 smith-channel-world = { path = "../../../smith/tests/channel" }
@@ -66,6 +74,7 @@ skein-fake-forge-domain.workspace = true
 temper-worker-domain.workspace = true
 temper-worker-domain-world = { path = "../worker/domain" }
 temper-worker-checkout-world = { path = "../worker/checkout" }
+temper-fake.workspace = true
 temper-fake-checkout.workspace = true
 jig-fake-parties.workspace = true
 smith-host-domain.workspace = true

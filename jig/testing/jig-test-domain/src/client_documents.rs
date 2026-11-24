@@ -181,6 +181,7 @@ pub(crate) fn read(
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }
+            | connector::Request::Waits { .. }
             | connector::Request::Answer { .. }
             | connector::Request::Ready { .. }
             | connector::Request::Section { .. }

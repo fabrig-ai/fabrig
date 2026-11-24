@@ -150,6 +150,10 @@ pub fn task_record() -> w::Task {
         made: 7,
         tasks_left: 5,
         waits_on: w::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: chip_record(),
         goal: None,
         priority: None,
@@ -336,3 +340,6 @@ pub use activity_reads::*;
 
 pub mod settings;
 pub mod settings_proposals;
+
+mod waits;
+pub use waits::structured_waits;

@@ -25,6 +25,7 @@ mod chat_template;
 
 mod amend_choice;
 
+mod task_waits;
 mod task_words;
 
 mod amend_controls;

@@ -1,7 +1,7 @@
 //! The root world's quiet-point invariants and bounded-wait referee
 //! (temper/docs/design/testing/engine-checks.md, 3).
 
-use skein_lib::Time;
+use skein_lib::{Time, Wall};
 use skein_world::inspect::{Inspection, Moment, check_tables, check_waits};
 
 /// One run's last bounded waits and first finding, shared by every root driver.
@@ -9,24 +9,49 @@ use skein_world::inspect::{Inspection, Moment, check_tables, check_waits};
 pub struct Checks {
     seed: u64,
     bounded: Vec<(String, String, Time)>,
+    // Wall corrections do not make an already observed wait start in the future.
+    record_wall: Wall,
     finding: Option<String>,
 }
 
 impl Checks {
     #[must_use]
     pub fn new(seed: u64) -> Checks {
-        Checks { seed, bounded: Vec::new(), finding: None }
+        Checks { seed, bounded: Vec::new(), record_wall: Wall::EPOCH, finding: None }
+    }
+
+    /// Remember a wall reading the core has seen, including before a cold restart.
+    pub(crate) fn observe_wall(&mut self, wall: Wall) {
+        self.record_wall = self.record_wall.max(wall);
     }
 
     /// Inspect at the driver's quiet point, replacing the previous bounded waits.
     pub fn quiet(&mut self, root: &temper_engine_domain::Domain, at: Time, iteration: u64) -> Result<(), String> {
+        self.quiet_with(root, at, iteration, &[])
+    }
+
+    /// Check a composed world's other roots alongside the same engine snapshot.
+    pub fn quiet_with(
+        &mut self,
+        root: &temper_engine_domain::Domain,
+        at: Time,
+        iteration: u64,
+        others: &[&Inspection],
+    ) -> Result<(), String> {
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
         let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
         temper_engine_inspect::inspect(root, &mut inspection);
         let moment = Moment { seed: self.seed, at, iteration };
-        let result = check_waits(&[&inspection], moment).and_then(|()| check_tables(&[&inspection], moment));
+        let core = root.core();
+        self.observe_wall(core.inspection_wall());
+        let mut inspections = Vec::with_capacity(others.len() + 1);
+        inspections.push(&inspection);
+        inspections.extend_from_slice(others);
+        let result = check_waits(&inspections, moment)
+            .and_then(|()| check_tables(&inspections, moment))
+            .and_then(|()| jig_inspect::records(core, moment, self.record_wall));
         self.bounded.clear();
         self.bounded.extend(
             inspection

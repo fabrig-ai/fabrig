@@ -2,6 +2,7 @@
 //! (temper/docs/design/domain/landing.md, 16).
 use super::super::{goal_landing, reviews, tiers};
 use super::*;
+use jig_domain_core::{documents, reads};
 use temper_engine_domain_forge_change as change;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
@@ -53,7 +54,16 @@ fn goal(world: &mut World, key: u8, words: &[u8]) -> engine::Assignment {
         people::TaskExecutor::Agent { charter: 1 },
         jig_test_profile::fixtures::Goal { budget: 200, priority: 3, deadline: None },
     );
+    let replies = world.web_replies.len();
     let run = assigned_chat(world, key, ask);
+    let (first, last) = world.web_replies[replies..]
+        .iter()
+        .find_map(|reply| match reply {
+            people::Reply::Outcome(people::Outcome::Created { first, last, .. }) => Some((*first, *last)),
+            _ => None,
+        })
+        .expect("goal start receipt");
+    assert_eq!((first, last), (run.task, run.task), "goal start names the assigned goal");
     assert_eq!(live_task(world, run.task).root, run.task, "a root goal");
     run
 }
@@ -128,14 +138,8 @@ fn approve(world: &mut World, number: u64) {
     assert!(matches!(row.change.state, change::State::Gating { .. }), "gating: {row:?}");
 }
 
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one release is read through store rows, forge effects and the person's panel"
-)]
-fn two_goals_land_in_one_green_turn() {
-    let mut world = world();
-    let a = goal(&mut world, 92, b"Make turn-a");
+fn reviewed_batch(world: &mut World) -> (u64, [(u64, u64); 2]) {
+    let a = goal(world, 92, b"Make turn-a");
     let mut latch = temper_engine_domain_world::fixtures::report_delegate(b"Wait for the batch", Box::new([]));
     latch.executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
     let engine::CallAnswer::Delegated(made) =
@@ -144,18 +148,85 @@ fn two_goals_land_in_one_green_turn() {
         panic!("person latch delegated")
     };
     let latch = made[0].task;
-    assert_eq!(live_task(&world, latch).executor, tasks::Executor::Person(tasks::PersonAddress::Person(1)));
-    let (c1, p1) = restarts::pushed_change(&mut world, &a, 96);
+    assert_eq!(live_task(world, latch).executor, tasks::Executor::Person(tasks::PersonAddress::Person(1)));
+    let (c1, p1) = restarts::pushed_change(world, &a, 96);
     // Amend before finishing the producer so no readiness decision can race the person.
-    wait_on(&mut world, c1, latch);
-    finish_producer(&mut world, &p1, forge_world::REPO);
-    approve(&mut world, c1);
-    let b = goal(&mut world, 93, b"Make turn-b");
-    let (c2, p2) = restarts::pushed_change(&mut world, &b, 97);
-    wait_on(&mut world, c2, latch);
-    finish_producer(&mut world, &p2, forge_world::REPO);
-    approve(&mut world, c2);
-    for (owner, number) in [(a.task, c1), (b.task, c2)] {
+    wait_on(world, c1, latch);
+    finish_producer(world, &p1, forge_world::REPO);
+    approve(world, c1);
+    let b = goal(world, 93, b"Make turn-b");
+    let (c2, p2) = restarts::pushed_change(world, &b, 97);
+    wait_on(world, c2, latch);
+    finish_producer(world, &p2, forge_world::REPO);
+    approve(world, c2);
+    (latch, [(a.task, c1), (b.task, c2)])
+}
+
+fn release(world: &mut World, latch: u64, revision: u64) {
+    person(
+        world,
+        120,
+        people::Ask::AnswerPerson {
+            project: 1,
+            task: latch,
+            revision,
+            result: people::PersonResult::Report { words: b"Ready together".as_slice().into() },
+        },
+    );
+}
+
+fn task_document(world: &mut World, task: u64) -> Box<documents::Task> {
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task }) else {
+        panic!("live task read: {task}")
+    };
+    let documents::Document::Task(document) = *document else { panic!("task document: {task}") };
+    assert_eq!(document.chip.number, task);
+    document
+}
+
+#[test]
+fn two_reviewed_changes_show_one_live_person_latch() {
+    let mut world = world();
+    let (latch, members) = reviewed_batch(&mut world);
+    tiers::sign_in(&mut world);
+    let sign_in = world.signed_in.expect("reader");
+    for (_, change) in members {
+        let Some(forge_top::Document::Change(panel)) = world.oracle_document(sign_in, 1, change) else {
+            panic!("change panel: {change}")
+        };
+        assert_eq!(panel.task, change);
+        assert_eq!(panel.step, forge_top::PanelStep::Gating);
+        let [review] = panel.gates.as_ref() else { panic!("one review gate: {panel:?}") };
+        assert_eq!(review.kind, change::GateKind::Agent);
+        assert_eq!(review.verdict, change::Status::Passed);
+
+        let task = task_document(&mut world, change);
+        let [documents::TaskLink::Live(dependency)] = task.dependencies.as_slice() else {
+            panic!("one live dependency: {:?}", task.dependencies)
+        };
+        assert_eq!(dependency.number, latch);
+    }
+    let Some(forge_top::Document::Landings(list)) =
+        world.oracle_document(sign_in, 1, forge_top::landings_subject(1, true))
+    else {
+        panic!("project landings")
+    };
+    assert!(list.landings.is_empty(), "no forming decision before release: {list:?}");
+
+    let revision = task_document(&mut world, latch).person_revision.expect("answerable person revision");
+    let replies = world.web_replies.len();
+    release(&mut world, latch, revision);
+    assert!(
+        world.web_replies[replies..].contains(&people::Reply::Outcome(people::Outcome::PersonAnswered { task: latch }))
+    );
+    assert!(ended(&world, latch), "person answered the latch: {:?}", world.web_replies);
+}
+
+#[test]
+fn two_goals_land_in_one_green_turn() {
+    let mut world = world();
+    let (latch, members @ [(_, c1), (_, c2)]) = reviewed_batch(&mut world);
+    for (owner, number) in members {
         let row = goal_landing::row(&world, number);
         assert_eq!(row.goal, Some(owner));
         assert!(copied::reviewed(&world, number), "approved before release: {row:?}");
@@ -165,16 +236,7 @@ fn two_goals_land_in_one_green_turn() {
     assert!(landing_rows(&world).is_empty(), "no landing before the person's answer");
     let reviews = world.assigned.len();
     let revision = live_task(&world, latch).revisions.person;
-    person(
-        &mut world,
-        120,
-        people::Ask::AnswerPerson {
-            project: 1,
-            task: latch,
-            revision,
-            result: people::PersonResult::Report { words: b"Ready together".as_slice().into() },
-        },
-    );
+    release(&mut world, latch, revision);
     assert!(ended(&world, latch), "person answered the latch: {:?}", world.web_replies);
     let landing = restarts::await_prepare(&mut world);
     let spec = temper_protocol_worker_wire::v1::JobSpec::decode(

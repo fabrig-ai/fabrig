@@ -718,6 +718,12 @@ fn mutation_seed(name: &str) -> bool {
             "enum_stream_event_",
             "record_run_state_",
             "record_task_",
+            "record_wait_",
+            "record_thing_",
+            "record_nearest_",
+            "enum_wait_",
+            "enum_at_bound_",
+            "enum_unbounded_",
         ]
         .iter()
         .any(|prefix| name.starts_with(prefix))

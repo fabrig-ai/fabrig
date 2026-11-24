@@ -1,6 +1,8 @@
 //! Bounded overdue context (temper/docs/design/testing/real-loop.md;
 //! skein/docs/foundation/testing-strategy.md, 2.10).
 mod terminals;
+use super::{Failure, Kind, Proc, lifecycle::Lifecycle};
+use crate::patience::{Patience, check_overdue};
 use skein_io::kernel::{Complete, Op, Submit};
 use skein_lib::{Queue, Time, Token};
 use skein_shell::Host;
@@ -12,7 +14,89 @@ const ROWS: usize = 32;
 // The stock review charter used by case/scripts.rs and the reference case defaults.
 const REVIEW_CHARTER: u32 = 4;
 
-pub(super) struct Operations {
+/// The referee's between-iteration checks, independent of admission and controls.
+pub(crate) struct Judge {
+    pub(super) patience: Patience,
+    pub(super) finding: Option<String>,
+    tasks: Tasks,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Context<'a> {
+    pub(super) lifecycle: Lifecycle,
+    pub(super) failure: Option<&'a Failure>,
+    pub(super) forge: Option<&'a std::cell::RefCell<Option<crate::forge::State>>>,
+    pub(super) github: Option<&'a crate::github::State>,
+}
+
+impl Judge {
+    pub(crate) fn new(patience: Patience) -> Self {
+        Self { patience, finding: None, tasks: Tasks::default() }
+    }
+
+    pub(crate) fn act(&mut self, now: Time, procs: &mut [Proc], context: Context<'_>) -> bool {
+        if !self.patience.due(now) {
+            return false;
+        }
+        let lifecycle = context.lifecycle;
+        let mut report = format!(
+            "temper judge overdue: stopping={} engine_stopping={} finished={}\n",
+            lifecycle.stopping, lifecycle.engine_stopping, lifecycle.finished
+        );
+        if let Some(failure) = context.failure {
+            writeln!(report, "judge early_failure settled={} message={}", failure.settled, failure.message)
+                .expect("string writer");
+        }
+        self.tasks.describe(&mut report);
+        outstanding(procs, now, &mut report);
+        crate::patience::processes(procs, now, &mut report);
+        if let Some(state) = context.forge {
+            let borrowed = state.borrow();
+            if let Some(state) = borrowed.as_ref() {
+                writeln!(report, "forge shared_pending={}", state.handle.borrow().pending.len())
+                    .expect("string writer");
+            }
+        }
+        if let Some(state) = context.github {
+            writeln!(report, "GitHub shared_pending={}", state.handle.borrow().pending.len()).expect("string writer");
+        }
+        self.patience.capture(report);
+        self.finding = check_overdue(now, self.overdue(context.failure)).err();
+        true
+    }
+
+    pub(crate) fn watch<'a>(
+        &mut self,
+        procs: &[Proc],
+        engines: impl Iterator<Item = (u64, &'a jig_domain_tasks::Domain, &'a Operations)>,
+    ) -> Result<(), String> {
+        if let Some(finding) = &self.finding {
+            return Err(finding.clone());
+        }
+        for proc in procs {
+            if let Kind::Caller(caller) = &proc.kind
+                && let Some(finding) = &caller.finding
+            {
+                self.finding = Some(finding.clone());
+                return Err(finding.clone());
+            }
+        }
+        for (revision, tasks, operations) in engines {
+            self.tasks.observe(revision, tasks, &operations.terminals)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn overdue(&self, failure: Option<&Failure>) -> Option<String> {
+        // Preserve startup failures after io closes; a stalled drain still gets the patience snapshot.
+        failure
+            .filter(|failure| failure.settled)
+            .map(|failure| failure.message.clone())
+            .or_else(|| self.patience.overdue())
+    }
+}
+
+pub(crate) struct Operations {
     pub(super) pending: BTreeMap<Token, Operation>,
     pub(super) terminals: Terminals,
     pub(super) now: Time,
@@ -74,9 +158,7 @@ impl Operations {
         }
         let child = match kind {
             Kind::Agent(_) => Some("smith-agent"),
-            Kind::Git(_) | Kind::GitRoute(_) => Some("git"),
-            Kind::Claude(_) => Some("claude"),
-            Kind::Relay(_) => Some("relay"),
+            Kind::Git(_) => Some("git"),
             Kind::Ctl(_) => Some("ctl"),
             Kind::Terminal(_) => Some("terminal"),
             Kind::Llm(_) | Kind::Forge(_) | Kind::Issuer(_) | Kind::Service(_) | Kind::Caller(_) => None,
@@ -98,11 +180,14 @@ impl Operations {
         }
     }
 
-    pub(super) fn complete(&mut self, completions: &Queue<Complete>, now: Time) {
+    pub(super) fn complete(&mut self, completions: &Queue<Complete>, now: Time, engine: bool) {
         self.now = now;
         self.started.get_or_insert(now);
         for completion in completions {
             self.pending.remove(&completion.op);
+        }
+        if engine {
+            self.terminals.observe(completions);
         }
     }
     pub(super) fn submit(&mut self, submissions: &Queue<Submit>) {
@@ -201,7 +286,7 @@ fn kind(op: &Op) -> &'static str {
 }
 
 #[derive(Default)]
-pub(super) struct Tasks {
+struct Tasks {
     revision: Option<u64>,
     terminal_revision: u64,
     rows: BTreeMap<u64, Task>,
@@ -223,17 +308,17 @@ struct Task {
     completed: Summary,
 }
 impl Tasks {
-    pub(super) fn observe(
+    fn observe(
         &mut self,
-        engine: &temper_engine_domain::Domain,
+        revision: u64,
+        tasks: &jig_domain_tasks::Domain,
         terminals: &Terminals,
     ) -> Result<(), String> {
-        if self.revision != Some(engine.revision()) {
-            self.revision = Some(engine.revision());
+        if self.revision != Some(revision) {
+            self.revision = Some(revision);
             for task in self.rows.values_mut() {
                 task.live = false;
             }
-            let tasks = engine.tasks();
             for row in &tasks.view_tasks() {
                 let task = tasks.task(row.number).ok_or("live view row")?;
                 let parent = match task.requester {

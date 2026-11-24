@@ -5,7 +5,7 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 pub const CLIENT_SCHEMA: &str =
-    concat!(include_str!("../schema/client-v43.schema"), include_str!("../schema/client-v43-part1.schema"));
+    concat!(include_str!("../schema/client-v44.schema"), include_str!("../schema/client-v44-part1.schema"));
 
 /// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
@@ -16,8 +16,8 @@ pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 
 #[rustfmt::skip]
 #[path = "generated/client.rs"]
-pub mod v43;
-pub use v43::*;
+pub mod v44;
+pub use v44::*;
 
 #[rustfmt::skip]
 #[path = "generated/public.rs"]
@@ -38,11 +38,11 @@ pub const PUBLIC_CARD: u16 = 3;
 
 /// The client wire version this release reads and writes.
 pub const VERSION: u32 = {
-    let [high, low] = v43::VERSION.to_be_bytes();
+    let [high, low] = v44::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
 /// The client wire's family fingerprint.
-pub use v43::LAYOUT;
+pub use v44::LAYOUT;
 
 #[cfg(test)]
 mod tests;

@@ -326,7 +326,12 @@ as the world's programs (`tiers.md`, 1.5).
   an empty store at commit zero, so it watches only the runs that start
   fresh. A run from the image is checked by the golden reader's checks
   (census, history, preserved sources, forge) and the secrets' checks.
-  These are the world's checks as they stand (section 9).
+  These are the world's checks as they stand (section 9). Its waits are
+  checked too, at the upgrade's first quiet point: every live task's
+  waits, as jig's core computes them, read *since* that first start, its
+  kinds' floors, and none is past its bound
+  (`jig/docs/design/domain/engine/waits.md`, 7;
+  `../draft/bounded-waits.md`, 12).
 - **Why the older layout falls at a run's start:** a world runs one
   build, so the only store a previous release writes is one that release
   wrote before, kept as its image, and the upgrade is the first start
@@ -391,13 +396,12 @@ Focused and fuzzy suites only.
 
 ## 11. Later
 
-- One sweep in the composed workload mixing every family (the
-  failure-worlds draft, 5), the failure worlds' last goal's.
 - The restart drafts' checks over these sweeps: a restart or a settled
   stop spending no try (3.3), the opening and every goal going on within
-  a bound (3.4), a restart changing no outcome it shouldn't (3.5), and
-  every commit leaving a store a start would open (3.7), as their goals
-  build them.
+  a bound (3.4), and every commit leaving a store a start would open
+  (3.7), as their goals build them. A restart changing no outcome it
+  shouldn't (3.5), and the composed workload's sweep mixing the restarts
+  with every other family, are `workloads.md`'s, sections 7 and 8.
 - A stop in a start class the reconciling start adds, should it add one,
   or with the mark's commit stored and not yet answered, once the
   restart drafts pin what it does: a kind of its own in `ENGINE`, beside

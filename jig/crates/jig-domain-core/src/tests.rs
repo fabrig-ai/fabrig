@@ -179,6 +179,16 @@ pub(crate) fn limits() -> Limits {
             records: Duration::from_secs(30 * 86_400),
             summaries: Duration::from_secs(365 * 86_400),
         },
+        waits: Figures {
+            question: Duration::from_secs(2 * 3600),
+            party: Duration::from_secs(8 * 3600),
+            news: Duration::from_secs(24 * 3600),
+            host: Duration::from_secs(2 * 3600),
+            account: Duration::from_secs(2 * 3600),
+            step: Duration::from_secs(30 * 60),
+            room: Duration::from_secs(30 * 60),
+            sign_off: Duration::from_secs(24 * 3600),
+        },
         public: PublicIndexLimits::OFF,
         routes: 20_783,
         settings: crate::settings::Limits {

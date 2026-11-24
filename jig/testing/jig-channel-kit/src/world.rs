@@ -131,16 +131,16 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     let _store_root = machine.lay(&[]);
     let client_root = machine.lay(&[]);
     let root = (!matches!(script.story, crate::stories::Story::Opening(_))).then(|| machine.lay(&[]));
-    if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+    if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)) {
         let workspace = machine.lay(&crate::restarts::files(matches!(
             script.story,
-            crate::stories::Story::Crash(crate::restarts::Point::Answer)
+            crate::stories::Story::Crash(crate::restarts::Point::Answer, _)
         )));
         machine.close(workspace);
     }
     let root = if matches!(
         script.story,
-        crate::stories::Story::Shutdown | crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)
+        crate::stories::Story::Shutdown | crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)
     ) {
         machine.close(root.expect("worker root to reopen through startup"));
         None
@@ -173,7 +173,11 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     drop(script);
     let mut reset_injected = false;
     let mut cuts = 0;
+    let orphan_story = matches!(scenario, crate::stories::Story::Crash(_, crate::restarts::CrashScope::Worker));
     let settled = harness.run_with_faults(|at, _, submissions| {
+        if orphan_story {
+            views.borrow_mut().restart.observe_orphan_submissions(at, submissions);
+        }
         let reset_once = !reset_injected && (matches!(scenario, crate::stories::Story::MidFrame) && at == 0
             && submissions.iter().any(|submission| matches!(&submission.kind,
                 skein_io::kernel::Op::Send { bytes, from, .. }
@@ -188,6 +192,9 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
         if reset { reset_injected = true; }
         Some(skein_sim::Faults { reset: if reset { 1000 } else { 0 }, ..settings.config.faults })
     });
+    if orphan_story {
+        assert!(settled.killed.is_empty(), "the world did not kill the worker's agent or any other hosted child");
+    }
     crate::referee::roots_at_end(&settled.procs);
     (
         outcome(&settled.procs, &store.borrow(), &views.borrow(), reset_injected, cuts, settled.killed.len()),
@@ -303,7 +310,7 @@ pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::
             answer.end == jig_domain_tasks::End::Parked
         } else if matches!(scenario, crate::stories::Story::BeyondGrace) {
             answer.end == jig_domain_tasks::End::Recheck
-        } else if matches!(scenario, crate::stories::Story::Crash(_)) && attempt == 1 {
+        } else if matches!(scenario, crate::stories::Story::Crash(..)) && attempt == 1 {
             matches!(answer.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended { worker: 1, why: jig_domain_tasks::SuspendWhy::Restarted, .. }))
         } else if matches!(scenario, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) && attempt == 1 {
             matches!(answer.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended { worker: 1, why: jig_domain_tasks::SuspendWhy::Stopped, .. }))
@@ -599,7 +606,7 @@ fn make_referee(
             crate::stories::Story::InvalidCharter
             | crate::stories::Story::BeyondGrace
             | crate::stories::Story::Cuts { .. } => 0,
-            crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_) => 3,
+            crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..) => 3,
             crate::stories::Story::Input => 1,
             crate::stories::Story::Window => 7,
             crate::stories::Story::Facts | crate::stories::Story::InvalidTranscript => 2,
@@ -648,7 +655,7 @@ fn launch(
 ) {
     let agent_program = skein_world::HostedProgram {
         program: b"agent-program".as_slice().into(),
-        make: if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+        make: if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)) {
             crate::restarts::agent
         } else if matches!(script.story, crate::stories::Story::BeyondGrace) {
             processes::agent_slow
@@ -663,7 +670,7 @@ fn launch(
         operations: smith_agent_process_world::limits()
             .routes
             .checked_add(
-                if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+                if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)) {
                     8
                 } else {
                     2
@@ -671,7 +678,7 @@ fn launch(
             )
             .expect("agent operations"),
     };
-    if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+    if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)) {
         harness.host_roots(agent_program, crate::restarts::roots);
         harness.host_roots(
             skein_world::HostedProgram {
@@ -685,7 +692,8 @@ fn launch(
     } else {
         harness.host(agent_program);
     }
-    let engine_factory = if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+    let engine_factory = if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..))
+    {
         crate::restarts::engine
     } else if matches!(script.story, crate::stories::Story::Providers) {
         processes::engine_providers
@@ -810,11 +818,11 @@ fn spawn_channel_side(
         harness.spawn(|| Proc::Probe(Box::new(crate::relay::Peer::opening(case))));
     } else if matches!(
         script.story,
-        crate::stories::Story::Shutdown | crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)
+        crate::stories::Story::Shutdown | crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)
     ) {
         let mut roots =
             vec![skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() }];
-        if !matches!(script.story, crate::stories::Story::Crash(_)) {
+        if !matches!(script.story, crate::stories::Story::Crash(..)) {
             roots.push(skein_world::StartupRoot {
                 name: b"replacement".as_slice().into(),
                 path: b"worker".as_slice().into(),
@@ -822,7 +830,7 @@ fn spawn_channel_side(
         }
         harness.spawn_restartable(
             roots,
-            if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+            if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(..)) {
                 crate::restarts::worker_restarting
             } else {
                 processes::worker_restarting

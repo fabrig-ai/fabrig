@@ -135,7 +135,6 @@ pub(crate) fn observe(store: &mut Store, request: &Request) {
         | Request::Open { .. }
         | Request::Rehearse { .. }
         | Request::Back { .. }
-        | Request::Site { .. }
         | Request::Job { .. }
         | Request::Close { .. }
         | Request::Get {

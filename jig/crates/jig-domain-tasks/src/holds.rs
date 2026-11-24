@@ -355,6 +355,28 @@ pub(crate) fn writer_holder(domain: &Domain, resource: &Name) -> Option<u64> {
     None
 }
 
+impl Domain {
+    /// The first unavailable resource in this task's queued set, and a task holding it if any.
+    #[must_use]
+    pub fn resource_wait(&self, row: &TaskRecord) -> Option<(Name, Option<u64>)> {
+        if !queued(self, row) {
+            return None;
+        }
+        let needed = blocked(self, row)?;
+        Some((name(needed).clone(), holder(self, needed)))
+    }
+}
+
+#[expect(clippy::manual_find, reason = "the step scans only the task's bounded holdings, without a closure")]
+fn blocked<'a>(domain: &Domain, row: &'a TaskRecord) -> Option<&'a Holding> {
+    for needed in &row.holdings {
+        if !available(domain, needed, 0) {
+            return Some(needed);
+        }
+    }
+    None
+}
+
 /// Whether an opaque resource name fits the configured hold bounds.
 #[must_use]
 pub fn valid_name(limits: &Limits, resource: &Name) -> bool {
@@ -563,14 +585,8 @@ pub(crate) fn wait(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     if row.hold_wait_since.is_some() || row.holdings.is_empty() {
         return;
     }
-    let mut blocked = None;
-    for needed in &row.holdings {
-        if !available(domain, needed, 0) {
-            blocked = Some(name(needed).clone());
-            break;
-        }
-    }
-    let Some(resource) = blocked else { return };
+    let Some(needed) = blocked(domain, row) else { return };
+    let resource = name(needed).clone();
     task_mut(domain, number).expect("waiting task live").record.hold_wait_since = Some(env.wall);
     if let Err(problem) = crate::waits::check_queue(domain, &crate::compound::Staged::new(0), &env.limits, number) {
         crate::waits::hold_circle(domain, env, number, problem, out);
@@ -615,13 +631,10 @@ pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     if !queued(domain, row) {
         return;
     }
-    let mut blocked = None;
-    for needed in &row.holdings {
-        if !available(domain, needed, 0) {
-            blocked = Some(name(needed).clone());
-            break;
-        }
-    }
+    let resource = match blocked(domain, row) {
+        Some(needed) => Some(name(needed).clone()),
+        None => None,
+    };
     if let Err(problem) = crate::waits::check_queue(domain, &crate::compound::Staged::new(0), &env.limits, number) {
         crate::waits::hold_circle(domain, env, number, problem, out);
         return;
@@ -630,7 +643,7 @@ pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     publish(domain, env, number, out);
     let due = env.now.saturating_add(env.limits.hold_wait);
     domain.hold_alarms.arm(number, due).expect("one alarm per task");
-    let Some(resource) = blocked else { return };
+    let Some(resource) = resource else { return };
     let place = place(domain, &env.limits, number, &resource);
     out.push(Request::Waiting { task: number, resource, place });
 }

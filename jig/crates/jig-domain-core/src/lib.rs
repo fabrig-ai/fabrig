@@ -122,8 +122,9 @@ pub use crate::{
 };
 
 pub use jig_domain_core_vocabulary::{
-    Config, ConfiguredPolicy, EndpointFacts, GATHERING, MadePart, PartAsk, PartFailure, PartInputs, PartsAsk,
-    RECURRING, RowPart, SeedProject, Settings, ToolFamilies,
+    AtBound, Bound, Config, ConfiguredPolicy, EndpointFacts, Figures, GATHERING, MadePart, Nearest, PartAsk,
+    PartFailure, PartInputs, PartsAsk, RECURRING, ReportRefusal, Reported, ReportedBound, RowPart, SeedProject,
+    Settings, Thing, ToolFamilies, Unbounded, Wait, WaitKind, WaitObject, Waits,
 };
 
 /// The engine's children, routing and durable live state (domain/engine/README.md,
@@ -146,6 +147,10 @@ pub struct Core {
     run_inbox: u32,
     /// Configured task depth and tree size used by proposal-holder inspection.
     proposal_bounds: (u32, u32),
+    /// The next-start limits used by the standalone wait read.
+    wait_limits: Limits,
+    /// One memory-only wait report per live procedure task.
+    reported_waits: Map<u64, Box<[Reported]>>,
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
     /// Last reported store map bytes (protocol/store/growth.md, 1.2).
@@ -404,6 +409,8 @@ impl Core {
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             proposal_bounds: (limits.tasks.depth, limits.tasks.tree_tasks),
+            wait_limits: *limits,
+            reported_waits: Map::with_capacity(limits.tasks.tasks),
             fill: 0,
             census: None,
             person_answers: false,

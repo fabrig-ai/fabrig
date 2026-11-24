@@ -430,12 +430,19 @@ impl Domain {
     /// Whether a call is sitting at this named hold, not merely approaching it.
     #[must_use]
     pub fn is_held(&self, name: &[u8]) -> bool {
+        self.held_count(name) != 0
+    }
+
+    /// How many calls have reached the hold, including calls whose peer has disconnected.
+    #[must_use]
+    pub fn held_count(&self, name: &[u8]) -> u32 {
+        let mut count: u32 = 0;
         for id in &self.held {
             if pieces::held_at(&self.calls.get(*id).expect("held call lives").state, &self.played.scripts, name) {
-                return true;
+                count = count.checked_add(1).expect("bounded held calls");
             }
         }
-        false
+        count
     }
 
     /// Earliest injected deadline still pending, or `None` when no timed work remains.

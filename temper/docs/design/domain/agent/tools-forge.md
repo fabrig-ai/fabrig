@@ -118,7 +118,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
     answers as `what=branch` of that branch would, its refusal and
     guidance included (*A refused branch read says what to read
     instead*, below), and no file is read.
-    - **The engine's shape** (`temper-engine-domain`'s `boundary.rs`,
+    - **The engine's shape** (`temper-engine-domain-translate`'s `tools.rs`,
       beside `ReadNamed`), the contract between smith's decoder and the
       root:
 

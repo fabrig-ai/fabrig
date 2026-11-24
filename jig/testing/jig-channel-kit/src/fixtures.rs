@@ -476,7 +476,7 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
 #[must_use]
 pub fn provider_turns(script: &Script) -> Box<[skein_fake_llm_domain::api::Turn]> {
     use skein_fake_llm_domain::api::{Finish, Line, Turn};
-    if let crate::stories::Story::Resume(point) | crate::stories::Story::Crash(point) = script.story {
+    if let crate::stories::Story::Resume(point) | crate::stories::Story::Crash(point, _) = script.story {
         return crate::restarts::turns(point, script.result.clone());
     }
     if matches!(script.story, crate::stories::Story::Window) {

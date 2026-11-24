@@ -32,6 +32,7 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[0, 11], "component.turn-logs"),
     (&[0, 12], "component.log-attempts"),
     (&[0, 13], "component.floor"),
+    (&[0, 14], "component.registry-orders"),
     (&[1, 0, 0], "core.deployment"),
     (&[1, 0, 1], "core.projections"),
     (&[1, 0, 2], "core.run-proofs"),
@@ -122,6 +123,26 @@ pub fn decode_own(bytes: &[u8]) -> Option<Own> {
     }
     Some(key)
 }
+/// Registry order key (protocol/store/layouts.md, 3), at its own tag.
+#[must_use]
+pub fn order(family: &str, number: u16, limit: u32) -> Option<Box<[u8]>> {
+    let mut writer = KeyWriter::new(limit);
+    writer.tag(COMPONENT);
+    writer.tag(14);
+    own::write_type(&mut writer, family, number);
+    writer.finish()
+}
+
+#[must_use]
+pub fn decode_order(bytes: &[u8]) -> Option<(Box<str>, u16)> {
+    let mut reader = KeyReader::new(bytes.strip_prefix(&[COMPONENT, 14])?);
+    let ty = own::read_type(&mut reader)?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(ty)
+}
+
 #[must_use]
 pub fn encode(key: &domain::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);

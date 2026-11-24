@@ -309,7 +309,6 @@ fn untagged(mut event: store::Event) -> store::Event {
         | store::Event::Corrupt { .. }
         | store::Event::Job { .. }
         | store::Event::Ran { .. }
-        | store::Event::Site { .. }
         | store::Event::Decoded { .. }
         | store::Event::Undecodable { .. }
         | store::Event::Rehearsing { .. }

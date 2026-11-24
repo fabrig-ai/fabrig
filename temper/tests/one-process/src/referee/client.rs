@@ -40,7 +40,7 @@ struct Connection {
     header: bool,
     body: Vec<u8>,
     answered: bool,
-    sent_application: Option<()>,
+    request_owner: Option<wire::Owner>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Landing {
@@ -68,6 +68,11 @@ impl Wire {
     pub(crate) fn capturing() -> Self {
         Self { capture_only: true, ..Self::default() }
     }
+    /// A full keyed Jig request was sent, not just the command queued or its stream opened.
+    pub(crate) fn sent_jig(&self) -> bool {
+        self.connections.values().any(|connection| connection.request_owner.as_ref() == Some(&wire::Owner::Jig))
+    }
+
     pub(crate) fn watch_landing(&mut self) {
         self.landing = LandingRead::Watching;
     }
@@ -111,7 +116,7 @@ pub(super) fn picker(owner: &wire::Owner, request: &[u8]) -> bool {
 }
 impl Connection {
     fn request(&mut self, received: &mut Vec<Received>) {
-        if self.sent_application.is_some() {
+        if self.request_owner.is_some() {
             return;
         }
         let Some(end) = mark(&self.sent, b"\r\n\r\n") else { return };
@@ -133,10 +138,10 @@ impl Connection {
         let limits = native_link_limits();
         let keyed =
             wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
-        self.sent_application = Some(());
         if matches!(&keyed.owner, wire::Owner::Family(_)) && !picker(&keyed.owner, keyed.request.as_ref()) {
             received.push(Received::ApplicationSent { key: keyed.key });
         }
+        self.request_owner = Some(keyed.owner);
     }
     fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool, landing: &mut LandingRead) {
         if !self.header {
@@ -184,9 +189,8 @@ impl Connection {
             b"/jig/v1/sign-in/link" => {
                 let answer =
                     wire::SignInAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("sign-in reply bytes");
-                // NotReady asks the native caller to retry after startup. Only an
-                // actual SignedIn answer releases the referee's sign-in receipt.
-                if matches!(answer, wire::SignInAnswer::NotReady) {
+                // A startup retry or a spent link does not issue a sign-in receipt.
+                if matches!(answer, wire::SignInAnswer::NotReady | wire::SignInAnswer::LinkUsed) {
                     return;
                 }
                 let wire::SignInAnswer::SignedIn(value) = answer else { panic!("sign-in accepted: {answer:?}") };

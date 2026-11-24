@@ -2,7 +2,7 @@
 use super::opened::Moment;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_world::{
-    faults::{Kind, Struck},
+    faults::Struck,
     streams::{Stream, Streams},
     sweep::Sweep,
 };
@@ -10,14 +10,10 @@ use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{World, changes, fake_config, landings::LANDING, translate};
-
-const HEAD_BEHIND: Kind = Kind { family: "lagging", name: "head_behind" };
-const MERGE_LATE: Kind = Kind { family: "lagging", name: "merge_late" };
-const REOPENED: Kind = Kind { family: "stale", name: "reopened_by_another" };
-const SQUASHED: Kind = Kind { family: "stale", name: "squashed_dependency" };
-const MOVED_BASE: Kind = Kind { family: "stale", name: "moved_base" };
-const CLOSED: Kind = Kind { family: "refusing", name: "closed_by_another" };
-const MERGED: Kind = Kind { family: "refusing", name: "merged_by_another" };
+use temper_faults::{
+    forge::{CLOSED_BY_ANOTHER as CLOSED, MERGE_LATE, MERGED_BY_ANOTHER as MERGED},
+    stale::{MOVED_BASE, REOPENED, SQUASHED, STALE},
+};
 
 fn candidate(head: u64) -> Struck {
     Struck {
@@ -108,7 +104,7 @@ fn close_and_release(world: &mut World, task: u64) {
 #[test]
 fn stale_state_keeps_the_opens_invariants() {
     let mut sweep = Sweep::new("stale_state_keeps_the_opens_invariants");
-    for kind in [HEAD_BEHIND, MERGE_LATE, REOPENED, SQUASHED, MOVED_BASE, CLOSED, MERGED] {
+    for kind in STALE {
         sweep.configure(kind);
     }
     super::lagging::exclude_records(&mut sweep);

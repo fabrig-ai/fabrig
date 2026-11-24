@@ -82,7 +82,7 @@ fn open_copy(disk: &mut Disk, store: &mut service::store::Store) {
         while let Some(event) = store.events().pop() {
             match event {
                 Event::Opened { installation, pending, .. } => store.opened_limits(installation, pending),
-                event @ (Event::Job { .. } | Event::Site { .. }) => assert!(store.opening_site(event)),
+                event @ Event::Job { .. } => assert!(store.opening_job(event)),
                 event @ (Event::OpenRefused { .. } | Event::Undecodable { .. } | Event::Corrupt { .. }) => {
                     panic!("copy failed to open: {event:?}")
                 }

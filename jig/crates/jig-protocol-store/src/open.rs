@@ -260,16 +260,7 @@ fn ready(
         refuse(store, owner, OpenRefusal::Set { owner: why }, above);
         return;
     }
-    // The copy's serving machines are made after its check.
     if store.directory.patch.is_none() {
-        store.transcripts.machines =
-            match crate::transcripts::patches::make(&store.owner_sets, &store.limits, store.prepared_schemas) {
-                Ok(machines) => machines,
-                Err(why) => {
-                    refuse(store, owner, OpenRefusal::Set { owner: why }, above);
-                    return;
-                }
-            };
         // Serving codecs read the catalogue after the registry's commit and jobs (protocol/store/opening.md, 2).
         if let Err(failure) = crate::catalogue::catalogue(store) {
             store.open_failed(restore::OpenFailure::Data(failure));

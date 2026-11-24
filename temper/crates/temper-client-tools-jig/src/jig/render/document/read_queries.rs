@@ -119,6 +119,7 @@ pub(super) fn encode_task_line_fields(
     super::encode_owner_budget(&value.budget, out, budget);
     out.key(b"waits_on");
     super::encode_waits_on(&value.waits_on, out, budget);
+    super::waits::encode_summary(value.wait.as_ref(), value.nearest, out, budget);
     out.key(b"phases");
     encode_owner_phase_counts(&value.phases, out, budget);
     out.key(b"held_below");

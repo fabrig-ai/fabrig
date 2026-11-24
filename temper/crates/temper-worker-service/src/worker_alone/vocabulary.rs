@@ -59,7 +59,7 @@ pub enum Note {
         failure: jig_domain_host::AgentFailure,
         no_progress_ms: Option<u64>,
     },
-    /// A failed preparation, once when its answer first goes up (domain/worker/checkouts.md, 1.3).
+    /// A failed preparation, once when its answer first goes up (domain/worker/checkouts-prepare.md, 12.3).
     Unprepared {
         run: u64,
         attempt: u64,

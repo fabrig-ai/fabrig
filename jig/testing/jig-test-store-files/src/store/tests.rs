@@ -25,6 +25,7 @@ fn snapshot(mut store: Store) -> Store {
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         tasks: ROWS,
         people: 0,
         sign_ins: 0,
@@ -248,6 +249,7 @@ fn disk_history_store() -> Store {
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         tasks: 1,
         people: 0,
         sign_ins: 0,
@@ -580,6 +582,7 @@ fn starting_snapshot() -> Store {
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         tasks: ROWS,
         people: 0,
         sign_ins: 0,

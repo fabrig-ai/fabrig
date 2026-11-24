@@ -421,9 +421,17 @@ fn service(inventory: &mut Inventory, limits: &crate::Limits) -> Option<()> {
         memory,
         events: _,
         live_interval: _,
+        link,
     } = *limits;
     inventory.layer = Layer::Service;
     inventory.value("teardown", Value::Duration(super::super::teardown_bound(limits)?))?;
+    match link {
+        crate::Link::Policy { .. } => {}
+        crate::Link::Derived { no_progress, orphan_exit, .. } => {
+            inventory.value("no_progress", Value::Duration(no_progress))?;
+            inventory.value("orphan_exit", Value::Duration(orphan_exit))?;
+        }
+    }
     inventory.value("file_slots", Value::Count(u64::from(file_slots)))?;
     inventory.value("file_read", Value::Bytes(u64::from(file_read)))?;
     inventory.value("file_entries", Value::Count(u64::from(file_entries)))?;

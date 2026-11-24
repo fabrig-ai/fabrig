@@ -47,14 +47,16 @@ fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
         Request::Check(checkpoint.as_os_str().as_bytes().into()),
         Request::Workers(checkpoint.as_os_str().as_bytes().into()),
     ] {
-        // Preparation reads an existing --data; make_private checks its metadata alone.
-        let (mut service, prepared_deployment) =
-            shell::stopped::prepare("temper-engine", &directories).expect("read-only preparation");
-        assert_eq!(tree(data), before, "preparation writes nothing under --data");
-        service.engine_component().build_name("test-build");
         assert_eq!(
-            shell::upgrade::run_prepared("temper-engine", &directories, &request, service, &prepared_deployment)
-                .expect("checkpoint tool"),
+            prepared_rehearsal(
+                &directories,
+                &request,
+                data,
+                &before,
+                "read-only preparation",
+                "preparation writes nothing under --data",
+                "checkpoint tool",
+            ),
             0,
             "deployment lock is not taken"
         );
@@ -67,16 +69,35 @@ fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
             "the checkpoint lock is taken"
         );
         assert_eq!(tree(data), before, "a refused rehearsal writes nothing under --data");
-        let (mut service, prepared_deployment) =
-            shell::stopped::prepare("temper-engine", &directories).expect("read-only preparation with source held");
-        assert_eq!(tree(data), before, "preparation with source held writes nothing under --data");
-        service.engine_component().build_name("test-build");
         assert_eq!(
-            shell::upgrade::run_prepared("temper-engine", &directories, &request, service, &prepared_deployment)
-                .expect("prepared busy source report"),
+            prepared_rehearsal(
+                &directories,
+                &request,
+                data,
+                &before,
+                "read-only preparation with source held",
+                "preparation with source held writes nothing under --data",
+                "prepared busy source report",
+            ),
             1,
             "the prepared run takes the checkpoint lock"
         );
         assert_eq!(tree(data), before, "a refused prepared rehearsal writes nothing under --data");
     }
+}
+
+fn prepared_rehearsal(
+    directories: &shell::directories::Directories,
+    request: &Request,
+    data: &Path,
+    before: &[(std::path::PathBuf, u32, Vec<u8>)],
+    prepare_message: &str,
+    unchanged_message: &str,
+    run_message: &str,
+) -> u8 {
+    // Preparation reads an existing --data; make_private checks its metadata alone.
+    let (mut service, deployment) = shell::stopped::prepare("temper-engine", directories).expect(prepare_message);
+    assert_eq!(tree(data), before, "{unchanged_message}");
+    service.engine_component().build_name("test-build");
+    shell::upgrade::run_prepared("temper-engine", directories, request, service, &deployment).expect(run_message)
 }

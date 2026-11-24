@@ -1,5 +1,5 @@
 //! Admission order and cues on one checked real world.
-mod diagnostics;
+pub(crate) mod diagnostics;
 mod lifecycle;
 use crate::{agent, calls::Caller, fixtures, forge, llm, service::ServiceHost};
 use lifecycle::{Hosts, Lifecycle};
@@ -17,35 +17,13 @@ pub struct Proc {
     diagnostics: diagnostics::Operations,
 }
 impl Proc {
-    /// A forge root whose state the story retains separately.
-    #[must_use]
-    pub fn forge(peer: skein_fake_peers::forge::Peer) -> Self {
-        Self::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
-    }
-    /// Task terminals witnessed in the engine's latest successful journal sync.
-    #[must_use]
-    pub fn ended_tasks(&self) -> &[u64] {
-        &self.diagnostics.terminals.ended
-    }
-    /// The journal sync which most recently witnessed task terminals.
-    #[must_use]
-    pub fn terminal_sync(&self) -> Option<skein_lib::Token> {
-        self.diagnostics.terminals.last_sync
-    }
-    /// Whether a submitted operation still awaits its completion hook.
-    #[must_use]
-    pub fn operation_pending(&self, token: skein_lib::Token) -> bool {
-        self.diagnostics.pending.contains_key(&token)
-    }
-    /// Whether the prepared engine retains a dependency stub for this task.
-    pub fn has_task_stub(&self, task: u64) -> Result<bool, String> {
-        let Kind::Service(host) = &self.kind else { return Err("engine fixture".into()) };
-        let engine = host.service.as_ref().ok_or("prepared engine")?.engine_domain().ok_or("engine domain")?;
-        Ok(engine.tasks().stub(task).is_some())
-    }
-
     pub(crate) fn new(kind: Kind) -> Self {
         Self { kind, diagnostics: diagnostics::Operations::default() }
+    }
+    pub(crate) fn observed_engine(&self) -> Option<(u64, &jig_domain_tasks::Domain, &diagnostics::Operations)> {
+        let Kind::Service(host) = &self.kind else { return None };
+        let engine = host.service.as_ref()?.engine_domain()?;
+        Some((engine.revision(), engine.tasks(), &self.diagnostics))
     }
     pub(crate) fn code_exchanges(&self) -> usize {
         let Kind::Issuer(peer) = &self.kind else { panic!("issuer process") };
@@ -57,13 +35,14 @@ impl Proc {
 }
 impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
-        self.diagnostics.complete(self.kind.completions(), now);
         if let Kind::Service(host) = &mut self.kind
             && let Some(service) = &mut host.service
             && service.engine_domain().is_some()
         {
             self.diagnostics.terminals.opened_logs(service.log_descriptors());
-            self.diagnostics.terminals.observe(host.completions());
+            self.diagnostics.complete(host.completions(), now, true);
+        } else {
+            self.diagnostics.complete(self.kind.completions(), now, false);
         }
         self.kind.iterate(now, wall);
     }
@@ -111,9 +90,6 @@ pub(crate) enum Kind {
     Terminal(Box<temper_client_shell_terminal::terminal::Terminal>),
     Agent(Box<agent::Hosted>),
     Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
-    GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
-    Claude(Box<smith_fake_claude::Fake>),
-    Relay(Box<smith_agent_shell::relay::Process>),
 }
 impl Kind {
     fn host(&self) -> &dyn Host {
@@ -127,9 +103,6 @@ impl Kind {
             Self::Terminal(h) => h.as_ref(),
             Self::Agent(h) => h.as_ref(),
             Self::Git(h) => h.as_ref(),
-            Self::GitRoute(h) => h.as_ref(),
-            Self::Claude(h) => h.as_ref(),
-            Self::Relay(h) => h.as_ref(),
         }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
@@ -143,9 +116,6 @@ impl Kind {
             Self::Terminal(h) => h.as_mut(),
             Self::Agent(h) => h.as_mut(),
             Self::Git(h) => h.as_mut(),
-            Self::GitRoute(h) => h.as_mut(),
-            Self::Claude(h) => h.as_mut(),
-            Self::Relay(h) => h.as_mut(),
         }
     }
 }
@@ -175,10 +145,7 @@ impl Host for Kind {
                 | Self::Ctl(_)
                 | Self::Terminal(_)
                 | Self::Agent(_)
-                | Self::Git(_)
-                | Self::GitRoute(_)
-                | Self::Claude(_)
-                | Self::Relay(_) => {}
+                | Self::Git(_) => {}
             }
             let host = self.host_mut();
             if pending
@@ -187,9 +154,6 @@ impl Host for Kind {
                 || host.next_policy_deadline().is_some_and(|deadline| deadline <= now)
             {
                 host.iterate(now, wall);
-                if let Self::Llm(llm) = self {
-                    llm.queries.observe(now, llm.peer.observations());
-                }
             }
         }
     }
@@ -236,7 +200,7 @@ pub(crate) fn run(
     direct_key: bool,
     sign_in: bool,
 ) -> CheckedOutcome<Proc> {
-    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent, None)
+    run_with_agent(scratch, recipe, steps, direct_key, sign_in, agent::agent)
 }
 
 pub(crate) fn run_stubborn(
@@ -244,16 +208,7 @@ pub(crate) fn run_stubborn(
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
-    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn, None)
-}
-
-pub(crate) fn run_configured(
-    scratch: &skein_scratch::Scratch,
-    recipe: impl FnOnce() -> llm::Recipe,
-    configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
-    steps: impl FnOnce() -> Vec<crate::calls::Step>,
-) -> CheckedOutcome<Proc> {
-    run_with_agent(scratch, recipe, steps, false, false, agent::agent, Some(configure))
+    run_with_agent(scratch, recipe, steps, false, false, agent::stubborn)
 }
 
 fn run_with_agent(
@@ -263,7 +218,6 @@ fn run_with_agent(
     direct_key: bool,
     sign_in: bool,
     agent: agent::Factory,
-    configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
 ) -> CheckedOutcome<Proc> {
     warm_runtime();
     let patience = crate::PATIENCE;
@@ -273,28 +227,23 @@ fn run_with_agent(
         sign_in.then(|| std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("issuer port"));
     let issuer = reservation.as_ref().map(|listener| listener.local_addr().expect("issuer address"));
     let mut world = World::new_controlled_checked(|controls| Judge {
-        patience: crate::patience::Patience::new(patience),
+        checks: diagnostics::Judge::new(crate::patience::Patience::new(patience)),
         controls,
         workers: Vec::new(),
         lifecycle: Lifecycle::default(),
         failure: None,
-        finding: None,
         armed: false,
         wake: None,
         forge: None,
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
-        tasks: diagnostics::Tasks::default(),
     });
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(recipe()).expect("independent LLM peer"),
             scripts: None,
-            groups: None,
-            recipe: None,
             rules: None,
             cue: false,
             placement_hold: true,
@@ -306,10 +255,7 @@ fn run_with_agent(
     world.spawn_signals(|signals| {
         Proc::new(Kind::Service(Box::new(match issuer {
             Some(address) => ServiceHost::with_issuer(scratch.path().into(), signals, address),
-            None => match configure {
-                Some(configure) => ServiceHost::configured_only(scratch.path().into(), signals, configure),
-                None => ServiceHost::new(scratch.path().into(), signals, direct_key),
-            },
+            None => ServiceHost::new(scratch.path().into(), signals, direct_key),
         })))
     });
     host(&mut world, scratch.path(), steps, direct_key, fixtures::local_places(scratch.path()), agent);
@@ -328,7 +274,6 @@ fn run_with_agent(
 }
 type Rules = fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>;
 type Scripts = fn(std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]>;
-type ScriptGroups = fn(std::net::SocketAddr) -> skein_fake_llm_domain::api::Scripts;
 pub(crate) struct ForgePeer {
     pub(crate) peer: skein_fake_peers::forge::Peer,
     pub(crate) pending_streak: crate::patience::PendingStreak,
@@ -350,12 +295,9 @@ impl std::ops::DerefMut for ForgePeer {
     }
 }
 pub(crate) struct Llm {
-    pub(crate) queries: llm::Queries,
     pub(crate) pending_streak: crate::patience::PendingStreak,
     pub(crate) peer: skein_fake_peers::llm::Peer,
     scripts: Option<Scripts>,
-    groups: Option<ScriptGroups>,
-    recipe: Option<crate::ForgeRecipe>,
     rules: Option<Rules>,
     cue: bool,
     placement_hold: bool,
@@ -365,7 +307,7 @@ pub(crate) struct Llm {
 }
 impl Llm {
     fn deferred(&self) -> bool {
-        self.scripts.is_some() || self.groups.is_some()
+        self.scripts.is_some()
     }
     fn release_hold(&mut self, caller: &Caller) {
         if let Some(name) = caller.releasing_hold() {
@@ -381,17 +323,6 @@ impl Llm {
 impl Llm {
     /// Plays the deferred scripts, by their turn rules where given, once the forge is bound.
     fn bind(&mut self, address: std::net::SocketAddr) -> Result<(), String> {
-        if let Some(recipe) = self.recipe.take() {
-            self.peer = llm::peer((recipe.build)(address, &recipe.source))
-                .map_err(|error| format!("derived forge recipe: {error:?}"))?;
-            self.scripts = None;
-            return Ok(());
-        }
-        if let Some(groups) = self.groups.take() {
-            self.peer = llm::peer(llm::played(groups(address)))
-                .map_err(|error| format!("bound forge script groups: {error:?}"))?;
-            return Ok(());
-        }
         let Some(scripts) = self.scripts.take() else { return Ok(()) };
         let recipe = match self.rules.take() {
             Some(rules) => llm::played_by_input(scripts(address), rules()),
@@ -417,37 +348,30 @@ pub(crate) fn run_forge(
     scratch: &skein_scratch::Scratch,
     fixture: forge::Fixture,
     scripts: Scripts,
-    rules: Option<Rules>,
-    recipe: Option<crate::ForgeRecipe>,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> skein_world::real::Outcome<Proc> {
     warm_runtime();
     let patience = crate::PATIENCE;
     let state = std::rc::Rc::new(std::cell::RefCell::new(None));
     let mut world = World::new_controlled(|controls| Judge {
-        patience: crate::patience::Patience::new(patience),
+        checks: diagnostics::Judge::new(crate::patience::Patience::new(patience)),
         controls,
         workers: Vec::new(),
         lifecycle: Lifecycle::default(),
         failure: None,
-        finding: None,
         armed: false,
         wake: None,
         forge: Some(state.clone()),
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
-        tasks: diagnostics::Tasks::default(),
     });
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: Some(scripts),
-            groups: None,
-            recipe,
-            rules,
+            rules: None,
             cue: false,
             placement_hold: true,
             holds: Vec::new(),
@@ -476,49 +400,6 @@ pub(crate) fn run_forge(
     let outcome = world.run(&skein_shell::Clock::new(), patience);
     crate::git::share(None);
     outcome
-}
-pub(crate) fn run_github(
-    scratch: &skein_scratch::Scratch,
-    fixture: crate::github::Fixture,
-    scripts: ScriptGroups,
-    steps: impl FnOnce() -> Vec<crate::calls::Step>,
-) -> skein_world::real::Outcome<Proc> {
-    let patience = crate::PATIENCE;
-    let (state, mut peer) = crate::github::State::new(fixture);
-    let mut world = World::new_controlled(|controls| {
-        let mut judge = cluster_judge(controls, &[], None, patience);
-        judge.github = Some(state);
-        judge
-    });
-    world.spawn(|| {
-        Proc::new(Kind::Llm(Box::new(Llm {
-            pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
-            peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
-            scripts: None,
-            groups: Some(scripts),
-            recipe: None,
-            rules: None,
-            cue: false,
-            placement_hold: true,
-            holds: Vec::new(),
-            release: None,
-            released: None,
-        })))
-    });
-    world.spawn_signals(|signals| {
-        let mut service = ServiceHost::github(scratch.path().into(), signals, fixture);
-        service.make_github_app(&mut peer);
-        Proc::new(Kind::Service(Box::new(service)))
-    });
-    // This story provisions its account explicitly, retaining every ctl output.
-    let agents = fixtures::local_places(scratch.path());
-    host(&mut world, scratch.path(), steps, true, agents, agent::agent);
-    world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
-    let mut git = crate::git::route_program();
-    git.instances = agents;
-    world.host_roots(git, crate::git::roots);
-    world.run(&skein_shell::Clock::new(), patience)
 }
 fn host<R: Referee<Proc>>(
     world: &mut World<Proc, R>,
@@ -569,24 +450,6 @@ fn host_agent<R: Referee<Proc>>(
     let agent_path =
         if path.join("agent.json").exists() { path.join("agent.json") } else { path.join("world-agent.json") };
     let configuration = smith_agent_shell::config::read(&agent_path).expect("agent operation bound");
-    if let Some(program) = configuration.program.as_ref() {
-        let mut claude = crate::claude::program(program.path.as_os_str().as_bytes());
-        claude.instances = agents + 1; // A status probe may run beside the conversations.
-        world.host_startup(
-            claude,
-            |spawn| {
-                let launch = crate::claude::launch(spawn);
-                smith_fake_claude::config_root(&launch)
-                    .into_iter()
-                    .chain(smith_fake_claude::mcp_root(&launch))
-                    .collect()
-            },
-            |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
-        );
-        let mut relay = crate::claude::relay(crate::claude::RELAY);
-        relay.instances = agents;
-        world.host(relay);
-    }
     world.host_roots(
         HostedProgram {
             program: fixtures::pinned_agent_program(path).as_os_str().as_bytes().into(),
@@ -595,30 +458,21 @@ fn host_agent<R: Referee<Proc>>(
             operations: smith_agent_service::program_operations(&configuration.service).expect("agent program routes")
                 + 3,
         },
-        if configuration.program.is_none() { |_| Vec::new() } else { agent::roots },
+        |_| Vec::new(),
     );
 }
 pub struct Judge {
-    patience: crate::patience::Patience,
+    checks: diagnostics::Judge,
     controls: Controls,
     workers: Vec<&'static str>,
     lifecycle: Lifecycle,
     armed: bool,
     failure: Option<Failure>,
-    finding: Option<String>,
     wake: Option<Time>,
     forge: Option<std::rc::Rc<std::cell::RefCell<Option<forge::State>>>>,
     github: Option<crate::github::State>,
     llm_history: LlmHistory,
     children: Children,
-    tasks: diagnostics::Tasks,
-}
-
-impl Judge {
-    /// Exercise the failed-deadline path without waiting on the real clock.
-    pub fn force_failed(&mut self) {
-        self.patience.force_failed();
-    }
 }
 
 struct Failure {
@@ -788,7 +642,6 @@ impl Judge {
     }
     fn finish_peers(&mut self, peer: &mut Llm, children: &mut [Proc]) {
         peer.scripts = None;
-        peer.groups = None;
         peer.shutdown();
         for proc in children.iter_mut() {
             match &mut proc.kind {
@@ -800,10 +653,7 @@ impl Judge {
                 | Kind::Ctl(_)
                 | Kind::Terminal(_)
                 | Kind::Agent(_)
-                | Kind::Git(_)
-                | Kind::GitRoute(_)
-                | Kind::Claude(_)
-                | Kind::Relay(_) => {}
+                | Kind::Git(_) => {}
             }
         }
         self.children.finish(children);
@@ -848,46 +698,10 @@ impl Judge {
     }
 }
 impl Judge {
-    fn capture_overdue(&mut self, now: Time, procs: &mut [Proc]) {
-        let report = self.describe_pending(now, procs);
-        self.patience.capture(report);
-        self.finding = crate::patience::check_overdue::<Proc, _>(self, now).err();
-    }
-    fn describe_pending(&self, now: Time, procs: &mut [Proc]) -> String {
-        use std::fmt::Write;
-        let mut report = format!(
-            "temper judge overdue: stopping={} engine_stopping={} finished={}\n",
-            self.lifecycle.stopping, self.lifecycle.engine_stopping, self.lifecycle.finished
-        );
-        if let Some(failure) = &self.failure {
-            writeln!(report, "judge early_failure settled={} message={}", failure.settled, failure.message)
-                .expect("string writer");
-        }
-        self.tasks.describe(&mut report);
-        diagnostics::outstanding(procs, now, &mut report);
-        crate::patience::processes(procs, now, &mut report);
-        if let Some(state) = &self.forge {
-            let borrowed = state.borrow();
-            if let Some(state) = borrowed.as_ref() {
-                writeln!(report, "forge shared_pending={}", state.handle.borrow().pending.len())
-                    .expect("string writer");
-            }
-        }
-        if let Some(state) = &self.github {
-            writeln!(report, "GitHub shared_pending={}", state.handle.borrow().pending.len()).expect("string writer");
-        }
-        report
-    }
-}
-impl Judge {
     #[expect(clippy::too_many_lines, reason = "issuer admission cues join the other hosted-process story cues")]
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
-        if self.patience.due(now) {
-            self.capture_overdue(now, procs);
-            return Ok(());
-        }
         self.wake = None;
-        if self.failure.is_some() || self.finding.is_some() {
+        if self.failure.is_some() || self.checks.finding.is_some() {
             return Ok(());
         }
         let engine_index = procs.iter().position(|proc| matches!(&proc.kind, Kind::Service(_))).ok_or("engine root")?;
@@ -915,24 +729,6 @@ impl Judge {
                 }
                 preceding_linked &= !*started || linked;
             }
-        }
-        if caller.stopping_engine() {
-            if !service.stopping() {
-                service.stop_for_restart()?;
-                self.controls.signal(engine_index, ServiceSignal::Terminate);
-            }
-            caller.engine_ready.set(service.settled());
-        }
-        if let Some(failures) = caller.starting_engine() {
-            if service.stopping() {
-                service.restart_after_failures(failures)?;
-            }
-            caller.engine_ready.set(service.links() > 1 && story_ready(service, workers));
-        }
-        if let Some(name) = caller.cancelled_worker() {
-            let position = worker_position(workers, name).ok_or("configured worker")?;
-            let Kind::Service(worker) = &workers[position].kind else { return Err("worker root".into()) };
-            caller.contact_cancelled.set(contact_cancelled(worker));
         }
         self.worker_actions(caller_end, caller, workers)?;
         peer.release_hold(caller);
@@ -973,17 +769,13 @@ impl Judge {
             }
             person_push(now, caller, state, &mut service.seen)?;
             service.seen.collect(now, forge, &state.handle, &state.repository)?;
-            caller.advanced.set(
-                state.moved
-                    && (caller.pushing().is_some()
-                        || !service.seen.deliveries().is_empty() && !service.seen.responses().is_empty()),
-            );
+            caller.pushed.set(state.moved && caller.pushing().is_some());
             if service.is_empty() {
                 forge.shutdown();
             }
         }
-        if let Some(state) = &self.github {
-            github_cues(state, peer, service, caller, children)?;
+        if self.github.is_some() {
+            github_cues(peer, service, children)?;
         }
         service.address = peer.address();
         Lifecycle::release(
@@ -1002,7 +794,7 @@ impl Judge {
         }
         let shutdown = self.shutdown_decisions(caller, service, workers, children)?;
         if shutdown.workers {
-            check_ending(caller, service, workers, children)?;
+            check_ending(service, workers, children)?;
             for (position, _) in self.workers.iter().enumerate() {
                 self.controls.signal(caller_end + position, ServiceSignal::Terminate);
             }
@@ -1018,37 +810,23 @@ impl Judge {
 }
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        if let Err(finding) = self.act_checked(now, procs) {
-            self.finding = Some(finding);
+        let context = diagnostics::Context {
+            lifecycle: self.lifecycle,
+            failure: self.failure.as_ref(),
+            forge: self.forge.as_deref(),
+            github: self.github.as_ref(),
+        };
+        if !self.checks.act(now, procs, context)
+            && let Err(finding) = self.act_checked(now, procs)
+        {
+            self.checks.finding = Some(finding);
         }
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the referee observes engine and worker restart cues alongside peer and caller progress"
-    )]
     fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
-        if let Some(finding) = &self.finding {
-            return Err(finding.clone());
-        }
-        for proc in procs {
-            if let Kind::Caller(caller) = &proc.kind
-                && let Some(finding) = &caller.finding
-            {
-                self.finding = Some(finding.clone());
-                return Err(finding.clone());
-            }
-        }
-        for proc in procs {
-            if let Kind::Service(host) = &proc.kind
-                && let Some(service) = &host.service
-                && let Some(engine) = service.engine_domain()
-            {
-                self.tasks.observe(engine, &proc.diagnostics.terminals)?;
-            }
-        }
+        self.checks.watch(procs, procs.iter().filter_map(Proc::observed_engine))?;
         if let Some(failure) = &mut self.failure {
             failure.settled = procs.iter().all(Host::is_empty);
-            return crate::patience::check_overdue::<Proc, _>(self, now);
+            return crate::patience::check_overdue(now, self.overdue(now));
         }
         let [
             Proc { kind: Kind::Llm(peer), .. },
@@ -1062,14 +840,6 @@ impl Referee<Proc> for Judge {
         if let Some(engine) = service.service.as_ref().and_then(crate::service::Driven::engine_domain) {
             caller.observe_read_version(engine);
         }
-        // This story-local join observes the engine's durable terminal record,
-        // even when the live task has already been reclaimed before Ready closes.
-        if procs.iter().any(|proc| {
-            matches!(&proc.kind, Kind::Service(host) if host.service.as_ref().and_then(crate::service::Driven::engine_domain).is_some())
-                && proc.diagnostics.terminals.ended.contains(&crate::calls::TRIAL_TASK)
-        }) {
-            caller.trial_ended.set(true);
-        }
         let caller_end = 3;
         let (workers, children) = procs[caller_end..].split_at(self.workers.len());
         let mut workers_changed = false;
@@ -1081,13 +851,6 @@ impl Referee<Proc> for Judge {
                     && worker.cluster.as_ref().is_some_and(|shape| !shape.ready()));
         }
         let _ = self.children.observe(children);
-        if let Some(index) = self.children.terminals.last() {
-            let Kind::Terminal(terminal) = &children[*index].kind else { return Err("terminal position".into()) };
-            // Exit lines mutate in place, rather than appending to a history.
-            caller.terminal.refused.set(terminal.exit_line().is_some_and(|line| {
-                line.as_ref() == b"temper open: the link was refused: use the fresh link temper serve printed\n"
-            }));
-        }
         let pending = self.llm_history.observe(peer.observations())?;
         let queries = self.llm_history.queries;
         caller.llm_queries.set(queries);
@@ -1098,7 +861,6 @@ impl Referee<Proc> for Judge {
                     && queries > caller.held_queries.get()
                     && pending > 0,
         );
-        caller.links.set(service.links());
         let lock_changed = self.children.lock_changed(children, caller)?;
         let forge_changed = if let Some(state) = &self.forge {
             let borrowed = state.borrow();
@@ -1106,11 +868,7 @@ impl Referee<Proc> for Judge {
             let Kind::Forge(forge) = &children[0].kind else { return Err("forge root".into()) };
             (forge.address().is_some() && service.forge_address.is_none())
                 || (service.hooks.is_some() && !state.hooked)
-                || (caller.advancing() && state.hooked && !state.moved)
                 || (caller.pushing().is_some() && !state.moved)
-                || (caller.advancing()
-                    && !caller.advanced.get()
-                    && (!forge.observations().is_empty() || !service.seen.responses().is_empty()))
         } else {
             false
         };
@@ -1130,15 +888,7 @@ impl Referee<Proc> for Judge {
                     || worker.linked() > worker.lives().iter().map(|life| life.linked).sum()
                         && !caller.worker_ready.get()
             });
-        let engine_action = caller.stopping_engine()
-            && (!service.stopping() || service.settled() && !caller.engine_ready.get())
-            || caller.starting_engine().is_some()
-                && (service.stopping() || service.links() > 1 && !caller.engine_ready.get())
-            || caller
-                .cancelled_worker()
-                .and_then(named_worker)
-                .is_some_and(|worker| contact_cancelled(worker) && !caller.contact_cancelled.get());
-        if engine_action || worker_action || caller.adding_worker().and_then(named_worker).is_some_and(|worker| {
+        if worker_action || caller.adding_worker().and_then(named_worker).is_some_and(|worker| {
             !worker_started(worker) || worker.linked() > 0 && !caller.added.get()
         })
             || (caller.releasing_hold().is_some() && !caller.hold_released.get() && peer.release.is_none())
@@ -1162,18 +912,13 @@ impl Referee<Proc> for Judge {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        [self.wake, self.patience.deadline()].into_iter().flatten().min()
+        [self.wake, self.checks.patience.deadline()].into_iter().flatten().min()
     }
     fn overdue(&self, _now: Time) -> Option<String> {
-        // Preserve startup failures after io closes; a stalled drain still gets the patience snapshot.
-        self.failure
-            .as_ref()
-            .filter(|failure| failure.settled)
-            .map(|failure| failure.message.clone())
-            .or_else(|| self.patience.overdue())
+        self.checks.overdue(self.failure.as_ref())
     }
     fn passed(&self) -> bool {
-        self.lifecycle.passed(self.failure.is_some() || self.finding.is_some())
+        self.lifecycle.passed(self.failure.is_some() || self.checks.finding.is_some())
     }
 }
 
@@ -1184,38 +929,20 @@ fn story_ready(service: &ServiceHost, workers: &[Proc]) -> bool {
             .all(|proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0))
 }
 
-fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], children: &[Proc]) -> Result<(), String> {
-    let declared = caller.leftovers();
+fn check_ending(service: &ServiceHost, workers: &[Proc], children: &[Proc]) -> Result<(), String> {
     let mut obligations = crate::ending::Obligations::default();
-    obligations.read(service, declared)?;
+    obligations.read(service, &[])?;
     for worker in workers {
         let Kind::Service(worker) = &worker.kind else { return Err("worker root".into()) };
-        obligations.read(worker, declared)?;
+        obligations.read(worker, &[])?;
     }
-    let active_program =
-        service.service.as_ref().and_then(crate::service::Driven::worker_domain).is_some_and(|worker| {
-            worker.hosting().iter().any(|hosting| {
-                hosting.phase == jig_domain_link::Phase::Active
-                    && declared.iter().any(|left| {
-                        left.task == hosting.run.raw() && left.may_be.contains(&crate::ending::Left::HostedActive)
-                    })
-            })
-        });
     for (index, child) in children.iter().enumerate() {
-        // A declared active program is left to serve's stop, including its agent
-        // and MCP relay. Other children still owe their ordinary completion.
-        if active_program && matches!(&child.kind, Kind::Agent(_) | Kind::Claude(_) | Kind::Relay(_)) {
-            continue;
-        }
         obligations.read_child(3 + workers.len() + index, child);
     }
-    obligations.check(declared)
+    obligations.check(&[])
 }
 
 fn person_push(now: Time, caller: &Caller, state: &mut forge::State, seen: &mut forge::Seen) -> Result<(), String> {
-    if caller.advancing() && state.hooked && !state.moved {
-        state.advance(now, skein_shell::Clock::new().now().wall)?;
-    }
     if let Some((path, words)) = caller.pushing()
         && !state.moved
     {
@@ -1225,13 +952,7 @@ fn person_push(now: Time, caller: &Caller, state: &mut forge::State, seen: &mut 
     Ok(())
 }
 
-fn github_cues(
-    state: &crate::github::State,
-    peer: &mut Llm,
-    service: &mut ServiceHost,
-    caller: &mut Caller,
-    children: &mut [Proc],
-) -> Result<(), String> {
+fn github_cues(peer: &mut Llm, service: &mut ServiceHost, children: &mut [Proc]) -> Result<(), String> {
     let Kind::Forge(forge) = &mut children[0].kind else { return Err("GitHub root".into()) };
     service.forge_address = forge.address();
     if service.blob_address != forge.blob_address() {
@@ -1249,26 +970,10 @@ fn github_cues(
     if let Some(address) = forge.address() {
         peer.bind(address)?;
     }
-    caller.github_app = service.github_seen.app.as_ref().map(|app| app.id);
-    service.checkpoint_github(forge, &caller.calls)?;
     if service.is_empty() {
-        service.github_seen.collect(forge, &state.handle)?;
         forge.shutdown();
     }
     Ok(())
-}
-
-pub(crate) fn run_cluster(
-    workers: &[&'static str],
-    grace: skein_lib::Duration,
-    scratch: &[skein_scratch::Scratch],
-    recipe: impl FnOnce() -> llm::Recipe,
-    steps: impl FnOnce() -> Vec<crate::calls::Step>,
-) -> CheckedOutcome<Proc> {
-    let patience = crate::PATIENCE;
-    let mut world = World::new_controlled_checked(|controls| cluster_judge(controls, workers, None, patience));
-    cluster_roots(&mut world, workers, &[], grace, scratch, recipe, None, steps);
-    world.run(&skein_shell::Clock::new(), patience)
 }
 
 pub(crate) fn run_cluster_forge(
@@ -1310,19 +1015,17 @@ pub fn cluster_judge(
 ) -> Judge {
     warm_runtime();
     Judge {
-        patience: crate::patience::Patience::new(patience),
+        checks: diagnostics::Judge::new(crate::patience::Patience::new(patience)),
         controls,
         workers: workers.to_vec(),
         lifecycle: Lifecycle::default(),
         failure: None,
-        finding: None,
         armed: false,
         wake: None,
         forge,
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
-        tasks: diagnostics::Tasks::default(),
     }
 }
 
@@ -1347,11 +1050,8 @@ pub fn cluster_roots<R: Referee<Proc>>(
         let placement_hold = holds.iter().any(|name| name.as_ref() == crate::cluster::PLACED);
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(recipe).expect("cluster LLM"),
             scripts: forge.map(|(_, scripts, _)| scripts),
-            groups: None,
-            recipe: None,
             rules: forge.map(|(_, _, rules)| rules),
             cue: false,
             placement_hold: forge.is_some() || placement_hold,
@@ -1404,26 +1104,6 @@ fn script_holds(recipe: &llm::Recipe) -> Vec<Box<[u8]>> {
     names
 }
 
-fn contact_cancelled(worker: &ServiceHost) -> bool {
-    let Some(domain) = worker.service.as_ref().and_then(crate::service::Driven::worker_domain) else { return false };
-    let hub = domain.host();
-    (0..hub.kept_answers()).any(|index| {
-        matches!(
-            hub.answer_at(index),
-            Some(jig_domain_host::LinkUp::Answer {
-                answer: jig_domain_host::RunAnswer {
-                    ending: jig_domain_host::Ending::Failed {
-                        failure: jig_domain_host::Failure::Cancelled(jig_domain_host::Reason::Contact),
-                        ..
-                    },
-                    ..
-                },
-                ..
-            })
-        )
-    })
-}
-
 fn worker_started(worker: &ServiceHost) -> bool {
     !matches!(worker.cluster, Some(crate::cluster::Shape::Worker { started: false, .. }))
 }
@@ -1462,7 +1142,7 @@ mod tests {
         caller
     }
 
-    fn ctl(setup: bool) -> super::Proc {
+    pub(super) fn ctl(setup: bool) -> super::Proc {
         use skein_io::kernel::Fd;
         use temper_client_shell_cli::host::{Invocation, OneShot, Startup};
         super::Proc::new(super::Kind::Ctl(Box::new(crate::calls::Recorded::new(
@@ -1605,6 +1285,7 @@ mod tests {
         let connection = Token::new(1);
         let query = || Query {
             connection,
+            at: skein_lib::Time::ZERO,
             query: api::Query {
                 credential: None,
                 caching: api::Caching::Unscoped,

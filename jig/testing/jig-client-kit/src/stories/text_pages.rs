@@ -123,6 +123,8 @@ fn reply(task: c::Task) -> TaskLine {
         ended_at: None,
         budget: task.budget,
         waits_on: jig_client_domain::contract::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: jig_client_domain::contract::PhaseCounts {
             waiting: 0,
             idle: 0,

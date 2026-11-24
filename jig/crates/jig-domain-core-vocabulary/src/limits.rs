@@ -270,6 +270,10 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn checked_valid(limits: &Limits) -> Option<()> {
+    let crate::waits::Figures { question, party, news, host, account, step, room, sign_off } = limits.waits;
+    if [question, party, news, host, account, step, room, sign_off].contains(&skein_lib::Duration::ZERO) {
+        return None;
+    }
     if limits.retention.turns == skein_lib::Duration::ZERO
         || limits.retention.records == skein_lib::Duration::ZERO
         || limits.retention.summaries == skein_lib::Duration::ZERO

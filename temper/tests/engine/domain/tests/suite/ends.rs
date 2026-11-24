@@ -50,6 +50,53 @@ fn held(words: &[u8]) -> tasks::Phase {
     }
 }
 
+fn asking_producer(store: &mut Store, requester: u64) {
+    let mut producer = jig_protocol_store_kit::task_record();
+    producer.number = 8;
+    producer.requester = tasks::Party::Task(requester);
+    producer.phase = tasks::Phase::Active(tasks::Active::Idle);
+    producer.questions = Box::new([tasks::QuestionCredit {
+        number: 1,
+        answerer: tasks::Party::Person(1),
+        asked: tasks::Party::Person(1),
+        line: 1,
+    }]);
+    let row = Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(producer))));
+    store.rows.insert(row.key(), row);
+}
+
+#[test]
+fn an_idle_goal_waits_on_its_unanswered_producer() {
+    let mut store = stored(tasks::Phase::Active(tasks::Active::Idle));
+    asking_producer(&mut store, 7);
+    let mut ends = Ends::new(0, BOUND);
+    ends.expect(7, Expect::Waits, BOUND).expect("wait expectation");
+    ends.close(at(1), &store).expect("the unanswered descendant is a wait");
+}
+
+#[test]
+fn an_idle_goal_without_a_waiting_descendant_does_not_wait() {
+    let mut store = stored(tasks::Phase::Active(tasks::Active::Idle));
+    // An unrelated task's unanswered question must not justify this goal's idle row.
+    asking_producer(&mut store, 9);
+    let mut ends = Ends::new(0, BOUND);
+    ends.expect(7, Expect::Waits, BOUND).expect("wait expectation");
+    let finding = ends.close(at(1), &store).expect_err("idle with no descendant wait");
+    assert!(finding.contains("task 7: expectation still unmet at close"), "{finding}");
+}
+
+#[test]
+fn an_asking_descendant_does_not_meet_end_expectations() {
+    let mut store = stored(tasks::Phase::Active(tasks::Active::Idle));
+    asking_producer(&mut store, 7);
+    for expect in [Expect::Ends, Expect::Untouched] {
+        let mut ends = Ends::new(0, BOUND);
+        ends.expect(7, expect, BOUND).expect("end expectation");
+        let finding = ends.close(at(1), &store).expect_err("waiting is not ended");
+        assert!(finding.contains("task 7: expectation still unmet at close"), "{finding}");
+    }
+}
+
 #[test]
 fn ended_rows_meet_the_expectation() {
     for ending in [

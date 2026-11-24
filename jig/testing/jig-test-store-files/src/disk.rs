@@ -128,8 +128,7 @@ impl Disk {
             | Request::Get { .. }
             | Request::Transcript { .. }
             | Request::Secrets { .. }
-            | Request::Job { .. }
-            | Request::Site { .. }) => self.host.down(store, env, request, above),
+            | Request::Job { .. }) => self.host.down(store, env, request, above),
         }
         self.drive(store, env, above);
     }

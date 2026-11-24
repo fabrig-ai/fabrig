@@ -5,5 +5,5 @@ JournalRoom 0
 takes 0
 worst_case 0
 inner_allow 0
-comment:actual 113
+comment:actual 112
 comment:genuine 19

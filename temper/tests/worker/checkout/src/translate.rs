@@ -4,12 +4,13 @@
 //! uses the fake forge's shared object spelling (skein's testing/fakes/forge.md, 3).
 
 use skein_lib::Token;
+use std::collections::BTreeMap;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{self, Pushed, Remote, What};
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Missing, Op, Place};
 
 mod machine;
-pub use machine::{cut, perform_with_capacity, used};
+pub use machine::{cut, perform_with_capacity, used, writes};
 
 /// The domain's name for the fake's commit `fake`.
 #[must_use]
@@ -40,6 +41,15 @@ pub fn dir(workspace: Token) -> Vec<u8> {
 #[must_use]
 pub fn path(place: &Place) -> Vec<u8> {
     temper_fake_checkout::layout::path(place.workspace, &place.repository)
+}
+
+/// Every fake disk file's bytes and write version, including metadata.
+#[must_use]
+pub fn disk_snapshot(disk: &Checkout) -> BTreeMap<Vec<u8>, (Vec<u8>, u64)> {
+    disk.files()
+        .into_iter()
+        .map(|(path, bytes)| (path.to_vec(), (bytes.to_vec(), disk.version(path).expect("file"))))
+        .collect()
 }
 
 /// The workspace an operation is in.
@@ -379,8 +389,19 @@ pub fn perform_within(
     op: Op,
     conflicts: u32,
 ) -> Done {
+    perform_within_capacity(forge, disk, op, conflicts, None)
+}
+
+/// The same conflict bound, with the fake disk's optional byte capacity.
+pub fn perform_within_capacity(
+    forge: &mut impl temper_fake_git::counts::Remote,
+    disk: &mut Checkout,
+    op: Op,
+    conflicts: u32,
+    capacity: Option<u64>,
+) -> Done {
     let merge = matches!(op, Op::Merge { .. });
-    match perform(forge, disk, op) {
+    match perform_with_capacity(forge, disk, op, capacity) {
         Done::Conflicted { files, cut } if merge => {
             let most = usize::try_from(conflicts).expect("conflicts fits usize");
             let cut = cut || files.len() > most;

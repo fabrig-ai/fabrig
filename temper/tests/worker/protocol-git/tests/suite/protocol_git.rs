@@ -1,8 +1,10 @@
 use skein_lib::Token;
+use std::collections::BTreeMap;
 use temper_worker_domain_checkout::git;
+use temper_worker_protocol_git::invocation::{self, Command};
 use temper_worker_protocol_git_world::{
     fixtures,
-    io::{Fault, Node},
+    io::{Fault, IndexOverride, Invocation, Node, is_command},
     referee::{Expected, Verdict},
     world::{self, Stop},
 };
@@ -303,6 +305,91 @@ fn outputs_cut_at_random_and_past_each_cap_end_as_git_md_says() {
             assert_eq!(diagnostic.cut(), 1);
         }
     }
+}
+
+fn reply(op: &git::Op, command: &Command, stdout: &[u8]) -> Invocation {
+    let args = invocation::arguments_for(op, command);
+    let word = args.iter().skip(26).map(AsRef::as_ref).find(|word| is_command(word)).expect("scripted command");
+    Invocation::scripted(word, 0, stdout, b"")
+}
+
+#[test]
+fn delivery_refuses_a_marker_on_the_last_private_index_page() {
+    // The fixture permits four paths per page; the run has staged its first two.
+    const FIRST_PAGE: &[u8] = b"file0\0file1\0file2\0file3\0";
+    const LAST_PAGE: &[u8] = b"file4\0file5\0";
+    const RUN_INDEX: &[u8] = b"workspaces/7/specimen/.git/index";
+    const WORKER_INDEX: &[u8] = b"gitdirs/7/specimen/index";
+    const SCAN_INDEX: &[u8] = b"gitdirs/7/specimen/temper-scan";
+    const PRIVATE_LISTING: u32 = 7;
+    const PAGE_UPDATE: u32 = PRIVATE_LISTING - 1;
+
+    let mut scenario = fixtures::commit(true);
+    let remote: Box<[u8]> = b"https://forge.example.test/fixture/specimen.git".as_slice().into();
+    let git::Op::Commit { snapshot, .. } = &mut scenario.op else { panic!("merge commit fixture") };
+    *snapshot = Some(git::Snapshot { remote: remote.clone(), account: None });
+    let (head, second) = (fixtures::ONE, fixtures::TWO);
+    let head_line = [invocation::hex(head).as_ref(), b" \n"].concat();
+    let second_line = [invocation::hex(second).as_ref(), b"\n"].concat();
+    let unmerged = [FIRST_PAGE, LAST_PAGE].concat();
+    scenario.script.read_stdin_to_end = true;
+    scenario.script.invocations = [
+        reply(&scenario.op, &Command::SnapshotHead, &head_line),
+        reply(&scenario.op, &Command::SnapshotMerge { head, second: None }, &second_line),
+        reply(&scenario.op, &Command::SnapshotFetch { remote, head, merging: Some(second), second }, b""),
+        reply(&scenario.op, &Command::SnapshotReachable { head, merging: Some(second), second }, &second_line),
+        reply(&scenario.op, &Command::Unmerged, &unmerged),
+        reply(&scenario.op, &Command::UpdateIndex { paths: FIRST_PAGE.into() }, b""),
+        reply(&scenario.op, &Command::Unmerged, LAST_PAGE),
+    ]
+    .into();
+    let last = b"file5";
+    let run_index = b"file2\0file3\0file4\0file5\0";
+    scenario.files.insert(b"gitdirs/7/specimen".to_vec(), Node::Directory);
+    scenario.files.insert(WORKER_INDEX.to_vec(), Node::File(unmerged.clone().into_boxed_slice()));
+    scenario.files.insert(RUN_INDEX.to_vec(), Node::File(run_index.as_slice().into()));
+    for file in unmerged.strip_suffix(b"\0").expect("terminated listing").split(|byte| *byte == 0) {
+        let path = [b"workspaces/7/specimen/", file].concat();
+        let contents = if file == last { b"unresolved:\n<<<<<<< ours\n".as_slice() } else { b"resolved\n" };
+        scenario.files.insert(path, Node::File(contents.into()));
+    }
+    scenario.expected = Expected::done(git::Done::Conflicted { files: Box::new([last.as_slice().into()]), cut: false })
+        .after_remove(SCAN_INDEX);
+
+    let mut world = world::World::new(fixtures::SEED, BTreeMap::new());
+    let layout_files = world.below.open_files();
+    let outcome = world.run(&scenario).expect("delivery settles");
+    assert_eq!(world.below.open_files(), layout_files, "no operation file remains open");
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.spawns, PRIVATE_LISTING, "no staging, commit, reset or further page");
+    assert!(world.below.script.invocations.is_empty(), "all scripted commands ran");
+    let listing = [
+        b"--git-dir=gitdirs/7/specimen".as_slice(),
+        b"--work-tree=workspaces/7/specimen",
+        b"diff-files",
+        b"--name-only",
+        b"-z",
+        b"--diff-filter=U",
+    ];
+    let argv = |spawn: u32| {
+        world.below.arguments[usize::try_from(spawn - 1).expect("small script")]
+            .iter()
+            .map(AsRef::as_ref)
+            .collect::<Vec<_>>()
+    };
+    assert!(argv(PAGE_UPDATE - 1).ends_with(&listing));
+    assert!(argv(PRIVATE_LISTING).ends_with(&listing));
+    assert!(argv(PAGE_UPDATE).ends_with(&[b"update-index", b"--add", b"--remove", b"-z", b"--stdin"]));
+    assert_eq!(world.below.messages[usize::try_from(PAGE_UPDATE - 1).expect("small script")], FIRST_PAGE);
+    let index_override = |spawn| IndexOverride {
+        spawn,
+        path: [b"/worker/", SCAN_INDEX].concat().into_boxed_slice(),
+        contents: Some(unmerged.clone().into_boxed_slice()),
+    };
+    assert_eq!(world.below.index_overrides, [index_override(PAGE_UPDATE), index_override(PRIVATE_LISTING)]);
+    let Some(Node::File(bytes)) = outcome.tree.get(WORKER_INDEX) else { panic!("worker index remains") };
+    assert_eq!(bytes.as_ref(), unmerged, "the worker's six unmerged entries are unchanged");
+    world.shutdown();
 }
 
 #[test]

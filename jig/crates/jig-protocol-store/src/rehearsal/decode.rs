@@ -7,15 +7,12 @@ use skein_lib::{List, Queue, Token};
 
 /// Starts do not walk. A rehearsal retains the stored layout texts, one kept
 /// family's schemas and one reusable value; pages have the count walk's bounds.
-pub(crate) fn records(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> bool {
-    if store.rehearsal.is_none() {
-        return true;
-    }
+pub(super) fn records(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> Option<(Decoder, u64)> {
     let mut layouts = match Decoder::load(store) {
         Ok(layouts) => layouts,
         Err(why) => {
             open::refuse(store, owner, why, above);
-            return false;
+            return None;
         }
     };
     let mut records = 0_u64;
@@ -31,17 +28,16 @@ pub(crate) fn records(store: &mut Store, owner: Token, above: &mut Queue<Event>)
                         version: u32::from(version),
                         at: Undecoded::Record { map: family.map, key },
                     });
-                    return false;
+                    return None;
                 }
                 Err(Failure::Open(why)) => {
                     open::refuse(store, owner, why, above);
-                    return false;
+                    return None;
                 }
             }
         }
     }
-    above.push(Event::Decoded { owner, records });
-    true
+    Some((layouts, records))
 }
 
 enum Failure {

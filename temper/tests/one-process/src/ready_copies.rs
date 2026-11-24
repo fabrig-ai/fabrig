@@ -282,8 +282,15 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
     Proc::Service(Box::new(ServiceHost::new(service, ServiceObserver::started(root, inherited), parameters)))
 }
 
+pub(crate) fn see(role: Role, name: &[u8]) -> Step<Address> {
+    Step::See { find: Find::exactly_named(role, name), within: fixtures::PERSON_WAIT }
+}
+
+pub(crate) fn ready_heading() -> Step<Address> {
+    see(Role::Heading { level: 1 }, b"Ready")
+}
+
 fn steps() -> Box<[Step<Address>]> {
-    let see = |role, name: &[u8]| Step::See { find: Find::exactly_named(role, name), within: fixtures::PERSON_WAIT };
     let press = |role, name: &[u8]| Step::Press { find: Find::exactly_named(role, name) };
     Box::new([
         Step::Go { address: Address::Welcome { step: Welcome::Forge { forge: Some(Choice::Owned) } } },
@@ -295,7 +302,7 @@ fn steps() -> Box<[Step<Address>]> {
         },
         press(Role::Button, b"Run on this machine"),
         Step::Go { address: Address::Welcome { step: Welcome::Ready } },
-        see(Role::Heading { level: 1 }, b"Ready"),
+        ready_heading(),
         Step::See { find: Find::text(b"connected as temper"), within: fixtures::PERSON_WAIT },
         see(Role::Button, b"Create your project"),
         press(Role::Button, b"Create your project"),

@@ -1,4 +1,5 @@
 //! Root commits, numbered with skein-kv's (protocol/store/commits.md, 1, and protocol/store/growth.md, 1.2).
+use crate::transcripts::frame;
 use crate::{CommitCheck, CommitFailure, Event, Store, Write, codec, format, keys};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{CoreRecord, Record};
@@ -12,7 +13,7 @@ pub(crate) fn submit(
     above: &mut Queue<Event>,
     below: &mut crate::Below,
 ) {
-    let ops = match prepare(store, ops) {
+    let ops = match prepare(store, number, ops) {
         Ok(ops) => ops,
         Err(check) => {
             store.phase = crate::Phase::Stopped;
@@ -31,7 +32,7 @@ pub(crate) fn submit(
     );
     crate::directory::events_up(store, false, &mut events, above, below);
 }
-fn prepare(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv::Op]>, CommitCheck> {
+fn prepare(store: &mut Store, number: u64, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv::Op]>, CommitCheck> {
     let mut ops = unique(ops, store.limits.store.ops).ok_or(CommitCheck::Capacity)?;
     for op in &mut ops {
         if let skein_kv::Op::Put { key, value } = op {
@@ -39,8 +40,8 @@ fn prepare(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv:
         }
     }
     let ops = crate::logs::write::route(store, ops)?;
-    crate::logs::write::bounds(store, &ops)?;
-    Ok(ops)
+    let (count, bytes) = crate::logs::write::bounds(store, &ops)?;
+    Ok(crate::registry::settling::ride(store, number, ops, count, bytes))
 }
 
 #[derive(Debug)]
@@ -122,19 +123,23 @@ pub(crate) fn operations(
                     Ok(file) => file,
                     Err(check) => return Err(Refusal::Check(check)),
                 };
+                let body = frame::stored_body(store, &turn).ok_or(Refusal::Check(CommitCheck::Encoding))?;
+                // The serving charge is on the uncompressed body and its
+                // framing, even when the log's disk record is compressed.
+                if frame::charged(store) {
+                    let bytes = frame::wrapped_size(body.len()).ok_or(Refusal::Check(CommitCheck::Encoding))?;
+                    frame_size(store, turn.task, bytes)?;
+                }
                 if file {
-                    let body = crate::transcripts::frame::encode(&turn, &store.codec_limits)
-                        .ok_or(Refusal::Check(CommitCheck::Encoding))?;
-                    let bytes = u32::try_from(body.len()).ok().ok_or(Refusal::Check(CommitCheck::Encoding))?;
+                    let encoded = frame::pack(&body).ok_or(Refusal::Check(CommitCheck::Encoding))?;
+                    let bytes = u32::try_from(encoded.len()).ok().ok_or(Refusal::Check(CommitCheck::Encoding))?;
                     frame_size(store, turn.task, bytes)?;
                     let offset = match crate::transcripts::place(store, number, &turn, u64::from(bytes), &mut ops) {
                         Ok(offset) => offset,
                         Err(check) => return Err(Refusal::Check(check)),
                     };
-                    frames.push(crate::transcripts::Frame { task: turn.task, offset, bytes: body });
+                    frames.push(crate::transcripts::Frame { task: turn.task, offset, bytes: encoded });
                 } else {
-                    let body =
-                        codec::core::turn(&turn, &store.codec_limits).or(Err(Refusal::Check(CommitCheck::Encoding)))?;
                     let frame = store.stores.store.frame(&body).or(Err(Refusal::Check(CommitCheck::Encoding)))?;
                     let bytes = u32::try_from(frame.len()).ok().ok_or(Refusal::Check(CommitCheck::Encoding))?;
                     frame_size(store, turn.task, bytes)?;

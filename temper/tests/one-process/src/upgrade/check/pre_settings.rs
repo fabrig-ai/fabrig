@@ -18,6 +18,7 @@ pub fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
     let header = Record::Core(CoreRecord::Deployment(Deployment {
         id: deployment,
         restart_wait_ms: None,
+        wait_floors: None,
         projects: 0,
         tasks: 0,
         people: 0,

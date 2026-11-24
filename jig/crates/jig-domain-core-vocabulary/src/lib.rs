@@ -22,6 +22,7 @@ pub mod start;
 pub mod stored;
 pub mod translate;
 pub mod vocabulary;
+pub mod waits;
 
 pub use crate::{
     admission::{
@@ -76,6 +77,10 @@ pub use crate::{
         Ask, Assignment, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, LinkNow,
         NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
         StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+    },
+    waits::{
+        AtBound, Bound, Figures, Nearest, ReportRefusal, Reported, ReportedBound, Thing, Unbounded, Wait, WaitKind,
+        WaitObject, Waits,
     },
 };
 

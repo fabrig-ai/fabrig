@@ -8,9 +8,9 @@ A plan has no notion of older or newer: its old text is the **source**,
 the layout the bytes are at, and its new text the **target**, the layout
 its caller wants. A store that names each value's layout (jig's
 `protocol/store/layouts.md`) builds one plan per layout it holds, at
-open, and runs it on each value read at that layout. The patch machine
-(`patches.md`) stays for wires and the transcripts' frames; a registered
-family's written changes use its owner's jobs.
+open, and runs it on each value read at that layout, its transcripts'
+frames among them. The patch machine (`patches.md`) stays for wires; a
+registered family's written changes use its owner's jobs.
 
 - **A value type's layout** (`fingerprints.md`, 1.4): a root declaration, at
   one variant where the root is broad and its keys tell its variants
@@ -344,7 +344,9 @@ impl Workspace {
   job at open (jig's `protocol/store/jobs.md`, 4), since step code calls
   no function an owner hands in; a later design may run a written site
   at read where its owner reads the value itself.
-- **A store reading by plans that refuse:** the store reads by `derive`,
-  so a value type whose Read plan would refuse a value still needs its
-  owner's written job. Whether a store opens with such a plan, checking
-  every value at open first, is the store's (`temper/docs/design/draft/layouts-both-ways.md`, 8.1).
+- **A store reading by plans that refuse:** the store reads an older
+  layout by `derive`, so a value type whose Read plan would refuse a
+  value still needs its owner's written job; it plans a later layout
+  by `between` and checks every value at it at open (jig's
+  `protocol/store/layouts.md`, 5.6). Whether an upgrade could do the
+  same for an older layout, in place of a written job, is open.

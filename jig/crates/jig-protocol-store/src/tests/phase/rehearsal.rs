@@ -1,6 +1,62 @@
 //! The switch and wires belong to the scratch; transcripts never do (protocol/store/opening-rehearsal.md, 1).
 use super::*;
 
+#[test]
+fn rehearsal_turn_log_keeps_work_pending_until_decoded() {
+    use crate::tests::frame_layouts::{SETS, turn};
+    use jig_domain_core_vocabulary::{CoreRecord, Record};
+    use jig_test_layouts::frames;
+
+    const TURNS: u32 = 2;
+    let (mut source, mut serving) = source_with_sets(false, SETS);
+    let mut writes = vec![fixtures::header(2)];
+    for number in 1..=TURNS {
+        let frame = fixtures::window_turn(frames::TASK, frames::ATTEMPT, number, &turn(2, b""));
+        writes.push(fixtures::save(Record::Core(CoreRecord::Turn(frame))));
+    }
+    let events = source.request(&mut serving, fixtures::commit(2, writes.into_boxed_slice()));
+    let [Event::Committed { number: 2, .. }] = events.as_ref() else { panic!("source turns: {events:?}") };
+
+    let mut disk = Disk::new(&source.items());
+    let mut store = disk.store_with_chunk(CHUNK);
+    store.owner_sets(SETS);
+    let directory = disk.root();
+    let scratch = disk.scratch_root();
+    let env = fixtures::env();
+    let mut above = Queue::uncapped();
+    let mut below = fixtures::below();
+    crate::down(
+        &mut store,
+        &env,
+        Request::Rehearse {
+            owner: Token::new(1),
+            directory,
+            scratch,
+            installation: fixtures::INSTALLATION,
+            reach: crate::Reach::Whole,
+        },
+        &mut above,
+        &mut below,
+    );
+    // Deliver outstanding file terminals, but never fire on an idle boundary.
+    for _ in 0_u32..16 {
+        disk.drive(&mut below, |io, below| crate::up(&mut store, &env, io, &mut above, below));
+        if !store.work_pending() {
+            break;
+        }
+        crate::fire(&mut store, &env, &mut above, &mut below);
+    }
+    let events = fixtures::events(&mut above);
+    assert!(
+        events.iter().any(|event| if let Event::Decoded { records, .. } = event {
+            *records == u64::from(TURNS)
+        } else {
+            false
+        }),
+        "rehearsal must decode both log frames without firing on an idle boundary: {events:?}"
+    );
+}
+
 fn opened(pending: bool) -> (Disk, Store, Root, Vec<Item>) {
     let mut items = baseline_with_proof(true);
     items.push(Item::directory(b"transcripts/0000000000000000"));

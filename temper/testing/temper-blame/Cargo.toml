@@ -18,6 +18,9 @@ path = "src/tests.rs"
 [dependencies]
 skein-lib.workspace = true
 skein-world.workspace = true
+[dev-dependencies]
+temper-faults.workspace = true
+
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

@@ -25,7 +25,7 @@ Read on one deployment, 2026-11-16. The declarations' figures are names, descrip
 
 ## 2. A run is offered its charter's families
 
-- **The families are the ones the engine already decides each call by** (`temper/crates/temper-engine-domain/src/translate.rs`, `tool_kind`; `jig/docs/design/domain/authority.md`, 3). No family is added:
+- **The families are the ones the engine already decides each call by** (`temper/crates/temper-engine-domain-translate/src/shape.rs`, `tool_kind`; `jig/docs/design/domain/authority.md`, 3). No family is added:
 
   | Family | Its host tools |
   |---|---|
@@ -42,7 +42,7 @@ Read on one deployment, 2026-11-16. The declarations' figures are names, descrip
   | settings | `settings` and `propose_settings`'s configuring form |
   | ask | `see`, `document`, `remember` and `propose_settings`'s asking form |
 
-- **An asking charter keeps today's offer,** exactly. An asking charter is one whose `tools` name the asking family and no family but it and settings (`temper/crates/temper-engine-domain/src/boundary.rs`; a mask of every family is not one). It is offered its own tools alone, where its authority holds their families: `see`, `document` and `remember`, and `propose_settings` in its asking form where its charter and authority hold settings.
+- **An asking charter keeps today's offer,** exactly. An asking charter is one whose `tools` name the asking family and no family but it and settings (`temper/crates/temper-engine-domain-room/src/lib.rs`, `asking`; a mask of every family is not one). It is offered its own tools alone, where its authority holds their families: `see`, `document` and `remember`, and `propose_settings` in its asking form where its charter and authority hold settings.
 - **Any other charter is declared a tool where its `tools` names the tool's family and the run's authority holds it.** That replaces the offer to every run, and the offers of `message` and `read_task` by authority alone. The ask family's tools are never declared to a charter that isn't asking.
 - **`read_docs` stays offered to every run but an asking one,** as today: it is how a run reads the rest of a tool's form (section 3), and it costs 465 bytes.
 - **The stock charters name the families their roles use** (`../protocol/configuration/stock.md`):

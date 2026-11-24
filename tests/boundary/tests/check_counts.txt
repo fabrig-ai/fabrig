@@ -27,5 +27,6 @@ smith/tests/codecs/tests/suite/fuzzy/patches/sweep.rs
 smith/tests/local-process/tests/suite/fuzzy/store/sweep.rs
 temper/crates/temper-engine-service-startup/src/tests/relations/mutations.rs
 temper/tests/codecs/src/lib.rs
+temper/tests/engine/domain/src/workload.rs
 temper/tests/worker/protocol-git/src/transcripts.rs
 temper/tests/worker/protocol-git/tests/suite/protocol_git/sweep.rs

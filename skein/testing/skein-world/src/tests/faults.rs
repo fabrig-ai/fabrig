@@ -5,6 +5,8 @@ use alloc::collections::BTreeSet;
 use skein_lib::Time;
 
 use crate::faults::{Counter, FaultLedger, Injection, Kind, Struck};
+use crate::inspect::{Entry, Inspection, Refused, Release, Table};
+use crate::sweep::Sweep;
 
 const LOST_RUNNER: Kind = Kind { family: "forge", name: "lost runner" };
 const RATE_WINDOW: Kind = Kind { family: "provider", name: "rate window" };
@@ -231,4 +233,142 @@ fn fell_keeps_each_kind_once_including_stopped_faults() {
     ledger.inject(RATE_WINDOW, START, Struck::default());
     ledger.inject(RATE_WINDOW, STOP, Struck::default());
     assert_eq!(ledger.fell(), BTreeSet::from([LOST_RUNNER, RATE_WINDOW]));
+}
+
+const TABLE_BOUND: Kind = Kind { family: "f", name: "t" };
+// The two-slot table from sweeps.md, section 6's saturation cases.
+const TABLE_CAPACITY: u64 = 2;
+const FULL: usize = 2;
+const BELOW: usize = 1;
+
+fn inspected_table(name: &'static str, capacity: u64, held: usize) -> Table {
+    Table {
+        name,
+        capacity,
+        entries: (0..held)
+            .map(|key| Entry { key: key.to_string(), rule: "settlement", release: Release::Pending })
+            .collect(),
+        refused: Vec::new(),
+    }
+}
+
+fn table_snapshot(component: &'static str, name: &'static str, capacity: u64, held: usize) -> Inspection {
+    let mut inspection = Inspection::new(component, &[]);
+    inspection.table(inspected_table(name, capacity, held));
+    inspection
+}
+
+fn refused_snapshot(capacity: u64, held: usize) -> Inspection {
+    let mut inspection = Inspection::new("component", &[]);
+    let mut table = inspected_table("t", capacity, held);
+    table.refused.push(Refused { key: "newcomer".into(), since: Time::from_nanos(1), bound: None });
+    inspection.table(table);
+    inspection
+}
+
+fn full_snapshot() -> Inspection {
+    table_snapshot("component", "t", TABLE_CAPACITY, FULL)
+}
+
+fn ledger_at_snapshot(inspection: &Inspection) -> FaultLedger {
+    let mut ledger = FaultLedger::new();
+    ledger.saturation(&[TABLE_BOUND], &[inspection], Time::from_nanos(1)).expect("initial saturation");
+    ledger
+}
+
+#[test]
+fn saturation_tracks_full_intervals_and_records_each_kind_once() {
+    let full = full_snapshot();
+    let below = table_snapshot("component", "t", TABLE_CAPACITY, BELOW);
+    let mut ledger = ledger_at_snapshot(&full);
+    let first = ledger.entries().first().expect("full table fell");
+    assert_eq!(first.kind, TABLE_BOUND);
+    assert_eq!(first.from, Time::from_nanos(1));
+    assert_eq!(first.until, None);
+    assert_eq!(first.struck, Struck::default());
+    assert_eq!(ledger.entries().len(), 1);
+
+    ledger.saturation(&[TABLE_BOUND], &[&full], Time::from_nanos(2)).expect("still full");
+    assert_eq!(ledger.entries().len(), 1, "remaining full keeps one entry");
+    let first = ledger.entries().first().expect("still full");
+    assert_eq!(first.from, Time::from_nanos(1));
+    assert_eq!(first.until, None);
+
+    ledger.saturation(&[TABLE_BOUND], &[&below], Time::from_nanos(3)).expect("below capacity");
+    assert_eq!(ledger.entries().len(), 1);
+    assert_eq!(ledger.entries().first().expect("stopped entry").until, Some(Time::from_nanos(3)));
+
+    ledger.saturation(&[TABLE_BOUND], &[&full], Time::from_nanos(4)).expect("full again");
+    assert_eq!(ledger.entries().len(), 2);
+    let second = ledger.entries().last().expect("second interval");
+    assert_eq!(second.kind, TABLE_BOUND);
+    assert_eq!(second.from, Time::from_nanos(4));
+    assert_eq!(second.until, None);
+    assert_eq!(second.struck, Struck::default());
+    assert_eq!(ledger.fell(), BTreeSet::from([TABLE_BOUND]));
+}
+
+#[test]
+fn saturation_records_refused_newcomers_below_capacity() {
+    let inspection = refused_snapshot(TABLE_CAPACITY, BELOW);
+    let ledger = ledger_at_snapshot(&inspection);
+    assert_eq!(ledger.fell(), BTreeSet::from([TABLE_BOUND]));
+    assert_eq!(ledger.entries().first().expect("refused newcomer fell").until, None);
+}
+
+#[test]
+fn saturation_ignores_missing_names_and_unbounded_tables() {
+    let other = table_snapshot("component", "other", TABLE_CAPACITY, FULL);
+    let unbounded = refused_snapshot(u64::MAX, FULL);
+    for inspection in [other, unbounded, Inspection::new("empty", &[])] {
+        assert!(ledger_at_snapshot(&inspection).entries().is_empty());
+    }
+}
+
+#[test]
+fn saturation_uses_any_component_holding_the_named_table() {
+    let full = full_snapshot();
+    let below = table_snapshot("other component", "t", TABLE_CAPACITY, BELOW);
+    for inspections in [[&below, &full], [&full, &below]] {
+        let mut ledger = FaultLedger::new();
+        ledger.saturation(&[TABLE_BOUND], &inspections, Time::from_nanos(1)).expect("one component full");
+        assert_eq!(ledger.fell(), BTreeSet::from([TABLE_BOUND]));
+        ledger.saturation(&[TABLE_BOUND], &inspections, Time::from_nanos(2)).expect("one still full");
+        assert_eq!(ledger.entries().len(), 1);
+        assert_eq!(ledger.entries().first().expect("one component full").until, None);
+        ledger.saturation(&[TABLE_BOUND], &[&below, &below], Time::from_nanos(3)).expect("both below");
+        assert_eq!(ledger.entries().first().expect("both below").until, Some(Time::from_nanos(3)));
+    }
+}
+
+#[test]
+fn saturation_coverage_requires_a_seed_reaching_the_bound() {
+    let full = full_snapshot();
+    let below = table_snapshot("component", "t", TABLE_CAPACITY, BELOW);
+    let mut sweep = Sweep::new("bounds");
+    sweep.configure(TABLE_BOUND);
+    sweep.ran(&ledger_at_snapshot(&below));
+    assert_eq!(sweep.check_fell(), Err("sweep bounds: f/t never fell in 1 seeds".into()));
+    sweep.ran(&ledger_at_snapshot(&full));
+    assert_eq!(sweep.check_fell(), Ok(()));
+}
+
+#[test]
+fn saturation_returns_a_refused_stop_without_changing_the_interval() {
+    let mut ledger = ledger_at_snapshot(&full_snapshot());
+    let below = table_snapshot("component", "t", TABLE_CAPACITY, BELOW);
+    let finding = ledger
+        .saturation(&[TABLE_BOUND], &[&below], Time::from_nanos(0))
+        .expect_err("cannot stop before the table filled");
+    assert!(finding.contains("stop at 0 ns precedes its start"), "{finding}");
+    assert_eq!(ledger.entries().first().expect("refused stop").until, None);
+}
+
+#[test]
+fn saturation_includes_zero_capacity_and_overfull_tables() {
+    const OVERFULL: usize = 3; // The two slots and one extra entry.
+    for (capacity, held) in [(0, 0), (TABLE_CAPACITY, OVERFULL)] {
+        let inspection = table_snapshot("component", "t", capacity, held);
+        assert_eq!(ledger_at_snapshot(&inspection).fell(), BTreeSet::from([TABLE_BOUND]));
+    }
 }

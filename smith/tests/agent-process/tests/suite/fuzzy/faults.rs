@@ -9,7 +9,7 @@ use smith_agent_process_world::{
     program_world::{self, Case},
     wire,
 };
-use smith_fake_claude::{End, Script, Step, Story, Turn};
+use smith_fake_claude::{Script, Step, Story, Turn};
 
 fn finish() -> Turn {
     Turn::new(vec![Step::Outcome { input: serde_json::json!({"outcome":{"form":"report","text":"done","fields":{}}}) }])
@@ -29,25 +29,13 @@ fn provider_faults_fall_on_a_program() {
     // an_unserved_model_moves_the_task (temper's system world), and
     // a_silent_run_is_cut_at_its_derived_bound: billing, unserved model and hang.
     let charter = charter_bytes();
-    for seed in [0, 7, 10] {
+    for seed in [0, 1, 7] {
         eprintln!("provider_faults_fall_on_a_program seed {seed}");
         let streams = Streams::new(seed);
         let mut faults = streams.rng(Stream::Faults, "program");
-        let turn = faults.below(3);
-        let mut turns = (0..turn)
-            .map(|_| {
-                Turn::new(vec![Step::Act {
-                    tool: "Read".into(),
-                    input: serde_json::json!({"file_path":"/work/repo/a"}),
-                }])
-            })
-            .collect::<Vec<_>>();
-        turns.push(match faults.below(3) {
-            0 => Turn::new(vec![Step::RateLimit { resets_at: None }]),
-            1 => Turn::new(vec![Step::LoseLogin, Step::Text("continue".into())]),
-            2 => Turn { steps: vec![], end: End::edge_refusal() },
-            _ => unreachable!("three faults"),
-        });
+        let (mut turns, fault) = program_world::faults::provider_draw(streams, &mut faults);
+        let turn = turns.len();
+        turns.push(fault);
         turns.push(finish());
         let story = Story { cued: vec![Script { cue: String::new(), turns }], ..Story::default() };
         eprintln!("fault turn {turn}");
@@ -71,7 +59,10 @@ fn untooled_programs_fall() {
         let streams = Streams::new(seed);
         let mut faults = streams.rng(Stream::Faults, "program");
         let case = if faults.chance(500) { Case::MissingServer } else { Case::Events };
-        let story = Story { turns: vec![finish()], ..Story::default() };
+        let mut workload = streams.rng(Stream::Workload, "runs");
+        let mut turns = program_world::faults::read_turns(&mut workload);
+        turns.push(finish());
+        let story = Story { turns, ..Story::default() };
         let mut run = program_world::seeded(streams.seed_of(Stream::Scheduling, "program"), case, &story, &charter);
         run.runs.judge(&mut run.ledger).unwrap_or_else(|why| panic!("seed {seed}: {why}"));
         eprintln!("fell {:?}", run.ledger.fell());

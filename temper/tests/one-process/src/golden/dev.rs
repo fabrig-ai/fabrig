@@ -1,4 +1,5 @@
-//! Start the deployed build's immutable image (temper/docs/design/protocol/floor.md, 5).
+//! Start and inspect the deployed build's immutable image (temper/docs/design/protocol/floor.md, 5;
+//! temper/docs/design/testing/restarts.md, 8).
 use super::{Golden, Proc, UPGRADED, files, load_reader};
 use crate::{
     ctl, fixtures,
@@ -6,11 +7,16 @@ use crate::{
     stories,
     world::{self, HarnessProcess, Story},
 };
-use jig_domain_core::{CoreRecord, Record};
+use jig_domain_core::{Bound, Core, CoreRecord, Record, WaitKind};
 use jig_domain_tasks::Stored;
 use skein_io::kernel::ServiceSignal;
-use skein_lib::Time;
-use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
+use skein_lib::{Duration, Time, Wall};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+    path::Path,
+    rc::Rc,
+};
 use temper_engine_domain::Record as Row;
 use temper_playground::{
     Links,
@@ -94,11 +100,14 @@ pub fn read_dev(directory: &Path) {
     let source = Source::read(&mut disk);
     let store = Rc::new(RefCell::new(Store::new()));
     files::transcripts(directory, &mut store.borrow_mut());
+    let mut settings = fixtures::calm(fixtures::SEED);
+    // The image-making story stops within 60 seconds of the simulator's calm epoch.
+    settings.config.wall = Wall::from_nanos(settings.config.wall.as_nanos() + Duration::from_secs(60).as_nanos());
     let mut previous = None;
     for pass in 0..2 {
         UPGRADED.with(|lines| lines.borrow_mut().clear());
         store.borrow_mut().recovering();
-        let (started, reads) = start(disk, &configuration, &store);
+        let (started, reads) = start_with(disk, &configuration, &store, settings, None, pass == 0);
         disk = started;
         assert_eq!(files::active(&mut disk), b"2\n", "one registration, no generation on the second start");
         source.unchanged(&mut disk);
@@ -144,7 +153,7 @@ pub(crate) fn restart_faults(
     for _ in 0..passes {
         UPGRADED.with(|lines| lines.borrow_mut().clear());
         store.borrow_mut().recovering();
-        let (started, reads) = start_with(disk, &configuration, &store, settings, Some(injector));
+        let (started, reads) = start_with(disk, &configuration, &store, settings, Some(injector), false);
         disk = started;
         source.unchanged(&mut disk);
         if let Some(previous) = previous {
@@ -172,20 +181,13 @@ fn generation(disk: &mut skein_fake_machine::Machine, prefix: &[u8]) -> Image {
         .collect()
 }
 
-fn start(
-    disk: skein_fake_machine::Machine,
-    configuration: &temper_playground::documents::Configuration,
-    store: &Rc<RefCell<Store>>,
-) -> (skein_fake_machine::Machine, Vec<serde_json::Value>) {
-    start_with(disk, configuration, store, fixtures::calm(fixtures::SEED), None)
-}
-
 fn start_with(
     disk: skein_fake_machine::Machine,
     configuration: &temper_playground::documents::Configuration,
     store: &Rc<RefCell<Store>>,
     settings: world::Settings,
     injector: Option<&Rc<RefCell<crate::restarts::Injector>>>,
+    check_waits: bool,
 ) -> (skein_fake_machine::Machine, Vec<serde_json::Value>) {
     world::lower_store(Some(store.clone()));
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
@@ -199,6 +201,7 @@ fn start_with(
         disk: machine.0.clone(),
     };
     let outcome = programs::with(params, || {
+        let waits_checked = Cell::new(!check_waits);
         let mut world =
             skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
                 if let Some(injector) = &injector {
@@ -209,6 +212,7 @@ fn start_with(
                     injector: injector.cloned(),
                     stopped: false,
                     checked: false,
+                    waits_checked: &waits_checked,
                     finding: None,
                     store: store.clone(),
                     requests: Vec::new(),
@@ -233,6 +237,15 @@ fn start_with(
         world.spawn(|| Proc::Forge(Box::new(SignalHost::new(start.fakes.peer, None))));
         if let Some(injector) = &injector {
             world.run_with_inputs(|sim, pids, procs| injector.borrow_mut().inputs(sim, pids, procs))
+        } else if check_waits {
+            world.run_with_inputs(|sim, pids, procs| {
+                if !waits_checked.get()
+                    && let Some(domain) = quiet_engine(sim, pids, procs)
+                {
+                    assert_waits(domain.core(), settings.config.wall, sim.wall());
+                    waits_checked.set(true);
+                }
+            })
         } else {
             world.run()
         }
@@ -244,8 +257,12 @@ fn start_with(
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty());
     assert_eq!(service.service.end(), Some(&temper_service::End::Engine(temper_engine_service::End::Drained)));
-    let caller = outcome
-        .procs
+    let history = kept_reads(&outcome.procs);
+    (std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), history)
+}
+
+fn kept_reads(procs: &[Proc]) -> Vec<serde_json::Value> {
+    let caller = procs
         .iter()
         .find_map(|proc| match proc {
             Proc::Other(HarnessProcess::Calls(caller)) => Some(caller),
@@ -282,8 +299,7 @@ fn start_with(
         .collect::<Vec<_>>();
     assert_eq!(turns, [(1, 1), (1, 2), (4, 1)], "all kept chat turns served");
     assert!(serde_json::to_string(&reads[1]).expect("chat JSON").contains(super::CHAT_REPLY));
-    let history = history(&reads);
-    (std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), history)
+    history(&reads)
 }
 
 fn history(reads: &[serde_json::Value]) -> Vec<serde_json::Value> {
@@ -342,18 +358,73 @@ fn assert_census(store: &Store) {
     assert_eq!(refused, 0, "the kept image has no refused delegation");
 }
 
-struct Judge {
+// Quiet means the immediate work is drained, not that live attempts have ended.
+fn quiet_engine<'a>(
+    sim: &skein_sim::Sim,
+    pids: &[skein_sim::Pid],
+    procs: &'a [Proc],
+) -> Option<&'a temper_engine_domain::Domain> {
+    let Proc::Service(service) = &procs[0] else { panic!("service first") };
+    let domain = service.service.engine_domain()?;
+    let now = sim.now();
+    if !domain.ready()
+        || domain.backlog() != 0
+        || domain.commits_in_flight() != 0
+        || sim.deferred(pids[0])
+        || sim.ready(pids[0]) != 0
+        || service.service.work_pending(now)
+        || service.service.next_deadline().is_some_and(|at| at <= now)
+    {
+        return None;
+    }
+    let engine = service.service.pending(now).engine.expect("ready engine");
+    (engine.pending.is_none() && engine.events.is_empty() && !engine.release_pending).then_some(domain)
+}
+
+// Check own waits only: the line's first wait can repeat one from a descendant.
+fn assert_waits(core: &Core, started: Wall, now: Wall) {
+    let mut judged = Vec::new();
+    for task in core.tasks.view_tasks() {
+        let waits = core.waits(task.number);
+        assert_eq!(waits.own.len(), waits.count, "task {}: every wait fits the read", task.number);
+        for wait in &waits.own {
+            let floor = core.wait_floor(wait.kind);
+            assert_eq!(Some(wait.since), floor, "task {}: {:?} wait since its floor", task.number, wait.kind);
+            assert!(
+                (started..=now).contains(&wait.since),
+                "task {}: {:?} floor is from the upgrade",
+                task.number,
+                wait.kind
+            );
+            match wait.bound {
+                Bound::At { at, .. } => assert!(
+                    at > now,
+                    "task {}: {:?} wait bound {at:?} at quiet point {now:?} (task deadline {:?})",
+                    task.number,
+                    wait.kind,
+                    core.tasks.deadline(task.number, now)
+                ),
+                Bound::None(_reason) => {} // The enum always carries a reason.
+            }
+            judged.push(wait.kind);
+        }
+    }
+    assert_eq!(judged, [WaitKind::News, WaitKind::Delegate, WaitKind::Account], "three waits judged in the dev image");
+}
+
+struct Judge<'a> {
     controls: skein_world::Controls,
     injector: Option<Rc<RefCell<crate::restarts::Injector>>>,
     stopped: bool,
     checked: bool,
+    waits_checked: &'a Cell<bool>,
     finding: Option<String>,
     store: Rc<RefCell<Store>>,
     requests: Vec<Option<u64>>,
     seen: usize,
     transport: temper_fake_git_hosted::Typed,
 }
-impl Judge {
+impl Judge<'_> {
     #[expect(
         clippy::too_many_lines,
         reason = "the reader drains only after the complete kept history and optional fault"
@@ -380,7 +451,10 @@ impl Judge {
                 );
             }
         }
-        if !self.checked && service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready) {
+        if !self.checked
+            && self.waits_checked.get()
+            && service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready)
+        {
             if let Some(injector) = &self.injector {
                 injector.borrow_mut().opening(now);
                 crate::referee::Referee::check_roots(&service.service)?;
@@ -466,7 +540,7 @@ impl Judge {
         Ok(())
     }
 }
-impl skein_world::Referee<Proc> for Judge {
+impl skein_world::Referee<Proc> for Judge<'_> {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         if self.finding.is_none() {
             self.finding = self.act_checked(now, procs).err();

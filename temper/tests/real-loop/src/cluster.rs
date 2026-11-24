@@ -1,5 +1,5 @@
 //! Engine and named workers on one ring (protocol/cluster.md, 6).
-use crate::{calls, fixtures, forge, llm, service::ServiceHost, world};
+use crate::{calls, fixtures, forge, service::ServiceHost, world};
 use skein_io::kernel::{Complete, Done, Op};
 use std::{fmt::Write as _, net::SocketAddr, os::unix::fs::DirBuilderExt, path::Path};
 use temper_client_protocol_wire::v1::Record;
@@ -10,7 +10,6 @@ pub const PLACED: &[u8] = b"cluster-placed";
 pub struct Cluster {
     ran: crate::Ran,
     _scratch: Vec<crate::Scratch>,
-    _git: Option<temper_fake_git_hosted::Typed>,
 }
 impl std::ops::Deref for Cluster {
     type Target = crate::Ran;
@@ -19,11 +18,6 @@ impl std::ops::Deref for Cluster {
     }
 }
 impl Cluster {
-    /// Engine starts refused before a service could listen.
-    #[must_use]
-    pub fn failed_starts(&self) -> &[String] {
-        self.ran.service().failed_starts()
-    }
     /// The engine's peak tries per class, retained before a successful park clears them.
     #[must_use]
     pub fn tries(&self, number: u64) -> jig_domain_tasks::Tries {
@@ -40,30 +34,6 @@ impl Cluster {
             .expect("worker root")
     }
 }
-#[must_use]
-pub fn run_cluster(
-    workers: &[&'static str],
-    recipe: impl FnOnce() -> llm::Recipe,
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Cluster {
-    run_cluster_with_grace(workers, skein_lib::Duration::from_millis(10), recipe, steps)
-}
-
-/// Run the cluster with a worker's engine-away bound; link deadlines stay above patience.
-#[must_use]
-pub fn run_cluster_with_grace(
-    workers: &[&'static str],
-    grace: skein_lib::Duration,
-    recipe: impl FnOnce() -> llm::Recipe,
-    steps: impl FnOnce() -> Vec<calls::Step>,
-) -> Cluster {
-    let git = temper_worker_checkout_world::hosted::scenario().transport;
-    crate::git::share(Some(git.clone()));
-    run_with(workers, Some(git), |scratch| {
-        crate::Outcome::Checked(world::run_cluster(workers, grace, scratch, recipe, steps))
-    })
-}
-
 /// The cluster's services and hosted git share one forge, as in `run_forge`.
 #[must_use]
 pub fn run_cluster_forge(
@@ -89,17 +59,13 @@ pub fn run_cluster_forge_prepared(
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Cluster {
     assert!(late.iter().all(|name| workers.contains(name)), "configured late workers");
-    run_with(workers, None, |scratch| {
+    run_with(workers, |scratch| {
         prepare(scratch);
         crate::Outcome::Forge(world::run_cluster_forge(workers, late, scratch, fixture, scripts, rules, steps))
     })
 }
 
-fn run_with(
-    workers: &[&'static str],
-    git: Option<temper_fake_git_hosted::Typed>,
-    run: impl FnOnce(&[crate::Scratch]) -> crate::Outcome,
-) -> Cluster {
+fn run_with(workers: &[&'static str], run: impl FnOnce(&[crate::Scratch]) -> crate::Outcome) -> Cluster {
     assert!(!workers.is_empty(), "cluster workers");
     for (position, name) in workers.iter().enumerate() {
         assert!(!workers[..position].contains(name), "distinct worker names");
@@ -109,7 +75,7 @@ fn run_with(
     crate::git::share(None);
     let mut scratch = scratch.into_iter();
     let ran = crate::checked(crate::Ran { outcome, scratch: scratch.next().expect("engine scratch") });
-    let cluster = Cluster { ran, _scratch: scratch.collect(), _git: git };
+    let cluster = Cluster { ran, _scratch: scratch.collect() };
     for name in workers {
         assert_eq!(
             cluster.worker(name).end(),

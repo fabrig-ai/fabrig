@@ -2,6 +2,8 @@
 use crate::settings_support::*;
 use jig_domain_core::{self as core, documents, reads, settings as s};
 use jig_domain_people as people;
+use jig_domain_tasks as tasks;
+
 fn value() -> s::Value {
     s::Value::Limits(Box::new([s::Override {
         name: b"tasks.tasks".as_slice().into(),
@@ -92,6 +94,17 @@ fn a_runs_limits_proposal_keeps_its_head_and_applies_after_an_owners_decision() 
     else {
         panic!("run proposes limits")
     };
+    let waits = world.domain.core().waits(task);
+    let wait = waits.first.expect("the pending settings proposal is the task's first wait");
+    assert_eq!(wait.kind, core::WaitKind::Party);
+    assert_eq!(
+        wait.object,
+        core::WaitObject::Entry {
+            kind: people::EntryKind::Proposal { proposer: people::Proposer::Task(task), number: proposal },
+            at: tasks::EscalationHolder::Role { project: people::DEPLOYMENT, role: people::Role::Owner.number() },
+        }
+    );
+    assert!(matches!(wait.bound, core::Bound::At { then: core::AtBound::Overdue, .. }));
     let reads::Answer::Document(doc) =
         read(&mut world, signed, reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal })
     else {

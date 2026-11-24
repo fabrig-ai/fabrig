@@ -187,6 +187,7 @@ pub(crate) fn collect(domain: &Domain, env: &Env<Limits>, out: &mut Queue<Reques
                 | Request::Closed { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }
+                | Request::Waits { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
                 | Request::Section { .. }

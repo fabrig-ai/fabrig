@@ -21,6 +21,7 @@ pub const HEADER: Deployment = Deployment {
     projects: 1,
     id: [31; 16],
     restart_wait_ms: None,
+    wait_floors: None,
     tasks: 0,
     people: 0,
     sign_ins: 0,
@@ -80,6 +81,9 @@ pub struct Store {
     pub applied: u64,
     pub pending_generation: bool,
     pub rows: BTreeMap<Key, Record>,
+    // A world can hand this store to a cold root with a corrected clock.
+    // This is referee state, not a stored fact or a timer input.
+    pub(crate) record_wall: Wall,
     pub pending: VecDeque<(u64, Box<[Write]>)>,
     pub held: VecDeque<u64>,
     delays: BTreeMap<u64, u32>,
@@ -223,6 +227,7 @@ impl Store {
             applied: 0,
             pending_generation: false,
             rows: BTreeMap::new(),
+            record_wall: Wall::EPOCH,
             pending: VecDeque::new(),
             held: VecDeque::new(),
             delays: BTreeMap::new(),
@@ -334,6 +339,7 @@ impl Store {
         let mut fresh = Self::empty(self.shape.clone(), self.models.clone());
         fresh.catalogue.clone_from(&self.catalogue);
         fresh.rows.clone_from(&self.rows);
+        fresh.record_wall = self.record_wall;
         fresh.reopen(stores);
         fresh.page_delay = self.page_delay;
         fresh
@@ -723,7 +729,6 @@ impl Store {
             | Event::Switched { .. }
             | Event::Job { .. }
             | Event::Ran { .. }
-            | Event::Site { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
             | Event::Got { .. }

@@ -577,7 +577,6 @@ pub(crate) fn events(
             | Event::Erased { .. }
             | Event::Secret { .. }
             | Event::SecretsLoaded { .. }
-            | Event::Site { .. }
             | Event::Job { .. }
             | Event::Ran { .. }) => {
                 store.restoring = Some(state);

@@ -5,22 +5,13 @@ use temper_protocol_records::{self as records, Item};
 use temper_protocol_records_forge as forge_records;
 
 /// Seed the bootstrap's fixture rows in one store life, in forge/settings/agent order.
-pub(crate) fn seed(
-    path: &Path,
-    address: SocketAddr,
-    github: Option<crate::github::Fixture>,
-    mut agent_writes: Vec<jig_protocol_store::Write>,
-) {
+pub(crate) fn seed(path: &Path, address: SocketAddr, github: bool, mut agent_writes: Vec<jig_protocol_store::Write>) {
     let mut record = forgejo_record(address);
-    let secrets = if let Some(fixture) = github {
+    let secrets = if github {
         record.kind = forge::Kind::GitHub;
         record.place.web = Some(format!("http://{address}").into_bytes().into());
         record.bot.login = b"x-access-token".as_slice().into();
-        if fixture.connected {
-            temper_github_app::records(&temper_github_app::APP, 1, &[crate::github::INSTALLATION], address).into_vec()
-        } else {
-            Vec::new()
-        }
+        temper_github_app::records(&temper_github_app::APP, 1, &[crate::github::INSTALLATION], address).into_vec()
     } else {
         forgejo_secrets(&record, 1, temper_worker_checkout_world::hosted::TOKEN, crate::forge::HOOK_SECRET, None)
     };

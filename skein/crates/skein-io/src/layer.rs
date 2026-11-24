@@ -232,6 +232,24 @@ impl Io {
         }
     }
 
+    /// Bytes of complete send buffers still queued or in flight on a pipe.
+    /// Bytes in a partially written buffer remain counted until it finishes.
+    #[must_use]
+    pub fn pending_pipe_output(&self, stream: Token) -> u32 {
+        match self.entities.get(Id::from_token(stream)) {
+            Some(Entity::Pipe(pipe)) => pipe.pending_output(),
+            Some(
+                Entity::Stream(_)
+                | Entity::Joined(_)
+                | Entity::Listener(_)
+                | Entity::Child(_)
+                | Entity::Signals(_)
+                | Entity::Named(_),
+            )
+            | None => 0,
+        }
+    }
+
     /// Takes an output-only append file at startup. Each Append has the owner's
     /// `write_timeout`; Close instead flushes under io's close timeout (runtime/io/files.md, 1).
     /// A full slab returns the descriptor to its caller without closing it.

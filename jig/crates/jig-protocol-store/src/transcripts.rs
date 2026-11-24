@@ -3,7 +3,6 @@ pub(crate) mod cut;
 pub(crate) mod drop;
 pub mod frame;
 pub(crate) mod log;
-pub(crate) mod patches;
 pub(crate) mod read;
 pub(crate) mod write;
 use crate::{CommitCheck, CommitFailure, Event, Limits, Phase, Store, codec, keys, open};
@@ -69,7 +68,6 @@ pub(crate) struct State {
     pub touch: u64,
     pub reads: Map<Token, read::Read>,
     pub reading: Option<Token>,
-    pub machines: patches::Machines,
     pub cut: cut::State,
     pub drop: drop::State,
 }
@@ -89,7 +87,6 @@ impl State {
             touch: 0,
             reads: Map::with_capacity(limits.reads),
             reading: None,
-            machines: patches::Machines::new(),
             cut: cut::State::new(),
             drop: drop::State::new(),
         }

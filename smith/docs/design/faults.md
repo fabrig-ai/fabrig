@@ -208,6 +208,9 @@ that reaches its faults (`skein/docs/design/testing/sweeps.md`, 4):
 | `checks_waiting_for_a_place_fall` | `smith-run-world` (`fuzzy/checks.rs`, beside its markers' sweep) | check waits for a place |
 | `resumed_windows_carry_over` | `smith-agent-world` (`fuzzy/faults.rs`) | window elsewhere |
 
+Each sweep draws the runs it strikes from `Workload`, part `runs`, and
+its faults from their own parts.
+
 The provider family takes two sweeps, since no one world runs both
 backends; the worker family's two faults fall in different worlds.
 

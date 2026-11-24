@@ -690,7 +690,7 @@ pub(crate) fn loaded(
             let mut lines = List::with_capacity(env.limits.documents.rows);
             for row in page.rows.into_boxed() {
                 let PageRow::Line(line) = row else { unreachable!("task index supplies lines") };
-                lines.push(line).expect("bounded ended group");
+                lines.push(*line).expect("bounded ended group");
             }
             tasks.ended = EndedGroup::Rows { rows: lines, next: page.next, cut: page.cut };
             Answer::Tasks(tasks)

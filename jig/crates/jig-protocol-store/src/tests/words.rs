@@ -87,6 +87,26 @@ fn an_unplanned_layout_says_to_start_a_build_that_converts_it() {
 }
 
 #[test]
+fn an_unkept_layout_says_to_restart_the_later_build_or_restore_a_checkpoint() {
+    says(
+        OpenRefusal::Layout {
+            family: "fixture".into(),
+            value_type: 0,
+            id: 3,
+            values: Some(2),
+            why: crate::Unplanned::Unkept(crate::Unkept {
+                refused: 1,
+                why: skein_codec::layout::Refused::Field,
+                declaration: "Growing".into(),
+                part: "extra".into(),
+            }),
+        },
+        "- `Layout { why: Unkept }` (`layouts.md`, 5.6): \"",
+        "\"",
+    );
+}
+
+#[test]
 fn todays_layouts_refusal_says_to_move_its_three_directories() {
     says(OpenRefusal::OlderBuild { why: Older::Directory }, "  > ", "\n\n- **`OpenRefusal::Format`");
 }

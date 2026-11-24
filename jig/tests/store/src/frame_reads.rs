@@ -1,19 +1,17 @@
 //! Public transcript decode against fixture bytes, with deterministic file replies.
 //! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
 use crate::root;
-use jig_protocol_store::core_v6::Record as _;
-use jig_protocol_store::{self as store, Event, Owner, OwnerSets, Request, Root, TranscriptRead, codec, format, keys};
-use jig_test_patches_jig::frames;
-use jig_test_patches_smith::patches as smith;
+use jig_protocol_store::{self as store, Event, OwnerSets, Request, Root, TranscriptRead, codec, keys};
+use jig_test_layouts::frames;
 use skein_io::{file, kernel::Fd};
 use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
 
 const OWNER: Token = Token::new(9);
 const COMMITTED: u64 = 1024;
-pub const FRAME_KEY_BYTES: usize = 18;
 pub use crate::patches::FRAME_SETS as SETS;
 #[must_use]
 pub fn floor() -> Box<[u8]> {
+    use jig_protocol_store::core_v6::Record as _;
     let row = store::component_v3::Floor { number: store::FLOOR, build: Box::new([]) };
     row.encode(&jig_protocol_store::component_v3::CEILINGS).expect("measured floor")
 }
@@ -22,31 +20,37 @@ fn env(limits: &store::Limits) -> Env<store::Limits> {
 }
 #[must_use]
 pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
-    let mut maps = store::Stores {
+    let maps = store::Stores {
         store: skein_kv::Store::memory(&limits.store),
         secrets: skein_kv::Store::memory(&limits.secrets),
     };
+    let checked = store::check(limits).expect("frame fixture limits");
+    let mut component = store::Store::over(&checked, root::APPLICATION, &[], maps);
+    component.owner_sets(sets);
+    let env = env(limits);
+    open(&mut component, &env);
+    let mut above = Queue::uncapped();
+    let mut below = store::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
+    store::down(
+        &mut component,
+        &env,
+        Request::Commit { number: 1, writes: Box::new([store::Write::Save(root::header(1))]) },
+        &mut above,
+        &mut below,
+    );
+    assert!(matches!(above.pop(), Some(Event::Committed { number: 1, .. })));
+    let mut maps = component.into_stores();
     let codec = codec::limits(&limits.core).expect("codec");
-    let mut fmt = format::current(root::APPLICATION.version, root::DEPLOYMENT);
-    for set in sets.sets {
-        let level = set.level;
-        match set.owner {
-            Owner::Jig => fmt.levels.jig = level,
-            Owner::Smith => fmt.levels.smith = level,
-            Owner::Skein | Owner::Application => panic!("frames fixture owners"),
-        }
-    }
     let own = |key| keys::encode_own(&key, limits.store.key).expect("component key");
     let ops = Box::new([
-        skein_kv::Op::Put { key: own(keys::Own::Format), value: fmt.encode().expect("format") },
-        skein_kv::Op::Put { key: own(keys::Own::Floor), value: floor() },
         skein_kv::Op::Put {
-            key: keys::encode(&root::header(1).key(), limits.store.key).expect("header key"),
-            value: codec::encode(&root::header(1), &codec, &[]).expect("header"),
-        },
-        skein_kv::Op::Put {
-            key: keys::installation(limits.store.key).expect("installation"),
-            value: codec::accounts::Installation { id: root::DEPLOYMENT }.encode(),
+            key: keys::encode(&root::header(2).key(), limits.store.key).expect("header key"),
+            value: codec::encode(&root::header(2), &codec, &[]).expect("header"),
         },
         skein_kv::Op::Put {
             key: own(keys::Own::Transcript { task: frames::TASK }),
@@ -66,10 +70,9 @@ pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<sto
         &mut above,
         &mut below,
     );
-    let mut component =
-        store::Store::over(&store::check(limits).expect("frame fixture limits"), root::APPLICATION, &[], maps);
+    let mut component = store::Store::over(&checked, root::APPLICATION, &[], maps);
     component.owner_sets(sets);
-    (component, env(limits))
+    (component, env)
 }
 pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     let mut above = Queue::uncapped();
@@ -96,11 +99,10 @@ pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     let Some(Event::Census { .. }) = above.pop() else { panic!("opened census") };
 }
 pub use crate::patches::fixture_turn as turn;
-// Six file operations and two patch stops cover one small fixture frame.
+// At most six file operations cover one small fixture frame.
 const STEPS: u32 = 8;
 
-#[expect(clippy::too_many_lines, reason = "the frame driver exhaustively rejects checkpoint terminals too")]
-pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8], no_site: bool) -> Option<Box<[u8]>> {
+pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8]) -> Option<Box<[u8]>> {
     let mut above = Queue::uncapped();
     let mut below = store::Below {
         store: Queue::uncapped(),
@@ -130,18 +132,6 @@ pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8]
                 }
                 Event::Turns { turns, .. } => return Some(turns.first().expect("selected turn").transcript.clone()),
                 Event::Unread { .. } => return None,
-                Event::Site { owner, of, key, site, at, mut patcher } => {
-                    assert_eq!(of, Owner::Smith);
-                    assert_eq!(key.len(), FRAME_KEY_BYTES);
-                    let result = if no_site {
-                        Err(skein_codec::patch::Halt::NoSite(site))
-                    } else {
-                        let (old, new) = patcher.parts();
-                        smith::written(site, old, new, at, &mut smith::Context { key })
-                    };
-                    store::down(component, env, Request::Site { owner, patcher, result }, &mut above, &mut below);
-                    continue;
-                }
                 other @ (Event::Checkpointed { .. }
                 | Event::CheckpointRefused { .. }
                 | Event::Restored { .. }

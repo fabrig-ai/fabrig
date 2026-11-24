@@ -308,6 +308,27 @@ fn a_retired_type_layout_refusal_names_its_range_fault() {
     assert_eq!(exit, 1);
 }
 #[test]
+fn an_unkept_layout_refusal_names_the_count_and_the_first_refusal() {
+    let why = OpenRefusal::Layout {
+        family: "fixture-layouts".into(),
+        value_type: 4,
+        id: 9,
+        values: Some(3),
+        why: jig_protocol_store::Unplanned::Unkept(jig_protocol_store::Unkept {
+            refused: 2,
+            why: skein_codec::layout::Refused::Field,
+            declaration: "Growing".into(),
+            part: "extra".into(),
+        }),
+    };
+    let (lines, exit) = crate::start_refusal::refused_start(&why, b"state");
+    let expected = refusal_words(&why)
+        + "temper serve: family fixture-layouts value type 4 layout 9: cannot keep 2 values; first refusal: Growing.extra: the field would be lost\n";
+    assert_eq!(core::str::from_utf8(&lines).unwrap(), expected);
+    assert_eq!(exit, 1);
+}
+
+#[test]
 fn missing_forge_links_refuse_the_start_before_startup_wires() {
     use temper_engine_domain::{Record, Write};
     use temper_engine_domain_forge::{Key, MissingLink, Name, Need, RecordKind, Stored, What};

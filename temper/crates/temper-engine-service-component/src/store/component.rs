@@ -1,5 +1,6 @@
 //! The component's deployment store (protocol/services.md, 4.2).
 use super::{KERNEL_HANDOFF_ENTRIES, OWNER_SETS, WIRES, route};
+use alloc::boxed::Box;
 use jig_protocol_store as protocol;
 use protocol::host::{Hosted, Lane, NotReady};
 use route::Up;
@@ -31,7 +32,8 @@ pub struct Store {
     pub(crate) secret_requests: u32,
     #[cfg(test)]
     pub(crate) fixture_admission: Option<Box<crate::tests::fixtures::StoreAdmission>>,
-    pub(crate) host: Hosted,
+    // Keep the store's machines in place when the substrate moves to an engine.
+    pub(crate) host: Box<Hosted>,
     pub(crate) routes: route::Routes,
     pub(crate) routed: Queue<Up>,
     pub(crate) submitted: Queue<Submit>,
@@ -65,7 +67,7 @@ impl Store {
         let application_sizes = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
             .expect("checked application sizes");
         let seed = u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed"));
-        let mut host = Hosted::new(checked, application_sizes, models, seed, NotReady::Above);
+        let mut host = Box::new(Hosted::new(checked, application_sizes, models, seed, NotReady::Above));
         assert!(host.component.wires(&WIRES), "valid engine wires before open");
         host.component.owner_sets(OWNER_SETS);
         host.component.keyspaces(temper_protocol_store::KEYSPACES);
@@ -329,8 +331,8 @@ impl Store {
     pub fn next_deadline(&self) -> Option<Time> {
         self.host.next_deadline()
     }
-    pub fn opening_site(&mut self, event: protocol::Event) -> bool {
-        route::site(&mut self.routes, &mut self.host.component, event, &mut self.routed);
+    pub fn opening_job(&mut self, event: protocol::Event) -> bool {
+        route::job(&mut self.routes, &mut self.host.component, event, &mut self.routed);
         for _ in 0..self.routed.len() {
             match self.routed.pop().expect("opening route") {
                 Up::Ask(request) => self.host.ask(request),

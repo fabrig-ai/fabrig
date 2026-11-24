@@ -148,7 +148,12 @@ does: no worker, no listener, no root.
   previous build left, which it opens in place with nothing to register
   or run (jig's `protocol/store/restoring.md`, 4.3). Where the new build
   registered nothing the previous build lacks, the previous build also
-  opens the store as it stands, with no restore.
+  opens the store as it stands, with no restore. Where the previous
+  build reads the store's order of layouts (jig's
+  `protocol/store/layouts.md`, 5.6), it opens the store as it stands
+  whatever the new build registered, keeping every value the new build
+  committed, or refuses naming the value type and how many it can't
+  keep, changing nothing; this restore is then the way back.
 
 ## 3. The act
 

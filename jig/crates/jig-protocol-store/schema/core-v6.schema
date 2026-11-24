@@ -100,7 +100,10 @@ record CallRecord { key: CallKey part: CallPart settled: option SettledCall }
 record PartKey { task: u64 attempt: u64 number: u32 }
 enum PartKind { answer, result, window }
 record PartRecord { key: PartKey turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 holds smith-transcript Turn }
-record Deployment { id: fixed 16 tasks: u64 people: u64 sign_ins: u64 messages: u64 runs: u64 calls: u64 connector_rows: u64 applications: u64 commits: u64 projects: u64 restart_wait_ms: option u64 = none }
+enum WaitKind { party, question, dependency, resource, account, host, delegate, news, step, room, turn, sign_off }
+record WaitFloor { kind: WaitKind at: u64 }
+record WaitFloors { entries: list 12 WaitFloor }
+record Deployment { id: fixed 16 tasks: u64 people: u64 sign_ins: u64 messages: u64 runs: u64 calls: u64 connector_rows: u64 applications: u64 commits: u64 projects: u64 restart_wait_ms: option u64 = none wait_floors: option WaitFloors = none }
 record PhaseBytes { value: bytes 134217728 holds jig-store-tasks PhaseRecord }
 record ChangeBytes { value: bytes 268435456 holds jig-store-tasks ChangeRecord }
 record EndBytes { value: bytes 1073741824 holds jig-store-tasks EndRecord }

@@ -70,6 +70,11 @@ fn merges_conflicts_saving_head_movement_and_ambiguous_pushes_settle() {
 }
 
 #[test]
+fn a_marker_beyond_the_prepare_prefix_refuses_delivery_without_writes() {
+    merges::refuse_past_the_bound();
+}
+
+#[test]
 fn merge_scenarios_replay_and_facts_do_not_change_requests_or_effects() {
     for case in [
         Case::Clean,

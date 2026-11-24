@@ -372,10 +372,9 @@ codec check's do:
 |---|---|
 | `skein-codec-tests` | skein's codec fixtures: its `every` texts compare the old and new generated decoders |
 | `skein-codec-patches` | skein's patch fixtures: its `label` and `shelf` families move as their stories need |
-| `jig-test-patches-jig` | jig's patch fixtures over jig's own patches: `fixture-note` at two versions |
 
-`jig-test-layouts` holds registry layouts and record texts as test fixtures, with no generated
-codec or `schema/` directory, so it needs no version allowance. `temper-protocol-store` is about
+`jig-test-layouts` holds registry and frame layouts and record texts as test fixtures, with no
+generated codec or `schema/` directory, so it needs no version allowance. `temper-protocol-store` is about
 20,000 library lines, with no patch module or separate patch package.
 
 It has no exceptions: milestone C2 brings `temper-protocol-store-codec`, `temper-protocol-store`,

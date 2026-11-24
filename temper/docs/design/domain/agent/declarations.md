@@ -13,7 +13,7 @@ What each tool does is `tools.md`'s. Written from
 
 A run is offered the tools its role uses, by the families its charter's
 `tools` names (jig's `domain/engine/executors.md`, 1), the families the
-engine already decides each call by (`temper/crates/temper-engine-domain/src/translate.rs`,
+engine already decides each call by (`temper/crates/temper-engine-domain-translate/src/shape.rs`,
 `tool_kind`; jig's `domain/authority.md`, 3). No family is added.
 
 | Family | Its host tools |
@@ -33,7 +33,7 @@ engine already decides each call by (`temper/crates/temper-engine-domain/src/tra
 
 - **An asking charter keeps its own tools alone,** exactly as `tools.md`
   has it: one whose `tools` name the asking family and no family but it and
-  settings (`temper/crates/temper-engine-domain/src/boundary.rs`, `asking`;
+  settings (`temper/crates/temper-engine-domain-room/src/lib.rs`, `asking`;
   a mask of every family is not one). It is declared `see`, `document` and
   `remember` where its task's authority holds the asking family, and
   `propose_settings` in its asking form where its charter names settings

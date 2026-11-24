@@ -1,7 +1,7 @@
 //! Seeded configuration and world construction.
 use super::{
-    Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, World, accounts, connector, core, fleet, people,
-    root,
+    Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, Wall, World, accounts, connector, core, fleet,
+    people, root,
 };
 use jig_domain_link::{Form, Hello, Scheme};
 pub use jig_test_profile::effect_fixture as fixture;
@@ -213,6 +213,7 @@ impl World {
             restart_check: None,
             iteration: 0,
             inspections: 0,
+            fault_ledger: None,
             manual: false,
             public_referee: crate::referee::public::Referee::default(),
             returned: 0,
@@ -234,6 +235,7 @@ impl World {
             host_calls: Vec::new(),
             host_answers: Vec::new(),
             inbound: Vec::new(),
+            inbound_runs: Vec::new(),
             answers: Vec::new(),
             settings_answers: Vec::new(),
             person_answers: Vec::new(),
@@ -272,6 +274,7 @@ impl World {
             initial_ask,
             creating,
             people_answers: Vec::new(),
+            people_replies: Vec::new(),
             project_made: Vec::new(),
             act_answers: Vec::new(),
             project_releases: Vec::new(),
@@ -326,6 +329,7 @@ impl World {
             wall: 0,
             wall_lag: 0,
             supplied_wall: None,
+            record_wall: Wall::EPOCH,
         }
     }
 }

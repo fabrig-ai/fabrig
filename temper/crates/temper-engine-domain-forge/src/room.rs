@@ -60,13 +60,27 @@ pub(crate) fn place(d: &Domain, waiter: Waiter) -> Option<u64> {
 fn first(d: &Domain) -> Option<Waiter> {
     let mut next: Option<(u64, Waiter)> = None;
     for (task, row) in &d.changes {
-        if let Some(order) = row.room {
+        if let Some(order) = row.room
+            && !row.frozen()
+            && !crate::domain::matches_held(&row.change.state)
+        {
             select(d, &mut next, order, Waiter::Change(*task));
         }
     }
     for (task, row) in &d.landing.rows {
-        if let Some(order) = row.room {
-            select(d, &mut next, order, Waiter::Landing(*task));
+        if let Some(order) = row.room
+            && !d.landing.held
+        {
+            match row.landing.phase {
+                Phase::Held { .. } => {}
+                Phase::Waiting
+                | Phase::Preparing
+                | Phase::Proving
+                | Phase::Proved { .. }
+                | Phase::Turn { .. }
+                | Phase::Landed
+                | Phase::Cancelled => select(d, &mut next, order, Waiter::Landing(*task)),
+            }
         }
     }
     for (owner, pending) in &d.makings {
@@ -86,39 +100,13 @@ fn first(d: &Domain) -> Option<Waiter> {
 }
 
 fn select(d: &Domain, next: &mut Option<(u64, Waiter)>, order: u64, waiter: Waiter) {
-    if d.room.asked.contains(&waiter) || d.room.passed.contains(&waiter) {
-        return;
-    }
-    if let Waiter::Change(task) = waiter
-        && let Some(row) = d.changes.get(&task)
-        && (row.frozen() || crate::domain::matches_held(&row.change.state))
-    {
-        return;
-    }
-    let held = match waiter {
-        Waiter::Landing(_) if d.landing.held => true,
-        Waiter::Landing(task) => match d.landing.rows.get(&task) {
-            Some(row) => match row.landing.phase {
-                Phase::Held { .. } => true,
-                Phase::Waiting
-                | Phase::Preparing
-                | Phase::Proving
-                | Phase::Proved { .. }
-                | Phase::Turn { .. }
-                | Phase::Landed
-                | Phase::Cancelled => false,
-            },
-            None => false,
-        },
-        Waiter::Change(_) | Waiter::Making(_) | Waiter::Release(_) => false,
-    };
-    if held {
-        return;
-    }
     if match next {
-        Some((before, _)) => order < *before,
-        None => true,
+        Some((before, _)) => order >= *before,
+        None => false,
     } {
+        return;
+    }
+    if !d.room.asked.contains(&waiter) && !d.room.passed.contains(&waiter) {
         *next = Some((order, waiter));
     }
 }
@@ -222,6 +210,7 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             stale.push(*owner).expect("making waits");
         }
     }
+    let mut pruned = !stale.is_empty();
     for owner in stale.into_boxed() {
         d.makings.remove(&owner);
         leave(d, Waiter::Making(owner));
@@ -233,15 +222,23 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             gone.push(*waiter).expect("asked waiters");
         }
     }
+    pruned |= !gone.is_empty();
     for waiter in gone.into_boxed() {
         leave(d, waiter);
     }
-    crate::domain::full::update(d, env, out);
+    // Pruning can end a full interval before the next admission fills it again.
+    // At the clock's maximum a saturated report deadline remains due.
+    let saturated = env.now.as_nanos() == u64::MAX;
+    if pruned || saturated {
+        crate::domain::full::update(d, env, out);
+    }
     if !d.room.ready || d.stopping {
         return;
     }
+    let mut admitted = false;
     while free(d, &env.limits) > 0 {
         let Some(waiter) = first(d) else { break };
+        admitted = true;
         d.room.asked.insert(waiter).expect("one ask per waiter");
         let task = match waiter {
             Waiter::Change(task) | Waiter::Landing(task) | Waiter::Release(task) => task,
@@ -262,5 +259,8 @@ pub(crate) fn ask(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         };
         out.push(request);
     }
-    crate::domain::full::update(d, env, out);
+    // With no admission, neither holders nor report inputs changed since the last update.
+    if admitted || saturated {
+        crate::domain::full::update(d, env, out);
+    }
 }

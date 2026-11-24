@@ -3,8 +3,11 @@
 mod engine_clients;
 pub use engine_clients::{ENGINE_CLIENTS_KINDS, engine_clients};
 
+mod records;
 mod tables;
 mod waits;
+
+pub use records::{check_records, records};
 
 use jig_domain_core::Core;
 use jig_domain_tasks::Domain;

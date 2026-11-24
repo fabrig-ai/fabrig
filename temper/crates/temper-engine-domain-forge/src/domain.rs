@@ -2503,6 +2503,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Client(event) => child(d, env, event, out),
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
+        // No forge procedure reports waits yet. A refusal does not step a procedure.
+        Event::WaitsRefused { .. } => {}
         Event::CatchUp => {
             d.catching_up_report = Some(crate::Report::new(env.now));
             read_afresh(d, env, out);
@@ -2548,8 +2550,9 @@ fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     brief::expire(d, env.now, out);
     crate::room::ask(d, env, out);
     let before = out.len();
-    handoff_one(d, env, out);
-    crate::room::ask(d, env, out);
+    if handoff_one(d, env, out) || env.now.as_nanos() == u64::MAX {
+        crate::room::ask(d, env, out);
+    }
     if out.len() != before {
         // An admission refusal already spent this step's child output burst.
         return;
@@ -8899,15 +8902,16 @@ fn committed(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Req
     handoff_one(d, env, out);
 }
 
-fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+// True only when a handoff could have changed the outbox line's inputs.
+fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
     if d.stopping || d.restore_phase == RestorePhase::Restoring {
-        return;
+        return false;
     }
     // skein's forge/client-effects.md, 1.2: each new Make is above every held entry.
     // Decision reads and goal-branch makings retain their reserved numbers; startup
     // reads have none. Built changes, projections and releases wait for lower chains
     // and entries to finish or commit. Hand over at most one per step.
-    let Some(number) = d.next_handoff() else { return };
+    let Some(number) = d.next_handoff() else { return false };
     let row = d.entries.get_mut(&number).expect("selected entry remains");
     row.handoff = Handoff::Handed;
     let entry = row.entry.clone();
@@ -8918,6 +8922,7 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         skein_forge_client::Event::Make { entry }
     };
     child(d, env, event, out);
+    true
 }
 
 /// A person's choice for a held entry: again hands it back to the client,

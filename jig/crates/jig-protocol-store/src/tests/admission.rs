@@ -1,11 +1,9 @@
 //! Family admission, independent of patch scheduling (protocol/store/opening-owners.md, 1).
-use super::{frame_patches, owners::SETS};
+use super::{frame_layouts, owners::SETS};
 use crate::upgrade::admission;
 use crate::{JIG_STORE_SET, KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets, SKEIN_SET, SMITH_SET};
 use alloc::collections::BTreeSet;
-use jig_test_layouts::records;
-use jig_test_patches_jig::patches::kept::fixture_frame;
-use jig_test_patches_smith::patches::kept::fixture_turn;
+use jig_test_layouts::{layouts, records};
 #[test]
 fn duplicate_owners_are_refused_beside_a_single_owner() {
     const SETS_DUPLICATE: OwnerSets = OwnerSets { sets: &[SETS.sets[0], SETS.sets[0], SETS.sets[1]] };
@@ -37,15 +35,15 @@ fn prepared_texts_match_self_parsing_admission_and_refusal() {
 #[test]
 fn prepare_keeps_current_and_frame_texts_in_first_seen_order() {
     const OWNERS: OwnerSets =
-        OwnerSets { sets: &[SETS.sets[0], frame_patches::SETS.sets[0], frame_patches::SETS.sets[1]] };
+        OwnerSets { sets: &[SETS.sets[0], frame_layouts::SETS.sets[0], frame_layouts::SETS.sets[1]] };
     const EXPECTED: [&str; 7] = [
         records::LABEL_CURRENT,
         records::SHELF_CURRENT,
         records::TOKEN_CURRENT,
-        fixture_frame::TEXTS[1],
-        fixture_frame::TEXTS[0],
-        fixture_turn::TEXTS[1],
-        fixture_turn::TEXTS[0],
+        layouts::FRAME_BODY,
+        layouts::FRAME_BODY_KEPT,
+        layouts::FRAME_TURN,
+        layouts::FRAME_TURN_KEPT,
     ];
     let prepared = OWNERS.prepare();
     assert_eq!(prepared.len(), EXPECTED.len());

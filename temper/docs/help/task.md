@@ -68,6 +68,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   dependencies`, `Waiting for delegates`, `Waiting for news`,
   `Waiting for an answer to its question N`, `Nothing
   awaited`, or a party and what it must answer: `you: question 3 of task 44 · 1 waiting`.
+  When there is a first wait, the line adds `since` and when it began,
+  then the nearest bound and what happens at it, if there is one.
+  If that bound is another wait's, its kind comes first.
   For a held task that awaits nothing else, `waiting on:` prints `held`.
   When no account serves its next run, `next run:` stands alone above the lines
   that say what to do, and `waiting on:` prints `an account`.
@@ -75,6 +78,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `waits_on` says `account`; to a wait it is still `due`. Moving a task gives it
   no account: `move` is offered on a task another party requests, and not on your
   own.
+- **Its own waits:** `waits:` counts them, then lists each wait's kind,
+  what it waits for, when it began, its bound or why it has none, and who
+  would hear it. It leaves out waits at other tasks and is absent when the
+  task has no waits of its own. A cut list ends with `… K more`.
 - **Held:** a held task runs no more until someone decides. Its hold
   has a reason (out of tries, stopped, its deadline passed, an
   insufficient budget, an effect whose outcome is uncertain, among

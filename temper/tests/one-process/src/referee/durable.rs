@@ -2,6 +2,7 @@
 mod generations;
 mod history;
 mod layouts;
+pub(crate) use layouts::serving_row;
 pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
@@ -29,7 +30,7 @@ pub struct Store {
     pub pending: VecDeque<Commit>,
     pub applied: u64,
     pub(crate) installation: Option<[u8; 16]>,
-    pub(crate) wires: Option<u64>,
+    pub(crate) synced_wires: bool,
     pub recovered: std::collections::BTreeSet<u64>,
     pub(crate) restored: Option<BTreeMap<root::Key, root::Record>>,
     restoring: bool,
@@ -150,6 +151,27 @@ impl Store {
     pub fn new() -> Self {
         Self::default()
     }
+    /// The party's original task number, from its synced named answer row.
+    pub(crate) fn created_task(&self, key: jig_domain_people::RequestKey) -> Option<u64> {
+        use jig_domain_people::{Key, Outcome, Stored};
+        match self.rows.get(&root::Key::Core(core::Key::People(Key::Answer(key))))? {
+            root::Record::Core(core::Record::People(Stored::Answer {
+                outcome: Outcome::Created { first, last, .. },
+                ..
+            })) if first == last => Some(*first),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn has_reply(&self, task: u64, reply: &[u8]) -> bool {
+        self.rows.values().any(|row| {
+            matches!(row,
+                root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn)))
+                    if turn.task == task && skein_lib::bytes::find(&turn.transcript, reply).is_some()
+            )
+        })
+    }
+
     /// A cold world's existing transcript files precede every recovered map row.
     pub(crate) fn transcript_file(&mut self, path: Vec<u8>, bytes: Vec<u8>) {
         self.files.insert(logs::path(&path).unwrap_or(path), bytes);
@@ -178,6 +200,7 @@ impl Store {
         self.validated.clear();
         self.pending.clear();
         self.recovered.clear();
+        self.synced_wires = false;
         self.restored = None;
         self.restoring = true;
     }
@@ -239,13 +262,13 @@ impl Store {
                     if let Some(bytes) = self.files.get(&path) {
                         self.recovered.extend(frames(bytes, 0).0.into_iter().map(|(number, _)| number));
                     }
-                    committed.extend(self.durable(&path, limits, names, connector)?);
+                    committed.extend(self.durable(&path, limits, names, connector, false)?);
                 }
                 Observed::Snapshot(path) => {
                     committed.extend(self.snapshot(&path, limits, names, connector)?);
                 }
                 Observed::Sync(path) if is_log(&path) => {
-                    committed.extend(self.durable(&path, limits, names, connector)?);
+                    committed.extend(self.durable(&path, limits, names, connector, true)?);
                 }
                 Observed::Sync(path) if in_generation(&path) == Some(b"store/snapshot".as_slice()) => {
                     committed.extend(self.snapshot(&path, limits, names, connector)?);
@@ -275,6 +298,7 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
+        synced: bool,
     ) -> Result<Vec<Commit>, String> {
         let mut committed = Vec::new();
         let Some(bytes) = self.files.get(path) else { return Ok(committed) };
@@ -295,6 +319,8 @@ impl Store {
                 continue;
             }
             let commit = self.commit(number, ops, limits, names, connector)?;
+            // A replayed or copied Wires row does not mark this start's Wires commit.
+            self.synced_wires |= synced && commit.wires;
             self.apply(&commit, limits);
             self.pending.retain(|pending| pending.number > number);
             committed.push(commit);
@@ -304,9 +330,6 @@ impl Store {
     fn apply(&mut self, commit: &Commit, limits: &codec::View) {
         if let Some(installation) = commit.installation {
             self.installation = Some(installation);
-        }
-        if commit.wires {
-            self.wires = Some(commit.number);
         }
         for write in &commit.writes {
             match write {

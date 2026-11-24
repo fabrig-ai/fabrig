@@ -1,7 +1,7 @@
 //! Borrow the core-owned facts an inspection of its children cannot know.
 use crate::{Core, Timer, routing::flight::Flight};
 use jig_domain_tasks::New;
-use skein_lib::{Map, ReplyTo, Time, Token};
+use skein_lib::{Map, ReplyTo, Time, Token, Wall};
 
 impl Core {
     /// For the inspection adapter: timers held for the next start (domain/testing-fakes.md, 1.1).
@@ -14,6 +14,12 @@ impl Core {
     #[must_use]
     pub const fn inspection_now(&self) -> Time {
         self.run_now
+    }
+
+    /// The wall time sampled by the core when it last stepped.
+    #[must_use]
+    pub const fn inspection_wall(&self) -> Wall {
+        self.run_wall
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).

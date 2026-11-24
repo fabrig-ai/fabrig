@@ -26,6 +26,8 @@ pub struct Domain {
     pub(crate) facts: Map<Path, crate::Fact>,
     pub(crate) judges: Map<Token, crate::requirements::Question>,
     pub(crate) procedures: Map<u64, crate::ProcedureState>,
+    /// Most recent report refusal heard from the core.
+    wait_refusal: Option<(u64, &'static str)>,
     pub(crate) results: Map<u64, u16>,
     pub(crate) delegate_outcomes: Map<u64, DelegateOutcome>,
     pub(crate) values: Map<Token, crate::values::Payload>,
@@ -36,6 +38,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The last whole wait report the core refused.
+    #[must_use]
+    pub const fn wait_refusal(&self) -> Option<(u64, &'static str)> {
+        self.wait_refusal
+    }
+
     /// The connector's existing topic interests for one task.
     #[must_use]
     pub fn subscribed_topics(&self, task: u64) -> Box<[u16]> {
@@ -142,6 +150,7 @@ impl Domain {
             facts: Map::with_capacity(limits.facts),
             judges: Map::with_capacity(limits.judges),
             procedures: Map::with_capacity(limits.procedures),
+            wait_refusal: None,
             results: Map::with_capacity(limits.procedures),
             delegate_outcomes: Map::with_capacity(limits.tasks),
             values: Map::with_capacity(limits.values),
@@ -227,7 +236,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::requirements::judge(domain, env, token, requirement, &resources, state, out);
         }
         Event::Procedure { project, task, number, resource, signal, pending: _, added: _ } => {
+            let before = crate::procedures::reported_wait(domain, task);
             crate::procedures::step(domain, env, project, task, number, resource, signal, out);
+            let wait = crate::procedures::reported_wait(domain, task);
+            if before != wait {
+                out.push(Request::Waits { task, wait });
+            }
         }
         Event::StepMade { task, step, first, revisions } => {
             crate::procedures::made(domain, env, task, step, first, revisions, out);
@@ -240,7 +254,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Cut { token, size } => crate::values::cut(domain, token, size, out),
         Event::Items { token, task } => crate::values::items(domain, env, token, task, out),
         Event::HandOver { token } => crate::values::hand_over(domain, token, out),
-        Event::CatchUp => {
+        Event::WaitsRefused { task, why } => domain.wait_refusal = Some((task, why)),
+        Event::CatchUp { procedures } => {
+            for task in procedures {
+                out.push(Request::Waits { task, wait: crate::procedures::reported_wait(domain, task) });
+            }
             let mut reads = Map::with_capacity(env.limits.resources);
             for spec in &domain.config.resources {
                 reads.insert(spec.path.clone(), ()).expect("configured resources fit");

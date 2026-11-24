@@ -74,12 +74,23 @@ pub(crate) fn within(len: usize, limit: u32) -> bool {
     }
 }
 
-pub(crate) fn pattern_within(pattern: &Pattern, limits: &Limits) -> bool {
-    if !name_within_segments(&pattern.segments, limits) {
-        return false;
+impl Limits {
+    /// Bounds on an authority's collections, independent of the owner's vocabulary.
+    #[must_use]
+    pub fn authority_counts_fit(&self, grants: usize, executors: usize, note_resources: usize) -> bool {
+        within(grants, self.grants) && within(executors, self.executors) && within(note_resources, self.grants)
     }
+
+    /// Bounds on a pattern's borrowed components, for either terminal kind.
+    #[must_use]
+    pub fn pattern_parts_fit(&self, segments: &[Box<[u8]>], last: &[u8]) -> bool {
+        name_within_segments(segments, self) && within(last.len(), self.segment_bytes)
+    }
+}
+
+pub(crate) fn pattern_within(pattern: &Pattern, limits: &Limits) -> bool {
     match &pattern.last {
-        crate::Last::Exact(bytes) | crate::Last::Open(bytes) => within(bytes.len(), limits.segment_bytes),
+        crate::Last::Exact(bytes) | crate::Last::Open(bytes) => limits.pattern_parts_fit(&pattern.segments, bytes),
     }
 }
 
@@ -107,10 +118,11 @@ pub(crate) fn authority_within(authority: &Authority, limits: &Limits) -> bool {
 }
 
 pub(crate) fn authority_fits(authority: &Authority, limits: &Limits) -> bool {
-    if !within(authority.grants.len(), limits.grants)
-        || !within(authority.delegation.kinds.len(), limits.executors)
-        || !within(authority.note_resources.len(), limits.grants)
-    {
+    if !limits.authority_counts_fit(
+        authority.grants.len(),
+        authority.delegation.kinds.len(),
+        authority.note_resources.len(),
+    ) {
         return false;
     }
     for grant in &authority.grants {

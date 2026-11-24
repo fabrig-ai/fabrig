@@ -174,7 +174,7 @@ Each list has one entry per line; `#` starts a comment line.
   lowest tier that shows it.
 - **The after-landing tier:** after each landing on main, the five real
   pairs above, once its runner lists them;
-  `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing.md`, 2.3),
+  `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing-tiers.md`, 3),
   and `tools/tiers/run temper live -- --run-ignored only` runs `live-temper`'s
   owned-forge landing pair (`temper/docs/design/testing/live-tier.md`).
   The inputs for `live-smith` are `SMITH_LIVE`, the directory holding smith's

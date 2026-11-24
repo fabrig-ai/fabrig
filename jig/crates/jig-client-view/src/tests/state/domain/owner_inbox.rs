@@ -233,6 +233,8 @@ fn reply_preview_preserves_task_title_activity_and_read_position() {
             deadline: None,
         },
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: PhaseCounts {
             waiting: 0,
             idle: 0,

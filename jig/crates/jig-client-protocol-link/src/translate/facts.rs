@@ -21,7 +21,7 @@ use chips::{
 pub(crate) use chips::{chip_phase, closing_stage};
 pub(crate) use holds::{chip_hold, failure_class, hold_category, retry_notice};
 use holds::{held_runtime_fields, hold_reason_fields};
-pub(crate) use parties::{party, person_address, person_wait, recipient, requester};
+pub(crate) use parties::{escalation_holder, party, person_address, person_wait, recipient, requester};
 pub(crate) use parts::{
     budget, dependencies, document_text, executor, funder, numbers, part, proposal_key, resource_line,
 };

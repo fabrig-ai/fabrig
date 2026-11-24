@@ -101,6 +101,7 @@ pub(crate) fn ended(
     pending: &mut Queue<tasks::Request>,
     out: &mut Queue<Request>,
 ) {
+    drop(core.reported_waits.remove(&task));
     let _pending = core.pending_note_briefs.remove(&task);
     let position = core.ending_positions.remove(&task).expect("ended row assigned its result position");
     let mut ended = crate::routing::view::routes::route_view(

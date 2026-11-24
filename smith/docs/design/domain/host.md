@@ -1,6 +1,6 @@
 # Hosts
 
-Provisional, 2026-10-05, revised 2026-10-28. The other side of a run:
+Provisional, 2026-10-05, revised 2026-11-24. The other side of a run:
 what a host owes an agent and is owed, the channel between them, and the
 domains smith ships for hosts: `smith-host-domain`, which a host embeds
 to start and supervise agent processes; `smith-inline-agent`, its twin,
@@ -264,6 +264,46 @@ policy.
   section 12; protocol/limits.md, `grace-over-teardown`), so an agent
   that keeps its contract is never signalled. Past the grace, its tree
   is terminated, then killed.
+- **An agent whose host is gone ends on its own.** Its host is its only
+  reader: once the host is gone, nothing hears the run's turns or
+  answers its calls, and nothing will stop it. So the agent stops
+  spending and exits by itself, leaving what its host kept for the next
+  activation (temper's `draft/worker-restarts.md`, sections 2 and 7).
+  - **Gone** is either of two things. **The channel's end:** its input
+    read to its end, or a write to it failing; the loss of either half
+    is the loss of the channel, and the agent abandons the other.
+    **The host's silence:** the agent waits on its host and hears and
+    sends nothing for the link's no-progress deadline, `no_progress`
+    above, the figure its host times it by, which the agent derives from
+    its own configuration with the same `host_limits`. It waits on its
+    host while frames are queued that the host does not take, while a
+    turn or a part waits for the host's acknowledgement to make room
+    (section 6), and while a call it withdrew waits for its answer. Each
+    record read from the host and each frame the host takes starts that
+    clock again. A host that owes nothing is never silent, as one that
+    keeps a run waiting for its next message: over pipes a host sends
+    no keepalive (protocol/channel.md, section 7).
+  - **Then cancel, grace, drop,** the stop of section 9.2 with the agent
+    its own host. The run's cancel: no completion or tool call starts
+    after it, the calls in flight are cut, the calls to the host are
+    lost, and the turns held for the host are released unacknowledged.
+    The host's `cancel_grace` for the run to answer. Past it, the run is
+    dropped as 9.2 drops one: its domain hears nothing more, and its
+    completions are cancelled and the process trees of its commands and
+    checks stopped. Nothing more goes to the host: the channel's streams
+    are aborted, never finished. The rest closes as after any answer
+    (protocol/agent.md, section 6), and a drop aborts those closes too.
+  - **Within `orphan_exit`** of the loss: the link's `cancel_grace` plus
+    its `exit_grace` (protocol/limits.md, section 7), what its host would
+    have given it from a cancel to its exit. Its answer is never sent;
+    standard error's last line says why, the channel ended or the host
+    was silent; and it exits with failure.
+  - **What stays** is what its host kept: the turns it acknowledged and
+    the parts it kept are the next activation's (turn-parts.md, section
+    5), and the workspace is as the cut left it, for the host's next
+    start to save (temper's `draft/worker-restarts.md`, section 7). An
+    agent that outlives its host to be adopted by the host's next start
+    is later (same draft, section 10).
 - **How the agent ended** is evidence, not a guess: its end carries
   `exit`, the code it exited with or the signal that ended it, and
   `forced`, whether the kit had to end it (no, terminated or killed). A

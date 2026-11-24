@@ -83,6 +83,8 @@ pub fn line() -> TaskLine {
         ended_at: None,
         budget,
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: PhaseCounts { running: DELEGATES, ..PhaseCounts::ZERO },
         delegates_done: 0,
         delegates_total: 0,

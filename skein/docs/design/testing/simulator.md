@@ -308,7 +308,9 @@ small buffers so that sends are cut and stall.
   handle that no process holds.
 - **At quiescence, on request:** nothing in flight, and every descriptor
   closed; once a world settles, every hosted child that exited of its own
-  had its output pipes read to their end.
+  had its output pipes read to their end, but for a pipe the world
+  abandoned by name (a host that is gone, ../../foundation/testing-strategy.md, 6):
+  its reader closed before its end, it alone may hold output unread.
 - **Each check returns its finding** (../../foundation/programming-model.md, 10.4):
   what broke, in the report's text, the seed and the trace's end with it.
   The simulator's entry points call it and panic on its `Err`, once, so

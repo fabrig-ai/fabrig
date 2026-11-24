@@ -200,16 +200,9 @@ fn outside(
     only: Option<&str>,
 ) -> Vec<String> {
     if old.version() == new.version() {
-        // A frame's body and held turn are judged independently: compare the
-        // body at one held version; the turn's own set must patch its move
-        // (jig/docs/design/protocol/store/transcripts.md, 6).
-        let new_held = if family.frames.is_some() { old_held } else { new_held };
         return unchanged(build, old, old_held, new, new_held, only);
     }
-    let (texts, patches) = match family.frames {
-        Some(frames) => (frames.texts, frames.patches),
-        None => history(family.name),
-    };
+    let (texts, patches) = history(family.name);
     let texts: Vec<_> = texts.iter().map(|text| (*text).to_owned()).collect();
     let patches: Vec<_> = patches.iter().map(|text| (*text).to_owned()).collect();
     if patched(old, new, &texts, &patches) {
@@ -222,6 +215,28 @@ fn outside(
             old.version(),
             new.version()
         )]
+    }
+}
+
+fn frame_layout(build: &str, sets: &OwnerSets, family: &KeptFamily, old: &Schema, new: &Schema) -> Vec<String> {
+    let frames = family.frames.expect("frame value type");
+    let root = old.find(frames.root.as_bytes()).or_else(|| {
+        let current = new.find(frames.root.as_bytes())?;
+        new.was(skein_codec::schema::Named::Declaration(current))
+            .iter()
+            .find_map(|former| old.find(new.spelled(*former)))
+    });
+    let root = match root {
+        Some(root) => std::str::from_utf8(old.spelled(old.declaration(root).name)).expect("schema name"),
+        None => frames.root,
+    };
+    let layout = JobLayout { root: root.into(), variant: None, text: old.text().into(), held: Box::new([]) };
+    match store::judge_held_layout(sets, family.name, frames.number, &layout) {
+        Ok(store::HeldLayout::Planned) => vec![],
+        result => vec![format!(
+            "{build} {}: frame value type {} root {root}: {result:?}; frames must derive",
+            family.name, frames.number
+        )],
     }
 }
 
@@ -238,7 +253,10 @@ fn guard(build: &str, sets: &OwnerSets, texts: &BTreeMap<String, Schema>, source
         }
         let Some(old) = texts.get(family.name) else { continue };
         let new = current.get(family.name).expect("binary family");
-        if family.types.is_empty() {
+        if family.frames.is_some() {
+            failures.extend(frame_layout(build, sets, family, old, new));
+        }
+        if family.types.is_empty() && family.frames.is_none() {
             failures.extend(outside(
                 build,
                 family,
@@ -250,17 +268,6 @@ fn guard(build: &str, sets: &OwnerSets, texts: &BTreeMap<String, Schema>, source
             ));
         } else {
             failures.extend(registered(build, sets, family, texts));
-            if let Some(frames) = family.frames {
-                failures.extend(outside(
-                    build,
-                    family,
-                    old,
-                    &held(texts, family.name),
-                    new,
-                    &held(&current, family.name),
-                    Some(frames.root),
-                ));
-            }
         }
     }
     failures
@@ -574,42 +581,44 @@ fn held_layouts_use_the_builds_texts() {
 }
 
 #[test]
-fn a_frames_held_turn_moves_only_with_its_own_patch() {
+fn frame_body_and_turn_must_each_derive_independently() {
     const BODY: &str = "family fixture-body 1\nversioned record Frame { turn: bytes 64 holds fixture-turn Turn }";
     const CHANGED_BODY: &str =
         "family fixture-body 1\nversioned record Frame { turn: bytes 64 holds fixture-turn Turn added: u64 }";
     const TURN: &str = "family fixture-turn 1\nversioned record Turn { count: u32 }";
-    const NEXT: &str = "family fixture-turn 2\nversioned record Turn { count: u32 extra: u32 }";
-    const PATCH: &str = "patch 1\nowner fixture 1\nfamily fixture-turn 1 to 2\nadd Turn.extra u32 0\n";
+    const NEXT: &str = "family fixture-turn 1\nversioned record Turn { count: u32 extra: u32 = 0 }";
+    const UNPLANNED: &str = "family fixture-turn 1\nversioned record Turn { count: u32 extra: u32 }";
     const BODY_FAMILY: KeptFamily = KeptFamily {
         name: "fixture-body",
         current: BODY,
         types: &[],
-        frames: Some(store::Frames { root: "Frame", texts: &[BODY], patches: &[] }),
+        frames: Some(store::Frames { root: "Frame", number: 0, texts: &[BODY] }),
         ..FAMILY
     };
     const TURN_FAMILY: KeptFamily = KeptFamily {
         name: "fixture-turn",
         current: NEXT,
         types: &[],
-        frames: Some(store::Frames { root: "Turn", texts: &[TURN, NEXT], patches: &[PATCH] }),
+        frames: Some(store::Frames { root: "Turn", number: 0, texts: &[TURN] }),
         ..FAMILY
     };
     let old = BTreeMap::from([("fixture-body".to_owned(), parsed(BODY)), ("fixture-turn".to_owned(), parsed(TURN))]);
-    for (body, texts, patches, refused) in [
-        (BODY, &[TURN, NEXT][..], &[PATCH][..], None),
-        (BODY, &[TURN, NEXT][..], &[][..], Some("fixture-turn")),
-        (BODY, &[NEXT][..], &[PATCH][..], Some("fixture-turn")),
-        (CHANGED_BODY, &[TURN, NEXT][..], &[PATCH][..], Some("fixture-body")),
-    ] {
+    for (body, turn, refused) in
+        [(BODY, NEXT, None), (BODY, UNPLANNED, Some("fixture-turn")), (CHANGED_BODY, NEXT, Some("fixture-body"))]
+    {
         let sets = OwnerSets {
-            sets: Box::leak(Box::new([store::OwnerSet {
-                families: Box::leak(Box::new([
-                    KeptFamily { current: body, ..BODY_FAMILY },
-                    KeptFamily { frames: Some(store::Frames { root: "Turn", texts, patches }), ..TURN_FAMILY },
-                ])),
-                ..SET
-            }])),
+            sets: Box::leak(Box::new([
+                store::OwnerSet {
+                    owner: store::Owner::Jig,
+                    families: Box::leak(Box::new([KeptFamily { current: body, ..BODY_FAMILY }])),
+                    ..SET
+                },
+                store::OwnerSet {
+                    owner: store::Owner::Smith,
+                    families: Box::leak(Box::new([KeptFamily { current: turn, ..TURN_FAMILY }])),
+                    ..SET
+                },
+            ])),
         };
         let failures = guard("mutation-build", &sets, &old, &BTreeMap::new());
         if let Some(family) = refused {

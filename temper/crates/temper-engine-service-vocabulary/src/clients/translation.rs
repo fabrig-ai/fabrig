@@ -73,6 +73,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Stopping
         | core::Event::Parts { .. }
         | core::Event::PartsMarked { .. }
+        | core::Event::Waits { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }

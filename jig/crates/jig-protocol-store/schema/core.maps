@@ -24,6 +24,7 @@ refuses h::settings_refusal_to_domain
 refuses h::settings_refusal_to_record
 refuses h::task_bytes_to_domain
 refuses h::task_bytes_to_record
+refuses h::wait_floors_to_domain
 with context h::change_bytes_to_domain
 with context h::change_bytes_to_record
 with context h::end_bytes_to_domain
@@ -144,6 +145,9 @@ record CallRecord = d::CallRecord
 record PartKey = d::PartKey
 enum PartKind = l::PartKind
 record PartRecord = d::PartRecord
+enum WaitKind = d::waits::WaitKind
+record WaitFloor
+record WaitFloors by hand
 record Deployment = d::Deployment
 record PhaseBytes by hand
 record ChangeBytes by hand

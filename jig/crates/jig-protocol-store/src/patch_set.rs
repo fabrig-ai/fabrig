@@ -52,6 +52,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             Keys { from: &[0, 6], to: &[0, 7], root: "Layout" },
             Keys { from: &[0, 7], to: &[0, 8], root: "Text" },
             Keys { from: &[0, 8], to: &[0, 9], root: "Job" },
+            Keys { from: &[0, 14], to: &[0, 15], root: "Order" },
         ],
         frames: None,
     },
@@ -122,7 +123,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" },
                 Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" },
             ],
-            frames: Some(crate::Frames { root: "TurnRecord", texts: &[core], patches: &[] }),
+            frames: Some(crate::Frames { root: "TurnRecord", number: 9, texts: &[core] }),
         }
     },
     KeptFamily {

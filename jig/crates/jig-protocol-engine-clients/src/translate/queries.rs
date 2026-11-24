@@ -107,6 +107,8 @@ pub(super) fn line_parts(
         },
         budget: owner::budget(&value.budget),
         waits_on: waits(value.waits_on.clone())?,
+        wait: super::waits::first(value.wait.as_ref())?,
+        nearest: super::waits::nearest(value.nearest),
         phases: live::phases(value.phases),
         delegates_done: value.delegates_done,
         delegates_total: value.delegates_total,

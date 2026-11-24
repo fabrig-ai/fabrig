@@ -859,6 +859,12 @@ pub(super) fn settled(service: &mut Stages, turn: &domain::Turn) {
     }
 }
 
+pub(super) fn close(service: &mut Stages) {
+    if let Some(program) = &mut service.program {
+        program.close(&service.llm_env, &mut service.llm_events);
+    }
+}
+
 pub(super) fn wait_for_close(service: &mut Stages) -> bool {
     if !answer_head(service) {
         return false;

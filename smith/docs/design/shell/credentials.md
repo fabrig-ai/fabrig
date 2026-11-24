@@ -160,5 +160,5 @@ whether the settings are admitted.
 - **Refresh tokens are never copied.** An issuer rotates them, and a
   copied one is spent by whichever copy refreshes first. Live tests and
   benchmarks sign in smith's own accounts once, in a credentials
-  directory of their own (../testing.md, section 2.3; ../benchmarks/agents.md,
+  directory of their own (../testing-tiers.md, section 3; ../benchmarks/agents.md,
   section 1), and never copy a login.

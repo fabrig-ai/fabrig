@@ -1,15 +1,14 @@
 //! Total vocabulary and configuration translations (jig's domain/root.md, 6).
-use crate::boundary::{Call, EscalationChoice, MessageForm, ProposalChoice, ProposedAction, Tool};
+use crate::Call;
 use crate::domain::Domain;
 use crate::limits::Limits;
 use crate::route::{LandingRule, host_route};
 use crate::{CallAnswer, Decision};
 use alloc::boxed::Box;
 use jig_domain_link::JobBound;
-use jig_domain_notes as notes;
-use jig_domain_tasks as tasks;
 use skein_lib::{Env, Map, ReplyTo};
 use temper_engine_domain_forge as forge;
+pub(crate) use temper_engine_domain_translate::{call_needs_input, is_core_read, tool_kind};
 
 /// Startup configuration, supplied once by the shell (domain/root-translation.md, 1):
 /// the core's whole, as jig's applications hold it, and temper's own.
@@ -68,105 +67,8 @@ pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {
     env.with(env.limits.forge)
 }
 
-pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
-    let note_refusal = note_shape(&body.tool, limits);
-    if let Some(why) = note_refusal {
-        body.tool = Tool::RejectedNote(why);
-    }
-    if let Some(why) = call_shape(&body.tool, &limits.tasks) {
-        body.tool = match body.tool {
-            Tool::Message { .. } => Tool::RejectedMessage(why),
-            Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } | Tool::DecideEscalation { .. } => {
-                Tool::RejectedControl(why)
-            }
-            Tool::Propose { .. } | Tool::Decide { .. } | Tool::Withdraw { .. } => Tool::RejectedProposal(why),
-            Tool::Note { .. } | Tool::NoteLines { .. } | Tool::Recall { .. } => {
-                Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
-            }
-            Tool::Follow(_)
-            | Tool::Finding(_)
-            | Tool::Red(_)
-            | Tool::Decided(_)
-            | Tool::Goal { .. }
-            | Tool::ReadTask { .. }
-            | Tool::See { .. }
-            | Tool::Document { .. }
-            | Tool::Remember { .. }
-            | Tool::Settings { .. }
-            | Tool::ProposeSettings { .. }
-            | Tool::ProposeSettingsNote { .. }
-            | Tool::Change { .. }
-            | Tool::Delegate { .. }
-            | Tool::MarkRead { .. }
-            | Tool::Introduce { .. }
-            | Tool::Subscribe { .. }
-            | Tool::SubscribeForge { .. }
-            | Tool::SubscribeNamedForge { .. }
-            | Tool::ReadBranchFile { .. }
-            | Tool::ReadNamed { .. }
-            | Tool::ReadForge { .. }
-            | Tool::EffectForge { .. }
-            | Tool::Unsubscribe { .. }
-            | Tool::Rejected(_)
-            | Tool::RejectedMessage(_)
-            | Tool::RejectedControl(_)
-            | Tool::RejectedProposal(_)
-            | Tool::RejectedNote(_)
-            | Tool::Unavailable => Tool::Rejected(why),
-        };
-    }
-    body
-}
-
-fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
-    match tool {
-        Tool::Note { entry, .. } | Tool::NoteLines { entry, .. } => {
-            if notes::valid_new(entry, &limits.notes) {
-                None
-            } else {
-                Some(notes::new_refusal(entry, &limits.notes))
-            }
-        }
-        Tool::Recall { by, .. } => (!notes::valid_recall(by, &limits.notes)).then_some(notes::Refusal::Oversized),
-        Tool::Follow(_)
-        | Tool::Finding(_)
-        | Tool::Red(_)
-        | Tool::Decided(_)
-        | Tool::Goal { .. }
-        | Tool::ReadTask { .. }
-        | Tool::See { .. }
-        | Tool::Document { .. }
-        | Tool::Remember { .. }
-        | Tool::Settings { .. }
-        | Tool::ProposeSettings { .. }
-        | Tool::ProposeSettingsNote { .. }
-        | Tool::Change { .. }
-        | Tool::Delegate { .. }
-        | Tool::Message { .. }
-        | Tool::MarkRead { .. }
-        | Tool::Amend { .. }
-        | Tool::Cancel { .. }
-        | Tool::Release { .. }
-        | Tool::Decide { .. }
-        | Tool::DecideEscalation { .. }
-        | Tool::Withdraw { .. }
-        | Tool::Propose { .. }
-        | Tool::Introduce { .. }
-        | Tool::Subscribe { .. }
-        | Tool::SubscribeForge { .. }
-        | Tool::SubscribeNamedForge { .. }
-        | Tool::ReadBranchFile { .. }
-        | Tool::ReadNamed { .. }
-        | Tool::ReadForge { .. }
-        | Tool::EffectForge { .. }
-        | Tool::Unsubscribe { .. }
-        | Tool::Unavailable
-        | Tool::Rejected(_)
-        | Tool::RejectedMessage(_)
-        | Tool::RejectedControl(_)
-        | Tool::RejectedProposal(_)
-        | Tool::RejectedNote(_) => None,
-    }
+pub(crate) fn checked_call(body: Call, limits: &Limits) -> Call {
+    temper_engine_domain_translate::checked_call(body, &limits.tasks, &limits.notes)
 }
 
 pub(crate) fn relay_call(
@@ -177,209 +79,6 @@ pub(crate) fn relay_call(
     answer: CallAnswer,
 ) {
     host_route::render(domain, limits, decision, to, answer);
-}
-
-pub(crate) fn call_needs_input(tool: &Tool) -> bool {
-    call_mode(tool).0
-}
-
-#[expect(clippy::too_many_lines, reason = "one exhaustive tool-shape match keeps bounded admission together")]
-pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::Refusal> {
-    match tool {
-        Tool::Propose { action, reason, .. } => proposal_shape(action, reason, limits),
-        Tool::Decide { decision, .. } => match decision {
-            ProposalChoice::Reject { reason } if reason.len() > skein_lib::usize_of(limits.message_bytes) => {
-                Some(tasks::Refusal::Read)
-            }
-            ProposalChoice::Accept | ProposalChoice::Reject { .. } | ProposalChoice::Pass => None,
-        },
-        Tool::DecideEscalation { decision, .. } => match decision {
-            EscalationChoice::Reject { reason } if reason.len() > skein_lib::usize_of(limits.result_bytes) => {
-                Some(tasks::Refusal::Read)
-            }
-            EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
-        },
-        Tool::Follow(_)
-        | Tool::Finding(_)
-        | Tool::Red(_)
-        | Tool::Decided(_)
-        | Tool::Goal { .. }
-        | Tool::ReadTask { .. }
-        | Tool::See { .. }
-        | Tool::Document { .. }
-        | Tool::Remember { .. }
-        | Tool::Settings { .. }
-        | Tool::ProposeSettings { .. }
-        | Tool::ProposeSettingsNote { .. }
-        | Tool::Change { .. }
-        | Tool::Withdraw { .. }
-        | Tool::Unavailable
-        | Tool::Rejected(_)
-        | Tool::RejectedMessage(_)
-        | Tool::RejectedControl(_)
-        | Tool::RejectedProposal(_)
-        | Tool::RejectedNote(_)
-        | Tool::Note { .. }
-        | Tool::NoteLines { .. }
-        | Tool::Recall { .. }
-        | Tool::MarkRead { .. }
-        | Tool::Introduce { .. }
-        | Tool::Subscribe { .. }
-        | Tool::SubscribeForge { .. }
-        | Tool::SubscribeNamedForge { .. }
-        | Tool::ReadBranchFile { .. }
-        | Tool::ReadNamed { .. }
-        | Tool::ReadForge { .. }
-        | Tool::EffectForge { .. }
-        | Tool::Unsubscribe { .. }
-        | Tool::Release { .. } => None,
-        Tool::Cancel { reason, .. } => {
-            if reason.len() > skein_lib::usize_of(limits.result_bytes) {
-                Some(tasks::Refusal::Read)
-            } else {
-                None
-            }
-        }
-        Tool::Amend { amendment, .. } => {
-            if amendment.reason.len() > skein_lib::usize_of(limits.message_bytes) {
-                return Some(tasks::Refusal::Read);
-            }
-            if let Some(spec) = &amendment.spec
-                && (!tasks::valid_spec(limits, spec) || !spec.inputs.is_empty())
-            {
-                return Some(tasks::Refusal::Spec);
-            }
-            if let Some(authority) = &amendment.authority
-                && !tasks::valid_authority(limits, authority)
-            {
-                return Some(tasks::Refusal::AuthorityShape);
-            }
-            if let Some(dependencies) = &amendment.dependencies
-                && dependencies.len() > skein_lib::usize_of(limits.dependencies)
-            {
-                return Some(tasks::Refusal::Dependencies);
-            }
-            None
-        }
-        Tool::Message { form, words, .. } => {
-            if words.is_empty() || words.len() > skein_lib::usize_of(limits.message_bytes) {
-                return Some(tasks::Refusal::Read);
-            }
-            match form {
-                MessageForm::Answer { question } if *question == 0 => return Some(tasks::Refusal::Read),
-                MessageForm::Words | MessageForm::Question | MessageForm::Answer { .. } => {}
-            }
-            None
-        }
-        Tool::Delegate { batch } => {
-            if batch.len() > skein_lib::usize_of(limits.batch) {
-                return Some(tasks::Refusal::Batch);
-            }
-            for member in batch {
-                if !tasks::valid_spec(limits, &member.spec) {
-                    return Some(tasks::Refusal::Spec);
-                }
-                if !tasks::valid_contract(limits, &member.contract) {
-                    return Some(tasks::Refusal::Contract);
-                }
-                if !tasks::valid_authority(limits, &member.authority) {
-                    return Some(tasks::Refusal::AuthorityShape);
-                }
-                if member.dependencies.len() > skein_lib::usize_of(limits.dependencies) {
-                    return Some(tasks::Refusal::Dependencies);
-                }
-            }
-            None
-        }
-    }
-}
-
-fn proposal_shape(action: &ProposedAction, reason: &[u8], limits: &tasks::Limits) -> Option<tasks::Refusal> {
-    if reason.len() > skein_lib::usize_of(limits.message_bytes) {
-        return Some(tasks::Refusal::Read);
-    }
-    match action {
-        ProposedAction::Batch(batch) => {
-            if batch.is_empty() || batch.len() > skein_lib::usize_of(limits.batch) {
-                return Some(tasks::Refusal::Batch);
-            }
-            for member in batch {
-                if !tasks::valid_spec(limits, &member.spec) || !member.spec.inputs.is_empty() {
-                    return Some(tasks::Refusal::Spec);
-                }
-                if !tasks::valid_contract(limits, &member.contract)
-                    || !tasks::valid_authority(limits, &member.authority)
-                    || member.dependencies.len() > skein_lib::usize_of(limits.dependencies)
-                {
-                    return Some(tasks::Refusal::AuthorityShape);
-                }
-            }
-            None
-        }
-        ProposedAction::Amend { amendment, .. } => {
-            if amendment.reason.len() > skein_lib::usize_of(limits.message_bytes) {
-                Some(tasks::Refusal::Read)
-            } else if match &amendment.authority {
-                Some(authority) => !tasks::valid_authority(limits, authority),
-                None => false,
-            } {
-                Some(tasks::Refusal::AuthorityShape)
-            } else {
-                None
-            }
-        }
-        ProposedAction::Widen { authority, .. } => {
-            if tasks::valid_authority(limits, authority) {
-                None
-            } else {
-                Some(tasks::Refusal::AuthorityShape)
-            }
-        }
-        ProposedAction::Effect { .. } | ProposedAction::Release { .. } => None,
-    }
-}
-
-pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
-    Some(match tool {
-        Tool::See { .. } | Tool::Document { .. } | Tool::Remember { .. } => jig_domain_core::ToolKind::Ask,
-        Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
-            jig_domain_core::ToolKind::Settings
-        }
-        Tool::Follow(_)
-        | Tool::Finding(_)
-        | Tool::Red(_)
-        | Tool::Goal { .. }
-        | Tool::Change { .. }
-        | Tool::Delegate { .. } => jig_domain_core::ToolKind::Delegate,
-        Tool::MarkRead { .. } => jig_domain_core::ToolKind::MarkRead,
-        Tool::Message { target, .. } => jig_domain_core::ToolKind::Message { target: *target },
-        Tool::Introduce { left, .. } => jig_domain_core::ToolKind::Message { target: *left },
-        Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } => {
-            jig_domain_core::ToolKind::Control
-        }
-        Tool::Decide { .. } | Tool::Withdraw { .. } | Tool::DecideEscalation { .. } => {
-            jig_domain_core::ToolKind::Decide
-        }
-        Tool::Propose { .. } => jig_domain_core::ToolKind::Propose,
-        Tool::Subscribe { .. }
-        | Tool::SubscribeForge { .. }
-        | Tool::SubscribeNamedForge { .. }
-        | Tool::Unsubscribe { .. } => jig_domain_core::ToolKind::Subscribe,
-        Tool::EffectForge { .. } => jig_domain_core::ToolKind::Effect,
-        Tool::Note { entry, .. } | Tool::NoteLines { entry, .. } => {
-            jig_domain_core::ToolKind::Note { scope: entry.scope.clone() }
-        }
-        Tool::Recall { by, .. } => jig_domain_core::ToolKind::Recall { by: by.clone() },
-        Tool::ReadTask { .. } | Tool::ReadBranchFile { .. } | Tool::ReadNamed { .. } | Tool::ReadForge { .. } => {
-            jig_domain_core::ToolKind::Read
-        }
-        Tool::Unavailable
-        | Tool::Rejected(_)
-        | Tool::RejectedMessage(_)
-        | Tool::RejectedControl(_)
-        | Tool::RejectedProposal(_)
-        | Tool::RejectedNote(_) => return None,
-    })
 }
 
 pub(crate) const fn named_call(key: crate::CallKey) -> forge::NamedCall {
@@ -487,72 +186,6 @@ pub(crate) fn keep_connector_answer(
     }
 }
 
-pub(crate) fn is_core_read(tool: &Tool) -> bool {
-    call_mode(tool).1
-}
-
-fn call_mode(tool: &Tool) -> (bool, bool) {
-    match tool {
-        Tool::Follow(call) => match call {
-            crate::FollowCall::List | crate::FollowCall::Show { .. } => (false, true),
-            crate::FollowCall::Act { .. } => (false, false),
-        },
-        Tool::Red(call) => match call {
-            crate::RedCall::List => (false, true),
-            crate::RedCall::Record { .. } | crate::RedCall::End { .. } => (false, false),
-        },
-        Tool::Finding(call) => match call {
-            crate::FindingCall::List { .. } | crate::FindingCall::Show { .. } => (false, true),
-            crate::FindingCall::File { .. } | crate::FindingCall::Hand { .. } | crate::FindingCall::Triage { .. } => {
-                (false, false)
-            }
-        },
-        Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => (false, true),
-        Tool::Goal { agree, .. } => (*agree, false),
-        Tool::Delegate { batch } => {
-            for member in batch {
-                if !member.spec.inputs.is_empty() {
-                    return (true, false);
-                }
-            }
-            (false, false)
-        }
-        Tool::Document { .. }
-        | Tool::Remember { .. }
-        | Tool::ProposeSettings { .. }
-        | Tool::ProposeSettingsNote { .. }
-        | Tool::Decided(_)
-        | Tool::Note { .. }
-        | Tool::NoteLines { .. }
-        | Tool::Recall { .. }
-        | Tool::EffectForge { .. }
-        | Tool::ReadBranchFile { .. }
-        | Tool::ReadNamed { .. }
-        | Tool::ReadForge { .. }
-        | Tool::Propose { .. }
-        | Tool::Decide { .. }
-        | Tool::Withdraw { .. }
-        | Tool::DecideEscalation { .. }
-        | Tool::Change { .. }
-        | Tool::Amend { .. }
-        | Tool::Cancel { .. }
-        | Tool::Release { .. }
-        | Tool::Message { .. }
-        | Tool::MarkRead { .. }
-        | Tool::Introduce { .. }
-        | Tool::Subscribe { .. }
-        | Tool::SubscribeForge { .. }
-        | Tool::SubscribeNamedForge { .. }
-        | Tool::Unsubscribe { .. }
-        | Tool::Rejected(_)
-        | Tool::RejectedMessage(_)
-        | Tool::RejectedControl(_)
-        | Tool::RejectedProposal(_)
-        | Tool::RejectedNote(_)
-        | Tool::Unavailable => (false, false),
-    }
-}
-
 /// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root-translation.md, 1).
 #[must_use]
 pub fn landing_stock(
@@ -566,8 +199,24 @@ pub fn landing_stock(
 
 #[cfg(test)]
 mod proposal_tests {
-    use super::{ProposedAction, proposal_shape, tasks};
+    use super::checked_call;
+    use crate::{Call, ProposedAction, Tool};
     use alloc::boxed::Box;
+    use jig_domain_tasks as tasks;
+
+    fn proposal_refusal(action: ProposedAction, reason: &[u8], limits: &crate::Limits) -> Option<tasks::Refusal> {
+        let body = Call {
+            completion: 1,
+            position: 0,
+            tool: Tool::Propose { action, reason: reason.into(), as_holder: false },
+        };
+        let tool = checked_call(body, limits).tool;
+        if let Tool::RejectedProposal(why) = tool {
+            return Some(why);
+        }
+        let Tool::Propose { .. } = tool else { panic!("unexpected proposal tool: {tool:?}") };
+        None
+    }
 
     fn amendment(authority: Option<tasks::Authority>, reason: &[u8]) -> ProposedAction {
         ProposedAction::Amend {
@@ -590,13 +239,13 @@ mod proposal_tests {
 
     #[test]
     fn an_amend_proposal_may_omit_authority() {
-        let limits = crate::tests::resume_fixture::limits().tasks;
-        assert_eq!(proposal_shape(&amendment(None, b"new plan"), b"please amend", &limits), None);
+        let limits = crate::tests::resume_fixture::limits();
+        assert_eq!(proposal_refusal(amendment(None, b"new plan"), b"please amend", &limits), None);
     }
 
     #[test]
     fn an_amend_proposal_rejects_malformed_named_authority() {
-        let limits = crate::tests::resume_fixture::limits().tasks;
+        let limits = crate::tests::resume_fixture::limits();
         let mut authority = tasks::Authority {
             tools: tasks::Tools(0),
             models: tasks::Models::NONE,
@@ -606,22 +255,22 @@ mod proposal_tests {
             notes: tasks::Scopes(0),
             note_resources: Box::new([]),
         };
-        assert!(tasks::valid_authority(&limits, &authority));
-        assert_eq!(proposal_shape(&amendment(Some(authority.clone()), b"plan"), b"ask", &limits), None);
+        assert!(tasks::valid_authority(&limits.tasks, &authority));
+        assert_eq!(proposal_refusal(amendment(Some(authority.clone()), b"plan"), b"ask", &limits), None);
         authority.notes = tasks::Scopes(8);
-        assert!(!tasks::valid_authority(&limits, &authority));
+        assert!(!tasks::valid_authority(&limits.tasks, &authority));
         assert_eq!(
-            proposal_shape(&amendment(Some(authority), b"plan"), b"ask", &limits),
+            proposal_refusal(amendment(Some(authority), b"plan"), b"ask", &limits),
             Some(tasks::Refusal::AuthorityShape)
         );
     }
 
     #[test]
     fn an_amend_proposal_bounds_both_reasons() {
-        let mut limits = crate::tests::resume_fixture::limits().tasks;
-        limits.message_bytes = 4;
-        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!", &limits), None);
-        assert_eq!(proposal_shape(&amendment(None, b"plan!"), b"ask!", &limits), Some(tasks::Refusal::Read));
-        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!!", &limits), Some(tasks::Refusal::Read));
+        let mut limits = crate::tests::resume_fixture::limits();
+        limits.tasks.message_bytes = 4;
+        assert_eq!(proposal_refusal(amendment(None, b"plan"), b"ask!", &limits), None);
+        assert_eq!(proposal_refusal(amendment(None, b"plan!"), b"ask!", &limits), Some(tasks::Refusal::Read));
+        assert_eq!(proposal_refusal(amendment(None, b"plan"), b"ask!!", &limits), Some(tasks::Refusal::Read));
     }
 }

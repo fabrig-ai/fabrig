@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 6;
 pub const LAYOUT: [u8; 32] = [
-    0xc3, 0x0d, 0xe9, 0xb2, 0xa8, 0x42, 0xbf, 0xb7, 0x35, 0x1d, 0xaf, 0x30, 0x69, 0x57, 0x83, 0xbe, 0x97, 0x75, 0xd2,
-    0x26, 0x74, 0x81, 0x0c, 0x3d, 0x1d, 0x99, 0x4e, 0xf2, 0xcc, 0xf8, 0x6c, 0x9d,
+    0xa6, 0x9b, 0xb5, 0x36, 0x15, 0x39, 0x31, 0xc9, 0xb9, 0x9e, 0xb2, 0x4c, 0x52, 0xbb, 0x6b, 0xb9, 0x78, 0x80, 0xf0,
+    0xcd, 0x4f, 0x70, 0xfc, 0x1a, 0x6c, 0xc7, 0xc2, 0x15, 0x4f, 0xaa, 0xa0, 0x39,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -34,6 +34,7 @@ pub struct Limits {
     pub call_part_note_recalled_entries: u32,
     pub settings_refusal_value: u32,
     pub part_record_body: u32,
+    pub wait_floors_entries: u32,
     pub phase_bytes_value: u32,
     pub change_bytes_value: u32,
     pub end_bytes_value: u32,
@@ -64,6 +65,7 @@ pub const CEILINGS: Limits = Limits {
     call_part_note_recalled_entries: 16,
     settings_refusal_value: 65_536,
     part_record_body: 33_554_432,
+    wait_floors_entries: 12,
     phase_bytes_value: 134_217_728,
     change_bytes_value: 268_435_456,
     end_bytes_value: 1_073_741_824,
@@ -94,6 +96,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "call_part_note_recalled_entries",
     "settings_refusal_value",
     "part_record_body",
+    "wait_floors_entries",
     "phase_bytes_value",
     "change_bytes_value",
     "end_bytes_value",
@@ -127,6 +130,7 @@ impl Limits {
             self.call_part_note_recalled_entries,
             self.settings_refusal_value,
             self.part_record_body,
+            self.wait_floors_entries,
             self.phase_bytes_value,
             self.change_bytes_value,
             self.end_bytes_value,
@@ -161,6 +165,7 @@ impl Limits {
             call_part_note_recalled_entries: self.call_part_note_recalled_entries.min(most),
             settings_refusal_value: self.settings_refusal_value.min(most),
             part_record_body: self.part_record_body.min(most),
+            wait_floors_entries: self.wait_floors_entries.min(most),
             phase_bytes_value: self.phase_bytes_value.min(most),
             change_bytes_value: self.change_bytes_value.min(most),
             end_bytes_value: self.end_bytes_value.min(most),
@@ -193,6 +198,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CALL_PART_NOTE_RECALLED_ENTRIES,
     paths::SETTINGS_REFUSAL_VALUE,
     paths::PART_RECORD_BODY,
+    paths::WAIT_FLOORS_ENTRIES,
     paths::PHASE_BYTES_VALUE,
     paths::CHANGE_BYTES_VALUE,
     paths::END_BYTES_VALUE,
@@ -447,6 +453,12 @@ pub mod paths {
     pub const PART_RECORD_KIND: Path = Path::new("PartRecord.kind");
     pub const PART_RECORD_BODY: Path = Path::new("PartRecord.body");
     pub const PART_RECORD_TAIL: Path = Path::new("PartRecord (tail)");
+    pub const WAIT_KIND_TAG: Path = Path::new("WaitKind (tag)");
+    pub const WAIT_FLOOR_KIND: Path = Path::new("WaitFloor.kind");
+    pub const WAIT_FLOOR_AT: Path = Path::new("WaitFloor.at");
+    pub const WAIT_FLOOR_TAIL: Path = Path::new("WaitFloor (tail)");
+    pub const WAIT_FLOORS_ENTRIES: Path = Path::new("WaitFloors.entries");
+    pub const WAIT_FLOORS_TAIL: Path = Path::new("WaitFloors (tail)");
     pub const DEPLOYMENT_ID: Path = Path::new("Deployment.id");
     pub const DEPLOYMENT_TASKS: Path = Path::new("Deployment.tasks");
     pub const DEPLOYMENT_PEOPLE: Path = Path::new("Deployment.people");
@@ -459,6 +471,7 @@ pub mod paths {
     pub const DEPLOYMENT_COMMITS: Path = Path::new("Deployment.commits");
     pub const DEPLOYMENT_PROJECTS: Path = Path::new("Deployment.projects");
     pub const DEPLOYMENT_RESTART_WAIT_MS: Path = Path::new("Deployment.restart_wait_ms");
+    pub const DEPLOYMENT_WAIT_FLOORS: Path = Path::new("Deployment.wait_floors");
     pub const DEPLOYMENT_TAIL: Path = Path::new("Deployment (tail)");
     pub const PHASE_BYTES_VALUE: Path = Path::new("PhaseBytes.value");
     pub const PHASE_BYTES_TAIL: Path = Path::new("PhaseBytes (tail)");
@@ -6325,6 +6338,208 @@ impl Record for PartRecord {
     }
 }
 
+// Type: WaitKind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum WaitKind {
+    Party,
+    Question,
+    Dependency,
+    Resource,
+    Account,
+    Host,
+    Delegate,
+    News,
+    Step,
+    Room,
+    Turn,
+    SignOff,
+}
+
+// Record: WaitKind.
+impl WaitKind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
+impl Record for WaitKind {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_KIND_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitKind")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitKind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Party => field::put(out, &[0], paths::WAIT_KIND_TAG),
+            Self::Question => field::put(out, &[1], paths::WAIT_KIND_TAG),
+            Self::Dependency => field::put(out, &[2], paths::WAIT_KIND_TAG),
+            Self::Resource => field::put(out, &[3], paths::WAIT_KIND_TAG),
+            Self::Account => field::put(out, &[4], paths::WAIT_KIND_TAG),
+            Self::Host => field::put(out, &[5], paths::WAIT_KIND_TAG),
+            Self::Delegate => field::put(out, &[6], paths::WAIT_KIND_TAG),
+            Self::News => field::put(out, &[7], paths::WAIT_KIND_TAG),
+            Self::Step => field::put(out, &[8], paths::WAIT_KIND_TAG),
+            Self::Room => field::put(out, &[9], paths::WAIT_KIND_TAG),
+            Self::Turn => field::put(out, &[10], paths::WAIT_KIND_TAG),
+            Self::SignOff => field::put(out, &[11], paths::WAIT_KIND_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::WAIT_KIND_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Party),
+            1 => Ok(Self::Question),
+            2 => Ok(Self::Dependency),
+            3 => Ok(Self::Resource),
+            4 => Ok(Self::Account),
+            5 => Ok(Self::Host),
+            6 => Ok(Self::Delegate),
+            7 => Ok(Self::News),
+            8 => Ok(Self::Step),
+            9 => Ok(Self::Room),
+            10 => Ok(Self::Turn),
+            11 => Ok(Self::SignOff),
+            12..=u8::MAX => Err(Problem { path: paths::WAIT_KIND_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: WaitFloor.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitFloor {
+    pub kind: WaitKind,
+    pub at: u64,
+}
+
+// Record: WaitFloor.
+impl WaitFloor {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("WaitKind"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for WaitFloor {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_FLOOR_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitFloor")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitFloor")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.kind, limits, out, paths::WAIT_FLOOR_KIND)?;
+        field::write(field::U64, &self.at, limits, out, paths::WAIT_FLOOR_AT)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            kind: field::read(field::Nested, limits, reader, paths::WAIT_FLOOR_KIND)?,
+            at: field::read(field::U64, limits, reader, paths::WAIT_FLOOR_AT)?,
+        })
+    }
+}
+
+// Type: WaitFloors.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WaitFloors {
+    pub entries: List<WaitFloor>,
+}
+
+// Record: WaitFloors.
+impl WaitFloors {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("WaitFloor"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, wait_floors_entries), item: 0, size: size_of::<WaitFloor>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for WaitFloors {
+    type Limits = Limits;
+    const TAIL: Path = paths::WAIT_FLOORS_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitFloors")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "WaitFloors")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Sequence { limit: limits.wait_floors_entries.min(CEILINGS.wait_floors_entries), minimum: 9, item: field::Nested }, &self.entries, limits, out, paths::WAIT_FLOORS_ENTRIES)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            entries: field::read(field::Sequence { limit: limits.wait_floors_entries.min(CEILINGS.wait_floors_entries), minimum: 9, item: field::Nested }, limits, reader, paths::WAIT_FLOORS_ENTRIES)?,
+        })
+    }
+}
+
 // Type: Deployment.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Deployment {
@@ -6340,6 +6555,7 @@ pub struct Deployment {
     pub commits: u64,
     pub projects: u64,
     pub restart_wait_ms: Option<u64>,
+    pub wait_floors: Option<WaitFloors>,
 }
 
 // Record: Deployment.
@@ -6358,11 +6574,13 @@ impl Deployment {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 11 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12] },
+        skein_codec::bounds::Node::Named("WaitFloors"),
+        skein_codec::bounds::Node::Option { item: 13 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 105;
+    pub const ENCODED_AT_ZERO: u64 = 110;
 }
 
 impl Record for Deployment {
@@ -6399,6 +6617,7 @@ impl Record for Deployment {
         field::write(field::U64, &self.commits, limits, out, paths::DEPLOYMENT_COMMITS)?;
         field::write(field::U64, &self.projects, limits, out, paths::DEPLOYMENT_PROJECTS)?;
         field::write(field::Optional { item: field::U64 }, &self.restart_wait_ms, limits, out, paths::DEPLOYMENT_RESTART_WAIT_MS)?;
+        field::write(field::Optional { item: field::Nested }, &self.wait_floors, limits, out, paths::DEPLOYMENT_WAIT_FLOORS)?;
         Ok(())
     }
 
@@ -6416,6 +6635,7 @@ impl Record for Deployment {
             commits: field::read(field::U64, limits, reader, paths::DEPLOYMENT_COMMITS)?,
             projects: field::read(field::U64, limits, reader, paths::DEPLOYMENT_PROJECTS)?,
             restart_wait_ms: field::read(field::Optional { item: field::U64 }, limits, reader, paths::DEPLOYMENT_RESTART_WAIT_MS)?,
+            wait_floors: field::read(field::Optional { item: field::Nested }, limits, reader, paths::DEPLOYMENT_WAIT_FLOORS)?,
         })
     }
 }
@@ -8399,6 +8619,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "TurnProof", nodes: TurnProof::SHAPE },
     skein_codec::bounds::Declaration { name: "TurnRecord", nodes: TurnRecord::SHAPE },
     skein_codec::bounds::Declaration { name: "Value", nodes: Value::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitFloor", nodes: WaitFloor::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitFloors", nodes: WaitFloors::SHAPE },
+    skein_codec::bounds::Declaration { name: "WaitKind", nodes: WaitKind::SHAPE },
     skein_codec::bounds::Declaration { name: "Window", nodes: Window::SHAPE },
 ];
 
@@ -8420,6 +8643,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.call_part_note_recalled_entries,
     CEILINGS.settings_refusal_value,
     CEILINGS.part_record_body,
+    CEILINGS.wait_floors_entries,
     CEILINGS.phase_bytes_value,
     CEILINGS.change_bytes_value,
     CEILINGS.end_bytes_value,

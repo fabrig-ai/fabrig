@@ -38,7 +38,7 @@ Connector: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 Created: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 Credential: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 DeliveryOutcome: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-Deployment: ceilings encoded=105 decoded=0; at_most(3) encoded=105 decoded=0
+Deployment: ceilings encoded=218 decoded=192; at_most(3) encoded=137 decoded=48
 EndBytes: ceilings encoded=1073741828 decoded=1073741824; at_most(3) encoded=7 decoded=3
 EscalationDecision: ceilings encoded=8197 decoded=8192; at_most(3) encoded=8 decoded=3
 EscalationDecisionRecord: ceilings encoded=8241 decoded=8192; at_most(3) encoded=52 decoded=3
@@ -125,5 +125,8 @@ TerminalRecord: ceilings encoded=1073741852 decoded=1073741824; at_most(3) encod
 TurnProof: ceilings encoded=21 decoded=0; at_most(3) encoded=21 decoded=0
 TurnRecord: ceilings encoded=33554484 decoded=33554432; at_most(3) encoded=55 decoded=3
 Value: ceilings encoded=1073747854 decoded=1073747712; at_most(3) encoded=217 decoded=102
+WaitFloor: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
+WaitFloors: ceilings encoded=112 decoded=192; at_most(3) encoded=31 decoded=48
+WaitKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Window: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
 family: ceilings encoded=1073747856 decoded=1073747712; at_most(3) encoded=219 decoded=102

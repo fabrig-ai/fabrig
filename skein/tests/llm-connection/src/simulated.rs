@@ -391,7 +391,7 @@ impl Referee<Process> for Judge {
                 Process::Peer(held) => {
                     for observation in held.peer.observations() {
                         match observation {
-                            llm::Observation::Query { connection, query } => {
+                            llm::Observation::Query { connection, query, .. } => {
                                 if query.system.as_ref() != CUE {
                                     return Err(format!(
                                         "assertion `left == right` failed\n  left: {:?}\n right: {:?}",

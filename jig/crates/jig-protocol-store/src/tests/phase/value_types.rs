@@ -17,7 +17,7 @@ pub(super) fn family(owner: Owner) -> KeptFamily {
     let keys = if owner == Owner::Application {
         Keys { from: b"l", to: b"m", root: "Row" }
     } else {
-        Keys { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO, root: "Row" }
+        Keys { from: jig_test_layouts::keys::NOTES_FROM, to: jig_test_layouts::keys::NOTES_TO, root: "Row" }
     };
     KeptFamily {
         retired: &[],

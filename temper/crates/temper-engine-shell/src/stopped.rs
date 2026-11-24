@@ -47,16 +47,34 @@ fn prepare_with<T, R>(
     inputs: impl FnOnce(&[u8]) -> Result<(LimitInputs, T), String>,
     build: impl FnOnce(&[u8], LimitInputs, Option<&serve::Held>, &Resolved, T) -> Result<R, String>,
 ) -> Result<R, String> {
-    read?.prepare(|bytes| {
-        let held = serve::limits_hold_with(crate::path(&directories.data), held_text)?;
-        let (inputs, prepared) = inputs(bytes)?;
-        let (jig, temper) = held.as_ref().map_or((&[][..], &[][..]), |held| (held.jig.as_ref(), held.temper.as_ref()));
-        let stock = service::startup::resolve_limits(&inputs, jig, temper).map_err(|why| {
-            let line = String::from_utf8_lossy(&service::startup::lines(&why)).into_owned();
-            held.as_ref().map_or_else(|| line.clone(), |held| crate::serve::held_failure(&line, held))
-        })?;
-        build(bytes, inputs, held.as_ref(), &stock, prepared)
-    })
+    let read = read?;
+    let checked = read.prepare(|bytes| check(bytes, directories, held_text, inputs))?;
+    // Finish preflight before the engine's construction frames are entered.
+    let Checked { inputs, ref held, ref stock, prepared } = *checked;
+    build(&read.document, inputs, held.as_ref(), stock, prepared).map_err(|why| read.problems(&why))
+}
+
+struct Checked<T> {
+    inputs: LimitInputs,
+    held: Option<serve::Held>,
+    stock: Resolved,
+    prepared: T,
+}
+
+fn check<T>(
+    bytes: &[u8],
+    directories: &Directories,
+    held_text: impl FnOnce(&Path) -> std::io::Result<String>,
+    inputs: impl FnOnce(&[u8]) -> Result<(LimitInputs, T), String>,
+) -> Result<Box<Checked<T>>, String> {
+    let held = serve::limits_hold_with(crate::path(&directories.data), held_text)?;
+    let (inputs, prepared) = inputs(bytes)?;
+    let (jig, temper) = held.as_ref().map_or((&[][..], &[][..]), |held| (held.jig.as_ref(), held.temper.as_ref()));
+    let stock = service::startup::resolve_limits(&inputs, jig, temper).map_err(|why| {
+        let line = String::from_utf8_lossy(&service::startup::lines(&why)).into_owned();
+        held.as_ref().map_or_else(|| line.clone(), |held| crate::serve::held_failure(&line, held))
+    })?;
+    Ok(Box::new(Checked { inputs, held, stock, prepared }))
 }
 
 struct Prepared {

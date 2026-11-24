@@ -24,5 +24,5 @@
   `playground end`, `forge remove`, and a set up or a connect without
   FORGE, which `temper-client-tools`' own step tests hold alone; the joint component correlates
   forge setting reads, including historical revision values. 3:
-  the real loop's connected Forgejo, its tokens connect, a replace of
+  the one-process world's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
