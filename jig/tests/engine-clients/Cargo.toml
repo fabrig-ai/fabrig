@@ -37,7 +37,6 @@ jig-client-kit.workspace = true
 skein-tls.workspace = true
 skein-oauth-issuer.workspace = true
 serde_json.workspace = true
-tempfile.workspace = true
 jig-core-kit.workspace = true
 jig-test-domain = { path = "../../testing/jig-test-domain" }
 

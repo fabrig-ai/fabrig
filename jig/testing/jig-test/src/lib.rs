@@ -59,22 +59,36 @@ fn member(document: &skein_json::Document, at: u32, key: &[u8]) -> Result<u32, S
         .member(document, key)
         .ok_or_else(|| format!("configuration lacks {}", String::from_utf8_lossy(key)))
 }
-fn read_configuration(path: &Path) -> Result<Box<[u8]>, String> {
-    skein_shell::read_file(path, CONFIG_BYTES).map_err(|why| format!("configuration {}: {why:?}", path.display()))
+// The native startup reads or the answers a step supplies (jig/docs/design/protocol/service-testing.md, 1).
+enum StartupReads<'a> {
+    Native,
+    Given(testing::Given<'a>),
 }
-fn read_files(document: &[u8], bounds: &[config::File], user: u32) -> Result<Files, String> {
+
+fn read_configuration(path: &Path, reads: &StartupReads<'_>) -> Result<Box<[u8]>, String> {
+    match reads {
+        StartupReads::Native => skein_shell::read_file(path, CONFIG_BYTES),
+        StartupReads::Given(given) => given.file(path, CONFIG_BYTES).map(Box::from),
+    }
+    .map_err(|why| format!("configuration {}: {why:?}", path.display()))
+}
+fn read_files(document: &[u8], bounds: &[config::File], user: u32, reads: &StartupReads<'_>) -> Result<Files, String> {
     let names = service::named(document).map_err(|why| format!("configuration: {why:?}"))?;
     let mut entries = List::with_capacity(names.len());
     for name in names.into_boxed() {
         let max = bounds.iter().filter(|file| file.path == name).map(|file| file.max).min().unwrap_or(CONFIG_BYTES);
-        let value = read_startup_file(&name, max, user)?;
+        let value = read_startup_file(&name, max, user, reads)?;
         entries.push((name, value)).expect("named files capacity");
     }
     Ok(Files { entries })
 }
-fn read_startup_file(name: &[u8], max: u32, user: u32) -> Result<skein_lib::Secret, String> {
-    skein_shell::read_private_file(path(name), max, user)
-        .map_err(|why| format!("startup file {}: {why:?}", path(name).display()))
+fn read_startup_file(name: &[u8], max: u32, user: u32, reads: &StartupReads<'_>) -> Result<skein_lib::Secret, String> {
+    let path = path(name);
+    match reads {
+        StartupReads::Native => skein_shell::read_private_file(path, max, user),
+        StartupReads::Given(given) => given.file(path, max).map(|bytes| skein_lib::Secret::new(bytes.into())),
+    }
+    .map_err(|why| format!("startup file {}: {why:?}", path.display()))
 }
 #[derive(Debug)]
 struct AgentStart {
@@ -96,8 +110,20 @@ impl core::fmt::Debug for SourceSettings {
             .finish()
     }
 }
-fn agent(configuration: &Path) -> Result<AgentStart, String> {
-    let configuration = smith_agent_shell::config::read(configuration)?;
+fn agent(configuration: &Path, reads: &mut StartupReads<'_>) -> Result<AgentStart, String> {
+    use smith_agent_shell::config as agent_config;
+
+    let configuration = match reads {
+        StartupReads::Native => agent_config::read(configuration)?,
+        StartupReads::Given(given) => {
+            let bytes = given
+                .file(configuration, CONFIG_BYTES)
+                .map_err(|why| format!("configuration {}: {why:?}", configuration.display()))?;
+            agent_config::decode(bytes)?
+                .resolve_with_roots(&mut std::io::sink(), &mut *given.read_roots)
+                .map_err(agent_config::ConfigurationRefusal::detail)?
+        }
+    };
     let limits = &configuration.service.limits;
     let host_limits =
         smith_local_service::profile::host_limits(&configuration.profile, limits, &configuration.service.domain.limits)
@@ -276,7 +302,7 @@ struct Configured {
     bounds: Vec<config::File>,
     agent: Option<AgentStart>,
 }
-fn configured(bytes: &[u8]) -> Result<Configured, String> {
+fn configured(bytes: &[u8], reads: &mut StartupReads<'_>) -> Result<Configured, String> {
     let document =
         config::document(bytes, &config::DocumentLimits { bytes: CONFIG_BYTES, tokens: CONFIG_BYTES, depth: 32 })
             .map_err(|why| format!("configuration: {why:?}"))?;
@@ -318,7 +344,7 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
     }
     let agent = specs
         .first()
-        .map(|worker| agent(path(&worker.agent.as_ref().expect("checked worker agent").configuration)))
+        .map(|worker| agent(path(&worker.agent.as_ref().expect("checked worker agent").configuration), reads))
         .transpose()?;
     if specs.iter().any(|worker| {
         worker.agent.as_ref().expect("checked worker agent").configuration
@@ -346,13 +372,22 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
 }
 /// Read deployment and agent configuration, without startup files, roots, account resolution or store adoption.
 pub fn check(configuration: &Path) -> Result<(), String> {
-    configured(&read_configuration(configuration)?).map(|_| ())
+    check_with(configuration, &mut StartupReads::Native)
 }
-fn prepare(bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
-    let Configured { document, engine, workers, worker_defaults, bounds, agent } = configured(bytes)?;
+fn check_with(configuration: &Path, reads: &mut StartupReads<'_>) -> Result<(), String> {
+    configured(&read_configuration(configuration, reads)?, reads).map(|_| ())
+}
+fn prepare(bytes: &[u8], owned: &mut Vec<Fd>, reads: &mut StartupReads<'_>) -> Result<service::Service, String> {
+    let Configured { document, engine, workers, worker_defaults, bounds, agent } = configured(bytes, reads)?;
     let mut whole = read::Object::new(&document, 0).map_err(|why| format!("configuration: {why:?}"))?;
-    let user = skein_shell::effective_user();
-    let files = read_files(bytes, &bounds, user)?;
+    let user = match reads {
+        StartupReads::Native => skein_shell::effective_user(),
+        StartupReads::Given(_) => 0, // File-read answers already include the ownership check.
+    };
+    let files = read_files(bytes, &bounds, user, reads)?;
+    if matches!(reads, StartupReads::Given(_)) {
+        return Err("supplied startup reads stop before runtime setup".into());
+    }
     let mut roots = List::with_capacity(workers);
     if workers != 0 {
         let application = member(&document, 0, b"application")?;
@@ -427,9 +462,9 @@ fn configure_sources(service: &mut service::Service, configured: &AgentStart, wo
     Ok(())
 }
 fn serve(path: &Path) -> Result<Exit, String> {
-    let bytes = read_configuration(path)?;
+    let bytes = read_configuration(path, &StartupReads::Native)?;
     let mut owned = Vec::new();
-    let prepared = prepare(&bytes, &mut owned);
+    let prepared = prepare(&bytes, &mut owned, &mut StartupReads::Native);
     let mut service = match prepared {
         Ok(service) => service,
         Err(why) => {
