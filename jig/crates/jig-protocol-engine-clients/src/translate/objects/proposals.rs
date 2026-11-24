@@ -137,10 +137,7 @@ pub fn action(
             w::ProposalAction::Amend(Box::new(w::ProposalActionAmend {
                 task: task::link(target, limits)?,
                 addressed: match *addressed {
-                    Some(item) => Some(w::AddressChange {
-                        revision: w::Revision { value: item.revision },
-                        address: chips::address(item.address),
-                    }),
+                    Some(item) => Some(crate::generated::client::address_change_to_record(&item)),
                     None => None,
                 },
                 before: amendment(models, before, limits)?,

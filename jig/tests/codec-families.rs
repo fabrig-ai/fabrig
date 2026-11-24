@@ -58,10 +58,16 @@ pub const FAMILIES: &[Family] = &[
         codec_root: "crates/jig-client-protocol-wire",
         generated: &["src/generated/client.rs"],
         bounds: compiled_bounds!(jig_client_protocol_wire::v44),
-        translations: &[Translation {
-            maps: include_str!("../crates/jig-client-protocol-link/schema/client.maps"),
-            module: "crates/jig-client-protocol-link/src/generated/client.rs",
-        }],
+        translations: &[
+            Translation {
+                maps: include_str!("../crates/jig-protocol-engine-clients/schema/client.maps"),
+                module: "crates/jig-protocol-engine-clients/src/generated/client.rs",
+            },
+            Translation {
+                maps: include_str!("../crates/jig-client-protocol-link/schema/client.maps"),
+                module: "crates/jig-client-protocol-link/src/generated/client.rs",
+            },
+        ],
     },
     Family {
         name: "view records",

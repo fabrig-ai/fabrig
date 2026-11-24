@@ -13,13 +13,7 @@ pub use jig_protocol_transcript::Private;
 pub mod boundary;
 mod component;
 mod exchange;
-#[rustfmt::skip]
-mod generated {
-    #[expect(clippy::trivially_copy_pass_by_ref, reason = "maps to-record functions borrow domain values uniformly")]
-    pub(crate) mod cursor;
-    #[expect(clippy::trivially_copy_pass_by_ref, reason = "maps to-record functions borrow domain values uniformly")]
-    pub(crate) mod public;
-}
+mod generated;
 pub mod host;
 pub mod limits;
 pub mod public;

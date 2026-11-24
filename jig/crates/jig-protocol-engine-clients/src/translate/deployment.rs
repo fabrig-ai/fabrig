@@ -150,15 +150,9 @@ fn person_action(value: people::CapacityAction) -> w::PersonCapacityAction {
             })
         }
         people::CapacityAction::MarkSeen { seen } => {
-            w::PersonCapacityAction::MarkSeen(w::PersonCapacityActionMarkSeen { seen: seen_record(seen) })
-        }
-    }
-}
-fn seen_record(value: people::Seen) -> w::SeenThrough {
-    match value {
-        people::Seen::Results { through } => w::SeenThrough::Results(w::SeenResults { through }),
-        people::Seen::Conversation { task, through } => {
-            w::SeenThrough::Conversation(w::SeenConversation { task, through })
+            w::PersonCapacityAction::MarkSeen(w::PersonCapacityActionMarkSeen {
+                seen: crate::generated::client::seen_through_to_record(&seen),
+            })
         }
     }
 }

@@ -1,9 +1,9 @@
 //! Sparse entrance facts without invented names, words or bounds (client/domain/contract/answers.md, 1).
+use crate::generated::client as mapped;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::Writer;
-#[expect(clippy::too_many_lines, reason = "one total match preserves every people refusal")]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
         p::Refusal::Forgotten { oldest } => w::Refusal::Forgotten(w::RefusalForgotten { oldest }),
@@ -13,7 +13,7 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         p::Refusal::NameTaken => w::Refusal::NameTaken,
         p::Refusal::Role { held } => {
             let held = match held {
-                Some(value) => Some(role(value)),
+                Some(value) => Some(mapped::held_role_to_record(&value)),
                 None => None,
             };
             w::Refusal::Role(w::RefusalRole { held })
@@ -48,7 +48,9 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
                 p::Malformed::Settings { setting, fault, detail } => encode_malformed_settings(setting, fault, detail),
                 p::Malformed::SettingsUnchanged => w::Malformed::SettingsUnchanged,
                 p::Malformed::Running => w::Malformed::Running,
-                p::Malformed::Name(rule) => w::Malformed::Name(w::MalformedName { rule: name_rule(rule) }),
+                p::Malformed::Name(rule) => {
+                    w::Malformed::Name(w::MalformedName { rule: mapped::name_rule_to_record(&rule) })
+                }
                 p::Malformed::AsAllowedTwice => w::Malformed::TwoAsAllowed,
                 p::Malformed::Conversation => w::Malformed::ConversationNotAgent,
 
@@ -69,7 +71,9 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
             pending: names(&pending, limits.refusal_kept_pending, w::paths::REFUSAL_KEPT_PENDING)?,
         }),
         p::Refusal::Unlinked { worker } => w::Refusal::Unlinked(w::RefusalUnlinked { worker }),
-        p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
+        p::Refusal::Concluded { at } => {
+            w::Refusal::Concluded(w::RefusalConcluded { at: skein_codec::convert::wall_to_record(&at) })
+        }
         p::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency {
             dependency,
             how: match how {
@@ -81,32 +85,15 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         p::Refusal::NotWaiting => w::Refusal::NotWaiting,
         p::Refusal::NoFurther => w::Refusal::NoFurther,
         p::Refusal::Unknown => w::Refusal::Unknown,
-        p::Refusal::SignInRedirect { why } => w::Refusal::SignInRedirect(w::RefusalSignInRedirect {
-            why: match why {
-                p::SignInRedirectWhy::NotWaiting => w::SignInRedirectWhy::NotWaiting,
-                p::SignInRedirectWhy::Address => w::SignInRedirectWhy::Address,
-                p::SignInRedirectWhy::State => w::SignInRedirectWhy::State,
-                p::SignInRedirectWhy::TooMany => w::SignInRedirectWhy::TooMany,
-            },
-        }),
-        p::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove {
-            why: match why {
-                p::AccountMoveWhy::NotSignedIn => w::AccountMoveWhy::NotSignedIn,
-                p::AccountMoveWhy::NotOurs => w::AccountMoveWhy::NotOurs,
-                p::AccountMoveWhy::Held => w::AccountMoveWhy::Held,
-                p::AccountMoveWhy::Cancelled => w::AccountMoveWhy::Cancelled,
-                p::AccountMoveWhy::Moving => w::AccountMoveWhy::Moving,
-            },
-        }),
-        p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount {
-            account,
-            why: match why {
-                p::AccountWhy::Unknown => w::AccountWhy::Unknown,
-                p::AccountWhy::Provider => w::AccountWhy::Provider,
-                p::AccountWhy::Uses => w::AccountWhy::Uses,
-                p::AccountWhy::Limited => w::AccountWhy::Limited,
-            },
-        }),
+        p::Refusal::SignInRedirect { why } => {
+            w::Refusal::SignInRedirect(w::RefusalSignInRedirect { why: mapped::sign_in_redirect_why_to_record(&why) })
+        }
+        p::Refusal::AccountMove { why } => {
+            w::Refusal::AccountMove(w::RefusalAccountMove { why: mapped::account_move_why_to_record(&why) })
+        }
+        p::Refusal::Account { account, why } => {
+            w::Refusal::Account(w::RefusalAccount { account, why: mapped::account_why_to_record(&why) })
+        }
         p::Refusal::Provider => w::Refusal::Provider,
         p::Refusal::NotOffered => w::Refusal::NotOffered,
         p::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
@@ -119,26 +106,11 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         }
     })
 }
-pub(super) fn hold_owner(value: p::HoldOwner) -> w::HoldOwner {
-    match value {
-        p::HoldOwner::Party { person } => w::HoldOwner::Party(w::HoldOwnerParty { person }),
-        p::HoldOwner::Task { task } => w::HoldOwner::Task(w::HoldOwnerTask { task }),
-    }
-}
-fn role(value: p::Role) -> w::HeldRole {
-    match value {
-        p::Role::Owner => w::HeldRole::Owner,
-        p::Role::Maintainer => w::HeldRole::Maintainer,
-        p::Role::Member => w::HeldRole::Member,
-        p::Role::Observer => w::HeldRole::Observer,
-        p::Role::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role }),
-    }
-}
 fn lack(value: p::Lack) -> w::Lacking {
     match value {
         p::Lack::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling {
-            holder: ceiling_holder(holder),
-            dimension: ceiling_dimension(dimension),
+            holder: mapped::ceiling_holder_to_record(&holder),
+            dimension: mapped::ceiling_dimension_to_record(&dimension),
             value,
             asked,
         }),
@@ -148,7 +120,7 @@ fn lack(value: p::Lack) -> w::Lacking {
         p::Lack::Scope => w::Lacking::Scope,
         p::Lack::Models => w::Lacking::Models,
         p::Lack::HoldOwner { hold, owner } => {
-            w::Lacking::HoldOwner(w::LackingHoldOwner { hold, owner: hold_owner(owner) })
+            w::Lacking::HoldOwner(w::LackingHoldOwner { hold, owner: mapped::hold_owner_to_record(&owner) })
         }
         p::Lack::Reference => w::Lacking::Reference,
         p::Lack::ResourceAccess => w::Lacking::ResourceAccess,
@@ -169,56 +141,7 @@ fn lack(value: p::Lack) -> w::Lacking {
     }
 }
 pub(super) fn limit(value: p::LimitKind) -> w::AdmissionLimit {
-    match value {
-        p::LimitKind::Projects => w::AdmissionLimit::Projects,
-        p::LimitKind::Words => w::AdmissionLimit::Words,
-        p::LimitKind::Identity => w::AdmissionLimit::Identity,
-        p::LimitKind::Roles => w::AdmissionLimit::Roles,
-        p::LimitKind::Arithmetic => w::AdmissionLimit::Arithmetic,
-        p::LimitKind::Duplicate => w::AdmissionLimit::Duplicate,
-        p::LimitKind::Empty => w::AdmissionLimit::Empty,
-        p::LimitKind::Batch => w::AdmissionLimit::Batch,
-        p::LimitKind::ProjectLiveTasks => w::AdmissionLimit::ProjectLiveTasks,
-        p::LimitKind::Goals => w::AdmissionLimit::Goals,
-        p::LimitKind::LiveTasks => w::AdmissionLimit::LiveTasks,
-        p::LimitKind::Tree => w::AdmissionLimit::Tree,
-        p::LimitKind::Depth => w::AdmissionLimit::Depth,
-        p::LimitKind::Delegates => w::AdmissionLimit::Delegates,
-        p::LimitKind::Subscription => w::AdmissionLimit::Subscription,
-        p::LimitKind::Dependencies => w::AdmissionLimit::Dependencies,
-        p::LimitKind::Cycle => w::AdmissionLimit::Cycle,
-        p::LimitKind::Grace => w::AdmissionLimit::Grace,
-        p::LimitKind::Operations => w::AdmissionLimit::Operations,
-        p::LimitKind::Spec => w::AdmissionLimit::Spec,
-        p::LimitKind::Contract => w::AdmissionLimit::Contract,
-        p::LimitKind::Authority => w::AdmissionLimit::Authority,
-        p::LimitKind::Inputs => w::AdmissionLimit::Inputs,
-        p::LimitKind::Attempts => w::AdmissionLimit::Attempts,
-        p::LimitKind::LiveDelegates => w::AdmissionLimit::LiveDelegates,
-        p::LimitKind::Restore => w::AdmissionLimit::Restore,
-        p::LimitKind::Read => w::AdmissionLimit::Read,
-        p::LimitKind::Turn => w::AdmissionLimit::Turn,
-        p::LimitKind::HoldKind => w::AdmissionLimit::HoldKind,
-        p::LimitKind::HoldTaken => w::AdmissionLimit::HoldTaken,
-        p::LimitKind::Holds => w::AdmissionLimit::Holds,
-        p::LimitKind::InboxFull => w::AdmissionLimit::InboxFull,
-        p::LimitKind::Notes => w::AdmissionLimit::Notes,
-        p::LimitKind::Revision => w::AdmissionLimit::Revision,
-        p::LimitKind::Question => w::AdmissionLimit::Question,
-        p::LimitKind::Priority => w::AdmissionLimit::Priority,
-        p::LimitKind::Policy => w::AdmissionLimit::Policy,
-        p::LimitKind::Resource => w::AdmissionLimit::Resource,
-        p::LimitKind::Service => w::AdmissionLimit::Service,
-        p::LimitKind::PlacedHolds => w::AdmissionLimit::PlacedHolds,
-        p::LimitKind::ProjectPlacedHolds => w::AdmissionLimit::ProjectPlacedHolds,
-        p::LimitKind::PartyPlacedHolds => w::AdmissionLimit::PartyPlacedHolds,
-        p::LimitKind::Exemptions => w::AdmissionLimit::Exemptions,
-        p::LimitKind::Accounts => w::AdmissionLimit::Accounts,
-        p::LimitKind::HolderAccounts => w::AdmissionLimit::HolderAccounts,
-        p::LimitKind::Sources => w::AdmissionLimit::Sources,
-        p::LimitKind::SignIns => w::AdmissionLimit::SignIns,
-        p::LimitKind::SettingsProposals => w::AdmissionLimit::SettingsProposals,
-    }
+    mapped::admission_limit_to_record(&value)
 }
 fn moved(value: p::Moved) -> w::Refusal {
     let (revision, what) = match value {
@@ -295,11 +218,14 @@ fn ending(value: p::Ending, limits: &w::Limits) -> Result<w::Ending, w::Problem>
         p::Ending::Cancelled { by, at } => w::EndingFields::Cancelled(w::EndingCancelledFields {
             by: actor(by),
             reason: None,
-            at: Some(at.as_nanos()),
+            at: Some(skein_codec::convert::wall_to_record(&at)),
         }),
-        p::Ending::Decided { by, at } => {
-            w::EndingFields::Decided(w::EndingDecidedFields { by, party: None, how: None, at: at.as_nanos() })
-        }
+        p::Ending::Decided { by, at } => w::EndingFields::Decided(w::EndingDecidedFields {
+            by,
+            party: None,
+            how: None,
+            at: skein_codec::convert::wall_to_record(&at),
+        }),
         p::Ending::Deleted => w::EndingFields::Deleted,
     };
     let row = w::Fact::Ending(w::EndingRow { parent: None, value });
@@ -324,16 +250,6 @@ fn names(values: &[u64], bound: u32, path: w::Path) -> Result<skein_lib::List<u6
         }
     }
     Ok(rows)
-}
-
-fn name_rule(rule: p::NameRule) -> w::NameRule {
-    match rule {
-        p::NameRule::Empty => w::NameRule::Empty,
-        p::NameRule::Long => w::NameRule::Long,
-        p::NameRule::Control => w::NameRule::Control,
-        p::NameRule::Space => w::NameRule::Space,
-        p::NameRule::Digits => w::NameRule::Digits,
-    }
 }
 
 fn encode_setting(value: p::Setting) -> w::Setting {
@@ -367,27 +283,6 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
         p::SettingFault::Linked => w::SettingFault::Linked,
         p::SettingFault::Accounts => w::SettingFault::Accounts,
         p::SettingFault::Range => w::SettingFault::Range,
-    }
-}
-
-fn ceiling_holder(value: p::CeilingHolder) -> w::CeilingHolder {
-    match value {
-        p::CeilingHolder::Rules => w::CeilingHolder::Rules,
-        p::CeilingHolder::Policy => w::CeilingHolder::Policy,
-        p::CeilingHolder::Role(role) => w::CeilingHolder::Role(w::CeilingRole { role }),
-    }
-}
-fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
-    match value {
-        p::CeilingDimension::PeriodSpend => w::CeilingDimension::PeriodSpend,
-        p::CeilingDimension::Spend => w::CeilingDimension::Spend,
-        p::CeilingDimension::Tools => w::CeilingDimension::Tools,
-        p::CeilingDimension::Tasks => w::CeilingDimension::Tasks,
-        p::CeilingDimension::Depth => w::CeilingDimension::Depth,
-        p::CeilingDimension::Executors => w::CeilingDimension::Executors,
-        p::CeilingDimension::Grants => w::CeilingDimension::Grants,
-        p::CeilingDimension::Deadline => w::CeilingDimension::Deadline,
-        p::CeilingDimension::Notes => w::CeilingDimension::Notes,
     }
 }
 

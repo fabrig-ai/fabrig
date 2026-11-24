@@ -1,5 +1,6 @@
 //! Settings' whole values and bounded history on the client wire (client/domain/contract/reads.md, 1).
 use super::{me, objects, owner, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_authority as a;
@@ -185,7 +186,7 @@ fn charter(value: &core::Charter) -> Result<w::Charter, w::Problem> {
         model: model(&policy.model)?,
         alternatives,
         call_timeout: policy.call_timeout,
-        tools: policy.tools.0,
+        tools: super::convert::tools_to_record(policy.tools),
         hosts: match value.hosts {
             jig_domain_fleet::Kinds::Workers => w::SettingHosts::Workers,
             jig_domain_fleet::Kinds::Engine => w::SettingHosts::Engine,
@@ -217,15 +218,8 @@ fn requirements(values: &[a::Requirement]) -> Result<List<w::PolicyRequirement>,
             connector: v.connector,
             kind: v.kind,
             pattern: pattern(&v.pattern)?,
-            judge: w::PolicyJudge {
-                connector: v.judge.connector,
-                requirement: v.judge.requirement,
-                parameters: v.judge.parameters,
-            },
-            guard: match v.guard {
-                a::Guard::Guarded => w::PolicyGuard::Guarded,
-                a::Guard::Observed { freshness } => w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness }),
-            },
+            judge: mapped::policy_judge_to_record(&v.judge),
+            guard: mapped::policy_guard_to_record(&v.guard),
             must_be_guarded: v.must_be_guarded,
         })
         .expect("requirement count");
@@ -249,16 +243,14 @@ fn policy(
                 number: v.number,
                 authority: authority(&v.authority, models, limits)?,
                 period_spend: v.period_spend,
-                requests: v.requests.0,
-                decides: v.decides.0,
+                requests: crate::translate::convert::requests_to_record(v.requests),
+                decides: crate::translate::convert::proposals_to_record(v.decides),
             })
             .expect("role count");
     }
     let mut permissions = List::with_capacity(super::count(value.permissions.len())?);
     for v in &value.permissions {
-        permissions
-            .push(w::PolicyPermission { connector: v.connector, permission: v.permission, role: v.role })
-            .expect("permission count");
+        permissions.push(mapped::policy_permission_to_record(v)).expect("permission count");
     }
     let mut overrides = List::with_capacity(super::count(value.templates.len())?);
     for v in &value.templates {

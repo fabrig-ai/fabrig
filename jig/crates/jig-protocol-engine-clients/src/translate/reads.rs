@@ -1,5 +1,6 @@
 //! Authenticated reads and their one durable answer (protocol/client/README.md, 4).
 use super::{cursor, objects, pages, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::reads;
@@ -22,18 +23,12 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
         w::Read::ActivityBeside(value) => reads::Read::ActivityBeside {
             task: value.task,
             position: value.position,
-            side: match &value.side {
-                w::ActivitySide::Earlier => reads::Side::Earlier,
-                w::ActivitySide::Later => reads::Side::Later,
-            },
+            side: mapped::activity_side_to_domain(value.side),
         },
         w::Read::Me => reads::Read::Frame,
         w::Read::Task(value) => reads::Read::Task { task: value.task },
         w::Read::Proposal(value) => reads::Read::Proposal {
-            proposer: match &value.proposal.proposer {
-                w::Proposer::Task(value) => people::Proposer::Task(value.value),
-                w::Proposer::Party(value) => people::Proposer::Party(value.value),
-            },
+            proposer: mapped::proposer_to_domain(value.proposal.proposer),
             proposal: value.proposal.number,
         },
         w::Read::Escalation(value) => reads::Read::Escalation { task: value.task },

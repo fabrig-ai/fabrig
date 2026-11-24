@@ -1,5 +1,6 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{chips, owner, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
@@ -28,10 +29,7 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
         members
             .push(w::ProjectMember {
                 party: row.party,
-                kind: match row.kind {
-                    jig_domain_people::Kind::Person => w::PartyKind::Person,
-                    jig_domain_people::Kind::Service => w::PartyKind::Service,
-                },
+                kind: mapped::party_kind_to_record(&row.kind),
                 role: owner::held_role(row.role),
                 login: owner::text(&row.login),
                 name: owner::text(&row.name),
@@ -97,8 +95,8 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
                 number: row.number,
                 authority: owner::authority(models, &row.authority, limits)?,
                 period_spend: row.period_spend,
-                requests: row.requests.0,
-                decides: row.decides.0,
+                requests: crate::translate::convert::requests_to_record(row.requests),
+                decides: crate::translate::convert::proposals_to_record(row.decides),
             })
             .expect("supplied rows fit");
     }
@@ -111,17 +109,8 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
                 connector: row.grant.connector,
                 kind: row.grant.kind,
                 pattern: owner::pattern(&row.grant.segments, &row.grant.last),
-                judge: w::PolicyJudge {
-                    connector: row.judge.connector,
-                    requirement: row.judge.requirement,
-                    parameters: row.judge.parameters,
-                },
-                guard: match row.guard {
-                    jig_domain_authority::Guard::Guarded => w::PolicyGuard::Guarded,
-                    jig_domain_authority::Guard::Observed { freshness } => {
-                        w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness })
-                    }
-                },
+                judge: mapped::policy_judge_to_record(&row.judge),
+                guard: mapped::policy_guard_to_record(&row.guard),
                 must_be_guarded: row.must_be_guarded,
             })
             .expect("supplied rows fit");
@@ -136,9 +125,7 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
         Some(rows) => {
             let mut copied = List::with_capacity(rows.len());
             for row in rows {
-                copied
-                    .push(w::PolicyPermission { connector: row.connector, permission: row.permission, role: row.role })
-                    .expect("supplied permissions fit");
+                copied.push(mapped::policy_permission_to_record(row)).expect("supplied permissions fit");
             }
             Some(copied)
         }

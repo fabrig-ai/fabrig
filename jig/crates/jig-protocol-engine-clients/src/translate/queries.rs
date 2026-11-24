@@ -1,5 +1,6 @@
 //! Task queries and lines preserve the engine's keys and supplied order.
 use super::{chips, live, me, owner, w};
+use crate::generated::client as mapped;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents::{self as d, WaitsOn};
 use jig_domain_people as p;
@@ -16,10 +17,8 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
     Some(d::TaskQuery {
         parts: {
             let mut parts = List::with_capacity(value.parts.len());
-            for ask in &value.parts {
-                parts
-                    .push(d::PartAsk { owner: ask.owner.number, kind: ask.kind, version: ask.version })
-                    .expect("bounded parts");
+            for ask in value.parts.into_boxed() {
+                parts.push(mapped::part_ask_to_domain(ask)).expect("bounded parts");
             }
             parts
         },
@@ -29,32 +28,15 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
         parent: value.parent,
         label: value.label,
         phase: match value.phase {
+            Some(value) => Some(mapped::phase_class_to_domain(value)),
             None => None,
-            Some(v) => Some(match v {
-                w::PhaseClass::Working => d::PhaseClass::Working,
-                w::PhaseClass::Waiting => d::PhaseClass::Waiting,
-                w::PhaseClass::Held => d::PhaseClass::Held,
-                w::PhaseClass::Closing => d::PhaseClass::Closing,
-                w::PhaseClass::Ended => d::PhaseClass::Ended,
-            }),
         },
         executor: match value.executor {
+            Some(value) => Some(mapped::executor_kind_to_domain(value)),
             None => None,
-            Some(v) => Some(match v {
-                w::ExecutorKind::Job => d::ExecutorKind::Job,
-                w::ExecutorKind::Agent => d::ExecutorKind::Agent,
-                w::ExecutorKind::Procedure => d::ExecutorKind::Procedure,
-                w::ExecutorKind::Person => d::ExecutorKind::Person,
-            }),
         },
         tracked: value.tracked,
-        order: match value.order {
-            w::QueryOrder::Number => d::QueryOrder::Number,
-            w::QueryOrder::Changed => d::QueryOrder::Changed,
-            w::QueryOrder::Activity => d::QueryOrder::Activity,
-            w::QueryOrder::Priority => d::QueryOrder::Priority,
-            w::QueryOrder::Ended => d::QueryOrder::Ended,
-        },
+        order: mapped::query_order_to_domain(value.order),
     })
 }
 pub(super) fn waits(value: WaitsOn) -> Result<w::WaitsOn, w::Problem> {

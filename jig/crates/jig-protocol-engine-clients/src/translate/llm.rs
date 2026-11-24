@@ -522,14 +522,7 @@ pub(crate) fn refusal(model: u8, why: p::LlmWhy, models: &[Model]) -> Result<w::
     if model.name.is_empty() {
         return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     }
-    let why = match why {
-        p::LlmWhy::Unconfigured => w::LlmWhy::Unconfigured,
-        p::LlmWhy::Effort => w::LlmWhy::Effort,
-        p::LlmWhy::Charter => w::LlmWhy::Charter,
-        p::LlmWhy::Authority => w::LlmWhy::Authority,
-        p::LlmWhy::Procedure => w::LlmWhy::Procedure,
-        p::LlmWhy::Repeated => w::LlmWhy::Repeated,
-    };
+    let why = crate::generated::client::llm_why_to_record(&why);
     Ok(w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of(&model.name), why }))
 }
 

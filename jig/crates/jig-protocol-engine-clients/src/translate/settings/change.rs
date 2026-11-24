@@ -1,5 +1,6 @@
 //! Whole settings asks into core values (client/domain/contract/requests.md, 2).
 use super::super::{Untranslatable, asks, operations, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_authority as a;
@@ -40,14 +41,7 @@ pub(crate) fn change(
             })
             .expect("counted pieces");
     }
-    Ok(s::Change {
-        against: v.against,
-        items: items.into_boxed(),
-        running: match v.running {
-            w::Running::Stays => s::Running::Stays,
-            w::Running::Moves => s::Running::Moves,
-        },
-    })
+    Ok(s::Change { against: v.against, items: items.into_boxed(), running: mapped::running_to_domain(v.running) })
 }
 fn map_problem(problem: w::Problem) -> Untranslatable {
     Untranslatable { path: problem.path }
@@ -190,7 +184,7 @@ fn charter(value: w::Charter) -> c::Charter {
             shell,
             agents,
             call_timeout: v.call_timeout,
-            tools: jig_domain_tasks::Tools(v.tools),
+            tools: crate::translate::convert::tools_to_domain(v.tools),
         },
     }
 }
@@ -243,8 +237,8 @@ fn policy(
                 number: v.number,
                 authority: authority(v.authority, models, limits)?,
                 period_spend: v.period_spend,
-                requests: a::Requests(v.requests),
-                decides: a::Proposals(v.decides),
+                requests: crate::translate::convert::requests_to_domain(v.requests),
+                decides: crate::translate::convert::proposals_to_domain(v.decides),
             })
             .expect("same count");
     }
@@ -254,9 +248,7 @@ fn policy(
     }
     let mut permissions = List::with_capacity(v.permissions.len());
     for value in v.permissions.into_boxed() {
-        permissions
-            .push(p::PermissionRole { connector: value.connector, permission: value.permission, role: value.role })
-            .expect("same count");
+        permissions.push(mapped::policy_permission_to_domain(value)).expect("same count");
     }
     let overrides = operations::overrides(v.templates);
     Ok(c::ConfiguredPolicy {
@@ -366,7 +358,7 @@ fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Con
         },
         w::TaskContractDocument::Approval(value) => {
             let v = value;
-            t::Contract::Approval { state: v.state, part: part(v.part) }
+            t::Contract::Approval { state: v.state, part: mapped::part_to_domain(v.part) }
         }
         w::TaskContractDocument::Verdict(value) => {
             if value.cut {
@@ -403,26 +395,6 @@ fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Con
             t::Contract::Verdict { choices: choices.into_boxed() }
         }
     })
-}
-
-fn part(value: w::Part) -> t::Part {
-    let v = value;
-    t::Part {
-        connector: v.connector,
-        kind: match v.kind {
-            w::PartKind::Resource => t::PartKind::Resource,
-            w::PartKind::Pool => t::PartKind::Pool,
-            w::PartKind::Result => t::PartKind::Result,
-            w::PartKind::Procedure => t::PartKind::Procedure,
-            w::PartKind::Effect => t::PartKind::Effect,
-            w::PartKind::Outbox => t::PartKind::Outbox,
-            w::PartKind::Hold => t::PartKind::Hold,
-        },
-        key: match v.key {
-            w::PartKey::Number(value) => t::PartKey::Number(value.value),
-            w::PartKey::Path(value) => t::PartKey::Path(value.value),
-        },
-    }
 }
 
 pub(crate) fn proposed(
@@ -530,7 +502,7 @@ fn overlay(value: w::Overlay) -> s::Overlay {
         parts: parts.into_boxed(),
         instructions: v.instructions,
         tools: match v.tools {
-            Some(item) => Some(t::Tools(item)),
+            Some(item) => Some(crate::translate::convert::tools_to_domain(item)),
             None => None,
         },
         hosts: match v.hosts {

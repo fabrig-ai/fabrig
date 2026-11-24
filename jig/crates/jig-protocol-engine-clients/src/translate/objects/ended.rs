@@ -22,10 +22,7 @@ pub fn retained_amendment(
     };
     Ok(w::RetainedAmendment {
         addressed: match value.addressed {
-            Some(item) => Some(w::AddressChange {
-                revision: w::Revision { value: item.revision },
-                address: chips::address(item.address),
-            }),
+            Some(item) => Some(crate::generated::client::address_change_to_record(&item)),
             None => None,
         },
         instructions: match &value.instructions {

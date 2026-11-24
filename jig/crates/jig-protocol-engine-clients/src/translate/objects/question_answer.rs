@@ -88,9 +88,7 @@ pub fn word_result(value: &t::ResultKind) -> Result<w::WordResult, w::Problem> {
         t::ResultKind::Verdict { code, fields } => {
             let mut copied = List::with_capacity(super::super::count(fields.len())?);
             for row in fields {
-                copied
-                    .push(w::ResultField { name: bytes::copy_of(&row.name), value: bytes::copy_of(&row.value) })
-                    .expect("supplied fields fit");
+                copied.push(crate::generated::client::result_field_to_record(row)).expect("supplied fields fit");
             }
             w::WordResult::Verdict(w::WordResultVerdict { code: *code, fields: copied })
         }

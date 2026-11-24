@@ -8,12 +8,7 @@ use skein_lib::{List, Writer, bytes};
 #[must_use]
 pub fn current_call(value: &views::Call) -> w::CurrentCall {
     w::CurrentCall {
-        identity: w::CallIdentity {
-            owner: value.identity.owner.raw(),
-            sequence: value.identity.sequence,
-            retry: value.identity.retry,
-            id: bytes::copy_of(&value.identity.id),
-        },
+        identity: crate::generated::client::call_identity_to_record(&value.identity),
         tool: bytes::copy_of(&value.tool),
         input: bytes::copy_of(&value.input),
         cut: value.cut,

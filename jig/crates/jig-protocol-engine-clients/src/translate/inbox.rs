@@ -9,10 +9,7 @@ pub fn object(value: d::InboxObject) -> w::InboxObject {
     match value {
         d::InboxObject::Question { message } => w::InboxObject::Question(w::InboxObjectQuestion { message }),
         d::InboxObject::Proposal { proposer, number } => w::InboxObject::Proposal(w::InboxObjectProposal {
-            proposer: match proposer {
-                jig_domain_people::Proposer::Task(value) => w::Proposer::Task(w::ProposerTask { value }),
-                jig_domain_people::Proposer::Party(value) => w::Proposer::Party(w::ProposerParty { value }),
-            },
+            proposer: crate::generated::client::proposer_to_record(&proposer),
             number,
         }),
         d::InboxObject::Escalation { revision } => w::InboxObject::Escalation(w::InboxObjectEscalation { revision }),

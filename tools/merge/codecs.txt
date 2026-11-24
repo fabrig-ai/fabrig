@@ -7,6 +7,7 @@ jig/crates/jig-client-view/src/generated/records.rs jig/crates/jig-client-view/s
 jig/crates/jig-protocol-accounts-codec/src/generated/moved.rs jig/crates/jig-protocol-accounts/schema/moved-v1.schema
 jig/crates/jig-protocol-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema jig/crates/jig-protocol-charter/schema/charter.maps
 jig/crates/jig-protocol-engine-clients-codec/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema
+jig/crates/jig-protocol-engine-clients/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v44.schema jig/crates/jig-client-protocol-wire/schema/client-v44-part1.schema jig/crates/jig-protocol-engine-clients/schema/client.maps
 jig/crates/jig-protocol-engine-clients/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema jig/crates/jig-protocol-engine-clients/schema/cursor.maps
 jig/crates/jig-protocol-engine-clients/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema jig/crates/jig-protocol-engine-clients/schema/public.maps
 jig/crates/jig-protocol-engine-workers/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema jig/crates/jig-protocol-engine-workers/schema/worker_wire.maps

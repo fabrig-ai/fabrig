@@ -1,11 +1,11 @@
 //! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
 use super::{chips, owner, refusals};
 use super::{pieces, problem, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::acts;
 use jig_domain_core_vocabulary::documents as d;
-use jig_domain_tasks as t;
 use skein_lib::List;
 pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::Problem> {
     Ok(match value {
@@ -20,9 +20,7 @@ pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::P
         d::TaskLink::Stored { number, status } => w::TaskLink::Stored(w::TaskLinkStored {
             number: *number,
             status: match status {
-                Some(t::Status::Done) => Some(w::TaskStatus::Done),
-                Some(t::Status::Failed) => Some(w::TaskStatus::Failed),
-                Some(t::Status::Cancelled) => Some(w::TaskStatus::Cancelled),
+                Some(status) => Some(mapped::task_status_to_record(status)),
                 None => None,
             },
         }),
@@ -30,13 +28,7 @@ pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::P
 }
 #[must_use]
 pub fn proposal(value: &d::ProposalRef) -> w::ProposalKey {
-    w::ProposalKey {
-        proposer: match value.proposer {
-            jig_domain_people::Proposer::Task(number) => w::Proposer::Task(w::ProposerTask { value: number }),
-            jig_domain_people::Proposer::Party(number) => w::Proposer::Party(w::ProposerParty { value: number }),
-        },
-        number: value.number,
-    }
+    mapped::proposal_key_to_record(value)
 }
 #[must_use]
 pub fn act(value: acts::Act) -> w::ActKind {
@@ -72,16 +64,7 @@ pub fn act(value: acts::Act) -> w::ActKind {
 }
 #[must_use]
 pub fn recipient(value: &acts::Recipient) -> w::Recipient {
-    match value {
-        acts::Recipient::Task(number) => w::Recipient::Task(w::RecipientTask { value: *number }),
-        acts::Recipient::Party(number) => w::Recipient::Party(w::RecipientParty { value: *number }),
-        acts::Recipient::Role { project, role } => {
-            w::Recipient::Role(w::RecipientRole { project: *project, role: *role })
-        }
-        acts::Recipient::Roles { project, roles } => {
-            w::Recipient::Roles(w::RecipientRoles { project: *project, roles: roles.clone() })
-        }
-    }
+    mapped::recipient_to_record(value)
 }
 pub(super) fn bounds(
     models: &[crate::Model],
@@ -320,7 +303,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     }
     Ok(w::Task {
         concluded: match value.concluded {
-            Some(value) => Some(w::Concluded { by: value.by, at: value.at.as_nanos() }),
+            Some(value) => Some(mapped::concluded_to_record(&value)),
             None => None,
         },
         talk: match value.talk {
