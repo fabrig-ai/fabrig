@@ -80,18 +80,6 @@ fn found_hits_holds_pieces_of_hit_read_from_the_schema() {
 }
 
 #[test]
-fn the_real_set_names_its_owner_family_root_and_mark() {
-    assert_eq!(smith_transcript::OWNER, "smith");
-    assert_eq!(smith_transcript::FAMILY, "smith-transcript");
-    assert_eq!(smith_transcript::ROOT, "Turn");
-    assert_eq!(smith_transcript::FRESH_WINDOWS, "fresh-windows");
-    let schema = schema::parse(TRANSCRIPT.as_bytes()).expect("runtime transcript schema");
-    assert_eq!(schema.spelled(schema.family()), smith_transcript::FAMILY.as_bytes());
-    let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn declaration");
-    assert!(matches!(schema.declaration(root).shape, Shape::Record { versioned: true, .. }));
-}
-
-#[test]
 fn the_real_set_keeps_seven_and_patches_to_eight_without_fresh_windows() {
     let texts = smith_transcript::patches::kept::smith_transcript::TEXTS;
     assert_eq!(texts.len(), 2);

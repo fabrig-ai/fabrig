@@ -1,11 +1,41 @@
-//! Turn wire boundaries (protocol/transcript.md, sections 2, 6 and 7).
+//! Turn wire boundaries and the store seed (protocol/transcript.md, sections 2, 6, 7 and 12).
 
 use crate::support::fixed_values::FixedValues;
 use smith_transcript::Record;
 
-use skein_codec::Reason;
+use skein_codec::{
+    Reason,
+    schema::{self, Shape},
+};
 use skein_lib::Reader;
 use smith_transcript::v8::{CEILINGS, Turn, paths};
+
+#[test]
+fn the_real_set_names_its_owner_family_root_and_mark() {
+    assert_eq!(smith_transcript::OWNER, "smith");
+    assert_eq!(smith_transcript::FAMILY, "smith-transcript");
+    assert_eq!(smith_transcript::ROOT, "Turn");
+    assert_eq!(smith_transcript::FRESH_WINDOWS, "fresh-windows");
+    let schema = schema::parse(smith_transcript::SCHEMA.as_bytes()).expect("runtime transcript schema");
+    assert_eq!(schema.spelled(schema.family()), smith_transcript::FAMILY.as_bytes());
+    let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn declaration");
+    assert!(matches!(schema.declaration(root).shape, Shape::Record { versioned: true, .. }));
+}
+
+#[test]
+fn the_store_seed_names_versions_seven_then_eight() {
+    let [older, current] = smith_transcript::SEED else { panic!("the seed has two texts") };
+    assert_eq!(
+        older.as_bytes(),
+        include_bytes!("../../../../crates/smith-transcript/schema/seed/smith-transcript-v7.schema")
+    );
+    assert_eq!(current.as_bytes(), smith_transcript::SCHEMA.as_bytes());
+    for (text, version) in [(*older, 7), (*current, 8)] {
+        let schema = schema::parse(text.as_bytes()).expect("seed transcript schema");
+        assert_eq!(schema.spelled(schema.family()), b"smith-transcript");
+        assert_eq!(schema.version(), version);
+    }
+}
 
 #[test]
 fn turn_fixed_values_decode_at_their_measured_length() {

@@ -12,6 +12,11 @@ extern crate alloc;
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const SCHEMA: &str = include_str!("../schema/transcript-v8.schema");
 
+/// Texts a store registers for frames written before its registry: version 7, then `SCHEMA` at 8
+/// (smith/docs/design/protocol/transcript.md, 12).
+#[expect(clippy::disallowed_macros, reason = "the store seed embeds its one older schema text")]
+pub const SEED: &[&str] = &[include_str!("../schema/seed/smith-transcript-v7.schema"), SCHEMA];
+
 #[rustfmt::skip]
 mod generated {
     /// Current bounded transcript codec, written from transcript-v8.schema.

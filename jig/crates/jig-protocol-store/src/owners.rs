@@ -26,15 +26,11 @@ pub const SMITH_SET: OwnerSet = OwnerSet {
     level: Some(0),
     families: &[KeptFamily {
         retired: &[],
-        current: smith_transcript::patches::kept::smith_transcript::TEXTS.last().expect("kept text"),
+        current: smith_transcript::SCHEMA,
         types: &[],
         name: smith_transcript::FAMILY,
         map: KeptMap::Store,
         keys: &[],
-        frames: Some(Frames {
-            root: smith_transcript::ROOT,
-            texts: smith_transcript::patches::kept::smith_transcript::TEXTS,
-            number: 0,
-        }),
+        frames: Some(Frames { root: smith_transcript::ROOT, texts: smith_transcript::SEED, number: 0 }),
     }],
 };
