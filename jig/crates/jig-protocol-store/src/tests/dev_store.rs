@@ -442,8 +442,9 @@ fn dev_frame_heads_seed_at_core_six_and_smith_seven_and_eight() {
     opened(&disk.open(&mut current), true);
     let events = disk.request(&mut current, Request::Switch { owner: OWNER });
     let [Event::Switched { .. }] = &*events else { panic!("switch: {events:?}") };
+    let core = crate::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-core").expect("core family");
     for (family, number, root, id, text) in [
-        ("jig-store-core", 9, "TurnRecord", 6, include_str!("../../schema/core-v6.schema")),
+        (core.name, 9, "TurnRecord", 6, core.current),
         ("smith-transcript", 0, "Turn", 7, SMITH),
         ("smith-transcript", 0, "Turn", 8, smith_transcript::SCHEMA),
     ] {
