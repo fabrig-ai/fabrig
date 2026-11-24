@@ -16,8 +16,6 @@ and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are ../protocol/programs-claude-code.md, section 1.1, and ../protocol/programs.md, section 9's.
 
 - **Not yet:**
-  - 3: `tests/transcript-patches/`' `clippy.toml` still stands.
-    [in flight: change 16311]
   - 2.3: no adoption of `-o`'s directory and the private chat that a
     world can call: `compose` alone hands them to `Local` [in flight:
     change 13996]
