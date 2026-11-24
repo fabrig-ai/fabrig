@@ -500,37 +500,32 @@ pub fn exclude(sweep: &mut skein_world::sweep::Sweep, configured: &[skein_world:
 ```
 
 Every engine sweep calls it once it has configured its faults. A fault's
-`Kind` has as its family the part of the seed's `Faults` or `Parties`
-stream that draws it, in the draft's section 4's terms (`forge`, `llm`,
-`worker`, `parties`, `state`, `runs`, `bounds`, `restarts`; `checks.md`,
-6.2), and as its name the fault in that section's words. These are the
-engine's names for the faults its exclusions leave out until their
-families are built; the goal that builds a family renames any of them it
-names otherwise, here, in its own change.
+`Kind` has as its family the draft's section 4 family it falls in, and
+as its name the fault in that section's words; where a family's goal has
+built it, the kind is that family's constant
+(`workloads.md`, 2.5), and the rest are `open`'s own until their
+families are built, the goal that builds one renaming them here in its
+own change.
 
 | Scenario | Fault | When |
 |---|---|---|
-| `a_change_waiting_for_room_has_a_bound` | `bounds` / `forge write entries full` | `a change waiting for room past its stall` |
+| `a_change_waiting_for_room_has_a_bound` | `temper_faults::bounds::FORGE_WRITE_ENTRIES` | `a change waiting for room past its stall` |
 | `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
 | `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
-| `a_starved_gate_is_the_runners` | `forge` / `a starved gate` | `a landing's gate` |
-| `a_resolution_keeping_a_deleted_path_is_refused` | `state` / `a path deleted on the base` | `a resolution under way` |
+| `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
+| `a_resolution_keeping_a_deleted_path_is_refused` | `stale` / `a path deleted on the base` | `a resolution under way` |
 | `a_repair_whose_tests_pass_regates_by_itself` | `runs` / `a repair finds its tests passing` | `a landing's gate red` |
-| `a_held_answer_tells_its_requester` | `parties` / `answer a question` | `a dependency holds the answer` |
-| `a_change_waits_on_another_goal` | `parties` / `a change waits on another goal` | `its requester parked` |
-| `a_stored_charter_is_checked_at_start` | `restarts` / `the engine restarted cold` | `a stored charter past its room` |
+| `a_held_answer_tells_its_requester` | `temper_faults::people::ANSWERS_LATE`, and `ANSWERS_TWICE`, each the sweep configures | `a dependency holds the answer` |
+| `a_change_waits_on_another_goal` | `temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL` | `its requester parked` |
+| `a_stored_charter_is_checked_at_start` | `temper_faults::restarts::ENGINE_CRASH` | `a stored charter past its room` |
 
-- **No engine sweep draws these combinations yet** (2026-11-21): the
-  sweeps that will are the workloads' (the draft, 5), and each takes them
-  through `exclude`. A sweep of today's that draws one, and whose checks
-  find it, becomes a `Sweep` configuring the fault it draws, takes
-  `exclude`, and asks `leaves_out` before the draw.
-- **P124's first combination** (`parties` / `cancel a landing`, while `a
-  gate's dispatch in flight`) has no exclusion here. Should its fix not
-  have landed when the goal adding the workloads' sweeps lands, that goal
-  leaves the combination out of its sweeps by name, the fix as its work,
-  and removes the exclusion once the fix lands (the milestone,
-  2026-11-21).
+- **The sweeps that draw these combinations** are the workloads'
+  (`workloads.md`, 8), and each takes them through `exclude`. A sweep
+  that draws one, and whose checks find it, configures the fault it
+  draws, takes `exclude`, and asks `leaves_out` before the draw.
+- **P124's first combination** (`temper_faults::people::CANCELS_A_LANDING`,
+  while a gate's dispatch is in flight) has no exclusion: its fix landed
+  before the workloads' sweeps, and its scenario is active (5.1).
 - **An existing story whose check finds one of these problems** moves off
   its combination where what it tests holds without it; otherwise it is
   ignored as that problem's scenario is, its reason naming the same work

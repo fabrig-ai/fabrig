@@ -1,6 +1,6 @@
 # failure-worlds: execution
 
-2026-11-21. How [failure-worlds.md](failure-worlds.md) gets built: one milestone, its goals run in parallel wherever their parts don't depend on one another. It designs nothing: each goal writes its design from the draft as it runs, and lands whole into the milestone's branch. Plans use the focused and fuzzy suites alone.
+2026-11-24. How [failure-worlds.md](failure-worlds.md) gets built: one milestone, its goals run in parallel wherever their parts don't depend on one another. It designs nothing: each goal writes its design from the draft as it runs, and lands whole into the milestone's branch. Plans use the focused and fuzzy suites alone.
 
 ## 1. The milestone and its goals
 
@@ -17,7 +17,7 @@ One milestone, *failure worlds*, of ten goals. It lands into main whole, once it
 | F6, the settings and the store: the settings tests and their generated mutations; jig's isolated restore-and-check over a committed snapshot, and temper's connector checks on it, run after every commit or sampled with its coverage reported; P128's, P59's and P81's residual scenarios | 3.6, 3.7; 7's settings rows | jig, temper | F0 | landed (`../testing/settings-tests.md`; `../testing/store-check.md`; `jig/docs/design/domain/testing-fakes.md`, 1) |
 | F7, room in the budget: retire the demonstrated duplicates, and move the real-loop and one-process stories' assertions down to the tiers that can show them, as F0's plan and the user's word on its moves say | 8 | all trees | F0, and the user's word on F0's moves | landed: the fuzzy copies of focused tests retired, the real-loop and one-process stories cut to what only their tiers show, their other assertions held below (`../testing/checks.md`, 1; `../testing/reference-case.md`), and temper's suites measured before and after (`../../development/failure-worlds-room.md`); the three transfers that measurement supports moved in `tools/tiers/budgets.toml` by the user's word of 2026-11-22 |
 | F8, the restart faults: the engine restarted cold at any iteration; a settled stop, a stop in each phase of a start, a second signal; the forge down through a start; the tables full at a restart as fixtures; a worker drained, signalled or crashed mid-turn; the engine restarted while workers are mid-turn; an older layout from fixtures the previous release writes | 4.8 | temper, jig | F0 | landed (`../testing/restarts.md`) |
-| F9, the workloads and the sweeps: a random workload in each root's world; the composed workload; people's actions and runs that park, resume and move, at any step; a restart changes no outcome it shouldn't; one sweep per family and one mixing every family, each within the room F7 made | 4.4, 4.6, 4.7, 3.5, 5 | temper, jig | F1 to F8 | not started |
+| F9, the workloads and the sweeps: a random workload in each root's world; the composed workload; people's actions and runs that park, resume and move, at any step; a restart changes no outcome it shouldn't; one sweep per family and one mixing every family, each within the room F7 made | 4.4, 4.6, 4.7, 3.5, 5 | temper, jig | F1 to F8 | landed (`../testing/workloads.md`; `jig/docs/design/domain/testing-workloads.md`); it also moved smith's sweeps onto the workload stream and gave skein's fault ledger the bounds reached (`skein/docs/design/testing/sweeps.md`, 3) |
 
 ## 2. Order
 
