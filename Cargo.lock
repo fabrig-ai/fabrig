@@ -4277,10 +4277,12 @@ name = "skein-ui-example-server"
 version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
+ "skein-fake-person",
  "skein-http",
  "skein-io",
  "skein-lib",
  "skein-shell",
+ "skein-ui",
  "skein-ui-example-view",
 ]
 
@@ -4399,19 +4401,17 @@ dependencies = [
  "flate2",
  "skein-browser",
  "skein-fail-stop",
- "skein-fake-peers",
  "skein-fake-person",
  "skein-fake-person-browser",
  "skein-http",
- "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-ui",
  "skein-ui-bundle",
  "skein-ui-example-server",
+ "skein-ui-example-shell-web",
  "skein-ui-example-view",
  "skein-ui-web",
- "skein-world",
 ]
 
 [[package]]
@@ -4433,14 +4433,17 @@ version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
  "skein-fake-machine",
+ "skein-fake-peers",
  "skein-fake-person-browser",
  "skein-heap",
+ "skein-http",
  "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-sim-world",
+ "skein-ui",
  "skein-world",
 ]
 
