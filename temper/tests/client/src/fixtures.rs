@@ -1826,6 +1826,31 @@ pub fn accounts_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_accounts(seed, domain_limits()))
 }
 
+/// Walking's external worker and project owner, with a deployment role and room to add and revise w2.
+#[must_use]
+pub fn worker_settings_world(seed: u64) -> World<Temper, Joint> {
+    use temper_engine_domain_world::{store::Store, walking};
+
+    const OWNERSHIPS: u32 = 2; // One person owns the project and the deployment.
+    const CONFIGURED_WORKERS: u32 = 2; // Walking's worker and the one the owner adds.
+    const PLACES: u32 = 2; // The revised worker can take two runs.
+    let mut limits = crate::front::engine_limits();
+    limits.people.initial_owners = OWNERSHIPS;
+    limits.fleet.configured_workers = CONFIGURED_WORKERS;
+    limits.fleet.slots = PLACES;
+    // The core prices the engine's program observations as well as every configured worker's.
+    limits.people.program_hosts = CONFIGURED_WORKERS + 1;
+    limits.accounts.program_hosts = CONFIGURED_WORKERS + 1;
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(seed);
+        let owner = config.core.owners[0].clone();
+        config.core.owners = Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, ..owner }]);
+        config
+    });
+    let front = Joint::with_engine(seed, &domain_limits(), Store::new(), configs, &limits, 1);
+    world_with(seed, front)
+}
+
 /// Finish the chat's assigned run at the spend this funding story scripts.
 pub fn finish_chat(front: &mut Joint, task: u64, spent: u64) {
     let attempt = front.hosted_attempt(task).expect("the chat reached its worker");
