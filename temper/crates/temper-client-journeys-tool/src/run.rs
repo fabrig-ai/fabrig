@@ -1,16 +1,17 @@
 //! The journeys binary's capture and dispatch (temper/docs/design/testing/tools.md, 3–4).
-use crate::{Build, Refusal};
+use crate::{Build, REPOSITORY, Refusal, output};
 use crate::{
     EnvironmentEntry, TABLE,
-    table::{CAUTION, DRIVE, JOURNEY_WALK, PRINT, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK},
+    host::Host,
+    table::{CAUTION, DRIVE, JOURNEY_WALK, LOOK_REFRESH, PRINT, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, WRITER},
 };
 use skein_shell::{Front, Table};
 use std::process::ExitCode;
 use std::{
-    ffi::{OsStr, OsString},
-    fs,
+    ffi::OsStr,
+    fs, io,
     os::unix::ffi::OsStrExt,
-    path::Path,
+    path::{Path, PathBuf},
 };
 use temper_client_shell_web::journey;
 
@@ -22,7 +23,7 @@ use temper_client_shell_web::journey;
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let arguments = skein_shell::arguments();
     let environment = skein_shell::environment();
-    let result = match (Table { version, commit, ..TABLE }).front(&arguments) {
+    let outcome = match (Table { version, commit, ..TABLE }).front(&arguments) {
         Front::Print(text) => {
             print!("{text}");
             return ExitCode::SUCCESS;
@@ -45,21 +46,38 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
                 return session_exit(crate::journey_walk::run(rest, &environment));
             } else if *command == DRIVE {
                 return drive(rest, &environment);
+            } else if *command == WRITER {
+                let mut host = Host::real(environment);
+                return ExitCode::from(crate::writer::run(rest, &mut host, std::process::id()));
+            } else if *command == LOOK_REFRESH {
+                return ExitCode::from(crate::look_refresh::run(
+                    rest,
+                    &mut Host::real(environment),
+                    std::process::id(),
+                ));
             } else if *command == PRINT {
-                let rest: Vec<_> = rest.iter().map(|word| OsStr::from_bytes(word).to_os_string()).collect();
-                print_arguments(
-                    &rest,
+                print_command(
+                    rest,
                     &Build { wire: jig_client_protocol_wire::VERSION, temper: format!("{version} ({commit})") },
+                    |out| {
+                        crate::destination(
+                            out,
+                            Path::new(REPOSITORY),
+                            |path| std::path::absolute(path),
+                            |path| fs::canonicalize(path),
+                        )
+                    },
+                    |file| fs::read(file),
+                    &mut output::Disk,
                 )
             } else {
                 unreachable!("the table names every dispatched command")
             }
         }
     };
-    match result {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(why) => fail(&why),
-    }
+    print!("{}", outcome.stdout);
+    eprint!("{}", outcome.stderr);
+    ExitCode::from(outcome.exit)
 }
 
 fn drive(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> ExitCode {
@@ -83,41 +101,80 @@ fn session_exit(exit: crate::drive::Exit) -> ExitCode {
     ExitCode::from(exit.status)
 }
 
-fn usage(command: &skein_shell::Command, why: &str) -> ! {
-    eprint!("{}", TABLE.refusal(command, why));
-    std::process::exit(2);
+pub(super) struct Outcome {
+    pub(super) exit: u8,
+    pub(super) stdout: String,
+    pub(super) stderr: String,
 }
 
-fn print_arguments(arguments: &[OsString], build: &Build) -> Result<(), String> {
+impl Outcome {
+    fn usage(why: &str) -> Self {
+        Self { exit: 2, stdout: String::new(), stderr: TABLE.refusal(&PRINT, why) }
+    }
+
+    fn failed(why: &str) -> Self {
+        Self { exit: 1, stdout: String::new(), stderr: format!("temper-client-journeys: {why}; nothing was written\n") }
+    }
+}
+
+pub(super) struct PrintArguments<'a> {
+    pub(super) file: &'a OsStr,
+    pub(super) out: &'a Path,
+    pub(super) given: Vec<Box<[u8]>>,
+}
+
+pub(super) fn print_arguments(arguments: &[Box<[u8]>]) -> Result<PrintArguments<'_>, &'static str> {
     let mut positional = Vec::new();
     let mut given = Vec::new();
-    let mut args = arguments.iter();
+    let mut args = arguments.iter().map(AsRef::as_ref);
     while let Some(argument) = args.next() {
-        if argument == "--redact" {
-            let Some(text) = args.next() else { usage(&PRINT, "--redact TEXT is not given") };
-            let bytes = text.as_bytes();
-            if bytes.is_empty() || bytes.starts_with(b"--") {
-                usage(&PRINT, "--redact TEXT is empty or starts with --");
+        if argument == b"--redact" {
+            let text = args.next().ok_or("--redact TEXT is not given")?;
+            if text.is_empty() || text.starts_with(b"--") {
+                return Err("--redact TEXT is empty or starts with --");
             }
-            given.push(bytes.into());
-        } else if argument.as_bytes().starts_with(b"--") {
-            usage(&PRINT, "unknown flag");
+            given.push(text.into());
+        } else if argument.starts_with(b"--") {
+            return Err("unknown flag");
         } else {
-            positional.push(argument);
+            positional.push(OsStr::from_bytes(argument));
         }
     }
-    let [file, out] = positional.as_slice() else { usage(&PRINT, "expected FILE and OUT") };
-    let destination = match crate::destination(Path::new(out)) {
-        Ok(out) => out,
-        Err(Refusal::OutputRoot) => usage(&PRINT, "OUT is inside a journeys root"),
-        Err(why) => return Err(format!("{}; nothing was written", refusal(why))),
+    let &[file, out] = positional.as_slice() else { return Err("expected FILE and OUT") };
+    Ok(PrintArguments { file, out: Path::new(out), given })
+}
+
+pub(super) fn print_command(
+    arguments: &[Box<[u8]>],
+    build: &Build,
+    mut resolve: impl FnMut(&Path) -> Result<PathBuf, Refusal>,
+    read: impl FnOnce(&OsStr) -> io::Result<Vec<u8>>,
+    output: &mut impl output::Output,
+) -> Outcome {
+    let PrintArguments { file, out, given } = match print_arguments(arguments) {
+        Ok(arguments) => arguments,
+        Err(why) => return Outcome::usage(why),
     };
-    let recording = fs::read(file).map_err(|_| "cannot read FILE; nothing was written".to_owned())?;
-    let printed = crate::print(file, &recording, &given, &destination, build)
-        .map_err(|why| format!("{}; nothing was written", refusal(why)))?;
-    let is_tui = recording.split(|byte| *byte == b'\n').any(|line| line.starts_with(b"screen "));
-    println!("{}", printing(&printed, is_tui, Path::new(out)));
-    Ok(())
+    let destination = match resolve(out) {
+        Ok(out) => out,
+        Err(Refusal::OutputRoot) => return Outcome::usage("OUT is inside a journeys root"),
+        Err(why) => return Outcome::failed(&refusal(why)),
+    };
+    let Ok(recording) = read(file) else { return Outcome::failed("cannot read FILE") };
+    // Recheck the resolved destination after the read, before admitting output.
+    let destination = match resolve(&destination) {
+        Ok(out) => out,
+        Err(why) => return Outcome::failed(&refusal(why)),
+    };
+    let admitted = match crate::admit(file, &recording, &given, build) {
+        Ok(admitted) => admitted,
+        Err(why) => return Outcome::failed(&refusal(why)),
+    };
+    if let Err(why) = output::publish(output, &destination, &admitted) {
+        return Outcome::failed(&refusal(why));
+    }
+    let stdout = printing(&admitted.printed, admitted.client == crate::Client::Tui, out);
+    Outcome { exit: 0, stdout: format!("{stdout}\n"), stderr: String::new() }
 }
 
 pub(crate) fn printing(printed: &crate::Printed, is_tui: bool, out: &Path) -> String {
@@ -224,9 +281,4 @@ fn stale_refusal_message(name: &str, stale: &journey::Stale) -> String {
         "{name} is stale at turn {}, line {}: recorded {recorded}, asked {asked}; record it again (client/web/journeys.md, 8)",
         stale.turn, stale.line
     )
-}
-
-fn fail(why: &str) -> ! {
-    eprintln!("temper-client-journeys: {why}");
-    std::process::exit(1);
 }

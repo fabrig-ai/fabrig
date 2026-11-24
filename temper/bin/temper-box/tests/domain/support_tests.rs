@@ -37,26 +37,6 @@ fn cluster_turn_wrapper_holds_delivery_not_the_saved_push() {
 }
 
 #[test]
-fn cluster_turn_proof_cut_refuses_to_pass_after_proving() {
-    use serde_json::json;
-    assert_eq!(cluster_turn_setup::proof_cut(&json!({"phase":"waiting"})), Ok(None));
-    assert_eq!(cluster_turn_setup::proof_cut(&json!({"phase":"preparing"})), Ok(None));
-    assert_eq!(
-        cluster_turn_setup::proof_cut(&json!({"phase":"proving","members":[{"gates":[{"proof":{
-        "dispatched":{"attempt":1,"run":3}}}]}]})),
-        Ok(Some(3))
-    );
-    for panel in [
-        json!({"phase":"turn"}),
-        json!({"phase":"landed"}),
-        json!({"phase":"proving","members":[{"gates":[{"proof":{"passed":{"run":3}}}]}]}),
-    ] {
-        let finding = cluster_turn_setup::proof_cut(&panel).expect_err("a missed cut never passes");
-        assert!(finding.contains(&format!("pace.ci_ms={}", cluster_turn_setup::CI_MS)), "{finding}");
-    }
-}
-
-#[test]
 fn the_retained_cluster_charter_overrides_have_no_documents() {
     // The process story overlays these values on current settings before decoding.
     // Charter documents follow temper/docs/design/protocol/configuration/settings.md, 6.

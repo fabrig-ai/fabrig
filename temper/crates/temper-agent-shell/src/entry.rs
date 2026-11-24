@@ -1,5 +1,5 @@
 //! The agent's capture and dispatch (temper/docs/design/cli/README.md, 3 and 7.3).
-use crate::{AGENT, Command};
+use crate::{AGENT, Command, LIST_WORDS};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
 use temper_shell::directories::EnvironmentEntry;
 
@@ -55,7 +55,7 @@ fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Resul
                 .map_err(|why| (1, why))
         }
         Command::List { configuration } => {
-            crate::list("temper-agent --list", &configuration).map(ExitCode::from).map_err(|why| (1, why))
+            crate::list(LIST_WORDS, &configuration).map(ExitCode::from).map_err(|why| (1, why))
         }
     }
 }

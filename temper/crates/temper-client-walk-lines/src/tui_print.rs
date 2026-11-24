@@ -3,7 +3,7 @@
 use crate::print::Printed;
 use skein_ui_screen::{Frame, Paint, Position, Rgb};
 use skein_ui_screen_terminal::Key;
-use std::{fmt::Write, fs, io, path::Path};
+use std::{borrow::Cow, fmt::Write, fs, io, path::Path};
 use temper_client_shell_tui::journey::Mark;
 use temper_client_tui::{
     Scheme,
@@ -183,13 +183,18 @@ pub fn stylesheet() -> String {
 }
 
 pub fn beside(root: &Path) -> io::Result<()> {
-    fs::write(root.join("theme.css"), stylesheet())?;
-    fs::write(root.join("tui-journey.js"), SCRIPT)?;
+    for (name, bytes) in beside_files() {
+        fs::write(root.join(name), bytes)?;
+    }
     match fs::OpenOptions::new().write(true).create_new(true).open(root.join("overlay.css")) {
         Ok(_) => Ok(()),
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
         Err(error) => Err(error),
     }
+}
+
+pub(crate) fn beside_files() -> [(&'static str, Cow<'static, [u8]>); 2] {
+    [("theme.css", Cow::Owned(stylesheet().into_bytes())), ("tui-journey.js", Cow::Borrowed(SCRIPT.as_bytes()))]
 }
 
 #[cfg(test)]

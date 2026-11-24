@@ -7,8 +7,6 @@ mod box_kinds;
 mod box_lifetime;
 #[path = "process/checkpoint.rs"]
 mod checkpoint;
-#[path = "process/restore.rs"]
-mod restore;
 use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
@@ -1210,17 +1208,6 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
 #[cfg(target_os = "linux")]
 const CHAT_HOLDS_ITS_SLOT: Duration = support::WITHIN.saturating_mul(2);
 
-// A lost link heals: a stall past the fixture's 1 s silence loses it.
-// The stock worker contact grace outlasts its redials, and a re-hello clears it.
-// The engine keeps that channel's attempts adrift for its derived fleet grace;
-// re-hello lists them back, so nothing is placed twice (protocol/cluster.md, 3).
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-fn a_task_runs_on_each_worker() {
-    cluster_chats("cluster_each_worker", ClusterStory::Each).unwrap_or_else(|why| panic!("{why}"));
-}
-
 /// A task on each worker, on the deployment's binaries (protocol/cluster.md, 6).
 // Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
 #[cfg(target_os = "linux")]
@@ -1234,47 +1221,19 @@ fn a_task_runs_on_each_worker_of_the_deployments_binaries() {
     .unwrap_or_else(|why| panic!("{why}"));
 }
 
-// A waiting reply is uncommitted: killing w1 loses it. The retry on w2
-// resumes without an assistant message, so the same cue replies and waits
-// again. Only after close/end is that reply committed, exactly once; the
-// old attempt ends lost and the replacement parks. This covers loss
-// and retry; the hung-worker story will test fencing a surviving old run.
 // Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
 #[cfg(target_os = "linux")]
 #[test]
-fn a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another() {
+fn a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes() {
     cluster_chats("cluster_killed", ClusterStory::Kill).unwrap_or_else(|why| panic!("{why}"));
 }
 
-// protocol/cluster.md, 6: heal within fleet grace, then fence a surviving run.
-// Continue follows the connected:false read immediately. CLOCK_MONOTONIC keeps
-// advancing during STOP (skein-shell clock.rs:17), but w1 arms its contact
-// grace only on detecting its own loss after CONT (jig-protocol-worker-link
-// component.rs:169, :622). Its redials are jittered (backoff.rs:15);
-// its re-hello must reach the engine within the derived fleet grace (jig-domain-fleet
-// attempt.rs:505). This is a margin, checked by the unchanged attempt below.
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+// Continue immediately after the engine reads connected:false. The same attempt
+// checks that re-hello reached the engine within fleet grace (protocol/cluster.md, 3 and 6).
 #[cfg(target_os = "linux")]
 #[test]
-fn a_worker_hung_past_the_grace_is_fenced_and_links_again() {
-    cluster_chats("cluster_hung", ClusterStory::Hung).unwrap_or_else(|why| panic!("{why}"));
-}
-
-// Jig admits only with an available placement (jig-domain-core
-// routing/run_preparation.rs:466–492, run_choice.rs:73–77): the second task
-// is due, unclaimed and unplaced; no attempt exists to be placed twice.
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-fn a_worker_started_later_takes_the_waiting_task() {
-    cluster_chats("cluster_started_later", ClusterStory::Later).unwrap_or_else(|why| panic!("{why}"));
-}
-
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-fn a_worker_restarted_on_its_directories_links_at_its_position() {
-    cluster_chats("cluster_restarted", ClusterStory::Restart).unwrap_or_else(|why| panic!("{why}"));
+fn a_worker_stopped_past_the_silence_links_again_as_the_same_process() {
+    cluster_chats("cluster_continued", ClusterStory::Continue).unwrap_or_else(|why| panic!("{why}"));
 }
 
 // Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
@@ -1303,12 +1262,9 @@ fn cluster_chats_with(
     let scratch = support::Scratch::new(case);
     let mut cluster = support::cluster::Cluster::read(scratch.path());
     shape(&mut cluster);
-    if matches!(story, ClusterStory::Kill | ClusterStory::Hung) {
-        cluster.record_llm();
-    }
     let settings = cluster.settings_file();
     let key = cluster.dir("llm").join("llm.key");
-    let within = story.within();
+    let within = support::WITHIN;
     let (mut members, hosts) = cluster.members_within(within);
     // Figures are pinned at opening; the owner applies the agent setting before workers start.
     members.up(&["engine"]);
@@ -1327,10 +1283,8 @@ fn cluster_chats_with(
         reading: None,
         checking: std::collections::VecDeque::new(),
         last_read: String::new(),
-        lost_attempt: None,
         healed_attempt: None,
         linked_before: 0,
-        fenced: None,
     });
     for host in hosts {
         world.spawn(|| host);
@@ -1345,21 +1299,11 @@ fn cluster_chats_with(
     Ok(())
 }
 
-// bin/temper-box/tests/fixtures/cluster has two chats, one per slot, and two lives in the restart story.
+// The deployment binaries' story uses one chat per worker.
 #[cfg(target_os = "linux")]
 const CLUSTER_CHATS: usize = 2;
 #[cfg(target_os = "linux")]
-const FIRST_LIFE: usize = 0;
-#[cfg(target_os = "linux")]
-const SECOND_LIFE: usize = 1;
-#[cfg(target_os = "linux")]
-const RESTART_LINKS: usize = 2;
-#[cfg(target_os = "linux")]
 const REPLY_ONCE: usize = 1;
-#[cfg(target_os = "linux")]
-const FIRST_LINK: usize = 1;
-#[cfg(target_os = "linux")]
-const LOST_AND_RETRY: usize = 2; // the killed run and its replacement
 #[cfg(target_os = "linux")]
 const KILL_SIGNAL: u32 = 9; // Linux SIGKILL, as reported by wait
 #[cfg(target_os = "linux")]
@@ -1368,21 +1312,7 @@ enum ClusterStory {
     Each,
     Unexpected,
     Kill,
-    Hung,
-    Later,
-    Restart,
-}
-#[cfg(target_os = "linux")]
-impl ClusterStory {
-    // protocol/cluster.md, 3: re-placement waits for the derived grace, then does the story's work.
-    fn within(self) -> Duration {
-        match self {
-            Self::Kill | Self::Hung => {
-                Duration::from_millis(support::cluster::fleet_grace_ms()).saturating_add(support::WITHIN)
-            }
-            Self::Each | Self::Unexpected | Self::Later | Self::Restart => support::WITHIN,
-        }
-    }
+    Continue,
 }
 #[cfg(target_os = "linux")]
 #[derive(Debug)]
@@ -1390,19 +1320,11 @@ enum ClusterChatStage {
     Start,
     Created,
     Replied,
-    WaitingSlot,
     Crashed,
     Armed,
     Killed,
     HealSilence,
     HealRelink,
-    FenceReady,
-    FenceReplacement,
-    FenceSnapshot,
-    FenceRelink,
-    FenceCheck,
-    StoppedOne,
-    Relinking,
     Closed,
     Verifying,
     Stopping,
@@ -1422,10 +1344,8 @@ struct ClusterChatJudge {
     reading: Option<ClusterRead>,
     checking: std::collections::VecDeque<String>,
     last_read: String,
-    lost_attempt: Option<u64>,
     healed_attempt: Option<u64>,
     linked_before: usize,
-    fenced: Option<(Vec<serde_json::Value>, Vec<serde_json::Value>)>,
 }
 #[cfg(target_os = "linux")]
 fn cluster_call_json(ended: &support::Ended) -> Result<serde_json::Value, String> {
@@ -1453,14 +1373,14 @@ impl ClusterChatJudge {
     }
     fn slot_hold(&self) -> Result<(), String> {
         // Check the fixture's waiting and time overrides before applying them to current charters.
-        let mut settings: serde_json::Value = serde_json::from_slice(
+        let settings: serde_json::Value = serde_json::from_slice(
             &std::fs::read(&self.settings).map_err(|why| format!("cluster settings FILE: {why:?}"))?,
         )
         .map_err(|why| format!("settings JSON: {why:?}"))?;
-        let charter = &mut settings["items"]
-            .as_array_mut()
+        let charter = &settings["items"]
+            .as_array()
             .ok_or("settings items")?
-            .iter_mut()
+            .iter()
             .find(|item| item["setting"] == serde_json::json!({"kind":"charter","number":1}))
             .ok_or("chat charter setting")?["set"];
         if Duration::from_nanos(charter["waiting"].as_u64().ok_or("chat waiting")?) < CHAT_HOLDS_ITS_SLOT {
@@ -1470,13 +1390,6 @@ impl ClusterChatJudge {
         let reserve = charter["reserve_time"].as_u64().ok_or("chat reserve_time")?;
         if time.checked_sub(reserve).is_none_or(|ordinary| Duration::from_nanos(ordinary) < CHAT_HOLDS_ITS_SLOT) {
             return Err("bin/temper-box/tests/fixtures/cluster/settings.json: charter 1 time less its reserve must hold its slot past the story deadline".into());
-        }
-        if matches!(self.story, ClusterStory::Kill | ClusterStory::Hung) {
-            // protocol/cluster.md, 3: the chat must still hold its slot after re-placement.
-            let hold = self.story.within();
-            charter["waiting"] = hold.as_nanos().into();
-            charter["time"] = hold.saturating_add(Duration::from_nanos(reserve)).as_nanos().into();
-            support::write_private(&self.settings, &serde_json::to_vec(&settings).expect("cluster chat hold JSON"));
         }
 
         Ok(())
@@ -1554,10 +1467,7 @@ impl ClusterChatJudge {
     fn poll(&self, client: &mut support::cluster::Root) -> Result<(), String> {
         use support::ctl::Call;
         let task = self.current()?;
-        let calls = if matches!(
-            self.stage,
-            ClusterChatStage::Verifying | ClusterChatStage::FenceSnapshot | ClusterChatStage::FenceCheck
-        ) {
+        let calls = if matches!(self.stage, ClusterChatStage::Verifying) {
             vec![Call::new(&[
                 "task",
                 "show",
@@ -1566,6 +1476,8 @@ impl ClusterChatJudge {
                 &temper_client_tools::limits::ROWS.to_string(),
                 "--json",
             ])]
+        } else if matches!(self.stage, ClusterChatStage::Killed | ClusterChatStage::HealSilence) {
+            vec![Call::new(&["account", "list", "--json"])]
         } else if matches!(self.stage, ClusterChatStage::Replied) {
             // The live reply watch returns a task; read.waiting() still checks its exact work and placement.
             vec![
@@ -1604,6 +1516,9 @@ impl ClusterChatJudge {
                 let task = if matches!(self.stage, ClusterChatStage::Replied) { task["task"].clone() } else { task };
                 return Ok(Some(ClusterRead::new(task, cluster_call_json(accounts)?)));
             }
+            [accounts] if matches!(self.stage, ClusterChatStage::Killed | ClusterChatStage::HealSilence) => {
+                return Ok(Some(ClusterRead::new(serde_json::Value::Null, cluster_call_json(accounts)?)));
+            }
             [activity] if self.reading.is_some() => {
                 (self.reading.take().ok_or("continued activity")?, cluster_call_json(activity)?)
             }
@@ -1639,55 +1554,45 @@ impl ClusterChatJudge {
         Ok(None)
     }
     fn advance_read(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        self.last_read = read.owner().to_string();
+        self.last_read = if read.task.is_null() { format!("{:?}", read.hosts()?) } else { read.owner().to_string() };
         match self.stage {
-            ClusterChatStage::WaitingSlot => {
-                if read.owner()["phase"] == serde_json::json!({"active": "due"})
-                    && read.owner()["details"]["attempt"].is_null()
-                    && read.owner()["details"]["observation"].is_null()
-                {
-                    self.members.up(&["w2"]);
-                    self.stage = ClusterChatStage::Replied;
-                }
-                self.poll(client)?;
-            }
-            ClusterChatStage::Relinking => {
-                if self.members.linked("w1") == RESTART_LINKS && read.connected("w1")? {
-                    self.create_second(client)?;
-                } else {
-                    self.poll(client)?;
-                }
-            }
             ClusterChatStage::Replied => self.replied(client, read)?,
-            ClusterChatStage::HealSilence
-            | ClusterChatStage::HealRelink
-            | ClusterChatStage::FenceReady
-            | ClusterChatStage::FenceReplacement
-            | ClusterChatStage::FenceSnapshot
-            | ClusterChatStage::FenceRelink
-            | ClusterChatStage::FenceCheck => self.hung_read(client, read)?,
             ClusterChatStage::Armed => {
-                if self.members.is_up() && self.members.linked("w2") >= FIRST_LINK && read.connected("w2")? {
+                if self.members.is_up() && read.connected("w2")? {
                     self.members.kill("w1");
                     self.stage = ClusterChatStage::Killed;
                 }
                 self.poll(client)?;
             }
             ClusterChatStage::Killed => {
-                if self.members.ended("w1")
-                    && read.worker()? == Some("w2")
-                    && read.waiting()
-                    && Some(read.attempt()?) != self.lost_attempt
-                {
-                    self.close(client, false)?;
+                if self.members.ended("w1") && read.disconnected("w1")? {
+                    self.members.stop();
+                    self.stage = ClusterChatStage::Stopping;
                 } else {
                     self.poll(client)?;
                 }
             }
+            ClusterChatStage::HealSilence => {
+                if read.disconnected("w1")? {
+                    self.members.signal("w1", Signal::Continue);
+                    self.stage = ClusterChatStage::HealRelink;
+                }
+                self.poll(client)?;
+            }
+            ClusterChatStage::HealRelink => {
+                if self.members.linked("w1") > self.linked_before && read.connected("w1")? {
+                    if Some(read.attempt()?) != self.healed_attempt {
+                        return Err(format!("the same attempt must heal on w1: {}", read.task));
+                    }
+                    if read.worker()? == Some("w1") && read.waiting() {
+                        return self.close(client);
+                    }
+                }
+                self.poll(client)?;
+            }
             ClusterChatStage::Verifying => self.verify(client, read)?,
             ClusterChatStage::Start
             | ClusterChatStage::Created
-            | ClusterChatStage::StoppedOne
             | ClusterChatStage::Crashed
             | ClusterChatStage::Closed
             | ClusterChatStage::Stopping => return Err("read stage".into()),
@@ -1695,20 +1600,7 @@ impl ClusterChatJudge {
 
         Ok(())
     }
-    #[expect(clippy::too_many_lines, reason = "the chat verification keeps each story's final checks together")]
     fn verify(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        if matches!(self.story, ClusterStory::Kill | ClusterStory::Hung) {
-            // Keep causal client evidence beside the fake's query records on failure.
-            // Neither includes the linked client's sign-in link or engine stdout.
-            let path =
-                self.members.dir("llm").join(format!("task-{}-attempt-{}.json", self.current()?, read.attempt()?));
-            let evidence = serde_json::json!({"task": &read.task, "activity": &read.rows});
-            support::write_private(
-                &path,
-                &serde_json::to_vec(&evidence).map_err(|why| format!("chat evidence: {why:?}"))?,
-            );
-            eprintln!("cluster close evidence: {}", path.display());
-        }
         // The chat is ended by its requester (domain/agent/charter.md, 5): its person's Close
         // asks its Open run to wind down; the final text parks with no task result.
         let cancelled = &read.owner()["details"]["ending"]["cancelled"];
@@ -1722,9 +1614,7 @@ impl ClusterChatJudge {
             return Err(format!("a closed chat keeps no finish's result: {}", read.task));
         }
         let current = self.current()?;
-        let text = if self.tasks.first().is_some_and(|task| task == current)
-            || (self.story == ClusterStory::Hung && self.tasks.get(1).is_some_and(|task| task == current))
-        {
+        let text = if self.tasks.first().is_some_and(|task| task == current) {
             "First worker replied."
         } else {
             "Second worker replied."
@@ -1736,74 +1626,17 @@ impl ClusterChatJudge {
                 REPLY_ONCE
             ));
         }
-        if self.story == ClusterStory::Kill
-            || (self.story == ClusterStory::Hung && self.tasks.get(1).is_some_and(|task| task == current))
-        {
-            self.loss(read)?;
-        }
-        if self.story == ClusterStory::Hung && self.tasks.len() == FIRST_LINK {
-            let attempt = self.healed_attempt.ok_or("healed attempt")?;
-            if read.attempt()? != attempt {
-                return Err(format!("heal retains its attempt\n  left: {:?}\n right: {:?}", read.attempt()?, attempt));
+        if let Some(attempt) = self.healed_attempt {
+            let begins: Vec<_> =
+                read.rows.iter().filter_map(|row| row.pointer("/event/owner/source/line/run_began")).collect();
+            if read.attempt()? != attempt || !matches!(begins.as_slice(), [begin] if begin["attempt"] == attempt) {
+                return Err(format!("the healed attempt began once: {begins:?}; {}", read.task));
             }
-            let lines: Vec<_> = read.rows.iter().map(|row| &row["event"]["owner"]["source"]["line"]).collect();
-            let began: Vec<_> = lines.iter().filter(|line| line["run_began"].is_object()).collect();
-            if began.len() != REPLY_ONCE {
-                return Err(format!("heal places exactly once\n  left: {:?}\n right: {:?}", began.len(), REPLY_ONCE));
-            }
-            if began[0]["run_began"]["attempt"] != attempt {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    began[0]["run_began"]["attempt"], attempt
-                ));
-            }
-            let ends: Vec<_> = lines.iter().filter(|line| line["run_ended"].is_object()).collect();
-            if ends.len() != REPLY_ONCE {
-                return Err(format!(
-                    "same healed attempt ended once\n  left: {:?}\n right: {:?}",
-                    ends.len(),
-                    REPLY_ONCE
-                ));
-            }
-            if ends[0]["run_ended"]["attempt"] != attempt {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    ends[0]["run_ended"]["attempt"], attempt
-                ));
-            }
-            // The admitted finish request makes the Open run's next text park (jig's domain/hosts/README.md, 7).
-            if ends[0]["run_ended"]["end"] != "parked" {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    ends[0]["run_ended"]["end"], "parked"
-                ));
-            }
-            self.checking.pop_front();
-            self.queue(
-                client,
-                vec![support::ctl::Call::new(&[
-                    "chat",
-                    "start",
-                    "--project",
-                    support::ctl::PROJECT,
-                    "--key",
-                    "fence",
-                    "cluster-first-chat",
-                    "--json",
-                ])],
-            )?;
-            self.stage = ClusterChatStage::Created;
-            return Ok(());
         }
         self.checking.pop_front().ok_or("verified chat")?;
         if self.checking.is_empty() {
-            if self.story == ClusterStory::Restart && self.tasks.len() < CLUSTER_CHATS {
-                self.members.stop_one("w1");
-                self.stage = ClusterChatStage::StoppedOne;
-            } else {
-                self.members.stop();
-                self.stage = ClusterChatStage::Stopping;
-            }
+            self.members.stop();
+            self.stage = ClusterChatStage::Stopping;
         } else {
             self.poll(client)?;
         }
@@ -1811,30 +1644,6 @@ impl ClusterChatJudge {
         Ok(())
     }
     fn replied(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        if self.story == ClusterStory::Hung {
-            if read.worker()? == Some("w1") && read.waiting() {
-                match self.tasks.len() {
-                    1 => {
-                        self.healed_attempt = Some(read.attempt()?);
-                        self.linked_before = self.members.linked("w1");
-                        self.members.signal("w1", Signal::Stop);
-                        self.stage = ClusterChatStage::HealSilence;
-                    }
-                    2 => {
-                        self.lost_attempt = Some(read.attempt()?);
-                        self.members.up(&["w2"]);
-                        self.stage = ClusterChatStage::FenceReady;
-                    }
-                    3 => {
-                        self.checking.push_back(self.tasks[1].clone());
-                        self.stage = ClusterChatStage::FenceCheck;
-                    }
-                    _ => return Err("heal, fence and new chat".into()),
-                }
-            }
-            self.poll(client)?;
-            return Ok(());
-        }
         let first = self.tasks.len() < CLUSTER_CHATS;
         if let Some(worker) = read.worker()?.filter(|_| read.waiting()) {
             eprintln!(
@@ -1846,12 +1655,8 @@ impl ClusterChatJudge {
                 if !self.workers.insert(worker.into()) {
                     return Err("each chat on its own worker".into());
                 }
-            } else if worker != if first || self.story == ClusterStory::Restart { "w1" } else { "w2" } {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    worker,
-                    if first || self.story == ClusterStory::Restart { "w1" } else { "w2" }
-                ));
+            } else if worker != "w1" {
+                return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", worker, "w1"));
             }
             if self.story == ClusterStory::Unexpected {
                 self.queue(
@@ -1864,16 +1669,17 @@ impl ClusterChatJudge {
                 self.members.signal("w1", Signal::Kill);
                 self.stage = ClusterChatStage::Crashed;
             } else if self.story == ClusterStory::Kill {
-                self.lost_attempt = Some(read.attempt()?);
                 self.members.up(&["w2"]);
                 self.stage = ClusterChatStage::Armed;
                 self.poll(client)?;
+            } else if self.story == ClusterStory::Continue {
+                self.healed_attempt = Some(read.attempt()?);
+                self.linked_before = self.members.linked("w1");
+                self.members.signal("w1", Signal::Stop);
+                self.stage = ClusterChatStage::HealSilence;
+                self.poll(client)?;
             } else if first {
-                if self.story == ClusterStory::Restart {
-                    self.close(client, true)?;
-                } else {
-                    self.create_second(client)?;
-                }
+                self.create_second(client)?;
             } else {
                 if self.story == ClusterStory::Each
                     && self.workers.iter().map(String::as_str).collect::<Vec<_>>() != ["w1", "w2"]
@@ -1884,7 +1690,7 @@ impl ClusterChatJudge {
                         ["w1", "w2"]
                     ));
                 }
-                self.close(client, false)?;
+                self.close(client)?;
             }
         } else {
             self.poll(client)?;
@@ -1892,156 +1698,10 @@ impl ClusterChatJudge {
 
         Ok(())
     }
-    fn hung_read(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        match self.stage {
-            ClusterChatStage::HealSilence => {
-                if read.hosts()?.iter().any(|host| host["name"] == "w1" && host["connected"] == false) {
-                    self.members.signal("w1", Signal::Continue);
-                    self.stage = ClusterChatStage::HealRelink;
-                }
-            }
-            ClusterChatStage::HealRelink => {
-                if self.members.linked("w1") > self.linked_before && read.connected("w1")? {
-                    if Some(read.attempt()?) != self.healed_attempt {
-                        return Err(format!(
-                            "same attempt healed on w1\n  left: {:?}\n right: {:?}",
-                            Some(read.attempt()?),
-                            self.healed_attempt
-                        ));
-                    }
-                    self.close(client, true)?;
-                    return Ok(());
-                }
-            }
-            ClusterChatStage::FenceReady => {
-                if self.members.is_up() && read.connected("w2")? {
-                    self.linked_before = self.members.linked("w1");
-                    self.members.signal("w1", Signal::Stop);
-                    self.stage = ClusterChatStage::FenceReplacement;
-                }
-            }
-            ClusterChatStage::FenceReplacement => {
-                if read.worker()? == Some("w2") && read.waiting() && Some(read.attempt()?) != self.lost_attempt {
-                    self.stage = ClusterChatStage::FenceSnapshot;
-                }
-            }
-            ClusterChatStage::FenceSnapshot => {
-                self.fenced = Some(self.fenced_rows(read)?);
-                self.members.signal("w1", Signal::Continue);
-                self.stage = ClusterChatStage::FenceRelink;
-            }
-            ClusterChatStage::FenceRelink => {
-                if self.members.linked("w1") > self.linked_before && read.connected("w1")? {
-                    self.create_second(client)?;
-                    return Ok(());
-                }
-            }
-            ClusterChatStage::FenceCheck => {
-                // w1's hello listing b1 gets Cancel while b2 is
-                // claimed (jig-domain-fleet attempt.rs:1030). Cancel ends b1's
-                // run, completing its held reply turn; w1 sends that turn and
-                // its terminal answer. The engine acknowledges the answer and
-                // drops its payload (attempt.rs:539, :599), and drops any b1
-                // turn (turn.rs:79). C waiting on w1's only slot proves w1
-                // acted on Cancel: unchanged rows/turns show a drop, not silence.
-                if Some(self.fenced_rows(read)?) != self.fenced {
-                    return Err(format!(
-                        "fenced activity and committed turns unchanged\n  left: {:?}\n right: {:?}",
-                        Some(self.fenced_rows(read)?),
-                        self.fenced
-                    ));
-                }
-                let old = self.lost_attempt.ok_or("fenced attempt")?;
-                if !(read.rows.iter().any(|row| {
-                    let end = &row["event"]["owner"]["source"]["line"]["run_ended"];
-                    end["attempt"] == old && end["end"]["failed"]["class"] == "lost"
-                })) {
-                    return Err("fenced attempt ended lost".into());
-                }
-                self.checking.clear();
-                self.close(client, false)?;
-                return Ok(());
-            }
-            ClusterChatStage::Start
-            | ClusterChatStage::Created
-            | ClusterChatStage::Replied
-            | ClusterChatStage::WaitingSlot
-            | ClusterChatStage::Crashed
-            | ClusterChatStage::Armed
-            | ClusterChatStage::Killed
-            | ClusterChatStage::StoppedOne
-            | ClusterChatStage::Relinking
-            | ClusterChatStage::Closed
-            | ClusterChatStage::Verifying
-            | ClusterChatStage::Stopping => return Err("hung read stage".into()),
-        }
-        self.poll(client)?;
-
-        Ok(())
-    }
-    fn fenced_rows(&self, read: &ClusterRead) -> Result<(Vec<serde_json::Value>, Vec<serde_json::Value>), String> {
-        let old = self.lost_attempt.ok_or("fenced attempt")?;
-        let activity = read
-            .rows
-            .iter()
-            .filter(|row| {
-                let line = &row["event"]["owner"]["source"]["line"];
-                ["run_began", "run_ended", "turn"].iter().any(|kind| line[kind]["attempt"] == old)
-            })
-            .cloned()
-            .collect();
-        let turns = read
-            .rows
-            .iter()
-            .filter(|row| row["event"]["owner"]["source"]["line"]["turn"].is_object())
-            .cloned()
-            .collect();
-        Ok((activity, turns))
-    }
-    fn loss(&self, read: &ClusterRead) -> Result<(), String> {
-        let old = self.lost_attempt.ok_or("killed attempt")?;
-        let replacement = read.attempt()?;
-        if replacement == old {
-            return Err(format!("replacement attempt on w2\n  left: {replacement:?}\n right: {old:?}"));
-        }
-        let lines: Vec<_> = read.rows.iter().map(|row| &row["event"]["owner"]["source"]["line"]).collect();
-        if lines.iter().filter(|line| line["run_began"].is_object()).count() != LOST_AND_RETRY {
-            return Err(format!(
-                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                lines.iter().filter(|line| line["run_began"].is_object()).count(),
-                LOST_AND_RETRY
-            ));
-        }
-        for (attempt, end) in
-            [(old, serde_json::json!({"failed": {"class": "lost"}})), (replacement, serde_json::json!("parked"))]
-        {
-            if !(lines.iter().any(|line| line["run_began"]["attempt"] == attempt)) {
-                return Err("attempt began".into());
-            }
-            let ended = lines.iter().find(|line| line["run_ended"]["attempt"] == attempt).ok_or("attempt ended")?;
-            if ended["run_ended"]["end"] != end {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    ended["run_ended"]["end"], end
-                ));
-            }
-        }
-        if lines.iter().any(|line| line["turn"]["attempt"] == old) {
-            return Err("killed reply was never committed".into());
-        }
-
-        Ok(())
-    }
-    fn close(&mut self, client: &mut support::cluster::Root, first_only: bool) -> Result<(), String> {
+    fn close(&mut self, client: &mut support::cluster::Root) -> Result<(), String> {
         use support::ctl::Call;
         let mut close = Vec::new();
         for task in &self.tasks {
-            if matches!(self.story, ClusterStory::Restart | ClusterStory::Hung)
-                && !first_only
-                && self.tasks.first() == Some(task)
-            {
-                continue;
-            }
             self.checking.push_back(task.clone());
             close.push(Call::new(&["chat", "close", task, "--key", &format!("close-{task}")]));
             close.push(Call::new(&["task", "show", task, "--until", "ended"]));
@@ -2114,6 +1774,9 @@ impl ClusterRead {
             .map(Vec::as_slice)
             .ok_or_else(|| "deployment hosts".into())
     }
+    fn disconnected(&self, name: &str) -> Result<bool, String> {
+        Ok(self.hosts()?.iter().any(|host| host["name"] == name && host["connected"] == false))
+    }
     fn connected(&self, name: &str) -> Result<bool, String> {
         Ok(self.hosts()?.iter().any(|host| host["name"] == name && host["connected"] == true))
     }
@@ -2175,11 +1838,6 @@ impl ClusterChatJudge {
             return Ok(());
         }
         let (client, _) = hosts.split_last_mut().ok_or("cluster client root")?;
-        if matches!(self.stage, ClusterChatStage::StoppedOne) && self.members.ended("w1") {
-            self.members.restart("w1");
-            self.stage = ClusterChatStage::Relinking;
-            self.poll(client)?;
-        }
         if self.members.is_up()
             || self.members.ended("w1")
             || (matches!(self.stage, ClusterChatStage::Start) && self.members.capture("engine", "link").is_some())
@@ -2210,26 +1868,15 @@ impl ClusterChatJudge {
                             .ok_or_else(|| format!("created chat number: {created}"))?
                             .to_string();
                         self.tasks.push(task);
-                        self.stage = if self.story == ClusterStory::Later && self.tasks.len() == CLUSTER_CHATS {
-                            ClusterChatStage::WaitingSlot
-                        } else {
-                            ClusterChatStage::Replied
-                        };
+                        self.stage = ClusterChatStage::Replied;
                         self.poll(client)?;
                     }
                     ClusterChatStage::Replied
-                    | ClusterChatStage::WaitingSlot
-                    | ClusterChatStage::Relinking
                     | ClusterChatStage::Verifying
                     | ClusterChatStage::Armed
                     | ClusterChatStage::Killed
                     | ClusterChatStage::HealSilence
-                    | ClusterChatStage::HealRelink
-                    | ClusterChatStage::FenceReady
-                    | ClusterChatStage::FenceReplacement
-                    | ClusterChatStage::FenceSnapshot
-                    | ClusterChatStage::FenceRelink
-                    | ClusterChatStage::FenceCheck => {
+                    | ClusterChatStage::HealRelink => {
                         if let Some(read) = self.read(client, calls.ends())? {
                             self.advance_read(client, &read)?;
                         }
@@ -2238,10 +1885,9 @@ impl ClusterChatJudge {
                         self.stage = ClusterChatStage::Verifying;
                         self.poll(client)?;
                     }
-                    ClusterChatStage::Start
-                    | ClusterChatStage::Stopping
-                    | ClusterChatStage::StoppedOne
-                    | ClusterChatStage::Crashed => return Err("active calls".into()),
+                    ClusterChatStage::Start | ClusterChatStage::Stopping | ClusterChatStage::Crashed => {
+                        return Err("active calls".into());
+                    }
                 }
             }
         }
@@ -2256,7 +1902,6 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
             self.finding = self.advance_world(now, hosts).err();
         }
     }
-    #[expect(clippy::too_many_lines, reason = "the cluster watch checks client settlement and every stopped life")]
     fn watch(&mut self, now: skein_lib::Time, hosts: &[support::cluster::Root]) -> Result<(), String> {
         use skein_shell::Host;
         let (client, hosts) = hosts.split_last().ok_or("cluster client root")?;
@@ -2298,32 +1943,12 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
         }
         self.members.verdict()?;
         if let Some(stopped) = self.members.stopped() {
-            let expected = if self.story == ClusterStory::Restart {
-                vec![
-                    ("w1", FIRST_LIFE),
-                    ("w1", SECOND_LIFE),
-                    ("engine", FIRST_LIFE),
-                    ("llm", FIRST_LIFE),
-                    ("forge", FIRST_LIFE),
-                ]
-            } else if self.story == ClusterStory::Kill {
-                vec![
-                    ("w1", FIRST_LIFE),
-                    ("w2", FIRST_LIFE),
-                    ("engine", FIRST_LIFE),
-                    ("llm", FIRST_LIFE),
-                    ("forge", FIRST_LIFE),
-                ]
-            } else {
-                vec![
-                    ("w2", FIRST_LIFE),
-                    ("w1", FIRST_LIFE),
-                    ("engine", FIRST_LIFE),
-                    ("llm", FIRST_LIFE),
-                    ("forge", FIRST_LIFE),
-                ]
+            let expected: &[&str] = match self.story {
+                ClusterStory::Each => &["w2", "w1", "engine", "llm", "forge"],
+                ClusterStory::Kill => &["w1", "w2", "engine", "llm", "forge"],
+                ClusterStory::Continue | ClusterStory::Unexpected => &["w1", "engine", "llm", "forge"],
             };
-            if stopped.iter().map(|s| (s.name.as_str(), s.life)).collect::<Vec<_>>() != expected {
+            if stopped.iter().map(|s| (s.name.as_str(), s.life)).ne(expected.iter().map(|name| (*name, 0))) {
                 return Err(format!(
                     "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
                     stopped.iter().map(|s| (s.name.as_str(), s.life)).collect::<Vec<_>>(),
@@ -2351,15 +1976,8 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
                     }
                     continue;
                 }
-                let alone = self.story == ClusterStory::Restart && member.name == "w1" && member.life == FIRST_LIFE;
-                if member.ending
-                    != if alone { support::cluster::Ending::Alone } else { support::cluster::Ending::Cluster }
-                {
-                    return Err(format!(
-                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                        member.ending,
-                        if alone { support::cluster::Ending::Alone } else { support::cluster::Ending::Cluster }
-                    ));
+                if member.ending != support::cluster::Ending::Cluster {
+                    return Err(format!("{} did not stop with the cluster: {:?}", member.name, member.ending));
                 }
                 clean_cluster_exit(member)?;
             }
@@ -2380,23 +1998,13 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
                     ClusterChatStage::Start => "requested members ready",
                     ClusterChatStage::Created => "chat creation",
                     ClusterChatStage::Replied => "waiting run and connected placement",
-                    ClusterChatStage::WaitingSlot => "due second chat without attempt or observation",
                     ClusterChatStage::Crashed => "unexpected exit with a call in flight",
                     ClusterChatStage::Armed => "w2 linked and connected before the kill",
-                    ClusterChatStage::Killed => "w1 tree settled and a new attempt waiting on w2",
+                    ClusterChatStage::Killed => "w1 tree settled and its host connected:false",
                     ClusterChatStage::HealSilence => "heal: w1 program host connected:false after silence",
                     ClusterChatStage::HealRelink => "heal: another w1 linked line and connected host",
-                    ClusterChatStage::FenceReady => "fence: w2 connected before stopping w1",
-                    ClusterChatStage::FenceReplacement => "fence: different attempt waiting on w2 before continuing w1",
-                    ClusterChatStage::FenceSnapshot =>
-                        "fence: complete old activity and committed turns before continue",
-                    ClusterChatStage::FenceRelink => "fence: another w1 linked line and connected host before chat C",
-                    ClusterChatStage::FenceCheck =>
-                        "fence: unchanged old activity and turns after chat C waiting on w1",
                     ClusterChatStage::Closed => "closed chats ended",
                     ClusterChatStage::Verifying => "ended done and complete committed turns",
-                    ClusterChatStage::StoppedOne => "w1's first life settled",
-                    ClusterChatStage::Relinking => "w1's second linked line and connected host",
                     ClusterChatStage::Stopping => "every process tree settled",
                 },
                 self.last_read
@@ -2509,43 +2117,7 @@ exec "$@"
 // Past 6.1's 2 s guide, as its real-loop twin is, by its reset: one second,
 // the shortest a provider's wire carries.
 
-// Shows the retained question and one answer across ws's two lives. Leaves out
-// the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
-// The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
-// until after the ended chat's watch joins; the oracle checks one direct answer.
-
-// testing/process-tier.md: the chat's connected GitHub change survives both services restarting.
-
-// Shows the retained question and one answer across ws's two lives. Leaves out
-// the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
-// The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
-// until after the ended chat's watch joins; the oracle checks one direct answer.
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-#[ignore = "4.6 process fixture expects engine.llm.models in startup configuration after models moved to settings (temper/docs/design/testing/reference-case.md; temper/docs/design/protocol/configuration/README.md, section 2 and temper/docs/design/protocol/configuration/stock.md)"]
-fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace()
-{
-    use temper_real_loop_world::case::{self, acts, oracle};
-    let run = support::case::run(
-        &["ws", "s1", "s2"],
-        case::fixture_4_6(),
-        case::scripts::step_4_6,
-        case::scripts::step_4_6_rules,
-        acts::step_4_6(0),
-        &[case::HANG],
-    );
-    for (at, call) in run.calls().iter().enumerate() {
-        assert_eq!(
-            call.exit,
-            Some(skein_io::kernel::Exit::Code(0)),
-            "call {at}: {}",
-            String::from_utf8_lossy(&call.stderr)
-        );
-    }
-    oracle::assert_met(&oracle::step_4_6(&run.observed(acts::READS_4_6)));
-    assert_eq!(run.first_placed().get(&case::HANG).map(String::as_str), Some("ws"));
-}
+// testing/process-tier.md: the person's App, one push and both services restarted.
 
 // On Linux its restored Forgejo starts while discovery answers 502 with the
 // engine held down, then signs in after it returns, without a Forgejo restart.

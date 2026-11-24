@@ -36,6 +36,9 @@ pub fn roots(spawn: &Spawn) -> Vec<StartupRoot> {
     roots
 }
 pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
+    host_with_seed(spawn, inherited, crate::fixtures::SEED)
+}
+pub(crate) fn host_with_seed(spawn: &Spawn, inherited: &Inherited, seed: u64) -> Recorded {
     crate::m15::observer::process(crate::m15::observer::Role::Ctl, inherited, b"client");
     let parsed =
         arguments::parse(&spawn.args[1..].iter().map(AsRef::as_ref).collect::<Vec<_>>()).expect("setup arguments");
@@ -64,7 +67,7 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
             stderr: pipe(2),
             signals: inherited.signal,
             user: 1000,
-            seed: crate::fixtures::SEED,
+            seed,
         },
         files,
     )
