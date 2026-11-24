@@ -400,7 +400,16 @@ Moved to [`shells.md`](shells.md), section 1.
   an opening is refused busy, within the views' limits on a party's
   watches and on all (`../../domain/engine/README.md`, section 7); exchanges in
   flight per sign-in, which its clients share, since an exchange names
-  no stream, and in all, a batch one whatever its members (`wire.md`, 2.2);
+  no stream, and in all, a batch one whatever its members (`wire.md`, 2.2).
+  A sign-in's exchanges are held only by requests in flight, whose
+  caller still waits for the answer: an act whose exchange has gone
+  while the core still decides it, a parked act, holds none of them,
+  and a request sent again under its key, which takes that act's
+  answer, holds one, as any request in flight does. So a parked act and
+  its resend leave the sign-in room for its other requests, which are
+  answered. A parked act stays within the exchanges in all until the
+  core's answer comes, which it drops with nobody to take it but a
+  resend (`temper/docs/design/draft/bounded-waits.md`, 7, P117);
   per sign-in, reads in flight, `reads_per_client`, and watches'
   openings in flight, `openings_per_client`, each a read's or an
   opening's whether alone or a batch's member, past which it is
