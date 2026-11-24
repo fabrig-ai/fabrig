@@ -74,19 +74,7 @@ fn remote() -> Box<[u8]> {
 #[must_use]
 pub fn copy_script(script: &Script) -> Script {
     Script {
-        invocations: script
-            .invocations
-            .iter()
-            .map(|invocation| Invocation {
-                transcript: crate::transcripts::Transcript {
-                    argv: invocation.transcript.argv.clone(),
-                    exit: invocation.transcript.exit,
-                    stdout: invocation.transcript.stdout.clone(),
-                    stderr: invocation.transcript.stderr.clone(),
-                },
-                fault: invocation.fault,
-            })
-            .collect(),
+        invocations: script.invocations.clone(),
         exit_first: script.exit_first,
         read_stdin_to_end: script.read_stdin_to_end,
         file_failure: script.file_failure,
@@ -209,17 +197,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
                 Expected::done(git::Done::Merged),
             ),
         ),
-        (
-            "merge conflict",
-            scenario(
-                git::Op::Merge { at: at(), theirs: TWO, identity: 1, account: None },
-                &["merge-conflict", "merge-conflict-2"],
-                Expected::done(git::Done::Conflicted {
-                    files: Box::new([Box::from(&b"conflict.txt"[..])]),
-                    cut: false,
-                }),
-            ),
-        ),
+        ("merge conflict", merge_conflict()),
         ("commit", commit(false)),
         ("merging commit", commit(true)),
         ("push", push(false)),
@@ -245,6 +223,15 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             query
         }),
     ]
+}
+fn merge_conflict() -> Scenario {
+    let mut scenario = scenario(
+        git::Op::Merge { at: at(), theirs: TWO, identity: 1, account: None },
+        &["merge-conflict", "merge-conflict-2"],
+        Expected::done(git::Done::Conflicted { files: Box::new([Box::from(&b"conflict.txt"[..])]), cut: false }),
+    );
+    scenario.script.invocations.insert(1, Invocation::scripted(b"log", 0, b"", b""));
+    scenario
 }
 #[must_use]
 pub fn view() -> Scenario {
@@ -456,8 +443,8 @@ pub fn memory_peak() -> u64 {
     let mut script = Script::default();
     for _ in 0..limits().operations {
         let mut invocation = Invocation::captured("fetch-default");
-        invocation.transcript.stdout = vec![b'x'; 512].into_boxed_slice();
-        invocation.transcript.stderr = vec![b'y'; 512].into_boxed_slice();
+        invocation.stdout = vec![b'x'; 512].into_boxed_slice();
+        invocation.stderr = vec![b'y'; 512].into_boxed_slice();
         script.invocations.push_back(invocation);
     }
     below.reset(script);

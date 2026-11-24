@@ -49,7 +49,7 @@ fn settings_reads_enter_the_core_in_its_vocabulary() {
 #[test]
 fn inventory_reads_and_watch_deliveries_carry_the_same_facts() {
     let document = settings();
-    let expected = translate::document(&document, &f::wire()).unwrap();
+    let expected = translate::document(&document).unwrap();
     assert_eq!(
         returned(
             reads::Answer::Document(Box::new(d::Document::Settings(Box::new(document.clone())))),
@@ -60,7 +60,6 @@ fn inventory_reads_and_watch_deliveries_carry_the_same_facts() {
     assert_eq!(
         crate::translate::watches::delivery(
             &d::Document::Settings(Box::new(document)),
-            0,
             32,
             &f::models(),
             &List::with_capacity(0),
@@ -113,7 +112,7 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
             })
             .unwrap();
     }
-    let value = translate::document(&document, &w::CEILINGS).unwrap();
+    let value = translate::document(&document).unwrap();
     assert!(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") < w::CEILINGS.owned_record);
     assert!(document.settings.len() > w::CEILINGS.revisions_page_rows);
     let mut client = *f::client_limits().client();
@@ -285,7 +284,7 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
         let wire_value =
             jig_client_protocol_link::translate::settings::wire_setting_value(client_value, &w::CEILINGS).unwrap();
         let row = w::SettingItem {
-            setting: translate::name(name, &w::CEILINGS).unwrap(),
+            setting: translate::name(name),
             edit: w::SettingEdit::Set(w::SettingSet { value: wire_value }),
         };
         let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
@@ -374,7 +373,7 @@ fn revision_page_heads_and_cursors_reach_the_client_without_values() {
     let mut rows = List::with_capacity(1);
     rows.push(reads::RevisionRow { head: head(), items, more: 3 }).unwrap();
     let page = reads::RevisionsPage { rows, next: Some(6), forgotten: false };
-    let wire = translate::revisions(&page, &w::CEILINGS).unwrap();
+    let wire = translate::revisions(&page);
     let bytes = encoded_value(&w::ReadValue::Revisions(wire));
     let client = jig_client_protocol_link::translate::reads::value(&bytes, &f::client_limits()).unwrap();
     let c::ReadValue::Revisions(page) = client else { panic!("revision page") };
@@ -438,7 +437,6 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
 #[test]
 fn settings_decisions_translate_the_revision_and_stale_newest_without_changing_rejection_words() {
     use jig_domain_tasks as t;
-    let limits = f::wire();
     for (outcome, expected) in [
         (
             t::SettingsOutcome::Accepted { revision: 7 },
@@ -456,7 +454,7 @@ fn settings_decisions_translate_the_revision_and_stale_newest_without_changing_r
             hits: 1,
             eligible: true,
         };
-        let value = crate::translate::objects::question_answer::word(&word, &limits).unwrap();
+        let value = crate::translate::objects::question_answer::word(&word).unwrap();
         let w::MessageKind::SettingsDecision(kind) = &value.kind else { panic!("settings decision") };
         assert_eq!(kind.proposal, 41);
         assert_eq!((&kind.outcome), &expected);
@@ -500,7 +498,7 @@ fn charter_documents_round_trip_from_core_through_wire() {
     let source = s::Value::Charter(Box::new(charter()));
     let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
     let row = w::SettingItem {
-        setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+        setting: translate::name(s::Setting::Charter(1)),
         edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
     };
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
@@ -556,7 +554,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
             .unwrap();
     }
     let source = d::Settings { newest: 6, settings, held: List::with_capacity(0), pending: List::with_capacity(0) };
-    let document = translate::document(&source, &limits).unwrap();
+    let document = translate::document(&source).unwrap();
     let document = link::restore_settings_document(&document, &client_limits).unwrap();
     for (number, line) in (1..).zip(&document.settings) {
         assert_eq!(line.setting, c::Setting::Application { kind: 7, scope: 0, number });
@@ -648,7 +646,7 @@ fn a_charters_tools_round_trip_from_core_through_wire() {
     assert_eq!(value.tools, 1536);
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
     let row = w::SettingItem {
-        setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+        setting: translate::name(s::Setting::Charter(1)),
         edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
     };
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
@@ -788,7 +786,7 @@ fn worker_settings_and_linked_facts_cross_client_wire() {
         let restored = client::restore_setting_value(&wire, &f::client_limits()).unwrap();
         let value = client::wire_setting_value(&restored, &w::CEILINGS).unwrap();
         let item = w::SettingItem {
-            setting: translate::name(s::Setting::Worker(2), &w::CEILINGS).unwrap(),
+            setting: translate::name(s::Setting::Worker(2)),
             edit: w::SettingEdit::Set(w::SettingSet { value }),
         };
         let mut bytes = skein_lib::Writer::new(

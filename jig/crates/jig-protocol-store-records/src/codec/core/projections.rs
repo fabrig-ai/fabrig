@@ -24,7 +24,7 @@ pub(crate) fn encode_projection_record(
             wire::ProjectionRecord::TaskHot(wire::ProjectionTaskHot {
                 goal: *goal,
                 number: *number,
-                requester: maps::party_to_record(requester, limits)?,
+                requester: maps::party_to_record(requester),
                 phase: phase_bytes_to_record(phase, limits)?,
             })
         }
@@ -32,10 +32,10 @@ pub(crate) fn encode_projection_record(
             if goal != task {
                 return Err(super::problem(skein_codec::Reason::Bound));
             }
-            wire::ProjectionRecord::GoalWords(encode_words(*goal, *task, words, limits))
+            wire::ProjectionRecord::GoalWords(encode_words(*goal, *task, words))
         }
         domain::ProjectionRecord::TaskWords { goal, task, words } => {
-            wire::ProjectionRecord::TaskWords(encode_words(*goal, *task, words, limits))
+            wire::ProjectionRecord::TaskWords(encode_words(*goal, *task, words))
         }
         domain::ProjectionRecord::Milestone { goal, milestone } => {
             wire::ProjectionRecord::Milestone(wire::ProjectionMilestoneRow {
@@ -70,7 +70,7 @@ pub(crate) fn decode_projection_record(
                 goal,
                 task: domain::ProjectionTaskHot {
                     number,
-                    requester: maps::party_to_domain(requester, limits)?,
+                    requester: maps::party_to_domain(requester),
                     phase: phase_bytes_to_domain(phase, limits)?,
                 },
             }
@@ -95,7 +95,7 @@ pub(crate) fn decode_projection_record(
         }
     })
 }
-fn encode_words(goal: u64, task: u64, words: &[u8], _limits: &View) -> wire::ProjectionWords {
+fn encode_words(goal: u64, task: u64, words: &[u8]) -> wire::ProjectionWords {
     wire::ProjectionWords { goal, task, words: Box::from(words) }
 }
 

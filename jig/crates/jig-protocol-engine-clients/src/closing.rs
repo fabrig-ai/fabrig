@@ -28,7 +28,7 @@ impl Component {
     }
 
     #[expect(clippy::too_many_lines, reason = "one exhaustive route answers every exchange of the ended sign-in")]
-    pub(super) fn ended(&mut self, env: &Env<Limits>, sign_in: u64, out: &mut Queue<Request>) {
+    pub(super) fn ended(&mut self, sign_in: u64, out: &mut Queue<Request>) {
         out.push(Request::Secrets(SecretsRequest::Erase { owner: SecretOwner::SignIn(sign_in) }));
         for _ in 0..self.pending.exchanges.capacity() {
             let mut found = None;
@@ -85,7 +85,7 @@ impl Component {
             };
             match self.pending.exchanges.remove(&exchange).expect("ended exchange") {
                 Waiting::LinkGet { .. } => self.link_sign_in(exchange, None, out),
-                Waiting::LinkAskWhose { .. } => self.denied(env, exchange, Route::LinkAsk),
+                Waiting::LinkAskWhose { .. } => self.denied(exchange, Route::LinkAsk),
                 Waiting::Keep { answer: Answer::Approval(_), .. } => {
                     self.respond(exchange, routes::approval_sign_in(w::ApprovalSignInAnswer::Refused));
                 }
@@ -112,20 +112,20 @@ impl Component {
                 | Waiting::ApplicationRead { .. }
                 | Waiting::Get { route: Route::Read, .. }
                 | Waiting::Checked { route: Route::Read, .. } => {
-                    self.respond(exchange, routes::read_none(core::reads::Why::SignedOut, &env.limits.wire));
+                    self.respond(exchange, routes::read_none(core::reads::Why::SignedOut));
                 }
                 Waiting::Get { route, .. } | Waiting::Checked { route, .. } => {
-                    self.denied(env, exchange, route);
+                    self.denied(exchange, route);
                 }
                 Waiting::Authorize { .. } => {
-                    self.denied(env, exchange, Route::Authorize);
+                    self.denied(exchange, Route::Authorize);
                 }
                 Waiting::Ask { .. } | Waiting::Carry { .. } | Waiting::Moving { .. } => {
                     self.respond(exchange, routes::signed_out());
                 }
                 Waiting::Watch { opening, .. } => {
                     let body = if opening {
-                        routes::open_answer(Some(core::WatchRefusal::SignedOut), &env.limits.wire)
+                        routes::open_answer(Some(core::WatchRefusal::SignedOut))
                     } else {
                         routes::close_answer(true)
                     };

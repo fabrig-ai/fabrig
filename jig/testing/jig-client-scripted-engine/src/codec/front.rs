@@ -82,9 +82,7 @@ pub(crate) fn none(value: c::ReadNone) -> c::ReadNone {
 pub(crate) fn answer(value: &c::Answer, bounds: &Bounds) -> Result<c::Answer, Invalid> {
     let wire = &w::CEILINGS;
     let record = match value {
-        c::Answer::Done(value) => {
-            w::Final::Done(w::Done { outcome: values::wire_outcome(value, wire).map_err(|_| Invalid::Payload)? })
-        }
+        c::Answer::Done(value) => w::Final::Done(w::Done { outcome: values::wire_outcome(value) }),
         c::Answer::Refused { refusal, at } => w::Final::Refused(w::Refused {
             refusal: values::wire_refusal(refusal, wire).map_err(|_| Invalid::Payload)?,
             at: *at,
@@ -113,14 +111,14 @@ pub(crate) fn ask(value: &c::Ask, bounds: &Bounds) -> Result<(), Invalid> {
 
 pub(crate) fn selector(value: &c::Read, bounds: &Bounds) -> Result<(), Invalid> {
     let limits = limits(bounds)?;
-    let record = translate::reads::read(value, limits.wire()).map_err(|_| Invalid::Payload)?;
+    let record = translate::reads::read(value);
     record.measure(limits.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }
 
 pub(crate) fn subject(value: &c::Subject, bounds: &Bounds) -> Result<(), Invalid> {
     let limits = limits(bounds)?;
-    let record = translate::watches::subject(value, limits.wire()).map_err(|_| Invalid::Payload)?;
+    let record = translate::watches::subject(value);
     record.measure(limits.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }

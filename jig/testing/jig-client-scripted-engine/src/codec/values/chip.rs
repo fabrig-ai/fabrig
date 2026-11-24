@@ -4,90 +4,68 @@ use super::{
     wire_budget, wire_closing_stage, wire_document_text, wire_executor, wire_hold_category, wire_part,
     wire_placed_line, wire_requester, wire_retry_notice, wire_run_stage, wire_task_status, wire_wake_policy,
 };
-pub(in crate::codec) fn wire_resource_line(
-    value: &c::ResourceLine,
-    limits: &w::Limits,
-) -> Result<w::ResourceLine, w::Problem> {
-    Ok(w::ResourceLine {
-        part: wire_part(&value.part, limits)?,
+pub(in crate::codec) fn wire_resource_line(value: &c::ResourceLine) -> w::ResourceLine {
+    w::ResourceLine {
+        part: wire_part(&value.part),
         kind: value.kind,
         taken: value.taken,
-        holder: value.holder.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-        writer: value.writer.as_ref().map(|item| wire_resource_writer(item, limits)).transpose()?,
+        holder: value.holder,
+        writer: value.writer.as_ref().map(wire_resource_writer),
         writer_lost: value.writer_lost,
-    })
+    }
 }
 
-pub(in crate::codec) fn wire_resource_writer(
-    value: &c::ResourceWriter,
-    _limits: &w::Limits,
-) -> Result<w::ResourceWriter, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_resource_writer(value: &c::ResourceWriter) -> w::ResourceWriter {
+    match value {
         c::ResourceWriter::Run { task, attempt } => {
             w::ResourceWriter::Run(w::ResourceWriterRun { task: *(task), attempt: *(attempt) })
         }
         c::ResourceWriter::Effect { entry } => w::ResourceWriter::Effect(w::ResourceWriterEffect { entry: *(entry) }),
-    })
+    }
 }
 
-pub(in crate::codec) fn wire_chip_hold(value: &c::ChipHold, limits: &w::Limits) -> Result<w::ChipHold, w::Problem> {
-    Ok(w::ChipHold {
-        account: value.account.as_ref().map(|item| wire_part(item, limits)).transpose()?,
-        source: value.source.as_ref().map(|item| wire_part(item, limits)).transpose()?,
-        reason: wire_hold_category(&value.reason, limits)?,
+pub(in crate::codec) fn wire_chip_hold(value: &c::ChipHold) -> w::ChipHold {
+    w::ChipHold {
+        account: value.account.as_ref().map(wire_part),
+        source: value.source.as_ref().map(wire_part),
+        reason: wire_hold_category(&value.reason),
         revision: value.revision,
-        before: wire_prior_phase(&value.before, limits)?,
-        escalation: value.escalation.as_ref().map(|item| wire_hold_escalation(item, limits)).transpose()?,
-        tries: wire_failure_tries(&value.tries, limits)?,
-        hold_wait_since: value
-            .hold_wait_since
-            .as_ref()
-            .map(|item| Ok::<_, w::Problem>((item).as_nanos()))
-            .transpose()?,
-        circle: value.circle.as_ref().map(|item| wire_circle(item, limits)).transpose()?,
-        placed: value.placed.as_ref().map(|item| wire_placed_line(item, limits)).transpose()?,
-        words: value.words.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
-    })
+        before: wire_prior_phase(&value.before),
+        escalation: value.escalation.as_ref().map(wire_hold_escalation),
+        tries: wire_failure_tries(&value.tries),
+        hold_wait_since: value.hold_wait_since.as_ref().map(|item| (item).as_nanos()),
+        circle: value.circle.as_ref().map(wire_circle),
+        placed: value.placed.as_ref().map(wire_placed_line),
+        words: value.words.as_ref().map(wire_document_text),
+    }
 }
 
-pub(in crate::codec) fn wire_prior_phase(
-    value: &c::PriorPhase,
-    limits: &w::Limits,
-) -> Result<w::PriorPhase, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_prior_phase(value: &c::PriorPhase) -> w::PriorPhase {
+    match value {
         c::PriorPhase::Waiting => w::PriorPhase::Waiting,
-        c::PriorPhase::Active(value) => {
-            w::PriorPhase::Active(w::PriorPhaseActive { value: wire_run_stage(value, limits)? })
-        }
+        c::PriorPhase::Active(value) => w::PriorPhase::Active(w::PriorPhaseActive { value: wire_run_stage(value) }),
         c::PriorPhase::Closing(value) => {
-            w::PriorPhase::Closing(w::PriorPhaseClosing { value: wire_closing_stage(value, limits)? })
+            w::PriorPhase::Closing(w::PriorPhaseClosing { value: wire_closing_stage(value) })
         }
-    })
+    }
 }
 
-pub(in crate::codec) fn wire_hold_escalation(
-    value: &c::HoldEscalation,
-    limits: &w::Limits,
-) -> Result<w::HoldEscalation, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_hold_escalation(value: &c::HoldEscalation) -> w::HoldEscalation {
+    match value {
         c::HoldEscalation::Routing => w::HoldEscalation::Routing,
         c::HoldEscalation::Waiting { holder, entry, since } => w::HoldEscalation::Waiting(w::HoldEscalationWaiting {
-            holder: wire_escalation_holder(holder, limits)?,
+            holder: wire_escalation_holder(holder),
             entry: *(entry),
             since: (since).as_nanos(),
         }),
-        c::HoldEscalation::Rejected { by, reason } => w::HoldEscalation::Rejected(w::HoldEscalationRejected {
-            by: *(by),
-            reason: wire_document_text(reason, limits)?,
-        }),
-    })
+        c::HoldEscalation::Rejected { by, reason } => {
+            w::HoldEscalation::Rejected(w::HoldEscalationRejected { by: *(by), reason: wire_document_text(reason) })
+        }
+    }
 }
 
-pub(in crate::codec) fn wire_escalation_holder(
-    value: &c::EscalationHolder,
-    _limits: &w::Limits,
-) -> Result<w::EscalationHolder, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_escalation_holder(value: &c::EscalationHolder) -> w::EscalationHolder {
+    match value {
         c::EscalationHolder::Task(value) => w::EscalationHolder::Task(w::EscalationHolderTask { value: *(value) }),
         c::EscalationHolder::Person(value) => {
             w::EscalationHolder::Person(w::EscalationHolderPerson { value: *(value) })
@@ -95,14 +73,11 @@ pub(in crate::codec) fn wire_escalation_holder(
         c::EscalationHolder::Role { project, role } => {
             w::EscalationHolder::Role(w::EscalationHolderRole { project: *(project), role: *(role) })
         }
-    })
+    }
 }
 
-pub(in crate::codec) fn wire_failure_tries(
-    value: &c::FailureTries,
-    _limits: &w::Limits,
-) -> Result<w::FailureTries, w::Problem> {
-    Ok(w::FailureTries {
+pub(in crate::codec) fn wire_failure_tries(value: &c::FailureTries) -> w::FailureTries {
+    w::FailureTries {
         transient: value.transient,
         permanent: value.permanent,
         run: value.run,
@@ -110,67 +85,52 @@ pub(in crate::codec) fn wire_failure_tries(
         lost: value.lost,
         invalid: value.invalid,
         infrastructure: value.infrastructure,
-    })
+    }
 }
 
-pub(in crate::codec) fn wire_circle(value: &c::Circle, _limits: &w::Limits) -> Result<w::Circle, w::Problem> {
-    Ok(w::Circle { tasks: list(value.tasks.iter().map(|item| Ok::<_, w::Problem>(*(item))))?, cut: value.cut })
+pub(in crate::codec) fn wire_circle(value: &c::Circle) -> w::Circle {
+    w::Circle { tasks: list(value.tasks.iter().copied()), cut: value.cut }
 }
 
-pub(in crate::codec) fn wire_dependency(
-    value: &c::Dependency,
-    limits: &w::Limits,
-) -> Result<w::Dependency, w::Problem> {
-    Ok(w::Dependency {
+pub(in crate::codec) fn wire_dependency(value: &c::Dependency) -> w::Dependency {
+    w::Dependency {
         number: value.number,
         pending: value.pending,
-        added: value.added.as_ref().map(|item| wire_dependency_added(item, limits)).transpose()?,
+        added: value.added.as_ref().map(wire_dependency_added),
         keeps: value.keeps,
-        status: value.status.as_ref().map(|item| wire_task_status(item, limits)).transpose()?,
-    })
+        status: value.status.as_ref().map(wire_task_status),
+    }
 }
 
-pub(in crate::codec) fn wire_dependency_added(
-    value: &c::DependencyAdded,
-    limits: &w::Limits,
-) -> Result<w::DependencyAdded, w::Problem> {
-    Ok(w::DependencyAdded { at: value.at.as_nanos(), by: wire_requester(&value.by, limits)? })
+pub(in crate::codec) fn wire_dependency_added(value: &c::DependencyAdded) -> w::DependencyAdded {
+    w::DependencyAdded { at: value.at.as_nanos(), by: wire_requester(&value.by) }
 }
 
-pub(in crate::codec) fn wire_person_wait(
-    value: &c::PersonWait,
-    limits: &w::Limits,
-) -> Result<w::PersonWait, w::Problem> {
-    Ok(w::PersonWait {
+pub(in crate::codec) fn wire_person_wait(value: &c::PersonWait) -> w::PersonWait {
+    w::PersonWait {
         since: value.since.as_nanos(),
         stall: value.stall,
         deadline: value.deadline.as_nanos(),
-        notice: value.notice.as_ref().map(|item| wire_person_stall_notice(item, limits)).transpose()?,
-    })
+        notice: value.notice.as_ref().map(wire_person_stall_notice),
+    }
 }
 
-pub(in crate::codec) fn wire_person_stall_notice(
-    value: &c::PersonStallNotice,
-    _limits: &w::Limits,
-) -> Result<w::PersonStallNotice, w::Problem> {
-    Ok(w::PersonStallNotice { message: value.message, at: value.at.as_nanos(), activity: value.activity })
+pub(in crate::codec) fn wire_person_stall_notice(value: &c::PersonStallNotice) -> w::PersonStallNotice {
+    w::PersonStallNotice { message: value.message, at: value.at.as_nanos(), activity: value.activity }
 }
 
-pub(in crate::codec) fn wire_chip_observation(
-    value: &c::ChipObservation,
-    limits: &w::Limits,
-) -> Result<w::ChipObservation, w::Problem> {
-    Ok(w::ChipObservation {
+pub(in crate::codec) fn wire_chip_observation(value: &c::ChipObservation) -> w::ChipObservation {
+    w::ChipObservation {
         channel: value.channel.raw(),
-        work: wire_chip_work(&value.work, limits)?,
+        work: wire_chip_work(&value.work),
         since: value.since.as_nanos(),
         reported_at: value.reported_at.as_nanos(),
-        started: value.started.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-    })
+        started: value.started.as_ref().map(|item| (item).as_nanos()),
+    }
 }
 
-pub(in crate::codec) fn wire_chip_work(value: &c::ChipWork, _limits: &w::Limits) -> Result<w::ChipWork, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_chip_work(value: &c::ChipWork) -> w::ChipWork {
+    match value {
         c::ChipWork::Preparing => w::ChipWork::Preparing,
         c::ChipWork::Starting => w::ChipWork::Starting,
         c::ChipWork::Active => w::ChipWork::Active,
@@ -180,7 +140,7 @@ pub(in crate::codec) fn wire_chip_work(value: &c::ChipWork, _limits: &w::Limits)
         }
         c::ChipWork::Waiting => w::ChipWork::Waiting,
         c::ChipWork::Ending => w::ChipWork::Ending,
-    })
+    }
 }
 
 pub(in crate::codec) fn wire_chip_details_fields(
@@ -191,30 +151,26 @@ pub(in crate::codec) fn wire_chip_details_fields(
 ) -> Result<w::ChipDetailsFields, w::Problem> {
     Ok(w::ChipDetailsFields {
         project: value.project,
-        executor: wire_executor(&value.executor, limits)?,
+        executor: wire_executor(&value.executor),
         phase_since: value.phase_since.as_nanos(),
-        run_since: value.run_since.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-        attempt: value.attempt.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-        retry: value.retry.as_ref().map(|item| wire_retry_notice(item, limits)).transpose()?,
-        wake: wire_wake_policy(&value.wake, limits)?,
-        person_wait: value.person_wait.as_ref().map(|item| wire_person_wait(item, limits)).transpose()?,
-        hold: value.hold.as_ref().map(|item| wire_chip_hold(item, limits)).transpose()?,
-        budget: wire_budget(&value.budget, limits)?,
+        run_since: value.run_since.as_ref().map(|item| (item).as_nanos()),
+        attempt: value.attempt,
+        retry: value.retry.as_ref().map(wire_retry_notice),
+        wake: wire_wake_policy(&value.wake),
+        person_wait: value.person_wait.as_ref().map(wire_person_wait),
+        hold: value.hold.as_ref().map(wire_chip_hold),
+        budget: wire_budget(&value.budget),
         activity: value.activity,
-        resources: pieces(value.resources.iter().map(|item| wire_resource_line(item, limits)), limits)?,
+        resources: pieces(value.resources.iter().map(wire_resource_line), limits)?,
         resources_cut: value.resources_cut,
         resources_observed: value.resources_observed,
-        procedure: value.procedure.as_ref().map(|item| wire_part(item, limits)).transpose()?,
+        procedure: value.procedure.as_ref().map(wire_part),
         live_delegates: value.live_delegates,
-        closing_connectors: value
-            .closing_connectors
-            .as_ref()
-            .map(|item| list((item).iter().map(|item| Ok::<_, w::Problem>(*(item)))))
-            .transpose()?,
+        closing_connectors: value.closing_connectors.as_ref().map(|item| list((item).iter().copied())),
         ending: value.ending.as_ref().map(|item| facts.chip_ending(item, Some(parent), limits)).transpose()?,
-        ended_at: value.ended_at.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-        observation: value.observation.as_ref().map(|item| wire_chip_observation(item, limits)).transpose()?,
-        dependencies: list(value.dependencies.iter().map(|item| wire_dependency(item, limits)))?,
+        ended_at: value.ended_at.as_ref().map(|item| (item).as_nanos()),
+        observation: value.observation.as_ref().map(wire_chip_observation),
+        dependencies: list(value.dependencies.iter().map(wire_dependency)),
     })
 }
 
@@ -229,13 +185,13 @@ pub(in crate::codec) fn wire_chip_ending_fields(
             value: facts.result_value(value, Some(parent), limits)?,
         }),
         c::ChipEnding::Failed(value) => {
-            w::ChipEndingFields::Failed(w::ChipEndingFailedFields { value: wire_document_text(value, limits)? })
+            w::ChipEndingFields::Failed(w::ChipEndingFailedFields { value: wire_document_text(value) })
         }
         c::ChipEnding::Cancelled { reason, result, by, at } => {
             w::ChipEndingFields::Cancelled(w::ChipEndingCancelledFields {
-                reason: wire_document_text(reason, limits)?,
+                reason: wire_document_text(reason),
                 result: (result).as_ref().map(|item| facts.result_value(item, Some(parent), limits)).transpose()?,
-                by: wire_requester(by, limits)?,
+                by: wire_requester(by),
                 at: (at).as_nanos(),
             })
         }

@@ -94,7 +94,7 @@ fn spawn(command: &Command) -> k::Spawn {
         | Command::WriteTree
         | Command::CommitTree { .. } => Some(temper_worker_domain_checkout::git::Kind::Commit),
         Command::CheckOut { .. } => Some(temper_worker_domain_checkout::git::Kind::CheckOut),
-        Command::Merge { .. } => Some(temper_worker_domain_checkout::git::Kind::Merge),
+        Command::Merge { .. } | Command::MergeHistory { .. } => Some(temper_worker_domain_checkout::git::Kind::Merge),
         Command::Version | Command::Clean | Command::UpdateCounts { .. } | Command::DeleteCounts => None,
         Command::Origin { .. } => Some(temper_worker_domain_checkout::git::Kind::Look),
     };
@@ -755,7 +755,7 @@ fn brings_commands_read_the_shared_graph_and_list_only_commits_outside_the_base(
 }
 
 type Vector = &'static [&'static [u8]];
-fn partial_vectors() -> [(Vector, Vector); 5] {
+fn partial_vectors() -> [(Vector, Vector); 6] {
     const ID: &[u8] = b"0000000000000000000000000000000000000001";
     [
         (
@@ -831,6 +831,28 @@ fn partial_vectors() -> [(Vector, Vector); 5] {
             &[b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", ID],
             &[b"merge", b"--no-commit", b"--no-ff", b"--", ID],
         ),
+        (
+            &[
+                b"-c",
+                b"remote.origin.promisor=true",
+                b"log",
+                b"--no-merges",
+                b"-M",
+                b"--diff-filter=R",
+                b"--format=%H",
+                b"HEAD...0000000000000000000000000000000000000002",
+                b"--",
+            ],
+            &[
+                b"log",
+                b"--no-merges",
+                b"-M",
+                b"--diff-filter=R",
+                b"--format=%H",
+                b"HEAD...0000000000000000000000000000000000000002",
+                b"--",
+            ],
+        ),
     ]
 }
 
@@ -866,6 +888,16 @@ fn create_by_push_uses_one_cas_and_reports_both_existing_branch_statuses() {
         assert_eq!(output::status(&answer.stdout, b"main"), Some(status));
         assert_eq!(net.seen, [call], "the compare-and-swap returns its existing head, with no preflight read");
     }
+}
+
+#[test]
+fn history_comparison_has_no_fake_blob_work() {
+    let mut disk = Disk::new(&files(REMOTE));
+    let mut net = Net::new(vec![]);
+    let answer = disk.run(spawn(&Command::MergeHistory { theirs: commit(TOPIC) }), &mut net, b"");
+    assert_eq!(answer, crate::Answer { exit: 0, stdout: vec![], stderr: vec![] });
+    assert_eq!(disk.opened, Vec::<Vec<u8>>::new());
+    assert_eq!(net.seen, Vec::<Call>::new());
 }
 
 #[test]

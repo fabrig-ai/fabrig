@@ -5,7 +5,8 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as a;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
-pub fn facts(value: &List<d::AccountFactLine>, _limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
+#[must_use]
+pub fn facts(value: &List<d::AccountFactLine>) -> List<w::AccountFact> {
     let mut rows = List::with_capacity(value.len());
     for line in value {
         let fact = &line.fact;
@@ -36,19 +37,21 @@ pub fn facts(value: &List<d::AccountFactLine>, _limits: &w::Limits) -> Result<Li
         };
         rows.push(row).expect("supplied facts fit");
     }
-    Ok(rows)
+    rows
 }
-pub fn payer(value: a::Use, _limits: &w::Limits) -> Result<w::AccountUse, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn payer(value: a::Use) -> w::AccountUse {
+    match value {
         a::Use::Party(party) => w::AccountUse::Party(w::AccountUseParty { party }),
         a::Use::Project(project) => w::AccountUse::Project(w::AccountUseProject { project }),
-    })
+    }
 }
-pub fn holder(value: a::Holder, _limits: &w::Limits) -> Result<w::AccountHolder, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn holder(value: a::Holder) -> w::AccountHolder {
+    match value {
         a::Holder::Deployment => w::AccountHolder::Deployment,
         a::Holder::Party(party) => w::AccountHolder::Party(w::AccountHolderParty { party }),
-    })
+    }
 }
 fn kind(value: a::Kind) -> w::AccountKind {
     match value {
@@ -72,8 +75,9 @@ fn key_failure(value: a::KeyFailure) -> w::AccountKeyFailure {
         a::KeyFailure::NotStored => w::AccountKeyFailure::NotStored,
     }
 }
-pub fn refusal(value: a::Refusal, _limits: &w::Limits) -> Result<w::AccountRefusal, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn refusal(value: a::Refusal) -> w::AccountRefusal {
+    match value {
         // A finish refusal leaves the sign-in waiting, so it never ends an accounts watch's sign-in.
         a::Refusal::SignInRedirect { .. } => unreachable!("a redirect refusal is only a finish answer"),
         a::Refusal::NameTaken | a::Refusal::ProgramNameReserved => w::AccountRefusal::ProgramNameReserved,
@@ -96,10 +100,11 @@ pub fn refusal(value: a::Refusal, _limits: &w::Limits) -> Result<w::AccountRefus
         a::Refusal::Kind { kind } => w::AccountRefusal::Kind(w::AccountRefusalKind { kind: self::kind(kind) }),
         a::Refusal::Closing => w::AccountRefusal::Closing,
         a::Refusal::NotStarted => w::AccountRefusal::NotStarted,
-    })
+    }
 }
-pub fn failure(value: a::Failure, _limits: &w::Limits) -> Result<w::AccountFailure, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn failure(value: a::Failure) -> w::AccountFailure {
+    match value {
         a::Failure::Later { after } => w::AccountFailure::Later(w::AccountFailureLater { after }),
         a::Failure::SignInAgain => w::AccountFailure::SignInAgain,
         a::Failure::MissingScope { scope } => w::AccountFailure::MissingScope(w::AccountFailureMissingScope { scope }),
@@ -109,37 +114,34 @@ pub fn failure(value: a::Failure, _limits: &w::Limits) -> Result<w::AccountFailu
             why: deployment::account_unread(why),
         }),
         a::Failure::Cancelled => w::AccountFailure::Cancelled,
-    })
+    }
 }
-pub fn end(value: a::End, limits: &w::Limits) -> Result<w::AccountEnd, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn end(value: a::End) -> w::AccountEnd {
+    match value {
         a::End::Made { account, declined } => w::AccountEnd::Made(w::AccountEndMade { account, declined }),
         a::End::Renewed { account, declined } => w::AccountEnd::Renewed(w::AccountEndRenewed { account, declined }),
-        a::End::Refused { refusal } => {
-            w::AccountEnd::Refused(w::AccountEndRefused { refusal: self::refusal(refusal, limits)? })
-        }
-        a::End::Failed { failure } => {
-            w::AccountEnd::Failed(w::AccountEndFailed { failure: self::failure(failure, limits)? })
-        }
-    })
+        a::End::Refused { refusal } => w::AccountEnd::Refused(w::AccountEndRefused { refusal: self::refusal(refusal) }),
+        a::End::Failed { failure } => w::AccountEnd::Failed(w::AccountEndFailed { failure: self::failure(failure) }),
+    }
 }
-pub fn uses(value: Option<&List<a::Use>>, limits: &w::Limits) -> Result<Option<List<w::AccountUse>>, w::Problem> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
+#[must_use]
+pub fn uses(value: Option<&List<a::Use>>) -> Option<List<w::AccountUse>> {
+    let value = value?;
     let mut rows = List::with_capacity(value.len());
     for row in value {
-        rows.push(payer(*row, limits)?).expect("supplied uses fit");
+        rows.push(payer(*row)).expect("supplied uses fit");
     }
-    Ok(Some(rows))
+    Some(rows)
 }
-pub fn source(value: &d::SourceLine, limits: &w::Limits) -> Result<w::AccountSource, w::Problem> {
-    Ok(w::AccountSource {
+#[must_use]
+pub fn source(value: &d::SourceLine) -> w::AccountSource {
+    w::AccountSource {
         name: value.name.clone(),
         place: value.place,
         number: value.number,
         kind: kind(value.kind),
-        state: deployment::account_state(value.state, limits)?,
+        state: deployment::account_state(value.state),
         usable: value.usable,
         expiring: value.expiring,
         attention: value.attention,
@@ -147,7 +149,7 @@ pub fn source(value: &d::SourceLine, limits: &w::Limits) -> Result<w::AccountSou
             Some(at) => Some(at.as_nanos()),
             None => None,
         },
-    })
+    }
 }
 pub fn source_pieces(
     value: &List<d::SourceLine>,
@@ -157,7 +159,7 @@ pub fn source_pieces(
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(value.len());
     for row in value {
-        let row = source(row, limits)?;
+        let row = source(row);
         let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
         row.write(limits, &mut out).expect("measured account source");
         encoded.push(out.finish()).expect("supplied source pieces fit");
@@ -166,20 +168,20 @@ pub fn source_pieces(
 }
 pub fn line(value: &d::AccountLine, limits: &w::Limits) -> Result<w::AccountLine, w::Problem> {
     Ok(w::AccountLine {
-        list: list(value.list.as_ref(), limits)?,
-        facts: facts(&value.facts, limits)?,
+        list: list(value.list.as_ref()),
+        facts: facts(&value.facts),
         number: value.number,
         place: value.place,
-        uses: uses(value.uses.as_ref(), limits)?,
+        uses: uses(value.uses.as_ref()),
         plan: value.plan,
         provider: value.provider,
         provider_name: match &value.provider_name {
-            Some(name) => Some(owner::text(name, limits)?),
+            Some(name) => Some(owner::text(name)),
             None => None,
         },
         manage_usage: value.manage_usage.clone(),
-        display: owner::text(&value.display, limits)?,
-        holder: holder(value.holder, limits)?,
+        display: owner::text(&value.display),
+        holder: holder(value.holder),
         sources: source_pieces(&value.sources, limits, limits.account_line_sources, w::paths::ACCOUNT_LINE_SOURCES)?,
         cut: value.cut,
     })
@@ -195,14 +197,14 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
     let accounts = pieces(&accounts, limits.accounts_accounts, w::paths::ACCOUNTS_ACCOUNTS)?;
     let mut signing = List::with_capacity(value.signing.len());
     for row in &value.signing {
-        let row = w::AccountSignIn { source: row.source, provider: row.provider, holder: holder(row.holder, limits)? };
+        let row = w::AccountSignIn { source: row.source, provider: row.provider, holder: holder(row.holder) };
         let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
         row.write(limits, &mut out).expect("measured sign-in line");
         signing.push(out.finish()).expect("supplied sign-in pieces fit");
     }
     let signing = pieces(&signing, limits.accounts_signing, w::paths::ACCOUNTS_SIGNING)?;
     let last_end = match &value.last_end {
-        Some(row) => Some(w::AccountLastEnd { source: row.source, end: end(row.end, limits)? }),
+        Some(row) => Some(w::AccountLastEnd { source: row.source, end: end(row.end) }),
         None => None,
     };
     Ok(w::Accounts {
@@ -212,11 +214,11 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
         cut: value.cut,
         readiness_cut: value.readiness_cut,
         lending: match &value.lending {
-            Some(login) => Some(terminal_login(login, limits)?),
+            Some(login) => Some(terminal_login(login)),
             None => None,
         },
         lent_end: match value.lent_end {
-            Some(ended) => Some(w::AccountLentEnd { number: ended.number, end: login_end(ended.end, limits)? }),
+            Some(ended) => Some(w::AccountLentEnd { number: ended.number, end: login_end(ended.end) }),
             None => None,
         },
         readiness: super::catalogue::readiness(&value.readiness, limits.accounts_readiness, limits)?,
@@ -228,10 +230,9 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
 }
 
 /// Public history only, without the child's model-name bits.
-pub fn list(value: Option<&d::AccountList>, _limits: &w::Limits) -> Result<Option<w::AccountList>, w::Problem> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
+#[must_use]
+pub fn list(value: Option<&d::AccountList>) -> Option<w::AccountList> {
+    let value = value?;
     let failure = match value.failure {
         Some(jig_domain_accounts::ReadFailure::Refused { status }) => {
             Some(w::AccountListFailure::Refused(w::AccountListRefused { status }))
@@ -243,7 +244,7 @@ pub fn list(value: Option<&d::AccountList>, _limits: &w::Limits) -> Result<Optio
         Some(jig_domain_accounts::ReadFailure::Room) => Some(w::AccountListFailure::Room),
         None => None,
     };
-    Ok(Some(w::AccountList {
+    Some(w::AccountList {
         read: match value.read {
             Some(at) => Some(at.as_nanos()),
             None => None,
@@ -254,46 +255,42 @@ pub fn list(value: Option<&d::AccountList>, _limits: &w::Limits) -> Result<Optio
         },
         failure,
         left_out: value.left_out,
-    }))
+    })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn terminal_login(value: &a::TerminalLogin, _limits: &w::Limits) -> Result<w::TerminalLogin, w::Problem> {
-    Ok(w::TerminalLogin {
+pub(crate) fn terminal_login(value: &a::TerminalLogin) -> w::TerminalLogin {
+    w::TerminalLogin {
         number: value.number,
         provider: value.provider,
         name: value.name.clone(),
         cancelled: value.cancelled,
-    })
+    }
 }
-pub(crate) fn terminal(value: Option<&a::TerminalLogin>, limits: &w::Limits) -> Result<w::Terminal, w::Problem> {
-    Ok(w::Terminal {
+pub(crate) fn terminal(value: Option<&a::TerminalLogin>) -> w::Terminal {
+    w::Terminal {
         login: match value {
-            Some(login) => Some(terminal_login(login, limits)?),
+            Some(login) => Some(terminal_login(login)),
             None => None,
         },
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn login_exit(value: a::LoginExit, _limits: &w::Limits) -> Result<w::LoginExit, w::Problem> {
-    Ok(match value {
+fn login_exit(value: a::LoginExit) -> w::LoginExit {
+    match value {
         a::LoginExit::Exited { code } => w::LoginExit::Exited(w::LoginExitExited { code }),
         a::LoginExit::Killed { signal } => w::LoginExit::Killed(w::LoginExitKilled { signal }),
         a::LoginExit::NotStarted => w::LoginExit::NotStarted,
-    })
+    }
 }
-fn login_end(value: a::LoginEnd, limits: &w::Limits) -> Result<w::LoginEnd, w::Problem> {
-    Ok(match value {
+fn login_end(value: a::LoginEnd) -> w::LoginEnd {
+    match value {
         a::LoginEnd::SignedIn { source } => w::LoginEnd::SignedIn(w::LoginEndSignedIn { source }),
         a::LoginEnd::NotFinished { exit } => w::LoginEnd::NotFinished(w::LoginEndNotFinished {
             exit: match exit {
-                Some(exit) => Some(login_exit(exit, limits)?),
+                Some(exit) => Some(login_exit(exit)),
                 None => None,
             },
         }),
         a::LoginEnd::Cancelled => w::LoginEnd::Cancelled,
-        a::LoginEnd::Refused { refusal: why } => {
-            w::LoginEnd::Refused(w::LoginEndRefused { refusal: refusal(why, limits)? })
-        }
-    })
+        a::LoginEnd::Refused { refusal: why } => w::LoginEnd::Refused(w::LoginEndRefused { refusal: refusal(why) }),
+    }
 }

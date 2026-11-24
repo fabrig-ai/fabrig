@@ -1,14 +1,14 @@
 //! Wire projections of turn facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, empty_pieces, list, w};
 use super::wire_object_key;
-pub(in crate::codec) fn wire_call(value: &c::Call, limits: &w::Limits) -> Result<w::Call, w::Problem> {
+pub(in crate::codec) fn wire_call(value: &c::Call) -> Result<w::Call, w::Problem> {
     Ok(w::Call {
         number: value.number,
         tool: bytes::copy_of(value.tool.bytes()),
         input: bytes::copy_of(value.input.bytes()),
-        outcome: value.outcome.as_ref().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))).transpose()?,
+        outcome: value.outcome.as_ref().map(|item| bytes::copy_of((item).bytes())),
         failed: value.failed,
-        objects: list(value.objects.iter().map(|item| wire_object_key(item, limits)))?,
+        objects: list(value.objects.iter().map(wire_object_key)),
         parts: empty_pieces(&value.parts)?,
     })
 }

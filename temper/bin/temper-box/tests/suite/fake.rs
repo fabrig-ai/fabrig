@@ -1478,6 +1478,7 @@ fn git_run() {
                 | GitCommand::CheckOut { .. }
                 | GitCommand::Clean
                 | GitCommand::Merge { .. }
+                | GitCommand::MergeHistory { .. }
                 | GitCommand::Unmerged
                 | GitCommand::UpdateIndex { .. }
                 | GitCommand::Add

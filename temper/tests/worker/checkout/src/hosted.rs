@@ -44,7 +44,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
         | Command::WriteTree
         | Command::CommitTree { .. } => Some(git::Kind::Commit),
         Command::CheckOut { .. } => Some(git::Kind::CheckOut),
-        Command::Merge { .. } => Some(git::Kind::Merge),
+        Command::Merge { .. } | Command::MergeHistory { .. } => Some(git::Kind::Merge),
         Command::DiffPaths { .. } => Some(git::Kind::DiffPaths),
         Command::Version | Command::Clean | Command::UpdateCounts { .. } | Command::DeleteCounts => None,
         Command::Origin { .. } => Some(git::Kind::Look),

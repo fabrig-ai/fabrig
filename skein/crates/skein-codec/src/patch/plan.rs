@@ -460,7 +460,7 @@ pub(crate) fn held(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, 
         },
     }
 }
-fn width(ty: Type) -> Option<u32> {
+pub(crate) fn width(ty: Type) -> Option<u32> {
     match ty {
         Type::U8 => Some(1),
         Type::U16 => Some(2),
@@ -481,7 +481,7 @@ fn width(ty: Type) -> Option<u32> {
     clippy::too_many_lines,
     reason = "the leaf comparison exhaustively lists schema type pairs (data/codec/diff.md, 3)"
 )]
-fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b: Type) -> Comparison {
+pub(crate) fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b: Type) -> Comparison {
     let equal = match a {
         Type::Named(_) | Type::Bytes { .. } | Type::Secret { .. } | Type::List { .. } | Type::Option(_) => false,
         Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_) | Type::Text(_) => {

@@ -9,8 +9,50 @@ use o = temper_engine_domain_forge_closer
 use p = temper_engine_domain_forge_tiers
 use s = skein_codec::convert
 use own = crate::converters
-by hand crate::records::by_hand
+use hnd = crate::records::by_hand
+by hand hnd
 context crate::records::Context
+refuses hnd::core_refused_to_domain
+refuses hnd::failures_to_domain
+refuses hnd::finding_areas_to_domain
+refuses hnd::finding_result_to_domain
+refuses hnd::finding_result_to_record
+refuses hnd::finding_signature_to_domain
+refuses hnd::follow_files_to_domain
+refuses hnd::forge_link_to_domain
+refuses hnd::landing_follows_to_domain
+refuses hnd::landing_follows_to_record
+refuses hnd::landing_state_to_domain
+refuses hnd::logged_landing_to_domain
+refuses hnd::logged_verdict_to_domain
+refuses hnd::pending_release_to_domain
+refuses hnd::protection_to_domain
+refuses hnd::reach_to_domain
+refuses hnd::read_result_to_domain
+refuses hnd::read_result_to_record
+refuses hnd::red_reply_to_domain
+refuses hnd::route_to_domain
+refuses hnd::rule_pattern_to_domain
+refuses hnd::segments_to_domain
+refuses hnd::setting_value_to_domain
+refuses hnd::several_repositories_to_domain
+refuses hnd::stands_to_domain
+refuses hnd::summary_to_domain
+refuses hnd::tier_posted_blame_to_domain
+refuses s::text_to_domain
+with context hnd::follow_files_to_domain
+with context hnd::landing_follows_to_domain
+with context hnd::logged_landing_to_domain
+with context hnd::pending_release_to_domain
+with context hnd::protection_to_domain
+with context hnd::read_result_to_domain
+with context hnd::red_reply_to_domain
+with context hnd::rule_pattern_to_domain
+with context hnd::segments_to_domain
+with context hnd::setting_value_to_domain
+with context hnd::summary_to_domain
+with context hnd::tier_posted_blame_to_domain
+with context hnd::tier_posted_blame_to_record
 
 record Repository = a::Repository
 record Number stands for number

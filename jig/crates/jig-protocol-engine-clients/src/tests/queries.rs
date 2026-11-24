@@ -131,9 +131,9 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
         };
         assert_eq!(page.ended_mark, 73);
         let w::EndedGroup::Rows(ended) = &page.ended else { panic!("ended group") };
-        let slots = translate::parts::plan(&asks, &fixtures::settings(), &limits);
+        let slots = translate::parts::plan(&asks, &fixtures::settings());
         let w::DeliveryValue::Tasks(delivery) =
-            watches::delivery(&d::Document::Lines(lines), 0, 2, &[], &slots, &limits).unwrap()
+            watches::delivery(&d::Document::Lines(lines), 2, &[], &slots, &limits).unwrap()
         else {
             panic!("delivery")
         };

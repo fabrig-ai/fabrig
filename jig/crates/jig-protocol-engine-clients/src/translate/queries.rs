@@ -57,7 +57,7 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
         },
     })
 }
-pub(super) fn waits(value: WaitsOn, _limits: &w::Limits) -> Result<w::WaitsOn, w::Problem> {
+pub(super) fn waits(value: WaitsOn) -> Result<w::WaitsOn, w::Problem> {
     Ok(match value {
         WaitsOn::Party { whom, entries, task, kind } => w::WaitsOn::Party(w::WaitsOnParty {
             whom: match whom {
@@ -92,28 +92,28 @@ pub(super) fn line_parts(
     limits: &w::Limits,
 ) -> Result<w::TaskLine, w::Problem> {
     Ok(w::TaskLine {
-        parts: super::parts::row(&value.parts, slots, limits)?,
+        parts: super::parts::row(&value.parts, slots)?,
         chip: chips::chip(&value.chip, limits)?,
         project: value.project,
-        requester: owner::requester(value.requester, limits)?,
+        requester: owner::requester(value.requester),
         tracked: value.tracked,
         label: value.label,
-        flags: me::flags(value.flags, limits)?,
+        flags: me::flags(value.flags),
         changed: value.changed.as_nanos(),
         last_activity: value.last_activity.as_nanos(),
         ended_at: match value.ended_at {
             None => None,
             Some(at) => Some(at.as_nanos()),
         },
-        budget: owner::budget(&value.budget, limits)?,
-        waits_on: waits(value.waits_on.clone(), limits)?,
-        phases: live::phases(value.phases, limits)?,
+        budget: owner::budget(&value.budget),
+        waits_on: waits(value.waits_on.clone())?,
+        phases: live::phases(value.phases),
         delegates_done: value.delegates_done,
         delegates_total: value.delegates_total,
         held_below: value.held_below,
         conversation: match value.conversation {
             None => None,
-            Some(v) => Some(w::ConversationRead { seen: v.seen, unread: live::count(v.unread, limits)? }),
+            Some(v) => Some(w::ConversationRead { seen: v.seen, unread: live::count(v.unread) }),
         },
     })
 }

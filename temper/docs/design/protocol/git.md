@@ -76,7 +76,10 @@ credentials.md's (`credentials-git-identities.md`, section 1). What is open is l
   `CheckOut` or `Merge` names its repository's identity and runs its
   checkout or merge with `origin` as a promisor remote, so git fetches the
   contents it lacks into the checkout, within the operation and under its
-  remote deadline (`git-operations.md`, 1.5, 1.6).
+  remote deadline (`git-operations.md`, 1.5, 1.6). A conflicted merge then
+  compares each side's history the same way, so the contents a merge job
+  or a resolution reads there are in the checkout before its run, whose own
+  git fetches nothing (`git-operations.md`, 1.6).
 - **Kept packed.** Each such fetch leaves a pack, and git repacks nothing
   itself here (section 3), so a prepare's `Pack` repacks a store or a
   repository past 50 packs, keeping every object (`git-operations.md`, 1.14).
@@ -173,12 +176,17 @@ pipes      stdin (written, then closed), stdout, stderr
 | `merge.conflictStyle=merge` | conflicts carry the three markers `git-operations.md`, section 1.6 reads |
 | `submodule.recurse=false` | no submodule is touched |
 
-`CheckOut`'s `git checkout` and `Merge`'s `git merge` add one more, after
+`CheckOut`'s `git checkout`, `Merge`'s `git merge` and a conflicted
+`Merge`'s `git log` add one more, after
 these: `-c remote.origin.promisor=true`, which makes `origin` a promisor
 remote for that invocation alone, so git fetches from it the file contents
-the blob-less store lacks (`git-operations.md`, 1.5). `Pack`'s `git repack` names it too, so
+the blob-less store lacks (`git-operations.md`, 1.5, 1.6). They are the
+invocations that read file contents a checkout may lack, each with the
+identity's header and under the remote deadline. `Pack`'s `git repack` names it too, so
 that git repacks the forge's packs apart and keeps their objects (`git-operations.md`, 1.14). No
-other invocation names it: one that
+other invocation names it: none other reads a file's contents from the
+store (a comparison of two commits names its paths without rename
+detection, `git-operations.md`, 1.9), one that
 finds an object missing fails, and a push's thin pack skips a delta base it
 lacks rather than fetching it.
 
@@ -261,7 +269,7 @@ variable of the worker's own process reaches git.
 | `GIT_ASKPASS` | empty | every invocation: no askpass program, whatever a repository's `core.askPass` says |
 | `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` | the identity's author; or `temper` and `temper@temper.invalid` for an operation that names no identity | every invocation: the committer of a commit, or of a reference's log entry |
 | `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL` | the identity's author | `Commit` |
-| `GIT_CONFIG_COUNT` | `1` | `Store`'s clone, `Fetch`'s fetch, `Create`, `Push`, `CheckOut`'s checkout, `Merge`'s merge |
+| `GIT_CONFIG_COUNT` | `1` | `Store`'s clone, `Fetch`'s fetch, `Create`, `Push`, `CheckOut`'s checkout, `Merge`'s merge and its history's comparison (`git-operations.md`, 1.6) |
 | `GIT_CONFIG_KEY_0` | `http.extraHeader` | likewise |
 | `GIT_CONFIG_VALUE_0` | `Authorization: Basic ` and the base64 of `<login>:<token>` | likewise |
 
@@ -323,9 +331,13 @@ variable of the worker's own process reaches git.
 | `fatal: the remote end hung up unexpectedly`, `fatal: early EOF`, `error: RPC failed…` | `Unreachable` |
 
 - **Only invocations that reach the forge** (`Store`'s clone, `Fetch`'s
-  and `Counts`' fetches, `Create`, `Push`, and `CheckOut`'s checkout and `Merge`'s merge,
-  whose lazy fetch may) are classified by the table. A local one that
+  and `Counts`' fetches, `Create`, `Push`, and `CheckOut`'s checkout and `Merge`'s merge
+  and history's comparison, whose lazy fetch may) are classified by the table. A local one that
   fails is `Broken`, as is a checkout's or a merge's failure no row names.
+  A lazy fetch that can't bring an object ends its invocation with git's
+  `fatal: could not fetch <object> from promisor remote`, after the line
+  that says why where git has one (`fatal: unable to access '…': …`), so
+  the diagnostic's tail names the object and its command the invocation.
 - **The faults** are the checkout's (`git::Fault`): `Missing` where the
   forge lacks what was asked, `Refused` where it refused the identity or
   the update, `Unreachable` where it could not be reached or failed,
@@ -435,7 +447,8 @@ checks this document's contract:
     parent), the exact argument vector, directory and environment of
     `git.md`, section 3, and `git-operations.md`, section 1, and `git.md`, section 5, a fetch's store and repository and a store's `<m>` in
     `making` among them, the store's clone and fetch blob-less, and a
-    checkout's and a merge's promisor setting and header; that no value of
+    checkout's, a merge's and a conflicted merge's history comparison's
+    promisor setting and header, and no other invocation's; that no value of
     an identity appears in an argument; the
     message's bytes; both alternates files' bytes; that every invocation
     runs at the root and names its directories (`git.md`, section 3); the view's
@@ -498,11 +511,16 @@ checks this document's contract:
   and delivering the work tree's files; a run's own git at its start and
   after a delivery; a checkout made with one directory taken on; a merge's
   commit past `conflicts`, its pages staged in the private index and
-  delivered, the run's own index apart from the worker's. Its refusal
-  at a marked last page is the machine world's (above); what the
-  refusal leaves, the hold, every unmerged path, the files and the
-  forge's branch as they were and nothing pushed, is the checkout's
-  `fakes` world's (`tests/worker/checkout`), on the fake disk and forge.
+  delivered, the run's own index apart from the worker's; a conflicted
+  merge whose base's history deleted a file another of its commits had
+  changed, made on the forge so that no checkout fetched that copy, and
+  the run's git comparing that commit with its parent with rename
+  detection, as a merge job does (`git-operations.md`, 1.6), while the
+  store still lacks the copy. A commit's refusal at a marked last page is
+  the machine world's (above); what the refusal leaves, the hold, every
+  unmerged path, the files and the forge's branch as they were and nothing
+  pushed, is the checkout's `fakes` world's (`tests/worker/checkout`), on
+  the fake disk and forge.
 - **The process tier** runs the machine's git, 2.41 or later, against
   its owned Forgejo: clone, fetch, create, check out, commit, push, in
   its story (`../testing/process-tier.md`).

@@ -420,7 +420,7 @@ fn each_party_kind_reads_back() {
         jig_domain_tasks::Party::Person(13),
         jig_domain_tasks::Party::Deployment { project: u32::MAX },
     ] {
-        let encoded = translate::party(&value, &tasks_limits()).expect("within bounds");
+        let encoded = translate::party(&value);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_party(encoded), value);
     }
@@ -434,7 +434,7 @@ fn each_executor_kind_reads_back() {
         jig_domain_tasks::Executor::Person(PersonAddress::Person(u64::MAX)),
         jig_domain_tasks::Executor::Person(PersonAddress::Role(u32::MAX)),
     ] {
-        let encoded = translate::executor(value, &tasks_limits()).expect("within bounds");
+        let encoded = translate::executor(value);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_executor(encoded), value);
     }
@@ -469,7 +469,7 @@ fn each_activation_cause_reads_back() {
         Domain::Narrowed,
         Domain::Changed,
     ] {
-        let encoded = translate::why(value, &tasks_limits()).expect("within bounds");
+        let encoded = translate::why(value);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_why(encoded), value);
     }
@@ -1705,11 +1705,11 @@ fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
     let limits = tasks_limits();
     for kind in [0, u32::MAX] {
         let executor = t::Executor::Job { kind };
-        let encoded = translate::executor(executor, &limits).unwrap();
+        let encoded = translate::executor(executor);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_executor(encoded), executor);
         let delegation = t::AuthorityExecutor::Job(kind);
-        let encoded = translate::authority_executor(&delegation, &limits).unwrap();
+        let encoded = translate::authority_executor(&delegation);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_authority_executor(encoded), delegation);
     }

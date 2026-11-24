@@ -107,7 +107,7 @@ impl World {
             command.current_dir(&self.root).arg(format!("--git-dir={directory}"));
         }
         let output = command.args(args).output().expect("inspection git ran");
-        assert!(output.status.success(), "inspection: {:?}", output.stderr);
+        assert!(output.status.success(), "inspection {args:?}: {}", String::from_utf8_lossy(&output.stderr));
         String::from_utf8(output.stdout).expect("git ids and settings")
     }
 
@@ -700,11 +700,32 @@ fn view_fixture(name: &str) -> (skein_scratch::Scratch, skein_throwaway_forgejo:
     (scratch, instance, world, remote)
 }
 
+// The SHA-1 of the deleted file's contents (one\ntwo\nthree\n) posted below.
+const OLD_BLOB: &str = "4cb29ea38f70d7c61b2a3a25b02e3bdf44905402";
+
+fn change_base_history_on_forge(instance: &skein_throwaway_forgejo::Instance) {
+    let writer = instance.admin();
+    let target = format!("/api/v1/repos/{}/specimen/contents", writer.login);
+    let add = r#"{"branch":"main","message":"Add old file","files":[{"operation":"create","path":"old.md","content":"b25lCnR3bwp0aHJlZQo="}]}"#;
+    let replace = format!(
+        r#"{{"branch":"main","message":"Replace old file","files":[{{"operation":"delete","path":"old.md","sha":"{OLD_BLOB}"}},{{"operation":"create","path":"new.md","content":"c29tZXRoaW5nIGVsc2UgZW50aXJlbHkK"}}]}}"#
+    );
+    for body in [add, replace.as_str()] {
+        let response = instance
+            .exchange(&skein_throwaway_forgejo::Outgoing::json("POST", &target, Some(&writer.token), body.as_bytes()))
+            .expect("commit on the forge");
+        assert_eq!(response.status, 201, "{}", String::from_utf8_lossy(&response.body));
+    }
+}
+
 #[test]
 fn a_producer_conflict_is_visible_to_plain_git_and_pre_pr_can_stage_its_resolution() {
     let (_scratch, instance, mut world, remote) = view_fixture("producer-view");
     let mut base = None;
     for branch in [b"topic".as_slice(), b"main"] {
+        if branch == b"main" {
+            change_base_history_on_forge(&instance);
+        }
         let (workspace, conflicts) =
             world.prepare_view(checkout::Start::Base { branch: branch.into() }, branch, &remote);
         assert!(conflicts.is_empty());
@@ -721,7 +742,7 @@ fn a_producer_conflict_is_visible_to_plain_git_and_pre_pr_can_stage_its_resoluti
     );
     assert_eq!(conflicts.len(), 1);
     let directory = format!("workspaces/{}/specimen", workspace.raw());
-    assert_eq!(world.inspect(&directory, &["status", "--porcelain"]), "UU README.md\n");
+    assert_eq!(world.inspect(&directory, &["status", "--porcelain"]), "UU README.md\nA  new.md\n");
     assert!(world.inspect(&directory, &["status"]).contains("unmerged paths"));
     for revision in ["HEAD", "MERGE_HEAD", "refs/temper/landing"] {
         assert_eq!(
@@ -729,6 +750,13 @@ fn a_producer_conflict_is_visible_to_plain_git_and_pre_pr_can_stage_its_resoluti
             world.worker(&directory, &["rev-parse", revision])
         );
     }
+    let store = format!("stores/{}", store_token(&remote).raw());
+    assert!(world.missing(&store, "--all").iter().any(|blob| blob == OLD_BLOB), "old file never enters the store");
+    // The README edit is the tip of main; its parent replaced the historical file.
+    assert_eq!(
+        world.inspect(&directory, &["diff-tree", "-r", "-z", "-M", "--name-status", "MERGE_HEAD^^", "MERGE_HEAD^"]),
+        "A\0new.md\0D\0old.md\0"
+    );
     fs::write(world.root.join(&directory).join("README.md"), b"resolved\n").expect("resolution");
     let tree = world.pre_pr_tree(&directory);
     let commit = world.push_view();

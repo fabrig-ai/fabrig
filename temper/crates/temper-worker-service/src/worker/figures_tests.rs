@@ -133,11 +133,11 @@ impl Story {
         ] {
             let mut invocation = Invocation::captured(capture);
             if capture == "fetch-branch" {
-                invocation.transcript.stdout = b"* 0000000000000000000000000000000000000000 0000000000000000000000000000000000000001 refs/temper/0/fetched\n".as_slice().into();
+                invocation.stdout = b"* 0000000000000000000000000000000000000000 0000000000000000000000000000000000000001 refs/temper/0/fetched\n".as_slice().into();
             }
             self.stand.below.script.invocations.push_back(invocation);
         }
-        self.stand.below.script.invocations.back_mut().unwrap().transcript.stdout =
+        self.stand.below.script.invocations.back_mut().unwrap().stdout =
             b"0000000000000000000000000000000000000001\n".as_slice().into();
         for _ in 0..STEPS {
             self.cycle();

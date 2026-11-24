@@ -323,7 +323,7 @@ pub fn decode_answer(bytes: &[u8], bounds: &jig_test_connector::Limits) -> Resul
     let Ok(value) = codec::family::answer_value(bytes, bounds) else { return Err(Invalid::TooLarge) };
     let value = match value {
         w::FamilyAnswer::Connector(value) => {
-            family::Answer::Connector(answer(codec::family::connector_answer_value(value, bounds)))
+            family::Answer::Connector(answer(codec::family::connector_answer_value(value)))
         }
     };
     Ok(value)
