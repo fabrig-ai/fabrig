@@ -30,7 +30,7 @@ and repaired as a red.
   from `Parties`, and gives a run's outcome in logical names, with its
   comparison.
 - **A random workload in each root's world** (section 4): the engine's
-  domain world runs the kit's workload at the `small` limits; the forge
+  domain world runs the kit's workload at the shipped stock limits; the forge
   world's landing train takes parties' acts; jig's core and
   engine-clients worlds draw their own; the worker's domain world draws
   several runs at once; smith's sweeps draw their runs.
@@ -431,7 +431,16 @@ impl Outcome {
 The module `workload` of `temper-engine-domain-world`, over the
 forge-route world (`temper/tests/engine/domain/src/forge_routes.rs`): the
 engine's root over the fake forge's domain, its agents scripted by tool
-calls, at the shipped `small` limits (`scenarios.md`, 1.1).
+calls, at the shipped stock limits, `forge_routes::box_limits()`, as
+the forge-route stock stories run. No `small` profile ships (the
+service's startup refuses `profile: small`), and the raw `small`
+fixtures (`jig_protocol_config_fixtures::small()`,
+`temper_limits_fixtures::small()`) do not hold the standing landing
+requirements of a branch, a train, a closer and a milestone, so the
+domain refuses them at its start. A sweep that needs a table at its
+capacity sooner changes that one figure by name on `box_limits()`'s,
+with its reason beside it (`scenarios.md`, 1.1); no other figure is set
+by hand.
 
 - **It runs `ENGINE`'s draw** as its stories run each element: a party
   starting each goal. The chat's `goal` call
