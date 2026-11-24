@@ -1,7 +1,7 @@
 //! The client's table, capture and dispatch (temper/docs/design/cli/README.md, 3 and 7.4).
 #![forbid(unsafe_code)]
 
-use skein_shell::{Argument, Clock, Command, Reach, Reached, Set, Table};
+use skein_shell::{Argument, Clock, Command as Row, Reach, Reached, Set, Table};
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
 use temper_shell::{directories, directories::EnvironmentEntry, environment, table};
 
@@ -49,7 +49,7 @@ pub const CLIENT: Table = Table {
     more: "temper COMMAND --help prints one command; temper help pages lists the pages.",
 };
 
-const TUI: Command = Command {
+const TUI: Row = Row {
     reach: Reach::Words(&[]),
     set: Set::Public,
     forms: &["[ADDRESS]"],
@@ -97,7 +97,8 @@ fn capture(line: &str) -> Capture {
 
 pub fn main(line: &str) -> ExitCode {
     let captured = capture(line);
-    match run(&captured) {
+    let reached = CLIENT.reach(&captured.run_as, &captured.arguments);
+    match configure(reached, line).and_then(|command| run(command, &captured)) {
         Ok(code) => ExitCode::from(code),
         Err((code, why)) => {
             eprint!("{why}");
@@ -106,50 +107,56 @@ pub fn main(line: &str) -> ExitCode {
     }
 }
 
-fn run(captured: &Capture) -> Result<u8, (u8, String)> {
-    match CLIENT.reach(&captured.run_as, &captured.arguments) {
-        Reached::Help => {
-            print!("{}", CLIENT.help());
-            Ok(0)
-        }
-        Reached::Version => {
-            println!("{NAME} {} ({})", captured.version, captured.commit);
-            Ok(0)
-        }
-        Reached::CommandHelp(command) => {
-            print!("{}", CLIENT.command_help(command));
-            Ok(0)
-        }
-        Reached::Unknown(why) => Err((2, why)),
-        Reached::Command(command, arguments) => dispatch(command, arguments, captured),
+#[derive(Debug, PartialEq, Eq)]
+enum Command<'a> {
+    Print(String),
+    Tui(Option<&'a [u8]>),
+    Box(&'a [Box<[u8]>]),
+    FetchBox(&'a [Box<[u8]>]),
+    Ctl(&'a [Box<[u8]>]),
+}
+
+fn configure<'a>(reached: Reached<'a>, line: &str) -> Result<Command<'a>, (u8, String)> {
+    let (command, arguments) = match reached {
+        Reached::Help => return Ok(Command::Print(CLIENT.help())),
+        Reached::Version => return Ok(Command::Print(format!("{line}\n"))),
+        Reached::CommandHelp(command) => return Ok(Command::Print(CLIENT.command_help(command))),
+        Reached::Unknown(why) => return Err((2, why)),
+        Reached::Command(command, arguments) => (command, arguments),
+    };
+    match command.reach {
+        Reach::Words([]) => tui_argument(arguments).map(Command::Tui),
+        Reach::Words(["box"]) => Ok(Command::Box(arguments)),
+        Reach::Words(["internal", "fetch-box"]) => Ok(Command::FetchBox(arguments)),
+        Reach::Words(["ctl"]) => Ok(Command::Ctl(arguments)),
+        Reach::Words(["help"]) => table::help(&CLIENT, arguments).map(Command::Print),
+        Reach::Words(_) | Reach::RunAs(_) => Err((2, table::refused(&CLIENT, command, "invalid arguments"))),
     }
 }
 
-fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8, String)> {
-    match command.reach {
-        Reach::Words([]) => {
-            let address = tui_argument(arguments)?;
+fn run(command: Command<'_>, captured: &Capture) -> Result<u8, (u8, String)> {
+    match command {
+        Command::Print(text) => {
+            print!("{text}");
+            Ok(0)
+        }
+        Command::Tui(address) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper: {why}\n")))?;
-            Ok(temper_client_shell_tui::start::run(
+            temper_client_shell_tui::start::run(
                 CLIENT.binary,
                 address,
                 &captured.environment,
                 working.as_os_str().as_bytes(),
                 format!("{} ({})", captured.version, captured.commit).as_bytes(),
                 &Clock::new(),
-            ))
+            )
         }
-        Reach::Words(["box"]) => box_binary::run(arguments, captured),
-        Reach::Words(["internal", "fetch-box"]) => box_binary::fetch(arguments, captured),
-        Reach::Words(["ctl"]) => {
+        Command::Box(arguments) => box_binary::run(arguments, captured),
+        Command::FetchBox(arguments) => box_binary::fetch(arguments, captured),
+        Command::Ctl(arguments) => {
             let arguments: Vec<_> = arguments.iter().map(|word| OsStr::from_bytes(word).to_owned()).collect();
             Ok(temper_client_shell_cli::start::run(&arguments, &Clock::new()))
         }
-        Reach::Words(["help"]) => {
-            print!("{}", table::help(&CLIENT, arguments)?);
-            Ok(0)
-        }
-        Reach::Words(_) | Reach::RunAs(_) => Err((2, table::refused(&CLIENT, command, "invalid arguments"))),
     }
 }
 

@@ -9,7 +9,7 @@ use live_report::{Leg, Settled, Step, exec_report, file_report};
 use smith_events::{Block, Event};
 use smith_local_process_world::referee::CheckoutRead;
 use smith_real_world::Scratch;
-use support::live_run::Expectation;
+use support::live_run::{self, Expectation};
 
 const CHANGE: &str = "In the working directory, read original.txt, replace its content with exactly edited followed by one newline, create result.txt containing exactly new followed by one newline, and use the command tool to create command.txt containing exactly ran followed by one newline. Run the configured .smith-test/check checks without modifying that script. Finish with a change result, a short title and body, so the host delivers the checked commit. Do not run git commit or push yourself.";
 
@@ -520,16 +520,16 @@ fn assert_exec(
         program_contract(&records, leg, &settled, &end);
     }
     if change {
-        assert!(records.iter().any(|record| matches!(&record.event, Event::ToolCompleted(tool) if tool.tool.as_ref() == b"finish" && tool.delivery == Some(smith_events::Delivered::Delivered))), "{}", report("finish delivered the change"));
+        assert!(records.iter().copied().any(live_run::delivered_finish), "{}", report("finish delivered the change"));
         assert!(
             records.iter().any(|record| matches!(&record.event, Event::CheckCompleted(check) if check.passed)),
             "{}",
             report("the configured checks passed")
         );
         let head = scratch.checkout().head().unwrap_or_else(|| panic!("{}", report("delivered commit")));
-        assert!(Some(&head) != expectation.before.as_ref(), "{}", report("a new commit was delivered"));
+        assert!(expectation.has_new_head(Some(&head)), "{}", report("a new commit was delivered"));
         assert!(
-            skein_lib::bytes::find(&scratch.checkout().message(&head), b"Smith-Delivery:").is_some(),
+            live_run::carries_delivery_identity(&scratch.checkout().message(&head)),
             "{}",
             report("commit carries its delivery identity")
         );
@@ -549,7 +549,7 @@ fn assert_exec(
         );
         for (path, content) in &expectation.files {
             assert!(
-                files.get(path) == Some(content),
+                live_run::matches_file(files.get(path).map(Vec::as_slice), content),
                 "{}\n{}",
                 report("committed file matches its prescribed content"),
                 file_report(path, content, files.get(path).map(Vec::as_slice))
@@ -561,7 +561,7 @@ fn assert_exec(
         let found = std::fs::read(scratch.path().join("repo").join(path_text)).ok();
         let misplaced = if found.is_none() { found_beneath(scratch, &path) } else { None };
         assert!(
-            found.as_deref() == Some(content.as_slice()),
+            live_run::matches_file(found.as_deref(), &content),
             "{}\n{}{}",
             report("checkout file matches its prescribed content"),
             file_report(&path, &content, found.as_deref()),

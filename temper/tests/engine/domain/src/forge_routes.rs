@@ -18,6 +18,9 @@ use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
+#[path = "restarts.rs"]
+pub mod restarts;
+
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
 
@@ -94,6 +97,9 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    /// Seeded engine faults; absent in all existing stories.
+    pub restarts: Option<restarts::Injector>,
+    restart_calls: Option<Vec<(fake::Event, fake::Config)>>,
     checks: crate::checks::Checks,
     iteration: u64,
     pub ends: crate::ends::Ends,
@@ -142,6 +148,8 @@ pub struct World {
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
+    /// Assignments queued at the engine boundary, not yet received by a worker.
+    pub held_assignments: Option<Vec<engine::Assignment>>,
     pub jobs: Vec<host::JobAssignment>,
     pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
@@ -1694,6 +1702,8 @@ impl World {
         let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
         ends.restarted(Time::ZERO);
         Self {
+            restarts: None,
+            restart_calls: None,
             checks,
             iteration: 0,
             ends,
@@ -1733,6 +1743,7 @@ impl World {
             signed_in: None,
             web_replies: Vec::new(),
             assigned: Vec::new(),
+            held_assignments: None,
             jobs: Vec::new(),
             job_workspaces: BTreeMap::new(),
             auto_prepare: turn,
@@ -1931,6 +1942,24 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid box setup");
+        self
+    }
+
+    /// Start with only the offered sign-in provider, without a seeded deployment payer.
+    #[must_use]
+    pub fn with_personal_plan(mut self, provider: jig_domain_accounts::Provider) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "plan provider precedes world startup");
+        let config = &mut self.restart_config;
+        config.core.settings.llm_providers.providers = Box::new([provider]);
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
+        self.store = crate::fixtures::first_start_over(
+            Store::with_limits(&self.env.limits),
+            crate::oracle::config::copy(config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(config), &self.env.limits)
+            .expect("valid plan provider configuration");
         self
     }
 
@@ -2848,17 +2877,17 @@ impl World {
                         limits.latency_max = delay;
                     }
                     let fake_env = self.fake_env.with(limits);
-                    fake::step(
-                        &mut self.fake,
-                        &fake_env,
-                        fake::Event::Call {
-                            reply_to: ReplyTo::new(wire),
-                            user: 1,
-                            repository: Box::from(name),
-                            op: raw,
-                        },
-                        &mut self.fake_out,
-                    );
+                    let event = fake::Event::Call {
+                        reply_to: ReplyTo::new(wire),
+                        user: 1,
+                        repository: Box::from(name),
+                        op: raw,
+                    };
+                    if let Some(calls) = &mut self.restart_calls {
+                        calls.push((event, fake_env.limits));
+                    } else {
+                        fake::step(&mut self.fake, &fake_env, event, &mut self.fake_out);
+                    }
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {
@@ -2868,7 +2897,13 @@ impl World {
                     Delivery::WebReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } => {
                         self.signed_in = Some(sign_in);
                     }
-                    Delivery::Assigned { assignment, .. } => self.assigned.push(assignment),
+                    Delivery::Assigned { assignment, .. } => {
+                        if let Some(held) = &mut self.held_assignments {
+                            held.push(assignment);
+                        } else {
+                            self.assigned.push(assignment);
+                        }
+                    }
                     Delivery::AssignedJob { job, workspace, .. } => {
                         if let Some(workspace) = workspace {
                             self.job_workspaces.insert(job.run.raw(), workspace);
@@ -3299,6 +3334,15 @@ impl World {
 
     /// A tick whose referee finding is returned to a check's own test.
     pub fn try_tick(&mut self) -> Result<(), String> {
+        // Do not move the large inline ledger on iterations with no injector.
+        if self.restarts.is_some() {
+            let mut injector = self.restarts.take().expect("enabled restart injector");
+            injector.tick(self);
+            self.restarts = Some(injector);
+        }
+        if self.restart_calls.is_some() {
+            self.dispatch_restart_calls(None);
+        }
         self.tick_with_reply_cut(None, true);
         self.check_ends()?;
         if self.auto_prepare {

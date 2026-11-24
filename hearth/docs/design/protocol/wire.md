@@ -253,7 +253,7 @@ and an attempt (4.5). Each kind declares its recovery class (
 **prepare.**
 
 - **Keyed by target and revision.** The steward keeps each prepare's
-  target, revision and outcome (`standalone.md`, 1; hearth/docs/design/domain/store/README.md, 6.3), and has a builder
+  target, revision and outcome (`standalone.md`, 1; hearth/docs/design/domain/store/state.md, 1.3), and has a builder
   render the revision to an output and slot parts (hearth/docs/design/domain/steward.md, 3.3).
   The activator keys the place by its prepare key (hearth/docs/design/domain/slots/README.md, 2.2;
   hearth/docs/design/domain/activator/README.md, 4.4): a prepare whose output, parts and generations a
@@ -542,7 +542,7 @@ Application kinds of skein's channel; each belongs to one direction.
   crosses the wire; a log's time is what it says, not a deadline.
 - **The steward reads the journal itself.** The activator spawns it
   with `hearth`'s supplementary groups (hearth/docs/design/domain/activator/README.md, 3.2), and the
-  hearth task puts `hearth` in `systemd-journal` (hearth/docs/design/protocol/format/tasks.md, 12), the
+  hearth task puts `hearth` in `systemd-journal` (hearth/docs/design/protocol/format/tasks-hearth.md, 1), the
   group of `/var/log/journal` (hearth/docs/design/protocol/format/tasks.md, 7). No root is involved in
   a read, and no builder: it runs with no supplementary group
   (hearth/docs/design/domain/steward.md, 2.3).

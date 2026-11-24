@@ -7,4 +7,4 @@ pub mod open;
 pub mod public;
 pub mod translate;
 mod world;
-pub use world::{LIMITS, REPO, World, fake_config};
+pub use world::{LIMITS, REPO, World, fake_config, restarts};

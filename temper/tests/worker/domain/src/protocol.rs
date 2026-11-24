@@ -67,6 +67,11 @@ pub fn charter() -> Box<[u8]> {
 /// `first` of a conversation opens its window.
 #[must_use]
 pub fn session_turn(sequence: u32, spent: u64, length: usize, first: bool) -> record::Turn {
+    let text = vec![u8::try_from(sequence % 200).expect("a byte") + b' '; length].into_boxed_slice();
+    session_text(sequence, spent, text, first)
+}
+
+fn session_text(sequence: u32, spent: u64, text: Box<[u8]>, first: bool) -> record::Turn {
     let kind = if first {
         record::Kind::First(Box::new(record::Opener {
             system: None,
@@ -77,7 +82,6 @@ pub fn session_turn(sequence: u32, spent: u64, length: usize, first: bool) -> re
     } else {
         record::Kind::Ordinary
     };
-    let text = vec![u8::try_from(sequence % 200).expect("a byte") + b' '; length].into_boxed_slice();
     record::Turn {
         model: Box::from(*b"model"),
         effort: None,
@@ -100,7 +104,14 @@ pub fn session_turn(sequence: u32, spent: u64, length: usize, first: bool) -> re
 /// engine's transcript.
 #[must_use]
 pub fn turn(number: u32, spent: u64, length: usize) -> agent::Turn {
-    let body = session_turn(number.saturating_add(1), spent, length, false);
+    owned_turn(number, spent, session_turn(number.saturating_add(1), spent, length, false))
+}
+
+pub(crate) fn text_turn(number: u32, text: &[u8]) -> agent::Turn {
+    owned_turn(number, 0, session_text(number.saturating_add(1), 0, text.into(), false))
+}
+
+fn owned_turn(number: u32, spent: u64, body: record::Turn) -> agent::Turn {
     agent::Turn {
         opens_window: false,
         number,

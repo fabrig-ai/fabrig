@@ -21,7 +21,7 @@ that last:
   output at prepare, so dpkg's database travels with its slot. State that
   outlives a slot lives in data entries, at paths the tasks declare
   (hearth/docs/design/protocol/format/tasks.md; hearth/docs/design/domain/machine/README.md, section 3).
-- **Persistent data by class** (hearth/docs/design/protocol/format/tasks.md, 7 and 12;
+- **Persistent data by class** (hearth/docs/design/protocol/format/tasks.md, 7, and hearth/docs/design/protocol/format/tasks-hearth.md, 1;
   hearth/docs/design/domain/machine/README.md, section 3; hearth/docs/design/domain/operating.md, section 7). A target has one
   subvolume per class, `@<target>.core`, `@<target>.data` and
   `@<target>.cache`, made only when an entry uses it and mounted at
@@ -36,7 +36,7 @@ that last:
   by swapping its subvolume. A subvolume per entry is not in the design
   (hearth/docs/design/domain/machine/README.md, section 6).
 - **Live changes, with hearth's own overlays** (hearth/docs/design/domain/slots/trial.md, 6 to 9;
-  hearth/docs/design/protocol/format/tasks.md, 14), built in M3, a container's in M5. A change confined
+  hearth/docs/design/protocol/format/tasks-live.md, 1), built in M3, a container's in M5. A change confined
   to `/etc`, `/usr/local` and `/opt`, over the same packages layer, with a
   declared consumer for every changed path, is applied with no reboot:
   a delta of the prepared slot, mounted over the running slot, the
@@ -80,7 +80,7 @@ that last:
   `/usr/local/bin/hearth`, and its unit and its generated sysusers,
   tmpfiles and preset files are in `/etc`. `/usr/lib` is Debian
   packages' alone: should hearth become one, it moves there with the
-  packages layer (hearth/docs/design/protocol/format/tasks.md, 12). Render refuses a task's path
+  packages layer (hearth/docs/design/protocol/format/tasks-hearth.md, 1). Render refuses a task's path
   elsewhere in `/usr`, and the build fails a step that writes there. So
   a live change overlays `/etc`, `/usr/local` and `/opt`, never the
   `/usr` every process maps (hearth/docs/design/domain/slots/trial.md, 6).
@@ -99,10 +99,10 @@ that last:
 **Others:**
 
 - **SHA-256 for every digest:** skein has it, and Debian's archive and
-  snapshot.debian.org speak it (hearth/docs/design/domain/store/README.md, section 3).
+  snapshot.debian.org speak it (hearth/docs/design/domain/store/digests.md, section 1).
 - **The filesystem is hearth's only state:** subvolumes and the records
-  beside them, read back at startup; no kv store (hearth/docs/design/domain/store/README.md, section 6;
-  hearth/docs/design/domain/activator/README.md, section 6).
+  beside them, read back at startup; no kv store (hearth/docs/design/domain/store/state.md, section 1;
+  hearth/docs/design/domain/activator/state.md, section 1).
 - **The layers are packages, software and config.** The brainstorm's
   etc layer also writes users, `/usr/local`, unit links and more, so it
   is named for what it holds (hearth/docs/design/domain/build/README.md, section 3).
@@ -131,16 +131,16 @@ that last:
   clear of systemd-nspawn's automatic range and of the fleet's
   containers' ranges (hearth/docs/design/domain/store/README.md, 7.2). The `hearth` user is declared by
   the hearth task, which every target but a container has
-  (hearth/docs/design/protocol/format/tasks.md, 12).
+  (hearth/docs/design/protocol/format/tasks-hearth.md, 1).
 - **The kernel is unchanged** when the kernel image, the modules' tree,
   the initramfs's inputs (not its bytes, which are not reproducible) and
   the command line without the slot's own tokens all are; then a soft
   reboot is enough (hearth/docs/design/domain/slots/trial.md, 1; hearth/docs/design/domain/build/packages.md, 8).
 - **Render refuses early** whatever would fail at prepare: reserved
   command-line keys, files hearth or the activator own, units named for
-  hearth (hearth/docs/design/protocol/format/tasks.md, 11).
+  hearth (hearth/docs/design/protocol/format/tasks-reserved.md, 1).
 - **A host keeps no list of its containers:** a container's placement
-  names its host (hearth/docs/design/protocol/format/README.md, 3.5). This replaces the brainstorm's list in
+  names its host (hearth/docs/design/protocol/format/targets.md, 1.5). This replaces the brainstorm's list in
   the host's configuration (its 7.7).
 - **The activator starts the steward** and talks to it over a pipe pair;
   it listens to nothing else (hearth/docs/design/domain/activator/README.md, section 3).
@@ -247,13 +247,13 @@ that last:
   minimal bless read through `systemctl --machine=`; the host's steward
   blesses it. No hearth runs in a container, which has no `hearth`
   task, while whether one should stays open (hearth/docs/design/domain/slots/containers.md;
-  hearth/docs/design/protocol/format/tasks.md, 12).
+  hearth/docs/design/protocol/format/tasks-hearth.md, 1).
 - **A container's `/var` is per slot,** as a host's: the bash fleet's
   persistent `.var` becomes data entries, and a container's identity and
   secrets are its own target's, kept by its host (hearth/docs/design/domain/slots/containers.md, 1).
 - **A container's parameters are placement fields [M5]:** its id range,
   binds, capabilities and network, rendered into its `boot` part, so a
-  change prepares a new slot of the same output (hearth/docs/design/protocol/format/README.md, 3.5;
+  change prepares a new slot of the same output (hearth/docs/design/protocol/format/targets.md, 1.5;
   hearth/docs/design/domain/slots/containers.md, 1).
 - **A container never fails its host's bless [M5]:** the host's minimal
   criterion leaves out its containers' nspawn units; each container's
@@ -270,4 +270,4 @@ that last:
   hearth/docs/design/domain/activator/operations.md, 9).
 - **A build environment is a container with no host** [M6]: its output
   is only a sandbox's root, never an nspawn container
-  (hearth/docs/design/domain/build/artifacts.md, 2.3; hearth/docs/design/protocol/format/README.md, 3.4).
+  (hearth/docs/design/domain/build/artifacts.md, 2.3; hearth/docs/design/protocol/format/targets.md, 1.4).

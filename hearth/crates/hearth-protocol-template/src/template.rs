@@ -1,5 +1,5 @@
 //! Templates compiled left to right to flat instructions (hearth/docs/design/protocol/format/templates.md, 2;
-//! hearth/docs/design/domain/render/README.md, 5.3).
+//! hearth/docs/design/domain/render/crates.md, 1.3).
 mod raw;
 pub(crate) mod scan;
 pub(crate) mod statement;

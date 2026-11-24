@@ -152,6 +152,9 @@ impl Service {
     pub fn built_from(&mut self, figures: jig_protocol_worker_wire::Figures) {
         self.worker.built_from(figures);
     }
+    pub fn set_local_places(&mut self, places: u32) {
+        self.worker.set_local_places(places);
+    }
     pub fn reuse_workspaces(&mut self) {
         self.worker.reuse_workspaces();
     }

@@ -1,6 +1,6 @@
 use crate::Filter;
 use alloc::boxed::Box;
-/// Postfix operations and their maximum value stack (hearth/docs/design/domain/render/README.md, 5.3).
+/// Postfix operations and their maximum value stack (hearth/docs/design/domain/render/crates.md, 1.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Expression {
     pub operations: Box<[Operation]>,

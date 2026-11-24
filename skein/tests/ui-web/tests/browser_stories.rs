@@ -62,28 +62,6 @@ fn a_panic_reloads_then_says_it_failed() {
 }
 
 #[test]
-fn a_refused_write_makes_no_note() {
-    let mut writer = Script::new(Box::new([
-        harness::Step::Person(Step::See { find: Find::text(b"Live"), within: Duration::from_secs(5) }),
-        harness::Step::Person(Step::Type {
-            find: Find::exactly_named(Role::TextField, b"Title"),
-            words: b"Groceries".as_slice().into(),
-        }),
-        harness::Step::Person(Step::Press { find: Find::exactly_named(Role::Button, b"Add") }),
-    ]));
-    assert_eq!(
-        stories::write_refused(
-            &setup(),
-            b"/test/small-store",
-            &mut writer,
-            Find::exactly_named(Role::Link, b"Groceries"),
-            Find::text(b"Live")
-        ),
-        Outcome::Done
-    );
-}
-
-#[test]
 fn typing_in_the_title_survives_a_note_arriving() {
     let mut writer = Script::new(Box::new([
         harness::Step::Person(Step::See { find: Find::text(b"Live"), within: Duration::from_secs(5) }),

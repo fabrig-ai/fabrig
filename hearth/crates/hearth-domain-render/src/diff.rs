@@ -1,4 +1,4 @@
-//! Typed differences and the lowest changed layer (hearth/docs/design/domain/render/README.md, 4.1, 4.2).
+//! Typed differences and the lowest changed layer (hearth/docs/design/domain/render/diff.md, 1.1, 1.2).
 pub use hearth_domain_render_vocabulary::diff::{
     Change, Hunks, Line, LineKind, Needs, PartChange, Rebuild, Side, Tally, TargetChange,
 };

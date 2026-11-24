@@ -4,7 +4,7 @@ use skein_io::kernel::{Error, Exit};
 use skein_world::{Cut, Memory};
 use skein_world_tests::fixtures::startup::{
     AFTER_FIRST_APPEND, APPEND_DESCRIPTOR_LIMIT, BASE_HANDLES, KILLED_CHILDREN, Processes, READY,
-    ROOT_DESCRIPTOR_LIMIT, Story, killed_child, launched, no_appends, only_parent, prefixed, processes,
+    ROOT_DESCRIPTOR_LIMIT, Story, file_bytes, killed_child, launched, no_appends, only_parent, prefixed, processes,
     restart_appends, restart_child, restart_roots, restartable, trace_bytes,
 };
 use skein_world_tests::roots::{
@@ -17,6 +17,7 @@ const REPLAY: &[(bool, bool)] = &[(false, false), (true, false), (false, true)];
 fn independently_owned_roots_support_child_files_after_parent_close_and_settle_memory() {
     // Each independently rooted exchange process: peak 2,320 B plus 25%, rounded up.
     const CEILING: u64 = 2_900;
+    const NOTE_READ_ROOM: u32 = 11; // Whole note plus one byte to detect an unexpected suffix.
     let mut outcome = launched(
         17,
         skein_sim::Config::calm(),
@@ -31,6 +32,7 @@ fn independently_owned_roots_support_child_files_after_parent_close_and_settle_m
     assert_eq!(child.expect("child admitted").received, b"gofrom child");
     assert_eq!(parent.child_exit, Some(Exit::Code(0)));
     assert!(outcome.peaks().expect("metered processes").iter().all(|peak| *peak <= CEILING));
+    assert_eq!(file_bytes(&mut outcome.machine, b"note", NOTE_READ_ROOM), b"from child");
     outcome.machine.finish();
 }
 
@@ -87,9 +89,11 @@ fn startup_roots_refuse_a_child_beyond_its_descriptor_limit() {
 
 #[test]
 fn startup_append_files_survive_parent_close_and_all_owned_handles_settle() {
+    const SIDE_READ_ROOM: u32 = 5; // Whole side file plus one byte to detect an unexpected suffix.
     let mut outcome = prefixed(37).run();
     assert_eq!(processes(&outcome).parent.received, READY);
     assert_eq!(trace_bytes(&mut outcome.machine), b"prefix:onetwo");
+    assert_eq!(file_bytes(&mut outcome.machine, b"side", SIDE_READ_ROOM), b"side");
     outcome.machine.finish();
 }
 

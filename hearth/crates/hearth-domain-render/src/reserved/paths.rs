@@ -1,4 +1,4 @@
-//! One table for every path-bearing kind (hearth/docs/design/protocol/format/tasks.md, 11).
+//! One table for every path-bearing kind (hearth/docs/design/protocol/format/tasks-reserved.md, 1).
 use super::{Installed, Refused, Shape, refused};
 use crate::{
     entries::Located,

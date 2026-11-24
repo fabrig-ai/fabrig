@@ -20,6 +20,8 @@ mod standing;
 
 #[path = "root_routes/budget.rs"]
 mod budget;
+#[path = "root_routes/cluster.rs"]
+mod cluster;
 #[path = "root_routes/stopped_worker.rs"]
 mod stopped_worker;
 

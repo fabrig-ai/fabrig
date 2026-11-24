@@ -34,6 +34,8 @@ pub struct World {
     pub selected: u64,
     pub attributes: String,
     pub tree: String,
+    /// Overrides the scripted result of `Accessibility.queryAXTree`.
+    pub query_tree: Option<String>,
     pub metrics: String,
     pub png: String,
     pub disabled: bool,
@@ -76,6 +78,7 @@ impl World {
             selected: 7,
             attributes: r#"["value","first","data-note","named","empty",""]"#.into(),
             tree: r#"{"nodes":[{"nodeId":"1","role":{"value":"RootWebArea"},"childIds":["2"]},{"nodeId":"2","ignored":true,"childIds":["3"]},{"nodeId":"3","backendDOMNodeId":7,"role":{"value":"heading"},"name":{"value":"Title"},"value":{"value":"Words"},"properties":[{"name":"level","value":{"value":1}},{"name":"focused","value":{"value":true}},{"name":"disabled","value":{"value":true}},{"name":"checked","value":{"value":true}},{"name":"expanded","value":{"value":true}},{"name":"selected","value":{"value":true}},{"name":"multiline","value":{"value":true}}]}]}"#.into(),
+            query_tree: None,
             metrics: r#"{"cssLayoutViewport":{"pageX":0,"pageY":0},"cssVisualViewport":{"pageX":0,"pageY":0,"clientWidth":390,"clientHeight":844}}"#.into(),
             png: "iVBORw0KGgo=".into(),
             disabled: false,
@@ -337,6 +340,11 @@ impl World {
     }
 
     fn reply(&self, method: &[u8], params: Option<skein_browser::wire::decode::Value<'_>>) -> String {
+        if method == b"Accessibility.queryAXTree"
+            && let Some(tree) = &self.query_tree
+        {
+            return tree.clone();
+        }
         match method {
             b"Accessibility.getFullAXTree" => return self.tree.clone(),
             b"Page.captureScreenshot" => return format!("{{\"data\":\"{}\"}}", self.png),

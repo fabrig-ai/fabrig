@@ -10,6 +10,9 @@ use skein_lib::{Duration, Time};
 use skein_world::domain::{Expectations, Judge, Referee};
 use smith_local_domain::Fact;
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 pub mod live;
 
 /// Checkout observations and the scenario's expected token-exchange count.
@@ -53,9 +56,23 @@ pub enum Ending {
     Report(Vec<u8>),
     /// A report after workspace reads, with no repository change.
     ReadReport(Vec<u8>),
+    /// A report on a program account: Claude, not the provider peer, answered.
+    ProgramReport {
+        text: Vec<u8>,
+        workspace: bool,
+    },
+    /// A program report followed by a failed sign-in recheck for the next line.
+    ProgramRecheck {
+        text: Vec<u8>,
+        interrupted: bool,
+    },
     Cancelled,
     /// A headless answer failed because its turn budget ran out.
     Budget,
+    /// A headless run whose terminal text and records are judged by its scenario.
+    Headless {
+        exit: u8,
+    },
     /// The second interrupt ends the invocation before any answer.
     Dropped,
     /// The spawned child exits before answering or contacting the provider.
@@ -69,6 +86,8 @@ pub enum Ending {
     HostFailureBeforeAnswer,
     /// A nonempty store with no layout marker refuses before any activation.
     OlderStore,
+    /// The writable repository refused a headless start before activation.
+    UnreadableHead,
 }
 
 /// Evidence handed to the shared judgment kit, never internal process cells.
@@ -108,6 +127,8 @@ impl Expectations for Meeting {
         }
     }
 }
+
+const UNREADABLE_HEAD: &[u8] = b"smith: run refused: repository workspace: its head cannot be read\n";
 
 impl Meeting {
     fn fact(&mut self, fact: Fact, judge: &mut Judge<&'static str, ()>) {
@@ -162,18 +183,23 @@ impl Meeting {
         let borrowed = self.borrowed_notice.as_deref();
         let borrowed_text = borrowed.and_then(|line| line.strip_prefix(b"smith: "));
         let expected = match &self.ending {
-            Ending::Report(text) | Ending::ReadReport(text) => text.as_slice(),
+            Ending::Report(text)
+            | Ending::ReadReport(text)
+            | Ending::ProgramReport { text, .. }
+            | Ending::ProgramRecheck { text, .. } => text.as_slice(),
             Ending::Cancelled => b"interrupted: the run was cancelled",
             Ending::Budget => b"run failed: out of turns",
+            Ending::Headless { .. } => b"", // The scenario judges its own stdout and stderr.
             Ending::Dropped => b"not delivered",
             Ending::AgentEnded => b"run failed: the agent ended without answering",
             Ending::Change { .. } => b"Change delivered",
             Ending::Unavailable => borrowed_text.unwrap_or(b"Line 1 not delivered: the run ended without reading it"),
             Ending::HostFailure | Ending::HostFailureBeforeAnswer => b"could not be kept: write failed",
             Ending::OlderStore => b"was kept by an older build of smith",
+            Ending::UnreadableHead => UNREADABLE_HEAD,
         };
-        if matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
-            judge.check(self.activation.is_none() && !self.answered && !self.shown, "a refused account starts no run");
+        if matches!(self.ending, Ending::Unavailable | Ending::OlderStore | Ending::UnreadableHead) {
+            judge.check(self.activation.is_none() && !self.answered && !self.shown, "a refused start starts no run");
         } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
             judge.check(self.activation.is_some() && !self.shown, "failed store owns the terminal failure");
         } else if matches!(self.ending, Ending::Dropped | Ending::AgentEnded) {
@@ -183,18 +209,42 @@ impl Meeting {
         }
         let code = match self.ending {
             Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => 1,
-            Ending::Dropped => 130,
+            Ending::Dropped | Ending::ProgramRecheck { interrupted: true, .. } => 130,
             Ending::Budget => 4,
+            Ending::Headless { exit } => exit,
+            Ending::UnreadableHead => 2,
             _ => 0,
         };
         judge.check(exit == Some(kernel::Exit::Code(code)), "shell exit matches the host terminal");
         judge.check(
-            if matches!(self.ending, Ending::Unavailable | Ending::AgentEnded | Ending::OlderStore) {
+            if matches!(
+                self.ending,
+                Ending::Unavailable
+                    | Ending::AgentEnded
+                    | Ending::OlderStore
+                    | Ending::UnreadableHead
+                    | Ending::ProgramReport { .. }
+                    | Ending::ProgramRecheck { .. }
+            ) {
                 queries == 0
             } else {
                 queries > 0
             },
             "provider work matches account availability",
+        );
+        if self.require_facts
+            && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore | Ending::UnreadableHead)
+        {
+            let met = judge.meet(&"terminal");
+            judge.check(met, "terminal settles the activation");
+        }
+        if matches!(self.ending, Ending::Headless { .. }) {
+            return;
+        }
+        let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
+        judge.check(
+            !contains(private, b"refresh") && !contains(private, b"token"),
+            "terminal never reveals credentials",
         );
         let start = b"smith: local host started\n";
         let older = format!(
@@ -209,7 +259,9 @@ impl Meeting {
                 2048,
             ))
         );
-        let diagnostic = if matches!(self.ending, Ending::OlderStore) {
+        let diagnostic = if matches!(self.ending, Ending::UnreadableHead) {
+            errors.strip_suffix(UNREADABLE_HEAD)
+        } else if matches!(self.ending, Ending::OlderStore) {
             errors.strip_suffix(older.as_bytes())
         } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
             errors.strip_suffix(b"smith: run failed: chat main: turn 2 could not be kept: write failed\n")
@@ -229,6 +281,8 @@ impl Meeting {
                         errors.strip_suffix(b"smith: interrupted: the run was cancelled: call aborted by its owner\n")
                     })
             })
+        } else if matches!(self.ending, Ending::ProgramRecheck { interrupted: false, .. }) {
+            errors.strip_suffix(b"smith: account work: Claude Code is not signed in: run `smith login work`\n")
         } else if matches!(self.ending, Ending::Unavailable) {
             errors
                 .strip_suffix(b"smith: account 0 has no credential: run `smith login 0`\n")
@@ -267,6 +321,7 @@ impl Meeting {
         judge.check(expected_diagnostic, "only the expected local operator start and failure lines");
         judge.check(
             contains(&shown, expected)
+                || (matches!(self.ending, Ending::UnreadableHead) && errors.ends_with(UNREADABLE_HEAD))
                 || (matches!(self.ending, Ending::OlderStore) && errors.ends_with(older.as_bytes()))
                 || (matches!(self.ending, Ending::Budget)
                     && errors.starts_with(b"smith: chat main\n")
@@ -276,15 +331,6 @@ impl Meeting {
                         ))),
             "expected terminal text",
         );
-        let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
-        judge.check(
-            !contains(private, b"refresh") && !contains(private, b"token"),
-            "terminal never reveals credentials",
-        );
-        if self.require_facts && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
-            let met = judge.meet(&"terminal");
-            judge.check(met, "terminal settles the activation");
-        }
     }
 
     fn peer(&self, queries: Vec<Query>, oauth: Option<OAuthSeen>, judge: &mut Judge<&'static str, ()>) {
@@ -325,8 +371,8 @@ impl Meeting {
                 files.get(b"result.txt".as_slice()).is_some_and(|bytes| bytes == b"new\n"),
                 "commit contains the agent's change",
             );
-        } else if matches!(self.ending, Ending::HostFailureBeforeAnswer | Ending::Budget)
-            || matches!(self.ending, Ending::ReadReport(_))
+        } else if matches!(self.ending, Ending::HostFailureBeforeAnswer | Ending::Budget | Ending::UnreadableHead)
+            || matches!(self.ending, Ending::ReadReport(_) | Ending::ProgramReport { workspace: true, .. })
         {
             judge.check(
                 head.as_deref() == Some(b"0000000000000000000000000000000000000001"),
@@ -506,7 +552,8 @@ pub struct Run {
     sign_in: SignIn,
     observations: usize,
     queries: usize,
-    saved_before_query: bool,
+    saved_before_query: Rc<Cell<bool>>,
+    query_grant: Option<(&'static [u8], Option<u64>)>,
     reviewed: bool,
     next_act: Option<Time>,
     shutdown: bool,
@@ -553,7 +600,8 @@ impl Run {
             sign_in: SignIn::default(),
             observations: 0,
             queries: 0,
-            saved_before_query: false,
+            saved_before_query: Rc::new(Cell::new(false)),
+            query_grant: None,
             reviewed: false,
             next_act: None,
             shutdown: false,
@@ -562,6 +610,16 @@ impl Run {
             line_on_wait: None,
             delay: None,
         }
+    }
+
+    /// Set the expected bearer, and optionally its generation, at the first provider query.
+    pub fn observe_grant(&mut self, expected: Option<(&'static [u8], Option<u64>)>) {
+        self.query_grant = expected;
+    }
+
+    /// Retain the first-use observation after the simulated loop drops its referee.
+    pub(crate) fn saved_before_query(&self) -> Rc<Cell<bool>> {
+        Rc::clone(&self.saved_before_query)
     }
 
     /// Type this line when the process emits its first wait event.
@@ -599,6 +657,8 @@ impl Run {
             | Proc::Browser(_)
             | Proc::Ended(_)
             | Proc::Git(_)
+            | Proc::Claude(_)
+            | Proc::Relay(_)
             | Proc::LingeringAgent(_) => false,
         });
         let line = if wait { self.line_on_wait.take() } else { None };
@@ -652,7 +712,13 @@ impl Run {
                         browser.shutdown();
                     }
                 }
-                Proc::Local(_) | Proc::Agent(_) | Proc::Ended(_) | Proc::Git(_) | Proc::LingeringAgent(_) => {}
+                Proc::Local(_)
+                | Proc::Agent(_)
+                | Proc::Ended(_)
+                | Proc::Git(_)
+                | Proc::Claude(_)
+                | Proc::Relay(_)
+                | Proc::LingeringAgent(_) => {}
             }
         }
         Ok(())
@@ -703,17 +769,20 @@ impl skein_world::Referee<crate::process::Proc> for Run {
             self.delay = Some(self.delay.map_or(delay, |known| known.max(delay)));
         }
         let authenticated = procs.iter().any(|p| matches!(p, Proc::Issuer(_)));
-        if authenticated && !self.saved_before_query && self.queries > 0 {
+        if authenticated && !self.saved_before_query.get() && self.queries > 0 {
             let tokens = crate::credential_fixture::Tokens::new(
                 &self.token_directory,
                 smith_local_shell::credentials::token_limits(),
             )
             .map_err(|_| String::from("private store"))?;
             let record = tokens.load(0).map_err(|_| String::from("record"))?.ok_or("saved before grant use")?;
-            if record.access_token.expose() != b"access-new" {
-                return Err("saved before grant use: access token differs".into());
+            let (bearer, generation) = self.query_grant.ok_or("expected grant before first query")?;
+            if record.access_token.expose() != bearer
+                || generation.is_some_and(|expected| record.generation != expected)
+            {
+                return Err("saved before grant use: bearer or generation differs".into());
             }
-            self.saved_before_query = true;
+            self.saved_before_query.set(true);
         }
         let terminal = procs
             .iter()
@@ -731,6 +800,8 @@ impl skein_world::Referee<crate::process::Proc> for Run {
             | Proc::Browser(_)
             | Proc::Ended(_)
             | Proc::Git(_)
+            | Proc::Claude(_)
+            | Proc::Relay(_)
             | Proc::LingeringAgent(_) => false,
         });
         if (self.line_on_wait.is_some() && wait)
@@ -743,7 +814,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
         let local_settled = procs.iter().any(|p| matches!(p,Proc::Local(local) if local.is_empty()));
         let browser_settled = procs.iter().filter(|p| matches!(p, Proc::Browser(_))).all(Host::is_empty);
         if !self.reviewed && terminal.is_empty() && local_settled && browser_settled {
-            let observed = check_seen(procs, self.saved_before_query, false)?;
+            let observed = check_seen(procs, self.saved_before_query.get(), false)?;
             self.meeting.observe(
                 now,
                 Observation::Terminal {

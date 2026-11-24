@@ -11,7 +11,7 @@ fn the_meta_record_encodes_as_store_md_3_1_writes_it() {
     meta::encode(&meta, &mut measure);
     let mut encoder = Encoder::writing(measure.measured());
     meta::encode(&meta, &mut encoder);
-    assert_eq!(encoder.written(), expected, "hearth/docs/design/domain/store/README.md, 3.1: meta record");
+    assert_eq!(encoder.written(), expected, "hearth/docs/design/domain/store/digests.md, 1.1: meta record");
 }
 #[test]
 fn the_meta_digest_is_h_of_part_meta_over_its_record() {
@@ -37,7 +37,7 @@ fn the_config_digest_is_h_of_part_config_over_its_tree() {
     assert_eq!(
         crate::parts::config::digest(&fixtures::config()),
         fixtures::digest("369415fd653cb11934a29e440c06fcd2c270c6bcb60f2301ddfbdd0c7d37168a"),
-        "hearth/docs/design/domain/store/README.md 3.1's tree encoding"
+        "hearth/docs/design/domain/store/digests.md 1.1's tree encoding"
     );
 }
 

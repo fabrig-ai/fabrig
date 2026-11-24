@@ -91,11 +91,17 @@ pub struct Programs {
     pub repository: Repository,
     pub git: usize,
     pub mmdebstrap: usize,
+    pub packages_suffix: &'static str,
 }
 pub const PROGRAMS: &[Programs] = &[
-    Programs { repository: Repository::Thin, git: 4, mmdebstrap: 0 },
-    Programs { repository: Repository::Fleet, git: 4, mmdebstrap: 0 },
-    Programs { repository: Repository::Resolution, git: 3, mmdebstrap: 0 },
+    Programs { repository: Repository::Thin, git: 4, mmdebstrap: 0, packages_suffix: "needed\n" },
+    Programs { repository: Repository::Fleet, git: 4, mmdebstrap: 0, packages_suffix: "needed\n" },
+    Programs {
+        repository: Repository::Resolution,
+        git: 3,
+        mmdebstrap: 0,
+        packages_suffix: "resolution 21e9a02feb65 known\n",
+    },
 ];
 const FLEET_MODES: &[(&str, u32)] =
     &[("tasks/desktop/tree/usr/local/bin/desktop-user.j2", 0o755), ("tasks/locale/tree/etc/localtime", 0o120_000)];
@@ -105,24 +111,14 @@ pub fn files(repository: Repository) -> Vec<File> {
     match repository {
         Repository::Thin => super::THIN.to_vec(),
         Repository::Fleet => super::goldens::fixture_files(&hearth.join("tests/render/fleet"), FLEET_MODES),
-        Repository::Resolution => super::goldens::fixture_files(&hearth.join("testing/repos/test"), &[]),
+        Repository::Resolution => super::files_of(&super::resolution_golden().tree),
     }
 }
 #[must_use]
 pub fn scenario<'a>(repository: Repository, files: &'a [File], laid: &'a [super::Laid]) -> Scenario<'a> {
     match repository {
         Repository::Thin | Repository::Fleet => Scenario { files, ..super::thin() },
-        Repository::Resolution => Scenario {
-            files,
-            laid,
-            call: Call::Render {
-                resolve: true,
-                repository: super::GIT_DIR.into(),
-                revision: b"HEAD".as_slice().into(),
-                targets: Box::new([b"test-min".as_slice().into()]),
-            },
-            ..super::thin()
-        },
+        Repository::Resolution => Scenario { laid, ..super::render_targets(files, &[super::TEST_MIN_TARGET], true) },
     }
 }
 

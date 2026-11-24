@@ -193,7 +193,7 @@ impl World {
         settled::assert_no_children();
         let before = settled::Before::new(&self.scenario.launch.root_path);
         let launch = &self.scenario.launch;
-        let referee = Run::new(
+        let mut referee = Run::new(
             launch.seed,
             self.scenario.ending.clone(),
             Box::new(self.checkout.clone()),
@@ -202,6 +202,7 @@ impl World {
             launch.keep_facts,
             self.scenario.expected_token_posts(),
         );
+        referee.observe_grant(self.scenario.expected_query_grant());
         let mut world = real::World::new_checked(referee);
         let lower = process::lower_configuration();
         let local_operations =

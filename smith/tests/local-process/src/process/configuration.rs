@@ -13,7 +13,11 @@ pub fn lower_configuration() -> agent::Config {
     lower_configuration_with(false)
 }
 
-pub(super) fn specialize(mut lower: agent::Config) -> agent::Config {
+pub(super) fn launch_limits(launch: &Launch, lower: agent::Config) -> agent::Config {
+    if launch.standard_profile { lower } else { specialize(lower) }
+}
+
+fn specialize(mut lower: agent::Config) -> agent::Config {
     let fixture = smith_agent_process_world::limits();
     lower.limits.llm.connection.endpoints = fixture.llm.connection.endpoints;
     lower.limits.llm.connection.connections = fixture.llm.connection.connections;
@@ -83,11 +87,23 @@ pub(super) fn configuration_for_launch(
     let configured = smith_agent_shell::config::from_value(document).expect("generated fixture JSON");
     let parsed =
         Parsed { memory: configured.memory, profile: configured.profile, declarations: configured.declarations };
-    let (mut local, lower) = configuration_for(root, launch.change, launch.tools, specialize(configured.service));
+    let (mut local, lower) =
+        configuration_for(root, launch.change, launch.tools, launch_limits(launch, configured.service));
+    if launch.standard_profile {
+        local.local.models[0].output = smith_agent_process_world::CODING_OUTPUT;
+    }
+    if let Some(name) = &launch.repository_name {
+        local.local.workspace.as_mut().expect("named repository").directories[0].name = name.as_bytes().into();
+    }
     if launch.lending == Some(crate::world::Lending::Key) {
         for model in &mut local.local.models {
             model.dialect = 2;
         }
+    }
+    if launch.program.is_some() && launch.interactive {
+        let model = &mut local.local.models[0];
+        model.model = b"claude-opus-5-5".as_slice().into();
+        model.dialect = 2;
     }
     if let Some(plain) = &launch.plain {
         let workspace = local.local.workspace.as_mut().expect("plain workspace");
@@ -345,12 +361,18 @@ fn fixture_launch(tls: bool) -> Launch {
             .then(|| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../protocol-llm/fixtures/root.der"))),
         change: false,
         tools: false,
+        standard_profile: false,
+        repository_name: None,
+        refresh_lead_ms: None,
         read_report: false,
         headless: false,
+        finalizer: None,
         interactive: false,
         choices: false,
         budget_failure: false,
         plain: None,
+        program: None,
+        headless_prompt: None,
         placement: crate::Placement::InProcess,
         keep_facts: false,
         traced: false,
@@ -365,10 +387,12 @@ fn fixture_launch(tls: bool) -> Launch {
 /// Generated agent JSON from the shared tiny declarations, with the spawned trace suffix.
 #[must_use]
 pub fn agent_document(launch: &Launch) -> serde_json::Value {
-    let profile = smith_agent_process_world::profile();
+    let profile =
+        if launch.standard_profile { agent::profile::standard() } else { smith_agent_process_world::profile() };
     let declared = profile.declared;
     let policy = profile.policy;
-    let limits = serde_json::json!({"window":1_048_576,"output":512,"reasoning_item":64,
+    let output = if launch.standard_profile { smith_agent_process_world::CODING_OUTPUT } else { 512 };
+    let limits = serde_json::json!({"window":1_048_576,"output":output,"reasoning_item":64,
         "head":10000,"idle":30000});
     let mut endpoint = serde_json::json!({"name":if launch.choices {"main"} else {"fake"},"number":0,"dialect":3,
         "provider":"openai","connect":1000,"handshake":1000,"limits":limits,
@@ -383,6 +407,14 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         endpoint["server_name"] = serde_json::json!("skein.test");
         endpoint["trust_der"] = serde_json::json!(launch.trust_der);
     }
+    if launch.program.is_some() {
+        endpoint["program"] = serde_json::json!("claude_code");
+        if launch.interactive {
+            endpoint["name"] = serde_json::json!("anthropic");
+            endpoint["provider"] = serde_json::json!("anthropic");
+            endpoint["dialect"] = serde_json::json!(2);
+        }
+    }
     let mut document = serde_json::json!({"profile":{"name":"standard","declared":{
         "conversations":declared.conversations,"calls_per_response":declared.calls_per_response,
         "tool_payload":declared.tool_payload,"file_bytes":declared.file_bytes,"shell_output":declared.shell_output,
@@ -394,9 +426,19 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         "check_timeout":policy.check_timeout.as_millis(),"unacknowledged":policy.unacknowledged,
         "group_stop":policy.group_stop.as_millis(),"exit_grace":policy.exit_grace.as_millis()}},
         "endpoints":[endpoint],"environment":[]});
+    let mut environment = Vec::new();
     if let Some(path) = &launch.commands_path {
-        document["environment"] = serde_json::json!([{"name":"PATH", "value":path}]);
+        environment.push(serde_json::json!({"name":"PATH", "value":path}));
     }
+    if let Some(program) = &launch.program {
+        document["programs"] = serde_json::json!({"claude_code":{
+            "directory": std::str::from_utf8(super::PROGRAMS).expect("programs path"),
+            "path": std::str::from_utf8(super::CLAUDE).expect("Claude path"),
+        }});
+        environment
+            .extend(program.environment.iter().map(|(name, value)| serde_json::json!({"name":name,"value":value})));
+    }
+    document["environment"] = environment.into();
     if launch.traced {
         document["trace"] =
             serde_json::json!({"path":launch.root_path.join("events.jsonl.agent"),"capture":"everything"});

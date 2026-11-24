@@ -8,6 +8,7 @@ mod gone;
 mod inspection;
 mod placed_hold_client;
 mod placed_holds;
+mod provider;
 mod reads;
 mod requests;
 mod settings;

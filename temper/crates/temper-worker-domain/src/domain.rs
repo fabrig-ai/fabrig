@@ -246,6 +246,12 @@ impl Domain {
         &self.host
     }
 
+    /// Apply the machine's capacity before checkout or program admission.
+    pub fn set_local_places(&mut self, places: u32, env: &Env<Limits>, out: &mut Queue<Request>) {
+        self.host.set_local_places(places, &mut self.host_out);
+        route::hand_off(self, env, out);
+    }
+
     /// The checkout child domain, for a world to look at.
     #[must_use]
     pub const fn checkout(&self) -> &checkout::Domain {

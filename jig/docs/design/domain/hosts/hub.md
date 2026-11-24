@@ -617,6 +617,13 @@ section 2):
   more `paused`, and its root's own deadlines for the stop then hold
   alone. A drained hub's stop finds nothing to drain.
 
+A host may supply a local limit on occupied places. Once occupancy reaches
+that limit the hub advertises paused and answers a crossed assignment as
+busy before preparation. Work already admitted continues. When capacity
+returns it advertises taking only while the owner is taking. A reconnect
+advertises the effective state after hello. The root's pause notifications
+continue to reflect the owner's own pause and drain.
+
 ## 8. smith's payloads
 
 - **Bytes in the hub.** The hub links no smith crate. It carries as

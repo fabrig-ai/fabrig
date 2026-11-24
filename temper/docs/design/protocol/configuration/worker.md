@@ -192,6 +192,18 @@ stop timeout are unchanged.
   root. Admission policy stays in jig, including checks fitting within a
   modifying charter's reserve.
 
+### Local disk capacity
+
+A standalone worker may set `TEMPER_WORKER_DISK_BUDGET` to two decimal
+byte counts separated by a comma, a reserve and a positive allowance per
+occupied place. Before its first placement and every two seconds, it samples
+the data directory's filesystem. The number of places is the available bytes
+above the reserve divided by the allowance, rounded down and bounded by the
+configured slots. A failed sample offers zero places. This is admission
+headroom shared by runs and jobs. A process already running can still use
+more than its allowance. The worker journals capacity changes. Without the
+setting, configured slots govern admission.
+
 ## 3. Open questions
 
 - **A terminal approved at a public name** (`worker.md`, 1, clients): Google on the

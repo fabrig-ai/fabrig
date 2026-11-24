@@ -18,7 +18,7 @@ pub struct CacheFile {
     pub size: u64,
     pub took: Duration,
 }
-/// A map of the variant's fields and `kind`, its name (hearth/docs/design/domain/store/README.md, 3.1).
+/// A map of the variant's fields and `kind`, its name (hearth/docs/design/domain/store/digests.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Origin {
     Fetch { uri: Box<[u8]> },

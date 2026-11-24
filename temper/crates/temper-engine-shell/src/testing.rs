@@ -1,5 +1,6 @@
 //! Shared fixtures and adapters for the engine shell's test binaries.
 pub use crate::forge::testing::setup_file;
+pub use crate::serve::limits::{LimitsIo, parse_held, rehearse_opening};
 
 pub mod scratch {
     pub use crate::upgrade::testing::{make, remove, sweep};

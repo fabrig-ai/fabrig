@@ -77,7 +77,7 @@ pub(super) fn service() -> crate::Service {
     config.limits.local.smith.accounts = 1;
     let mut service = crate::Service::new(config, 7).unwrap();
     let mut sources = List::with_capacity(1);
-    sources.push((7, SourceName::new(b"work").unwrap())).unwrap();
+    sources.push((7, SourceName::new(b"work").unwrap(), true)).unwrap();
     service
         .handed_programs(
             sources,

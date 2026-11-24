@@ -678,3 +678,56 @@ fn slash_model_drops_an_effort_the_new_model_does_not_declare() {
     assert_eq!(world.queries()[0].model.as_ref(), b"alternate");
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
 }
+
+#[test]
+fn an_exec_chat_crosses_from_direct_to_a_program_and_back() {
+    use smith_fake_claude::{Step, Story, Turn, observations};
+
+    let files = Files::new();
+    let mut first = World::traced(1, &files, Placement::InProcess, b"First answer");
+    first.exec(b"Begin the chat", b"First answer");
+    first.settle();
+    super::events::assert_run_started(&super::events::assert_exec_accepted(&mut first), false);
+
+    let mut middle = World::traced(2, &files, Placement::Spawned, b"Program answer");
+    middle.exec(b"Continue the chat", b"Program answer");
+    middle.on_program(Story {
+        summary: "portable summary".into(),
+        turns: vec![Turn::new(vec![Step::Outcome {
+            input: serde_json::json!({"outcome":{"form":"report","text":"Program answer","fields":{}}}),
+        }])],
+        ..Story::default()
+    });
+    middle.settle();
+    let product = super::events::assert_exec_accepted(&mut middle);
+    let agent = middle.agent_records();
+    super::events::assert_run_started(&agent, true);
+    assert!(!product.iter().any(|record| matches!(record.event, Event::RunStarted(_))));
+    let program_log = middle.program_log();
+    let calls = observations(&program_log);
+    let print: Vec<_> = calls.iter().filter(|call| call.arguments.first().is_some_and(|arg| arg == "-p")).collect();
+    assert_eq!(print.len(), 2, "the program compacts then opens the window");
+    let with_mcp = |call: &smith_fake_claude::Observation| call.arguments.iter().any(|arg| arg == "--mcp-config");
+    assert!(!with_mcp(print[0]), "the summary offers no MCP tools");
+    assert!(with_mcp(print[1]), "the new window offers MCP tools");
+
+    let mut last = World::traced(3, &files, Placement::InProcess, b"Direct again");
+    last.exec(b"Return to Direct", b"Direct again");
+    last.direct_carry_over(b"The conversation is kept", "Direct again");
+    last.settle();
+    super::events::assert_run_started(&super::events::assert_exec_accepted(&mut last), true);
+    assert_eq!(last.program_log(), program_log, "the Direct leg leaves the account's log unchanged");
+}
+
+#[test]
+fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
+    let files = Files::new();
+    let mut world = World::standard_coding_change(37, &files);
+    let before = world.head().expect("initial head");
+    world.settle();
+    world.assert_ended(Ending::Change { before });
+    let tree = world.commit_files();
+    assert_eq!(tree[b"result.txt".as_slice()], b"new\n");
+    assert_eq!(tree[b"original.txt".as_slice()], b"edited\n");
+    assert_eq!(tree[b"checks-ran.txt".as_slice()], b"checked\n");
+}

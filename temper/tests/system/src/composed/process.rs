@@ -70,6 +70,8 @@ pub(crate) struct Process {
     producer: Option<Producer>,
     /// Pause Smith after the selected query, before consuming its response.
     pub(super) held_query: Option<usize>,
+    /// Pause the selected host call before it crosses the process channel.
+    pub(super) held_host_call: Option<usize>,
 }
 
 /// The process service's live producer, played here because smith's domain
@@ -177,6 +179,7 @@ impl Process {
             owner: None,
             producer: None,
             held_query: None,
+            held_host_call: None,
         }
     }
 
@@ -269,6 +272,11 @@ impl Process {
     /// Whether smith has received a host call.
     pub(crate) fn called(&self) -> bool {
         !self.sent_calls.is_empty()
+    }
+
+    pub(super) fn host_call_held(&self) -> bool {
+        self.held_host_call == Some(self.sent_calls.len())
+            && matches!(self.up.front(), Some(agent::Up::Call { ask: agent::Ask::Host { .. }, .. }))
     }
 
     /// One of the worker's process requests, ended by the terminal smith's
@@ -491,7 +499,10 @@ impl Process {
         self.drive(now, around);
         let held_turn = self.producer.as_ref().is_some_and(|producer| producer.holding)
             && matches!(self.up.front(), Some(agent::Up::Turn { .. }));
-        if !held_turn && let Some(owner) = self.reading.take() {
+        if !held_turn
+            && !self.host_call_held()
+            && let Some(owner) = self.reading.take()
+        {
             match self.up.pop_front() {
                 Some(message) => {
                     let event = agent::process::Event::Received { owner, message };
@@ -522,6 +533,9 @@ impl Process {
     }
 
     fn drive(&mut self, now: Time, around: &mut Around<'_>) {
+        if self.host_call_held() {
+            return;
+        }
         let Some(agent) = self.agent.as_mut() else { return };
         if self.settled
             || self.held_query.is_some_and(|query| agent.prompts().len() >= query)

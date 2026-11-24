@@ -11,6 +11,8 @@ mod parts;
 mod peer;
 mod setup;
 mod signals;
+
+pub use coding::{CODING_LINES, CODING_OUTPUT, large_coding_write};
 use peer::child_charter;
 pub use peer::{TraceCase, long_child_answer};
 pub(crate) use setup::{Mode, ParentOptions, Setup};

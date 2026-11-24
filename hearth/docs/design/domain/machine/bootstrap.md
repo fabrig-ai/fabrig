@@ -29,7 +29,7 @@ hearth/docs/design/client/README.md, 3.8):
 | engine | none | its address, what to trust it by, and the machine's credential if the identity chosen is one (hearth/docs/design/protocol/wire.md, 4.1 and 4.3) |
 
 The target and `mutable` go into the activator's machine record; the
-rest is the steward's, kept in its state (hearth/docs/design/domain/store/README.md, 6.3), from which the
+rest is the steward's, kept in its state (hearth/docs/design/domain/store/state.md, 1.3), from which the
 client changes only the desired revision and its trial mode
 (hearth/docs/design/protocol/standalone.md, 1).
 
@@ -45,9 +45,9 @@ it refuses to start, naming every reason at once, unless:
 - the firmware is the rendered placement's `firmware`: on EFI, efivarfs
   writable and `SecureBoot` off (`boot.md`, 5.5);
 - its own binary, `/proc/self/exe`, has the digest the `hearth` task's
-  download pins in the spec (hearth/docs/design/protocol/format/tasks.md, 12): the slot it makes runs
+  download pins in the spec (hearth/docs/design/protocol/format/tasks-hearth.md, 1): the slot it makes runs
   that release, which must read the records bootstrap writes
-  (hearth/docs/design/domain/activator/README.md, 6.2);
+  (hearth/docs/design/domain/activator/state.md, 1.2);
 - the disk is a whole block device, none of it mounted, not the live
   system's own, and blank unless `--wipe` is given (provider C's volumes come
   with an image installed, and `x1-prod`'s holds os);
@@ -122,7 +122,7 @@ failure finds what the first run made, up to the disk's wipe.
    to, so there is no trial: bootstrap blesses `a` with the one
    transition that needs no running slot (hearth/docs/design/domain/slots/README.md, section 4).
 10. **Report and stop:** print the machine-id and each identity item's
-    public half for the repository's exports (hearth/docs/design/protocol/format/README.md, section 6);
+    public half for the repository's exports (hearth/docs/design/protocol/format/exports.md, section 1);
     stop the steward, which stops its builder; unmount everything. The
     operator reboots.
 
@@ -135,7 +135,7 @@ slot, so they must exist when it runs.
 - **The steward and its builder run as `hearth`, unprivileged, even
   here.** A live system has no `hearth` user, so bootstrap makes one,
   with the fixed uid, gid and subordinate range that every output also
-  declares (hearth/docs/design/protocol/format/tasks.md, 12; hearth/docs/design/domain/store/README.md, 7.2):
+  declares (hearth/docs/design/protocol/format/tasks-hearth.md, 1; hearth/docs/design/domain/store/README.md, 7.2):
 
   ```
   useradd --system --uid 59999 --user-group --home-dir /nonexistent --shell /usr/sbin/nologin hearth

@@ -1,4 +1,4 @@
-//! Typed changes and their forms (hearth/docs/design/domain/render/README.md, 4.1 and 4.3).
+//! Typed changes and their forms (hearth/docs/design/domain/render/diff.md, 1.1 and 1.3).
 use crate::form::{
     json::{digest, field},
     text::Lines,

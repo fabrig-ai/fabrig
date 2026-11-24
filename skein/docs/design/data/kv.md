@@ -598,7 +598,9 @@ failed syncs.
   deployment's store holds these bytes, and changing them needs an
   upgrade of the store's own, run before any records are patched
   (temper's `draft/upgrades.md`, 6.5). The test says so, and the change
-  moves the format's version.
+  moves the format's version. A mismatch is told in the failure itself,
+  each missing, extra and differing file with its first differing offset
+  and both lengths; the test writes no file.
 - **What it pays for:** an open asks reads totalling the bytes of the
   files it reads, whatever the chunk; a store whose map churns in place
   keeps its log within its bound and a segment (section 5), across

@@ -13,7 +13,7 @@ after M6 (hearth/docs/design/README.md, section 3: "later"). Section 8 lists wha
 - **Reproducible means one tree digest per key, on any builder.** Not
   the same bytes on disk: btrfs's inode numbers, UUIDs, generations and
   extents never match. Two builds of one key reproduce when their tree
-  digests (hearth/docs/design/domain/store/README.md, section 3) are equal.
+  digests (hearth/docs/design/domain/store/digests.md, section 1) are equal.
 - **Deferred, because it is trust, not function.** Nothing in the
   store's naming, the wire or the slots changes when it comes. Every key
   changes once, with the encoding's version (5.4).
@@ -108,8 +108,8 @@ Notes on the rows that research corrected or confirmed:
   inputs (hearth/docs/design/domain/build/packages.md, 8), but two builds of one key differ in it, so the
   gate and every comparison of outputs meet it.
 - **Containers [M5].** A container's output has no kernel and no
-  initramfs (hearth/docs/design/protocol/format/README.md, 3.4), so row 4 never reaches it, nor does
-  section 4's initramfs judged by its inputs. Whatever its variant
+  initramfs (hearth/docs/design/protocol/format/targets.md, 1.4), so row 4 never reaches it, nor does
+  `reproducible.md`, section 4's initramfs judged by its inputs. Whatever its variant
   (hearth/docs/design/protocol/format/README.md, section 11), it installs exactly its closure (hearth/docs/design/domain/build/packages.md,
   7) and meets the other rows as a host's output does.
 - **Row 6.** mmdebstrap's `cleanup/reproducible` writes an empty
@@ -153,11 +153,11 @@ peers, and each is what makes the retrofit cheap.
 
 ### 3.1 The tree digest
 
-- **Every output records its tree digest next to its key** (hearth/docs/design/domain/store/README.md, section 3 and hearth/docs/design/domain/store/records.md
+- **Every output records its tree digest next to its key** (hearth/docs/design/domain/store/digests.md, section 1 and hearth/docs/design/domain/store/records.md
   ). Drift needs it, peers verify by it, and the
   activator checks what it places against it.
-- **Its encoding is fixed once** and never changes meaning (hearth/docs/design/domain/store/README.md,
-  section 3): sorted by path, ids inside the namespace, mtimes out.
+- **Its encoding is fixed once** and never changes meaning (hearth/docs/design/domain/store/digests.md,
+  section 1): sorted by path, ids inside the namespace, mtimes out.
   Retrofitting is then comparing two digests already recorded, not
   changing how the store names outputs.
 - **The walk already lists each file's digest** (hearth/docs/design/domain/store/tree-helper.md),
@@ -304,7 +304,7 @@ run IaC code safely. The retrofit adds what hearth/docs/design/domain/build/READ
   and the version that fixes it; the entry goes once the pinned snapshot
   holds that version.
 - **A constant of the encoding's version,** as every fixed choice of how
-  hearth builds is (hearth/docs/design/domain/store/README.md, 3.2): a change to the list is a new
+  hearth builds is (hearth/docs/design/domain/store/digests.md, 1.2): a change to the list is a new
   `hearth/N`, every key changes, and every layer is built again once.
   No digest of the list enters a key, and nothing else does either.
 - **Its first entries are hearth/docs/design/domain/build/README.md's day-one treatments and rules**
@@ -326,7 +326,7 @@ run IaC code safely. The retrofit adds what hearth/docs/design/domain/build/READ
 4. **The gate** (section 7), in the lab, on every new key from then on.
 
 Each of the first three is a fixed choice of how hearth builds, so each
-comes with a new version of the encoding (hearth/docs/design/domain/store/README.md, 3.2): every key
+comes with a new version of the encoding (hearth/docs/design/domain/store/digests.md, 1.2): every key
 changes and every layer is built again once. They may land together,
 for one rebuild. Then comes the comparison across planes (7.6), once
 enough keys reproduce to make a mismatch news.

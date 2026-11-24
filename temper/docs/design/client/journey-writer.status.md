@@ -1,6 +1,6 @@
 # journey-writer: status
 
-2026-11-21. Where temper's code lags or departs from [journey-writer.md](journey-writer.md).
+2026-11-23. Where temper's code lags or departs from [journey-writer.md](journey-writer.md).
 
 - **Not yet:**
   - 2, 3: main holds seven leftover recordings, and the TUI's
