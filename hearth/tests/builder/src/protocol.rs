@@ -7,8 +7,11 @@ use hearth_domain_builder::{
     self as builder,
     vocabulary::{Event, Request},
 };
+use hearth_fake_machine::linux::{Item, Pid};
 use hearth_protocol_builder::{self as protocol, Asked, Protocol, Told};
 use skein_lib::{Env, Queue, Time, Wall};
+use skein_sim::{Ask, Reply};
+use skein_world::Machine;
 use skein_world::domain::Schedule;
 use std::collections::BTreeMap;
 
@@ -61,14 +64,67 @@ pub fn with_limits(scenario: &Scenario<'_>, seed: u64, limits: &hearth::Limits) 
     World::new(scenario, seed, fixtures::WORLD_PIPE, limits).finish(fixtures::PROTOCOL_TURNS)
 }
 #[must_use]
-pub fn with_lock(scenario: &Scenario<'_>, seed: u64, release: Time) -> Run {
-    let mut world = World::new(scenario, seed, fixtures::WORLD_PIPE, &hearth::limits());
+pub fn with_lock(scenario: &Scenario<'_>, seed: u64, release: Time, limits: &hearth::Limits) -> Run {
+    let mut world = World::new(scenario, seed, fixtures::WORLD_PIPE, limits);
     world.below.hold_lock_until(release);
     world.finish(fixtures::PROTOCOL_TURNS)
 }
+/// Independent calls with fresh roots, domain and protocol, sharing only the machine.
+#[derive(Debug)]
+pub struct Store<'a> {
+    scenario: &'a Scenario<'a>,
+    shared: Shared,
+    seed: u64,
+    pid: Option<Pid>,
+}
+impl<'a> Store<'a> {
+    #[must_use]
+    pub fn new(scenario: &'a Scenario<'a>, seed: u64) -> Self {
+        let shared = Shared::for_scenario(scenario, seed, fixtures::WORLD_PIPE);
+        fixtures::serve(&shared);
+        Self { scenario, shared, seed, pid: None }
+    }
+    /// Lay the builder's private files, directories or links, with parents first.
+    pub fn lay(&self, items: impl IntoIterator<Item = Item>) {
+        let items: Vec<_> = items.into_iter().map(|item| item.owner(fixtures::BUILDER)).collect();
+        self.shared.borrow_mut().behind.machine_mut().linux_mut().lay(&items);
+    }
+    #[must_use]
+    pub fn names(&mut self, path: &[u8]) -> Vec<String> {
+        let root = self.shared.open_root(path).expect("laid directory");
+        let result = self.shared.answer(Ask::List { dir: root, most: 4096, room: 4096 * 256 });
+        self.shared.close_root(root);
+        self.shared.drain_ledger();
+        let Reply::Listed(entries) = result.expect("directory entries") else { unreachable!("List lists") };
+        let mut names: Vec<_> =
+            entries.into_iter().map(|(_, name)| String::from_utf8(name.into_vec()).expect("fixture name")).collect();
+        names.sort_unstable();
+        names
+    }
+    #[must_use]
+    pub fn run(&mut self, wall: Wall, limits: &hearth::Limits) -> Run {
+        let below = Below::on(&self.shared, self.scenario.fault, self.seed);
+        self.pid = Some(below.pid);
+        let (run, below) =
+            World::from_below(self.scenario, self.seed, limits, below, wall).settle(fixtures::PROTOCOL_TURNS);
+        drop(below); // Release this call's roots and lock before the next one opens its roots.
+        assert!(self.shared.borrow().locks.is_empty());
+        run
+    }
+}
+impl Drop for Store<'_> {
+    fn drop(&mut self) {
+        if let Some(pid) = self.pid {
+            crate::io::exit(&self.shared, pid);
+        }
+    }
+}
+
 impl World {
     fn new(scenario: &Scenario<'_>, seed: u64, pipe: u32, limits: &hearth::Limits) -> Self {
-        let below = Below::new(scenario, seed, pipe);
+        Self::from_below(scenario, seed, limits, Below::new(scenario, seed, pipe), Wall::EPOCH)
+    }
+    fn from_below(scenario: &Scenario<'_>, seed: u64, limits: &hearth::Limits, below: Below, wall: Wall) -> Self {
         let mut protocol = Protocol::new(
             &limits.protocol,
             scenario.call.clone(),
@@ -87,8 +143,8 @@ impl World {
             below,
             domain: builder::Builder::new(&limits.domain, fixtures::BUILDER.user),
             protocol,
-            domain_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.domain },
-            protocol_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.protocol },
+            domain_env: Env { now: Time::ZERO, wall, limits: limits.domain },
+            protocol_env: Env { now: Time::ZERO, wall, limits: limits.protocol },
             calls: Queue::uncapped(),
             answers: Queue::uncapped(),
             asked: Queue::uncapped(),
@@ -98,7 +154,12 @@ impl World {
             rng: skein_lib::Rng::new(seed),
         }
     }
-    fn finish(mut self, turns: u32) -> Run {
+    fn finish(self, turns: u32) -> Run {
+        let (run, below) = self.settle(turns);
+        below.finish();
+        run
+    }
+    fn settle(mut self, turns: u32) -> (Run, Below) {
         for _ in 0..turns {
             let now = self.protocol_env.now;
             self.below.step(now);
@@ -113,6 +174,10 @@ impl World {
             self.schedule_events(now);
             if self.settled() {
                 self.below.settle();
+                // The host drains a refused startup directly to stderr, outside the printer stream.
+                if let Some(bytes) = self.protocol.take_startup() {
+                    self.below.stderr.extend_from_slice(&bytes);
+                }
                 let run = Run {
                     stdout: core::mem::take(&mut self.below.stdout),
                     stderr: core::mem::take(&mut self.below.stderr),
@@ -128,8 +193,7 @@ impl World {
                     vectors: core::mem::take(&mut self.below.vectors),
                     now,
                 };
-                self.below.finish();
-                return run;
+                return (run, self.below);
             }
             let next = [
                 self.schedule.next_time(),

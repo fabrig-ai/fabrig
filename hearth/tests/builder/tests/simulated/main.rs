@@ -32,6 +32,13 @@ mod render {
     mod resolve;
 }
 
+mod store {
+    mod cache;
+    mod records;
+    mod scan;
+    mod startup;
+}
+
 mod fuzzy {
     mod inputs;
     mod memory;

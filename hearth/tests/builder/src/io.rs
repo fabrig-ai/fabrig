@@ -26,7 +26,7 @@ pub struct Below {
     pub opened_pipes: u32,
     pub lock_times: Vec<Time>,
     pub vectors: Vec<Box<[Box<[u8]>]>>,
-    pid: Pid,
+    pub(crate) pid: Pid,
     root: Handle,
     children: BTreeMap<Token, Child>,
     pipes: BTreeMap<Token, Pipe>,
@@ -42,15 +42,17 @@ impl Below {
     pub fn new(scenario: &Scenario<'_>, seed: u64, pipe: u32) -> Self {
         let shared = Shared::for_scenario(scenario, seed, pipe);
         fixtures::serve_for_protocol(&shared, scenario.fault);
-        let files = Files::new(shared.clone(), scenario.fault, seed);
+        Self::on(&shared, scenario.fault, seed)
+    }
+    pub(crate) fn on(shared: &Shared, fault: Option<Fault>, seed: u64) -> Self {
+        let files = Files::new(shared.clone(), fault, seed);
         shared.drain_ledger();
-        let pid = shared
-            .borrow()
-            .ledger
-            .iter()
-            .find(|entry| entry.ids == fixtures::BUILDER)
-            .expect("roots opened as the builder")
-            .pid;
+        let pid = {
+            let fake = shared.borrow();
+            let entry = fake.ledger.last().expect("startup opened the roots");
+            assert_eq!(entry.ids, fixtures::BUILDER);
+            entry.pid
+        };
         let root = {
             let mut fake = shared.borrow_mut();
             let Reply::Opened(root) = fake
@@ -84,7 +86,7 @@ impl Below {
             events: VecDeque::new(),
             next: fixtures::PROTOCOL_ENTITY,
             rng: Rng::new(seed),
-            fault: scenario.fault,
+            fault,
             held: None,
         }
     }
@@ -196,14 +198,17 @@ impl Below {
         let Self { files, pid, .. } = self;
         let shared = files.shared.clone();
         drop(files);
-        shared
-            .borrow_mut()
-            .behind
-            .machine_mut()
-            .call(pid, Op::Exit { exit: linux::Exit::Code(0) })
-            .expect("settled builder exits");
-        shared.drain_ledger();
+        exit(&shared, pid);
     }
+}
+pub(crate) fn exit(shared: &Shared, pid: Pid) {
+    shared
+        .borrow_mut()
+        .behind
+        .machine_mut()
+        .call(pid, Op::Exit { exit: linux::Exit::Code(0) })
+        .expect("settled builder exits");
+    shared.drain_ledger();
 }
 fn descriptor(token: Token) -> Fd {
     Fd::new(i32::try_from(token.raw()).expect("synthetic file descriptor"))

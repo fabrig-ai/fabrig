@@ -39,11 +39,12 @@ fn a_tool_killed_mid_output_fails_the_call_with_75() {
 #[test]
 fn a_busy_lock_waits_and_says_so_once() {
     for seed in fixtures::WORLD_SEEDS {
-        let run = protocol::with_lock(&fixtures::thin(), seed, fixtures::PROTOCOL_LOCK_RELEASE);
+        let run = protocol::with_lock(&fixtures::thin(), seed, fixtures::PROTOCOL_LOCK_RELEASE, &hearth::limits());
         assert!(run.now >= fixtures::PROTOCOL_LOCK_RELEASE, "seed {seed}: the contender held the lock");
         assert!(run.lock_times.len() > 1, "seed {seed}: lock acquisition retried");
         assert_eq!(run.stderr, b"waiting for the store's lock: /srv/store\n", "seed {seed}: busy reported once");
         assert_eq!(run.stdout, fixtures::THIN_TEXT.as_bytes(), "seed {seed}: render after the lock was released");
+        assert_eq!(run.code, Some(0), "seed {seed}: success after waiting");
     }
 }
 
