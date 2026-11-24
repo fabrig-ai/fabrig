@@ -921,7 +921,7 @@ fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalD
     run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} refused {class}: "), detail)
 }
 
-// temper/docs/design/domain/worker/checkouts.md, 1.4: keep the fields at the detail's head.
+// temper/docs/design/domain/worker/checkouts-prepare.md, 12.4: keep the fields at the detail's head.
 fn run_failure_line(
     binary: &str,
     task: u64,

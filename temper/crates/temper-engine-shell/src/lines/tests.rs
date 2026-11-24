@@ -1423,7 +1423,7 @@ fn failed_prepare_stderr_preserves_fields_and_escapes_every_byte() {
 
 #[test]
 fn failed_run_stderr_keeps_a_bounded_head() {
-    // temper/docs/design/domain/worker/checkouts.md, 1.4: the bound counts input bytes.
+    // temper/docs/design/domain/worker/checkouts-prepare.md, 12.4: the bound counts input bytes.
     const DETAIL_BYTES: usize = 4096;
     const OVERSIZED_BYTES: usize = 5000;
     let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";

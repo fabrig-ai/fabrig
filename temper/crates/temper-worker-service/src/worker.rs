@@ -111,7 +111,7 @@ struct Remote {
     last_refusal: Option<(core::net::SocketAddr, crate::Refusal)>,
 }
 /// The worker names itself within the hub's wire bound, keeping the head
-/// (temper/docs/design/domain/worker/checkouts.md, 1.3).
+/// (temper/docs/design/domain/worker/checkouts-prepare.md, 12.3).
 fn hosted_detail(name: &[u8], detail: &[u8], bound: u32) -> Box<[u8]> {
     let size = name.len().saturating_add(detail.len()).saturating_add(7);
     let mut text = Writer::new(size.min(usize::try_from(bound).expect("u32 detail bound")));
