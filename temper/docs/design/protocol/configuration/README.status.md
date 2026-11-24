@@ -80,7 +80,7 @@ and a tier's card and `see settings gates`; no page says a charter's
 words yet (`../../domain/forge/README.md`, section 11, *A role's words on its
 card*), and `see ways` says no headline (`../../domain/agent/ask-temper.status.md`,
 1). The stock holds no tier, so it has no tier's words
-(`../../draft/stock-ways.md`, section 9).
+(`../../draft/archive/stock-ways.md`, section 9).
 
 `stock.md` has stock charters 1, 2, 4, 5, 9, 10, 11 and 12 and
 templates 1, 2, 4, 5 and 6; charter 3, template 3 and `configuring.txt`

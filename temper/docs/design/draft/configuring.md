@@ -401,7 +401,7 @@ the second once the reference case walks.
     adds beside the stock's, its coordinator's, designer's and foreman's
     charters among them, which Small's charters cannot hold; for 8.2,
     the reference's, sized for a goal of a hundred changes (`reference-code-production.notes.md`,
-    N21), once `reference-case.execution.md`'s M10 gives them;
+    N21), once `archive/reference-case.execution.md`'s M10 gives them;
   - the project, with rung C's repository adopted, holding what the
     golden's table asks of a repository: its `AGENTS.md`, its code and
     design rules, `.temper/pre-pr`, its merge style; and, at a path the
@@ -441,7 +441,7 @@ the second once the reference case walks.
   description of the accepted settings back as a workflow (section 6),
   asked once the proposal is accepted, against the reference's section 1.
 - **It moves with the reference.** Each milestone of
-  `reference-case.execution.md` names the settings of
+  `archive/reference-case.execution.md` names the settings of
   `reference-code-production.md`, section 14 it makes sayable; as one
   lands, its obligations move from *a gap* to *a setting*.
 - **A walk,** a pass of QA after landing, run again when the agent's
@@ -453,10 +453,10 @@ the second once the reference case walks.
 - **v0.1.0's rung D** (`v0.1.0.md`, 2.1): 8.1 with no gap left, on
   rung C's deployment with the reference's limits, then a person's draft
   started as a goal under the accepted settings, and carried from intake
-  to landing as rung C carries `reference-case.md`, acts 1 to 5.
+  to landing as rung C carries `archive/reference-case.md`, acts 1 to 5.
 - **It differs from C by the agent alone.** C runs under
   `reference-code-production.md`, section 14's settings as the
-  reference's milestones make them (`reference-case.execution.md`,
+  reference's milestones make them (`archive/reference-case.execution.md`,
   M10); D runs under what the agent proposed, on a deployment that never
   held them. That deployment is not `temper box`, which 8.1 keeps
   (`v0.1.0.md`, section 7).

@@ -276,7 +276,7 @@ Moved to [`welcome-model.md`](welcome-model.md), section 1.
     signed-in plan ("ChatGPT plan · owner@example.com"), "PLAN
     subscription · through Claude Code, signed in" for a program's, and
     " · WHO" after it where its LLM provider gave an email
-    (page 04 of `../../draft/claude-sign-in.md`, 2), WHO
+    (page 04 of `../../draft/archive/claude-sign-in.md`, 2), WHO
     the email its LLM provider gave (jig's `domain/accounts-lists.md`, 1)
     where it gave one, and otherwise the account's display, a program's
     having none;

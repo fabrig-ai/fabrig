@@ -20,7 +20,7 @@ process has exited and its tree is empty. temper's choices:
   or a deployment's `temper-agent` (`../../protocol/binaries.md`, 3, and `../../protocol/service-routing.md`, 2
   ), smith's agent shell. temper builds no code into it.
 - **Pinned at the worker's start,** so an agent is always its worker's
-  build and smith's channel never spans two (`../../draft/redeploys.md`,
+  build and smith's channel never spans two (`../../draft/archive/redeploys.md`,
   4.4). As it starts, before its loop, the worker writes the agent's
   configuration from its engine's figures, checks it and takes its
   bounds from it (`../../protocol/configuration/worker.md`, section 2;
@@ -41,7 +41,7 @@ process has exited and its tree is empty. temper's choices:
   where it is: those are the host's, not the build's. A start that
   cannot pin, the program unreadable or the root full, is refused,
   naming the file.
-- **An agent goes with its worker** (`../../draft/redeploys.md`, 4.4).
+- **An agent goes with its worker** (`../../draft/archive/redeploys.md`, 4.4).
   A worker's stop ends within its stop bound, every agent's process
   group killed at it at the latest (`README.md`, section 2). A worker that dies
   closes its agents' pipes, and each agent, hearing its channel end,

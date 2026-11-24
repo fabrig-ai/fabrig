@@ -144,7 +144,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   its stop timeout from it (`../protocol/configuration/derived.md`,
   5.6).
 - **Then it says it restarts** (jig's `domain/engine/restart.md`, 1,
-  *Saying it restarts*; `../draft/redeploys.md`, 5.2). Settled or past
+  *Saying it restarts*; `../draft/archive/redeploys.md`, 5.2). Settled or past
   its bound, the root tells the core it stops; the core keeps the word
   in its stop's decision and, once durable, asks `Held::Restarting {
   wait }`. The root hands it to its service as `Request::Restarting {

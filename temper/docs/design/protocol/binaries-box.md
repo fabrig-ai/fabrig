@@ -238,7 +238,7 @@ default; the document is `temper.json` in the configuration directory
   and whether the workers may: yes when every worker the configuration
   names may, no naming each that may not and why, unknown when
   the copy keeps no wires (`wires.md`, 10.2; `../draft/upgrades.md`,
-  section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
+  section 3.1; `../draft/archive/redeploys.md`, 5.1). Exit 0 when the
   start opens, 1 when a start would be refused before it.
 - **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
   the workers alone, over the checkpoint taken at the engine's settled

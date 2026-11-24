@@ -27,7 +27,7 @@ place (jig's `domain/engine/overlays.md`).
     instructions and no parts: its runs read the stock's charter 5, the
     designer at its first run and the coordinator at each later wake, in
     parts, under the stock's wake policy (`stock.md`;
-    `../../draft/stock-charters.md`, 2, and `../../draft/stock-charters-texts.md`, 1);
+    `../../draft/stock-charters.md`, 2, and `../../draft/archive/stock-charters-texts.md`, 1);
   - *charter 2's overlay, the implementer's:* gpt-6.1-sol as the document
     configures it, with no alternatives; the same run, reserve and
     spend; smith's shell family (`shell` and `job`: smith's

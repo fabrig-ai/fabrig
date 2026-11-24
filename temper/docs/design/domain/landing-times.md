@@ -5,7 +5,7 @@ landed or ended: `temper ctl landing times` splits it into states that
 don't overlap, computed by code from the events landing history keeps
 (`landing-history.md`) and from nothing else; under `turn`, each
 landing's rounds follow its changes. It is the draft's milestone H2
-(`../draft/landing-history.md`, sections 7 and 10; its execution's H2),
+(`../draft/archive/landing-history.md`, sections 7 and 10; its execution's H2),
 reading only what H1 writes. Nothing is stored: the same events under
 the same bound give the same answer at every read.
 
@@ -363,7 +363,7 @@ versioned record TimesAnswer { result: TimesReply }
 - **The crate's functions,** `times_answer` and `decode_times_answer`,
   as `history_answer` and `decode_history_answer` are.
 - **No bridge:** the client's wire moves its version alone
-  (`../draft/redeploys.md`, 8).
+  (`../draft/archive/redeploys.md`, 8).
 
 ### 4.8 In the root and the forge
 
@@ -464,4 +464,4 @@ Focused and fuzzy suites alone, each test failing first:
 - **A queue change's checks at its head** as proving, once landing
   history writes their runs (2.2).
 - **A project's figures over time,** landings per hour and the share of
-  time in each state by day (`../draft/landing-history.md`, 11).
+  time in each state by day (`../draft/archive/landing-history.md`, 11).

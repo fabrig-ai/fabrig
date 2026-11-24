@@ -7,7 +7,7 @@ admitted at, and its agents' profile and endpoints. It also covers the
 agent configuration temper writes from them, the `agents` setting, and
 what a worker's document no longer holds. It carries
 `../../draft/config.md`, 6.3, and, from 2026-11-20, the figures a running
-worker takes live (`../../draft/worker-restarts.md`, 8). The record and
+worker takes live (`../../draft/archive/worker-restarts.md`, 8). The record and
 the two openings that carry it are jig's (jig's
 `protocol/channel/figures.md`).
 
@@ -155,9 +155,9 @@ filled so:
     and the hub's turn among them; `io.output`, which its link's opening
     states; `link.ping_ms` and `link.silence_ms`, which make the stop
     bound its hello states, which the engine checks against its grace
-    and holds its runs by (`../../draft/redeploys.md`, 5.3); and the
+    and holds its runs by (`../../draft/archive/redeploys.md`, 5.3); and the
     `agents` profile and endpoints, which re-pin its agent
-    (`../../draft/redeploys.md`, 4.4).
+    (`../../draft/archive/redeploys.md`, 4.4).
 - **How it takes them,** on figures that differ from those in force on
   it:
   1. It reads them over the stock as its start does (3.1, step 3),
@@ -242,7 +242,7 @@ filled so:
 - **Kind 21,** one of temper's (`settings-kinds.md`, section 1): the
   deployment's scope, number 1, decided by the deployment's owners. It
   applies at each worker's next start, since it re-pins the worker's
-  agent (`../../draft/redeploys.md`, 4.4). Kind 20 remains the deployment's welcome; kinds 16 to 19 are left for the draft's other milestones.
+  agent (`../../draft/archive/redeploys.md`, 4.4). Kind 20 remains the deployment's welcome; kinds 16 to 19 are left for the draft's other milestones.
 - **Its value,** a record of the client's wire:
 
   ```
@@ -436,7 +436,7 @@ compiled, and run after landing.
   operation in flight keeps its deadline; the next git operation of the
   other run is sent with the new one; no run is cancelled, drained,
   saved or ended, and no hello is sent again
-  (`../../draft/worker-restarts.md`, 9, test 7). A lowering is taken the
+  (`../../draft/archive/worker-restarts.md`, 9, test 7). A lowering is taken the
   same way.
 - **The rows and the worker agree,** focused, in the same tests: for
   each name of either names table that a worker reads, figures with that

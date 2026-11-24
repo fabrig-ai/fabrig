@@ -383,7 +383,7 @@ to an older reader or writer. Each has one version at a time.
     both halves move together. Every layout change moves the version
     and keeps the previous schema text; no bridge or previous
     spoken version is needed. temper records this exemption in its wire
-    bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
+    bridge inventory (`temper/docs/design/draft/archive/redeploys.md`, 4.2 and
     4.4). A consumer permitting independently upgraded agents needs a
     compatibility contract before using that shape (section 11).
   - **the charter** carries its own version, since the party that writes

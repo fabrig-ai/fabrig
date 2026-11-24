@@ -277,7 +277,7 @@
 - **Checkpoints kept,** `store.checkpoints.keep`, the store's
   `Limits`'s `checkpoints.keep`: how many of the newest checkpoints the
   store keeps (`store/checkpoints.md`, 4.7), the same in every profile,
-  2 as temper's `draft/checkpoints.md`, 3.4 has it. An override is a
+  2 as temper's `draft/archive/checkpoints.md`, 3.4 has it. An override is a
   number from 1 to 64; any other refuses the start, naming it.
 - **A template's grace** is within the tasks child's limit on a grace's
   span, or the start is refused, naming the template (`configuration-templates.md`, 1).

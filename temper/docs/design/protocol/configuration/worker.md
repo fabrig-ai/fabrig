@@ -66,7 +66,7 @@ constant (`moved.md`, section 2): how
 long a worker keeps hosting its runs with no engine that has admitted
 its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
 2). It is 300,000, five minutes
-(`../../draft/redeploys.md`, 5.3), so that an engine's restart (its
+(`../../draft/archive/redeploys.md`, 5.3), so that an engine's restart (its
 settled stop, the swap, its store's registry commit and jobs, its switch, its listeners
 again) passes within it and each run is adopted where it stands; the
 engine's grace is derived above it (below).
@@ -75,7 +75,7 @@ engine's grace is derived above it (below).
 (jig's `domain/engine/fleet.md`, *A restart said holds its runs*): how
 long the engine's settled stop asks its workers to keep their runs after
 their links drop, 1,200,000, twenty minutes, in both of jig's profiles
-(`../../draft/redeploys.md`, 5.3 and 12), with room over every engine
+(`../../draft/archive/redeploys.md`, 5.3 and 12), with room over every engine
 restart measured so far. `temper-box init` writes none. One setting
 serves every worker, each of which keeps its runs for the longer of it
 and its own grace (`../../domain/worker/README.md`, section 2); the
@@ -87,12 +87,12 @@ stop timeout are unchanged.
   long a worker told to stop lets its runs end their turns before it
   cancels them (`../../domain/worker/README.md`, section 2). It may be
   absent, and is then 180,000, the draft's three minutes
-  (`../../draft/redeploys.md`, 6.1); `temper-box init` writes none.
+  (`../../draft/archive/redeploys.md`, 6.1); `temper-box init` writes none.
 - **The drain's grace** is jig's worker member `graces.drain_grace_ms`:
   how long a drained run's calls in flight at its answer have to end
   before its agent cuts them (jig's `domain/hosts/hub.md`, 7). It may be
   absent, and is then 10,000, the draft's ten seconds
-  (`../../draft/worker-restarts.md`, section 3); `temper-box init` writes
+  (`../../draft/archive/worker-restarts.md`, section 3); `temper-box init` writes
   none. It runs within the drain's bound, so the stop bound is
   unchanged.
 - **It is ordered under the engine's grace.** The stop bound a worker
@@ -109,7 +109,7 @@ stop timeout are unchanged.
 - **The service manager's stop timeout** sits above the stop bound: a
   unit that kills the worker sooner is a crash, losing the workspace's
   changes since its last save or delivery, and the attempt is lost
-  (`../../draft/redeploys.md`, 6.1). The worker's unit in `temper help
+  (`../../draft/archive/redeploys.md`, 6.1). The worker's unit in `temper help
   server` gives `TimeoutStopSec=` the stop bound and a margin, 360
   seconds with these graces.
 - **A hello refused for a charter's reserve names the setting.** The

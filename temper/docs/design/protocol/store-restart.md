@@ -39,7 +39,7 @@ This document holds the store's restart and restore protocol, split from [`store
   NAME the family's variant in `store.md`, section 2 and N its number. A store
   below the floor is refused earlier (`floor.md`, 4),
   so QA knows which named build to use or copy to make again
-  (`../draft/landed-qa.md`, 5). It is jig's row that
+  (`../draft/archive/landed-qa.md`, 5). It is jig's row that
   does not decode, which stops the engine (jig's
   `protocol/store/loads.md`, 1), said by name.
 - **Nothing else is read** but the landing history: no load, get or

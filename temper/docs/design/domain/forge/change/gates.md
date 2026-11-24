@@ -158,7 +158,7 @@
   repair, and its words are any review's. A person's approval and a
   check count as they did (4). A verdict kept before its revision was
   reads revision 0, so an amended change asks its review again
-  (2026-11-17, `../../../draft/delegate-rulings.md`, 2).
+  (2026-11-17, `../../../draft/archive/delegate-rulings.md`, 2).
 - **Posted, if the project wants:** a gate's verdict as a commit status,
   such as `temper/review/memory-safety`, which protection can require
   independently of temper. On GitHub, temper's App has `statuses: read`

@@ -325,7 +325,7 @@ spawns one (host.md, section 5.2).
   what work is pending and whether the process is done both follow:
   - **`Live`:** the run runs. **A termination signal is its host's to
     decide** while the channel is open and the host's cancel is not yet
-    heard (temper's `draft/worker-restarts.md`, section 2): the agent
+    heard (temper's `draft/archive/worker-restarts.md`, section 2): the agent
     tells its host, `signalled` (channel.md, section 4), once, with the
     signal and its sender where the system names one, and the run goes
     on; the host's word, a drain, a cancel or none, is what ends it. One

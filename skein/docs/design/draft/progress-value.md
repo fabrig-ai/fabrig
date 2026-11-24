@@ -6,7 +6,7 @@ progress node says how far a piece of work has gone in words alone
 each shell maps to its platform's progress, and which a browser's
 stylesheet can draw as a bar that fills. Its first consumer is temper's
 fetch of Forgejo, whose percentage the clients say in words
-(`temper/docs/design/draft/fetch-progress.md`, section 6).
+(`temper/docs/design/draft/archive/fetch-progress.md`, section 6).
 
 ## 1. In one page
 
@@ -118,7 +118,7 @@ with a fraction, beside the `aria-valuetext` it writes today:
 1. **skein:** the property, its row in `../ui/tree.md`, 1.2, and the rows of
    `../ui/shells.md`; the web mapping and `skein-ui.css`'s rules; the goldens.
    One change.
-2. **temper** (`temper/docs/design/draft/fetch-progress.md`, section 6):
+2. **temper** (`temper/docs/design/draft/archive/fetch-progress.md`, section 6):
    its view sets the fetch's fraction from the bytes written and the
    size, and its meter's rule reads `var(--skein-ui-progress, 0%)` in
    place of its own `--temper-flow-meter-fill`; with no size, no

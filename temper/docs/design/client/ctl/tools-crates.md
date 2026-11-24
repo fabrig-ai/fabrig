@@ -1,8 +1,8 @@
 # The tools' crates
 
-Provisional, 2026-11-15. From `temper/docs/design/draft/gate-compile.md`, 5, milestone C6 of
-`temper/docs/design/draft/gate-compile.execution.md`: `temper-client-tools` split by
-`temper/docs/design/draft/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
+Provisional, 2026-11-15. From `temper/docs/design/draft/archive/gate-compile.md`, 5, milestone C6 of
+`temper/docs/design/draft/archive/gate-compile.execution.md`: `temper-client-tools` split by
+`temper/docs/design/draft/archive/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
 each piece holds and why, what crosses the cut, where the tests go, the change of moves, and the
 readers. What the tools do is `README.md`'s and `tools.md`'s: nothing here changes a behaviour, a
 public path or a test's check.
@@ -42,7 +42,7 @@ its name.
 | jig's part | `jig.rs` and `jig/`, with the inline test modules of `jig/render/document/clock.rs`, `hold_states.rs`, `offers.rs` and `read_owner_words.rs` |
 | `temper-client-tools` | `lib.rs`, `adopt.rs`, `amend.rs`, `change.rs`, `demo.rs`, `drafts.rs`, `finding.rs`, `follow.rs`, `forge.rs`, `forges.rs`, `help.rs`, `key.rs`, `landing.rs`, `limits.rs`, `making.rs`, `push.rs`, `recovery.rs`, `root.rs`, `settings.rs`, `table.rs`, `tier.rs`, with their directories |
 
-Their sizes, counted as raw lines of today's files, are each under the bound of `crate-graph.md`,
+Their sizes, counted as raw lines of today's files, are each under the bound of `../../draft/archive/crate-graph.md`,
 7.3, which `tools/crates/design.md`, 2's rules count a little lower: about 28,300 for jig's part,
 its tests a few hundred lines of it; and about 45,500 for `temper-client-tools`, 14,600 of code and
 30,900 of tests (4.1).
@@ -60,7 +60,7 @@ its tests a few hundred lines of it; and about 45,500 for `temper-client-tools`,
 
 ### 2.3 Why there
 
-From the crate's history, `crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
+From the crate's history, `../../draft/archive/crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
 
 - **The history.** From 2026-10-28 to `fb1d45a513`, 165 landings changed the crate's library
   sources, its `src/tests/` not counted. By the pieces of 2.1, jig's part changed in 117 and
@@ -70,10 +70,10 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   the 48 that changed temper's part alone, 34 changed none of those, and would have reused jig's
   part.
 - **What a test build compiles.** Today the crate's library, about 42,900 lines, and its test
-  target, about 73,800, which compiles the library again (`crate-graph.md`, 6.2). Split, a change to
+  target, about 73,800, which compiles the library again (`../../draft/archive/crate-graph.md`, 6.2). Split, a change to
   temper's part compiles its library and its test target, about 60,000 lines; a change to jig's part
   compiles about as much as today, in units that build side by side once jig's library is built.
-  The figure after landing says whether the pieces were reused (`gate-compile.md`, 8).
+  The figure after landing says whether the pieces were reused (`../../draft/archive/gate-compile.md`, 8).
 - **A chain, not side by side.** Each of temper's 20 modules names `crate::jig`; nothing under
   `src/jig/` names the crate outside it (`README.md`, section 4).
 - **jig's part is not cut further.** Its rendering (about 17,500 lines) and its runner name each
@@ -88,7 +88,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   `crate::jig::`, compiles unedited. It carries today's crate attributes that its files meet
   (`no_std` but under test, `forbid(unsafe_code)`, the `clippy::manual_map` expectation) and
   `extern crate alloc;`.
-- **`temper-client-tools` keeps its name and every public path** (`crate-graph.md`, 5.3): its root
+- **`temper-client-tools` keeps its name and every public path** (`../../draft/archive/crate-graph.md`, 5.3): its root
   re-exports `pub use temper_client_tools_jig::jig;` in place of `pub mod jig;`, so its own files and
   its readers name `jig` as today.
 - **An item temper's part or its tests name is `pub` in jig's part,** with the modules on its path;
@@ -117,7 +117,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
 
 ## 3. What crosses the cut
 
-No preparation lands before the move: each of `crate-graph.md`, 5.2's conditions for a cut that
+No preparation lands before the move: each of `../../draft/archive/crate-graph.md`, 5.2's conditions for a cut that
 builds already holds.
 
 - **No upward edge.** No file under `src/jig/` names an item of the crate outside `crate::jig`, by
@@ -165,7 +165,7 @@ builds already holds.
 
 ## 5. Landing the split
 
-One change of moves, with no preparation before it (`crate-graph.md`, 5.3):
+One change of moves, with no preparation before it (`../../draft/archive/crate-graph.md`, 5.3):
 
 - **Each file moved whole** to its piece, by 2.1 and 4.1, in a commit of moves alone, and not edited
   but where the build forces it, in a commit after the moves: a visibility (2.4), what a newly public
@@ -180,7 +180,7 @@ One change of moves, with no preparation before it (`crate-graph.md`, 5.3):
 - **Citations of the moved files follow:** a comment naming a file under
   `temper-client-tools/src/jig/` names it under `temper-client-tools-jig/src/jig/`.
 - **Out of the way of plans in flight:** it lands between other landings in the crate, as
-  `crate-graph.md`, 5.3 says, and goes before none that was marked first. Main is read afresh
+  `../../draft/archive/crate-graph.md`, 5.3 says, and goes before none that was marked first. Main is read afresh
   before it: a landing there in the crate that the goal's branch lacks is caught up first, so that
   the moves carry it.
 
@@ -208,5 +208,5 @@ instead. From the readers at `960d207e53`:
   root, would let those tests move down. That changes how the tests set up, not what they check.
 - **Later: extraction into jig** (`README.md`, section 11) is jig's part moved to jig's tree, once
   it names no temper crate: it names `temper-settings-form` today.
-- **The figure after landing** is `gate-compile.md`, 8's: each piece's units against
+- **The figure after landing** is `../../draft/archive/gate-compile.md`, 8's: each piece's units against
   `temper-client-tools`' and whether the builds after it reused jig's part.

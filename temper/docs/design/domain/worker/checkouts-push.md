@@ -171,7 +171,7 @@ This document holds checkout delivery and saving, split from [`checkouts.md`](ch
 ## 6. A task's own delivery outlives its hold
 
 - **A task's own delivery outlives its hold**
-  (`../../draft/delivered-across-runs.md`, 2). A run that delivered and
+  (`../../draft/archive/delivered-across-runs.md`, 2). A run that delivered and
   then parked ends its hold, and its next run's hold starts with nothing
   of its own pushed, at the head that run delivered. So the assignment
   names, for each writable repository, the task's own delivery,

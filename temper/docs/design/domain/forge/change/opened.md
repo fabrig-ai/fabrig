@@ -4,8 +4,8 @@ A person pushes a branch and opens a change from it with one act, and
 temper lands it as it lands a change an agent produced, under the same
 rules: the act's request, the root's expansion of it into the person's
 own change task, the change's first state, taking, and what the change
-keeps and serves. Written from `../../../draft/mechanical-changes.md`,
-sections 1 to 10; what that draft leaves for later is section 8's.
+keeps and serves. Written from `../../../draft/archive/mechanical-changes.md`, sections 1 to 10
+; what that draft leaves for later is `opened.md`, section 8's.
 
 ## 1. In one page
 
@@ -250,14 +250,14 @@ A change with parameter 19 has no producing task. Its own branch is
   no source.
 - **The client's wire** moves its version for the new request and the
   panel's source and step, with no bridge
-  (`../../../draft/redeploys.md`, section 8): a client of the new
+  (`../../../draft/archive/redeploys.md`, section 8): a client of the new
   version meeting an engine of the previous one is refused, `version not
   served`, before any task is made. Engine and workers: nothing moves,
   no job runs and no worker is asked.
 
 ## 7. Testing
 
-Focused and fuzzy suites alone (`../../../draft/mechanical-changes.md`,
+Focused and fuzzy suites alone (`../../../draft/archive/mechanical-changes.md`,
 section 10, whose items are the stories):
 
 - **The connector's world** (`temper/tests/engine/forge`), with a change
@@ -282,7 +282,7 @@ section 10, whose items are the stories):
 ## 8. Open questions
 
 The draft's later steps, each drafted with the user
-(`../../../draft/mechanical-changes.md`, section 11): trouble back to
+(`../../../draft/archive/mechanical-changes.md`, section 11): trouble back to
 the opener rather than to a resolution or a repair; what may be opened,
 by path set and role; a goal's branch as the target; out-of-band fixes
 through the act; opening from the web's Changes page; and moving an

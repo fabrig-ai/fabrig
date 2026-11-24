@@ -7,7 +7,7 @@ one setting of a project's, of which Away becomes a modifier. It is
 4 and 5, where Away's kinds are four bits of the person's own, only
 goals decide and a project keeps 64 decided rows; `../domain/forge/change/questions.md`, 2 and `../domain/forge/queues.md`
 , where a change waiting on a person's approval holds its
-branch's queue; `../domain/agent/tools.md`'s `decided`; `stock-ways.md`,
+branch's queue; `../domain/agent/tools.md`'s `decided`; `archive/stock-ways.md`,
 section 2, where a way sets how work starts and lands and nothing else, as a
 way now also sets the classes' defaults (`what-reaches-you.md`, section 2); what kind 6, a project's
 question route (`../protocol/configuration/settings-kinds.md`, 1), and Start goal's
@@ -107,7 +107,7 @@ The kinds, each named in the asker's call (section 4):
   judged as if every item of the table asked, Away included, as 5.9 answers
   such a goal today.
 
-**The defaults,** set by a project's way (`stock-ways.md`, section 2) and
+**The defaults,** set by a project's way (`archive/stock-ways.md`, section 2) and
 changed afterwards as any setting is:
 
 | Way | Agents decide, then tell you | Asks you; Away may decide | Asks you, even when away |
@@ -262,7 +262,7 @@ own" (the Team example on fabrig.ai's home page says so).
   where the forge enforces it stays `../README.md`, section 8's open
   question.
 - **The path** draws the sign-off as a stop for that path set alone
-  (`stock-ways.md`, section 4; `surfaces.md`, section 7).
+  (`archive/stock-ways.md`, section 4; `surfaces.md`, section 7).
 
 ## 8. Only you
 

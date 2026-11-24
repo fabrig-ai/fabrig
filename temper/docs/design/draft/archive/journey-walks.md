@@ -175,7 +175,7 @@ What the binary needs sits today where it cannot be reached, so the first goal t
 
 - **What it writes:** each journey's pages, whole (5.1), and the generated files beside them (`skein-ui.css`, `journey.js`, `theme.css`, `tui-journey.js`). It removes the pages of a directory that holds no `walk`.
 - **One run at a time, on main's tip.** The writer prints the tip. While a change of its own is open it starts no other. When that change lands, or any other landing does, it runs again on the new tip. So it settles: once it has run on a tip and found nothing to write, main's pages are that tip's print.
-- **Its change** touches pages alone and is opened from a pushed branch (`../mechanical-changes.md`). The last paragraph of its message holds `Printed: COMMIT`, the tip it printed.
+- **Its change** touches pages alone and is opened from a pushed branch (`mechanical-changes.md`). The last paragraph of its message holds `Printed: COMMIT`, the tip it printed.
 - **Nothing else writes its files, so its change meets no conflict.** Were one to arise all the same, from a branch made by hand, fabrig's merge job settles it with no model, taking the landing branch's copy (`tools/merge/README.md`), and the next run writes the pages again.
 - **It rules by writing, not by guarding.** Whatever lands in a page, the next run replaces it with the tip's print. So no check has to know who wrote a page.
 - **Goals are kept off all the same,** against the habit: the delivery check (`tools/pre-pr/design.md`) refuses an agent's delivery whose branch changes a page, or a generated file beside one, together with any other file, naming `temper-client-walk print`. `AGENTS.md` says so.

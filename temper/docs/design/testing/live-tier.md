@@ -230,7 +230,7 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   than 25. Each run's summary, a failed run's included, records its
   completions and its wall time. Nothing in the test catches a panic for
   it: a sitting's checks return their findings, and the test writes the
-  summary before it fails with one (`../draft/panics.md`, 4). A panic
+  summary before it fails with one (`../draft/archive/panics.md`, 4). A panic
   of our own code ends the test without it, and the launcher's lines
   say what it returned and stopped.
 - **A chat's change lands on github.com, through a restart,** a test
@@ -326,7 +326,7 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
     teardown, and the teardown returns its own, a branch or a pull it
     could not remove or a token it could not revoke, after trying
     every one; the test fails with the story's finding first. Nothing
-    in the test catches a panic for it (`../draft/panics.md`, 5). The
+    in the test catches a panic for it (`../draft/archive/panics.md`, 5). The
     landed file stays on main, one a run. When the teardown did not
     finish, a panic of our own code or a signal having ended the test
     first, the script, once the test process has ended (on a signal it
@@ -423,7 +423,7 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
     pair. Never at the gate, and never run by an implementer.
 - **The held record's return,** for each story that moves a held record
   in, the ChatGPT landing story and B0's rung: the launcher's, once the
-  test process has ended, however it ended (`../draft/panics.md`, 5).
+  test process has ended, however it ended (`../draft/archive/panics.md`, 5).
   Each box of a story still returns the record before it stops, as its
   own act (above); this return is for whatever ends a sitting first, a
   panic, an abort, a failed return or a signal. Nothing in the test

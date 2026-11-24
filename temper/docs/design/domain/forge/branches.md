@@ -227,7 +227,7 @@ A goal from a template that names it is ended by temper's goal closer
 judge, jig makes the closer as the goal's own delegate, and the closer
 does with no model what a goal's run did once its plan's changes had
 ended: it settles the goal's branch, lands it, and reports. The goal's
-agent wakes for judgement alone (`../../draft/goal-runs-itself.md`,
+agent wakes for judgement alone (`../../draft/archive/goal-runs-itself.md`,
 section 6).
 
 - **The forge's procedure 6,** the goal closer, beside the change (2),

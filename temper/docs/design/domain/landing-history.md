@@ -7,7 +7,7 @@ under `queue` and under `turn`; kept by change in families the store
 holds and the forge reads on demand, never restored; swept by age and
 by count; and read through `temper ctl landing history`, and by
 `change show` for a change whose row went. It is the draft's milestone
-H1 (`../draft/landing-history.md`, sections 1 to 6, 8, 9 and 10; its
+H1 (`../draft/archive/landing-history.md`, sections 1 to 6 and 8 to 10; its
 execution's H1). Where the time went, `landing times`, is H2's
 (`landing-times.md`), reading only what this document writes. A
 change's steps are `forge/change/README.md`, 2 and
@@ -61,7 +61,7 @@ An event's record, `HistoryEvent`, keyed by its project and number
 | `operation`, `attempt` | its identity (2.3) |
 | `what` | its kind and the kind's fields (2.2) |
 
-Bounded records (`../draft/landing-history.md`, 5): each field is a
+Bounded records (`../draft/archive/landing-history.md`, 5): each field is a
 number, a hash, an enumeration or a reason of at most 256 bytes; a
 `formed` event's members are at most `forge.landing_members`. No event
 carries a log, a body or words.
@@ -539,4 +539,4 @@ Focused and fuzzy suites alone, each test failing first:
   request's merge time, read by the forge client and kept as
   `source_at`.
 - **A gate's own steps**, the client's view of a timeline, and a
-  project's figures over time (`../draft/landing-history.md`, 11).
+  project's figures over time (`../draft/archive/landing-history.md`, 11).

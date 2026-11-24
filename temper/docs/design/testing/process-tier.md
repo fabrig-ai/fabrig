@@ -213,7 +213,7 @@
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
 - **A box at its place restarted with a newer build**
-  (`../protocol/setup/box.md`, 1, and `../protocol/setup/box-backends.md`, 1; `../draft/landed-qa.md`, 10 and
+  (`../protocol/setup/box.md`, 1, and `../protocol/setup/box-backends.md`, 1; `../draft/archive/landed-qa.md`, 10 and
   11), one story on `temper box --fake-backends` on its fake backends
   alone, as a QA place runs it: the box started from a `bin/` of its
   own, holding copies of `temper-box` and `fake-claude` and a bundle's
@@ -245,7 +245,7 @@
 
 - **A deployment at its place restarted with a newer build**
   (`a_stopped_deployment_restored_at_its_place_uses_new_files`;
-  `qa/deployment.md`; `../draft/landed-qa.md`, 10 and 11), one story,
+  `qa/deployment.md`; `../draft/archive/landed-qa.md`, 10 and 11), one story,
   as a QA place of the deployment's kind runs it: a place directory of
   the story's own, its `bin/` holding copies of `temper-box`,
   `fake-claude`, `temper`, `temper-client-journeys`, `temper-engine`,
@@ -464,7 +464,7 @@
   alone, the kill only past the stop timeout its printed stop bound
   gives), with a stray termination signal to its run's agent, while the
   run's LLM answer is held, its turn then committed before the worker
-  exits 0 (`../draft/worker-restarts.md`, 9, test 8); a member's
+  exits 0 (`../draft/archive/worker-restarts.md`, 9, test 8); a member's
   unexpected end reported once its client settles; and a mixed document
   refused, exit 1. What a loss, a fence, a late or returning worker or a
   drain does to the run is the engine's domain world's, jig's fleet's

@@ -288,7 +288,7 @@ waits for a commit, so the service can close its components. A restart
 then starts from the store as `restart.md` says.
 
 **Settling before the stop.** A root that settles its effects before
-it stops (temper's `domain/root-restart.md`, 1.2; temper's `draft/redeploys.md`,
+it stops (temper's `domain/root-restart.md`, 1.2; temper's `draft/archive/redeploys.md`,
 5.2) first tells the core so, `Event::Settling`, at once on hearing the
 stop, and its stop, `Event::Stopping`, once settled. From `Settling` on,
 the core makes no new work and takes every commit:
@@ -337,7 +337,7 @@ A stopped start is no refused start: it names no `start::Failure`,
 `start_phase()` still names where it stopped, and the next start begins
 again from the store.
 
-**Saying it restarts** (temper's `draft/redeploys.md`, 5.2). A settled
+**Saying it restarts** (temper's `draft/archive/redeploys.md`, 5.2). A settled
 stop tells the workers that the engine restarts, so that each keeps its
 runs through the restart wait rather than its grace
 (`../../protocol/channel/restart.md`):
@@ -364,7 +364,7 @@ runs through the restart wait rather than its grace
   nothing; nor does a stop whose configuration says its workers are in
   its process (step 3), or whose restart wait is zero.
 
-**Held across starts** (temper's `draft/redeploys.md`, 5.3):
+**Held across starts** (temper's `draft/archive/redeploys.md`, 5.3):
 
 - **Read with the core's records** (step 1): a word kept is the start's
   hold.
@@ -387,7 +387,7 @@ runs through the restart wait rather than its grace
   between them or a shorter wait on the second, shorten no hold.
 - **A build that doesn't know the word** holds for its grace alone, so
   going back past the build that brings it is every part together, each
-  worker drained first (temper's `draft/redeploys.md`, 7.3).
+  worker drained first (temper's `draft/archive/redeploys.md`, 7.3).
 
 Finishing continues while stopping. After routing previously accepted work,
 a Resume at which the core owes finishing closes without taking a new input,

@@ -85,7 +85,7 @@ pub const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 const CHECKOUT: Checkout = Checkout {
     // Cached workspaces before the worker’s slots derive its places (configuration/derived.md, 5.2).
     workspaces: 3,
-    // One preparation at a time per worker: redeploys.md, 6.4.
+    // One preparation at a time per worker: draft/archive/redeploys.md, 6.4.
     preparations: 1,
     // Held to the agent's two repository directories.
     repositories: 2,

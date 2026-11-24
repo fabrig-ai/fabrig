@@ -33,7 +33,7 @@
   (skein's `data/codec/golden.md`, 1).
   The engine serves one version; a client of another version is refused
   before its record is read. Client bridges are deferred
-  (`temper/docs/design/draft/redeploys.md`, 8).
+  (`temper/docs/design/draft/archive/redeploys.md`, 8).
 - **A version is its schema's `family` line.** A wire's version is the
   number its schema's `family` line names (skein's `data/codec/README.md`,
   section 3), and its crate's version constant equals it: jig's

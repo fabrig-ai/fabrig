@@ -114,7 +114,7 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
 External crates still have features. A build that selects fewer
 packages would compile one with fewer features, and with it every crate
 above, under compiler-cache keys that no other build asks for
-(`temper/docs/design/draft/crate-graph.md`, 2 and 3). So:
+(`temper/docs/design/draft/archive/crate-graph.md`, 2 and 3). So:
 
 - **Every build of one context compiles each external crate with one
   feature set,** whatever packages it selects: `cargo build`,

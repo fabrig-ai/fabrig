@@ -175,7 +175,7 @@ The fleet child domain knows the hosts and the runs they host:
   `fleet.grace` 360 seconds, above the stop bound of a worker on their
   link profile (5 and 15 seconds) with an engine-away grace of 300
   seconds, the five minutes that cover an engine's start that upgrades
-  its store (temper's `draft/redeploys.md`, 5.3), and the drain's
+  its store (temper's `draft/archive/redeploys.md`, 5.3), and the drain's
   default of 180 seconds: 326 seconds, 20 of notice and 300 of grace
   outlasting the drain, then 5 for an agent's stop and 1 for a save
   (`../../protocol/configuration.md`, section 4). The engine-away grace dominates
@@ -183,7 +183,7 @@ The fleet child domain knows the hosts and the runs they host:
   profile moves this grace with it, and says why; a deployment that
   raises a worker's bound raises the grace with it. A worker gone for
   good has its runs placed elsewhere once this grace has passed.
-- **A restart said holds its runs** (temper's `draft/redeploys.md`, 5.3;
+- **A restart said holds its runs** (temper's `draft/archive/redeploys.md`, 5.3;
   `restart.md`, *Saying it restarts* and *Held across starts*):
   - **The restart wait,** `fleet.restart_wait` (`fleet.restart_wait_ms`),
     is what the engine's settled stop tells its workers to wait for it:

@@ -175,7 +175,7 @@ never renames or reuses one on its own. An account has:
   runtime limits', never the schema's ceilings. The saved token is a
   format outside the store's registry, fixed at version 3: a change
   designs and brings how the deployed store gets there (temper's
-  `draft/store-floor.md`, section 5). An owner hands the component
+  `draft/archive/store-floor.md`, section 5). An owner hands the component
   records of the current version only; where it holds one inside a
   registered record, its field is a `secret N holds skein-oauth
   SavedToken` (../data/codec/README.md, section 3), so layout conversion

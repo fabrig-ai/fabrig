@@ -1,7 +1,7 @@
 # A branch's path
 
 The stops a change takes to land on a branch, derived in code from the
-settings that apply there (`../../../draft/stock-ways.md`, section 4): the
+settings that apply there (`../../../draft/archive/stock-ways.md`, section 4): the
 engine derives, and every client draws what it is given, so that the
 ways on Ask temper's page (`../../../protocol/configuration/settings.md`, 8),
 Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
@@ -119,7 +119,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   otherwise, two sets or more or a longer name, "by path". Its card names
   the paths (*An approval's card*, below). A repair, a conflict and a
   resolution keep their own small words, or none.
-- **Drawn apart** (`../../../draft/stock-ways.md`, section 4): a stop made
+- **Drawn apart** (`../../../draft/archive/stock-ways.md`, section 4): a stop made
   only when needed is marked so, which a client draws outlined: each
   "repair", "conflict", "resolve" and "catch up". The small words over a
   stop's own, at most 16 bytes, are a repair's, what it answers:

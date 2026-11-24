@@ -469,7 +469,7 @@ happens.
   waits, never dropped: turns, with the refusals they carry, and relays,
   unless their call has closed meanwhile. On reconnecting, the worker
   says what it hosts and the engine keeps or cancels each run.
-- **A relay the link never carried** (temper's `draft/redeploys.md`,
+- **A relay the link never carried** (temper's `draft/archive/redeploys.md`,
   5.3): a call the run withdraws (2, step 4) that the link may never
   have carried is answered `CallAnswer::Unsent` rather than `Withdrawn`:
   the engine never heard it, so nothing it could do stands, and the run
@@ -481,7 +481,7 @@ happens.
   is made. A relay made before the hub's first hello is uncarried, and
   the engine's own hub, whose link is never lost, never answers unsent.
 - **Renewals held while the link is lost** (temper's
-  `draft/redeploys.md`, 5.3): at `LinkLost` the hub tells each hosted
+  `draft/archive/redeploys.md`, 5.3): at `LinkLost` the hub tells each hosted
   run's agent that its grants' renewals are held,
   `ToAgent::Renewals { agent, held: true }`, and when next asked to report what
   it hosts for a hello, that they are not, `held: false`, before the
@@ -584,7 +584,7 @@ claims at once (../engine/restart.md, 1).
 engine's ask to pause, to drain or to take work again,
 `LinkDown::Pause { mode }` (`../../protocol/channel/pause.md`), and
 keeps its state, `jig_domain_link::PauseState`, for its process's life.
-Nothing of it stops the process (temper's `draft/worker-restarts.md`,
+Nothing of it stops the process (temper's `draft/archive/worker-restarts.md`,
 section 2):
 
 - **`Pause`,** from taking: *paused*. The hub admits no new run or job,

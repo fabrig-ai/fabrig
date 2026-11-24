@@ -106,7 +106,7 @@ records kept in files or stores.
   test (`golden.md`, section 1), and the translation between its records and a
   domain, with the domain's crates as its dependencies. So the generated
   code compiles beside the domains rather than after them, and only a
-  change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
+  change of schema recompiles it (temper's `draft/archive/crate-graph.md`, 4.1).
   An owner's patches may name its domain's types, so they stay with it.
 - **A codec crate is named for its owner,** `<owner>-codec`, in a
   directory beside the owner's that takes the owner's directory name
@@ -500,7 +500,7 @@ pub fn generate(schema: &Schema) -> Output;
 - **Formats outside the registry are fixed:** the component's own rows
   and the secrets' store. A change designs and brings, in its own
   landing, how the deployed store gets there (temper's
-  `draft/store-floor.md`, section 5). The transcripts' frames register
+  `draft/archive/store-floor.md`, section 5). The transcripts' frames register
   their layouts: a frame at another layout than the binary's is
   converted as it is read (jig's `protocol/store/transcripts.md`, 6).
 - **A writer writes its current version only.**

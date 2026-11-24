@@ -188,7 +188,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   `goal`, `reason` and `cleared`, `FindingAnswer`'s `blame` and
   `MilestoneTotals`' `reds` come together in the client's next layout,
   which moves `CLIENT_VERSION` by one, with no bridge
-  (`../../draft/redeploys.md`, section 8).
+  (`../../draft/archive/redeploys.md`, section 8).
 ## 8. Dismissed facts
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract/watches.md`, 1.5), with no fields, its
@@ -312,7 +312,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   - `unpaid`, bool, appended after `branch`: whether the watcher's last
     status run found nothing to pay for it (`../../domain/forge/attention.md`,
     3, *When nothing pays*). Its field moves the client wire's version,
-    unbridged (`../../draft/redeploys.md`);
+    unbridged (`../../draft/archive/redeploys.md`);
   - `previous`, option, the party's last look of the sitting before; and
     `seen`, u64, the `landed` count then;
   - `queued`, u32, what the subject `changes` counts; `red`, whether the

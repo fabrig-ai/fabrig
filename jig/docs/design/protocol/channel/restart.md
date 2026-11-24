@@ -3,7 +3,7 @@
 Provisional, 2026-11-16. How an engine that stops tells each worker that
 it restarts, and how a worker that heard it keeps its runs through the
 wait it was told rather than through its grace alone. It carries
-temper's `draft/redeploys.md`, 5.2 and 5.3, for the channel. The
+temper's `draft/archive/redeploys.md`, 5.2 and 5.3, for the channel. The
 engine's side of the stop, keeping the word and then saying it, is
 `../../domain/engine/restart.md`, 1, *Saying it restarts*; the hold over
 the runs the next start restores is `../../domain/engine/fleet.md`, *A
@@ -136,4 +136,4 @@ Focused, in the worlds that own each side, with their simulated clocks:
 
 - **A worker back as a new process** proving the runs it no longer
   lists are gone, so the engine need not hold them (temper's
-  `draft/redeploys.md`, section 12). Later.
+  `draft/archive/redeploys.md`, section 12). Later.

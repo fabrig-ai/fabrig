@@ -579,7 +579,7 @@ its own for any other host.
     and `DISABLE_UPDATES=1` in the build's environment, so the pin stays
     the pin: the first stops Claude Code's background check alone, the
     second every way it updates itself, `claude update` among them
-    (`../../draft/claude-sign-in.md`, 8). A `claude`
+    (`../../draft/archive/claude-sign-in.md`, 8). A `claude`
     found on `PATH` is the person's, and keeps its own.
 
 ## 7. The first repository

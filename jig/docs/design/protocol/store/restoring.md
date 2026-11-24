@@ -1,8 +1,8 @@
 # Restoring a checkpoint
 
 2026-11-17. Bringing a checkpoint back over a stopped deployment,
-crash-safe (temper's `draft/checkpoints.md`, section 5.3; milestone C2
-of `draft/checkpoints.execution.md`). The component first takes a
+crash-safe (temper's `draft/archive/checkpoints.md`, section 5.3; milestone C2
+of `temper/docs/design/draft/archive/checkpoints.execution.md`). The component first takes a
 safety checkpoint of the deployment as it stands. It then stages the
 next generation and a transcript tree from the checkpoint, writes a
 durable intent, and rolls forward: the transcript trees are swapped by

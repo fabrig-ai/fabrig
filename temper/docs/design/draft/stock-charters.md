@@ -39,7 +39,7 @@ overlay with fabrig-specific things", "fabrig as dev.fabrig.ai", and
   fabrig's. The charters kept outside this repository retire.
 - **The reference profile** (section 6) drops its five charter editions
   for overlays that carry its fields alone.
-- **The texts** are `stock-charters-texts.md`, section 1, and `stock-charters.md`, section 10, moved verbatim by the first
+- **The texts** are `archive/stock-charters-texts.md`, section 1, and `stock-charters.md`, section 10, moved verbatim by the first
   milestones (`stock-charters.execution.md`).
 
 ## 2. The roles and their files
@@ -294,7 +294,7 @@ Focused and fuzzy suites alone, each failing first:
 
 ## 9. The stock's texts
 
-Moved to [`stock-charters-texts.md`](stock-charters-texts.md), section 1.
+Moved to [`archive/stock-charters-texts.md`](archive/stock-charters-texts.md), section 1.
 
 ## 10. fabrig's texts
 

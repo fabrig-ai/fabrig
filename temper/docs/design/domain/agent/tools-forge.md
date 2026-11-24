@@ -13,7 +13,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
   on that resource (`../routing.md`, 2) and the run never names a number.
 - **The forge's reads are three tools,** each taking a `what` that names
   the read, `repository` beside it, and the union of its reads' members,
-  each member described once (`../../draft/tools-by-role.md`, 4; the split
+  each member described once (`../../draft/archive/tools-by-role.md`, 4; the split
   in three keeps each within `declarations.md`, 3's bound):
 
   | Tool | `what` | Required | Optional | Formerly |

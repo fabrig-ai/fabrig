@@ -141,7 +141,7 @@ fn roles_fixture() -> Joint {
 }
 
 // The request's figures, with main's verify
-// (temper/docs/design/draft/stock-ways.status.md, Design departs).
+// (temper/docs/design/draft/archive/stock-ways.status.md, Design departs).
 const PATHS: [[&str; 3]; 2] = [
     [
         "you ask, a person\nproduce, an agent\ncheck, code\nrepair, an agent, when needed (tests)\ncheck, code\nyou approve, a person\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nverify, code\nmain, a branch",

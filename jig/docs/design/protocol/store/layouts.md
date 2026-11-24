@@ -55,11 +55,11 @@ is converted as it is read, and written at the binary's layout.
   before the registry or holding it; and the secrets' store's families
   (`secrets.md`), read once at open from a store copied whole at each
   upgrade. These formats stay at their current versions
-  (temper's `draft/store-floor.md`, section 5). A change to one designs
+  (temper's `draft/archive/store-floor.md`, section 5). A change to one designs
   how the deployment's store reaches it in the same landing.
 - **The deployed store's layouts hold both rules.** Every layout the
   oldest store a build opens may hold, dev.fabrig.ai's (temper's
-  `draft/store-floor.md`), plans to the binary's as 5.3 does or is a
+  `draft/archive/store-floor.md`), plans to the binary's as 5.3 does or is a
   written job's (6); a format outside the registry keeps each
   declaration's layout at its version, or moves its version with its
   patch. Temper's guard holds both against the texts of the builds whose
@@ -135,7 +135,7 @@ pub struct KeyRange {
   table ordered by `from`, the application's under its tag, and finds a
   key's by a binary search, as it finds a key's family for the census
   (`growth.md`, 1.3).
-- **Retired** (temper's `draft/store-floor.md`, section 2): a value
+- **Retired** (temper's `draft/archive/store-floor.md`, section 2): a value
   type whose variant or root the family's text no longer declares may
   be declared retired with the ranges that held it, until every store
   at the floor has had its rows erased; none is declared now. The

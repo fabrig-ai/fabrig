@@ -123,7 +123,7 @@ This document holds the store's records and version changes, split from [`store.
   - **Once dev.fabrig.ai has run them,** their code goes (`floor.md`, 8).
 - **The job `deleted-repository-forge-rows`** drops what a project's
   deletion left naming a repository whose `Repository` row is gone
-  (`../draft/deleted-repository-rows.md`), so that the restart's link
+  (`../draft/archive/deleted-repository-rows.md`), so that the restart's link
   check (`../domain/root-restart.md`, 1.1) meets none of it; the check stays
   strict for everything else. It judges by the store alone, never by
   the deployment's configuration:

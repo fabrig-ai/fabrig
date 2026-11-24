@@ -222,7 +222,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   states are the top's, committed in the store.
 
 The top's vocabulary is a crate of its own, below the top
-(`temper/docs/design/draft/crate-graph.md`, 5):
+(`temper/docs/design/draft/archive/crate-graph.md`, 5):
 
 - **It holds what crosses the top's edge:** every item a crate other
   than the top names (the events, requests and documents of its
@@ -240,7 +240,7 @@ The top's vocabulary is a crate of its own, below the top
   construction, `step`, `resume`, `fire` and `writer`, every method and
   function that reads or changes it, the helpers only they use, and the
   step tests that drive it. `Domain` isn't cut, since 35 of the top's
-  files add methods to it (`temper/docs/design/draft/crate-graph.md`,
+  files add methods to it (`temper/docs/design/draft/archive/crate-graph.md`,
   5.2). So the top stays over the size bound
   (`tools/crates/design.md`, 3.1) until its state is grouped into owned
   parts (`temper/docs/development/debt/D013-forge-one-object.md`).

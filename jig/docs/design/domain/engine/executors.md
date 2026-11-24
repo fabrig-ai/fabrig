@@ -265,7 +265,7 @@ reason does too. The engine retains it through retries into the hold.
 An attempt its worker's stop cuts is **suspended**, neither failed nor
 refused: no try, no backoff, no clock over the gap and no blame, and the
 task's next attempt goes back to that worker while it returns within a
-window (temper's `draft/worker-restarts.md`, sections 4, 5 and 7). The
+window (temper's `draft/archive/worker-restarts.md`, sections 4, 5 and 7). The
 attempt ends; its task goes on, due, or idle where it is kept
 (../tasks/lifecycle-endings.md, 1).
 
@@ -398,7 +398,7 @@ pub enum Request {
 - **The window** runs from the suspension's `since` for the restart
   wait, `fleet.restart_wait` (`fleet.md`, *A restart said holds its
   runs*), the wait the engine announces to its workers (temper's
-  `draft/redeploys.md`, 5.3): twenty minutes in jig's profiles. The
+  `draft/archive/redeploys.md`, 5.3): twenty minutes in jig's profiles. The
   core gives it with the end, as its `window`, from the fleet's limits
   at that moment. A restart wait of zero gives no window.
 - **Within it, the claim goes to that worker alone.** The claim's check
@@ -487,7 +487,7 @@ pub enum Request {
   its hub drains or shuts down** answers `Cancelled(Shutdown)`
   (../hosts/hub.md, 7), so its attempt suspends: the stop's own signal
   may reach the agent before the hub's cancel does (temper's
-  `draft/worker-restarts.md`, 2). A run that said in its turn how it
+  `draft/archive/worker-restarts.md`, 2). A run that said in its turn how it
   finished keeps its ending, as before.
 - **A job that fails while its hub drains or shuts down, before its
   delivery began,** answers `Cancelled(Shutdown)` too (../hosts/hub.md,
@@ -513,4 +513,4 @@ pub enum Request {
 - **An agent's answer that reaches its hub before the hub hears its own
   stop** is not yet the stop's, and ends as the run's own failure
   (6.6). Default: it stays so until an agent with a live host leaves its
-  stop to its host (temper's `draft/worker-restarts.md`, 2).
+  stop to its host (temper's `draft/archive/worker-restarts.md`, 2).

@@ -79,7 +79,7 @@
   (`opening-owners.md`, 1), for the rehearsal's decoding and the manifest's
   counts. The secrets' formats are outside the registry, fixed at their
   current versions; a change designs how the deployment's store reaches
-  it in that landing (temper's `draft/store-floor.md`, section 5).
+  it in that landing (temper's `draft/archive/store-floor.md`, section 5).
 - **Written by components alone,** through the protocol layer's routing.
   The domain names a secret by number, never holds one, and never sees
   the secrets' store's commits, which have numbers of their own.
@@ -173,7 +173,7 @@
   by number, the sources' sweep in bounded pages.
 - **Copied with the store** (`opening.md`, 2), whole, to a private
   secrets' directory; its files are copied, never linked. Its formats
-  stay at their current versions (temper's `draft/store-floor.md`,
+  stay at their current versions (temper's `draft/archive/store-floor.md`,
   section 5): jig's digests and records, the application's records under
   its tag, and skein's OAuth records. No owner set schedules a secrets'
   patch, and a job's ranges are the public map's alone (`jobs.md`, 1).

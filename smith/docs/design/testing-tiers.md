@@ -282,7 +282,7 @@ vocabulary.
       without them;
     - with a remote named, the push lands, and the test removes the
       branch once it has seen it land. Nothing in the test catches a
-      panic to remove it (`temper/docs/design/draft/panics.md`, 5): a
+      panic to remove it (`temper/docs/design/draft/archive/panics.md`, 5): a
       failed run leaves its `smith-live-` branch, and the next run
       removes every `smith-live-` branch the remote holds before it
       pushes its own, live runs on one remote being one at a time.

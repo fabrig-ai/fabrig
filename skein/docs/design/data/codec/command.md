@@ -87,7 +87,7 @@ text or patch block is derived for it. A name the file lists that is
 no family of the crate is the run's error, `Error::Registered`.
 
 Registered store crates keep current schemas, not text or patch
-history (temper's `draft/store-floor.md`, 4.1). Their versions stay,
+history (temper's `draft/archive/store-floor.md`, 4.1). Their versions stay,
 and their layouts are the registry's to convert at read (`layouts.md`;
 jig's `protocol/store/layouts.md`); a written change is its owner's
 written job (jig's `protocol/store/jobs.md`, 4).
@@ -127,13 +127,13 @@ current text at version `c`:
    secrets' store, the transcripts' frames: jig's
    `protocol/store/layouts.md`, 1), which are fixed at their versions: a
    change to one designs, in its own landing, how a deployed store gets
-   there (temper's `draft/store-floor.md`, section 5). A store keeps no
+   there (temper's `draft/archive/store-floor.md`, section 5). A store keeps no
    history of a registered family, so none of its texts freezes.
 
    **The wire rule.** A family `schema/wires` names is a wire's: two
    builds that speak one version of it must lay it out alike, so its
    version moves whenever its layout does, whether or not an old value
-   survives (temper's `draft/redeploys.md`, 3.1). Its kept texts are
+   survives (temper's `draft/archive/redeploys.md`, 3.1). Its kept texts are
    frozen from its first landed one (a text kept by the branch itself
    is kept afresh, as any is, 1), and a patch is also needed
    when a declaration is dropped or the declarations' order changed:

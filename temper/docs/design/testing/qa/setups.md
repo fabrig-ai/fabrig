@@ -1,7 +1,7 @@
 # The setups' catalogue
 
-Provisional, 2026-11-12, revised 2026-11-18, from `../../draft/landed-qa.md`, sections 5,
-6 and 13, milestones Q3 to Q8 of `../../draft/landed-qa.execution.md`.
+Provisional, 2026-11-12, revised 2026-11-18, from `../../draft/archive/landed-qa.md`, sections 5,
+6 and 13, milestones Q3 to Q8 of `../../draft/archive/landed-qa.execution.md`.
 The recipes kept in `temper/docs/development/qa/setups/`, what each
 reaches, on which forge, and where its scripts come from. Their format
 and walk are `../../client/recipe.md`; how a pass restores, makes again
@@ -48,7 +48,7 @@ and adds to them is `places.md`.
 
 - **Their forge** is the box's fake Forgejo elsewhere
   (`../../protocol/setup/box-backends.md`, 1), the person's
-  (`../../draft/landed-qa.md`, 6): its state kept in the box's data,
+  (`../../draft/archive/landed-qa.md`, 6): its state kept in the box's data,
   its repositories reached by the box's fake git, its CI a head's own,
   `check` passing unless the head's `.fake-forge/ci` says otherwise
   (`../fakes.md`, 2). `project-landing` connects it as its admin, with
@@ -120,7 +120,7 @@ and adds to them is `places.md`.
 - **What it serves:** ctl's `change`, `landing`, `repository` and
   `project` groups on a change that lands by the stock rule, gate 1's
   review approving: a branch a case's `forge push` makes and
-  `ctl change open` opens (`../../draft/mechanical-changes.md`), and any
+  `ctl change open` opens (`../../draft/archive/mechanical-changes.md`), and any
   change the person funds whose only model turns are its review's.
 
 ## 3. The TUI's
@@ -152,7 +152,7 @@ and adds to them is `places.md`.
 
 ### 4.1 What a twin setup is
 
-- **A real run replayed** (`../../draft/landed-qa.md`, 6): the run's
+- **A real run replayed** (`../../draft/archive/landed-qa.md`, 6): the run's
   agents say what the real model said, from its twin's scripts
   (`../real-loop.md`, the ladder's twins), and the person's acts are
   its recipes' lines, in the walk's words, through ctl as the walk made
@@ -169,7 +169,7 @@ and adds to them is `places.md`.
 - **Strict:** every turn the box asks for is the twin's or fails
   (`../../protocol/setup/box-backends.md`, 1), so a twin that no longer covers a
   run blocks the cases on it, naming its scripts, and is never a
-  finding against temper (`../../draft/landed-qa.md`, 6).
+  finding against temper (`../../draft/archive/landed-qa.md`, 6).
 
 ### 4.2 What differs on the box
 
@@ -189,7 +189,7 @@ and adds to them is `places.md`.
   ladder's twins), so each take is found in the conversation smith
   writes and the story reaches its end as before. Whether the takes
   find the box's values is the walk after landing's
-  (`../../draft/landed-qa.execution.md`, 1).
+  (`../../draft/archive/landed-qa.execution.md`, 1).
 - **One source:** a twin setup's `scripts.json` is its fixture's
   `cued` and `asked`, member for member, with no `otherwise`, so that
   under strict a call no cue selects fails; a focused test holds the
@@ -246,7 +246,7 @@ From `temper/tests/real-loop/tests/fixtures/b1/`, the rung's walk
 ## 5. A deployment's
 
 The catalogue's first deployment setup, `turn-landing`
-(`../../draft/landed-qa.md`, 5 and 10): a project on the place's fake
+(`../../draft/archive/landed-qa.md`, 5 and 10): a project on the place's fake
 Forgejo landing by `turn` at a `batch` of two, its gate a workflow the
 fake Forgejo dispatches, so that landing by turn, which no box can be
 set to, is judged first, and landing by turn's cases (merge-queue M2's
@@ -292,7 +292,7 @@ machinery alone. A root recipe, at a deployment's place
 - **Its gate by content:** a dispatched `gate.yml` at a landing's top
   passes unless the top's tree holds `.fake-forge/gate` reading `fail`,
   so a case makes a batch red by a member that writes that file, and
-  green by members that leave it (`../../draft/landed-qa.md`, 6 and 10).
+  green by members that leave it (`../../draft/archive/landed-qa.md`, 6 and 10).
 - **Its `scripts.json`:** the fake model's scripts for its cases' goals,
   matched by their cues and taking their numbers and heads from the
   conversation (skein's `testing/fakes/llm.md`, 2.4 to 2.6): two goals
@@ -317,7 +317,7 @@ landing by turn, seen through the web client and the TUI on the
 deployment's engine (`deployment.md`, 6.1), so that a landing's web and
 tui cases on landing by turn start from a setup that proves both reach
 the deployment, and the catalogue holds a deployment's setup of web and
-tui lines (`../../draft/landed-qa.execution.md`, Q7).
+tui lines (`../../draft/archive/landed-qa.execution.md`, Q7).
 
 - **Its lines:** steps that open Hello's home in the web client and
   read its repository there, and start the TUI and read its launchpad;
@@ -414,7 +414,7 @@ engine's `tasks.result_bytes`, 4,096, the bound the root holds it to,
 as init's document does (`../../protocol/setup/init.md`, 1); its
 forge document declares the gate and the manual merges; its patch file
 sets `turn`, `batch` 2 and the gate; its `scripts.json` reads in the
-fake model's `--scripts` form and equals its real-loop fixture's. In the real loop's world, those scripts carry two goals' changes to ready together behind the person's latch, released by one answer, and a member holding `.fake-forge/gate` reading `fail` turns the dispatched top red (`../../draft/landed-qa.md`, 11); two goals' changes landing in one landing of two by `turn` at `batch` 2, the gate green at the top, are the engine's domain world's (`../../domain/landing.md`, 16), and the setup's green landing on these scripts is its walk's (`../real-loop.md`, *The turn-landing setup's stories*). `turn-landing-clients` reads and
+fake model's `--scripts` form and equals its real-loop fixture's. In the real loop's world, those scripts carry two goals' changes to ready together behind the person's latch, released by one answer, and a member holding `.fake-forge/gate` reading `fail` turns the dispatched top red (`../../draft/archive/landed-qa.md`, 11); two goals' changes landing in one landing of two by `turn` at `batch` 2, the gate green at the top, are the engine's domain world's (`../../domain/landing.md`, 16), and the setup's green landing on these scripts is its walk's (`../real-loop.md`, *The turn-landing setup's stories*). `turn-landing-clients` reads and
 hashes as a deployment's chain after `turn-landing`, holding web and tui
 lines; its walk is planned as a deployment's full session given
 `turn-landing`'s `config/`, `--ports` and `--bundle`, with the walk's
@@ -423,11 +423,11 @@ and hashes as a deployment's root whose chain holds no `web` and no
 `tui` line, its walk planned as a deployment's ctl session given its
 `config/` and `--ports`; its `recipe` and `scripts.json` equal
 `ctl-hello`'s and its `config/` equals `turn-landing`'s, file for file.
-The walks are the walk's after landing (`../../draft/landed-qa.execution.md`, 1).
+The walks are the walk's after landing (`../../draft/archive/landed-qa.execution.md`, 1).
 
 ## 7. Each box setup weighed
 
-`../../draft/landed-qa.md`, 13 keeps a box's setup that needs nothing of
+`../../draft/archive/landed-qa.md`, 13 keeps a box's setup that needs nothing of
 a box as the box's until the one framework weighs each (`kinds.md`, 7).
 A box's setup needs a box where its state, or a step of its chain,
 reaches what only a box gives: the box's first-run page, the scripts the

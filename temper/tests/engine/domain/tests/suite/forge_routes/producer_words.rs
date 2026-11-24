@@ -1,5 +1,5 @@
 //! Requester words reach the live producer without answering it
-//! (temper/docs/design/domain/forge/change/questions.md, 1; draft/producer-reach.md, 3 and 5).
+//! (temper/docs/design/domain/forge/change/questions.md, 1; draft/archive/producer-reach.md, 3 and 5).
 use super::questions::{
     answer, ask, call, finish_producing, make_change, next_producer, plan_world_with_limits, replies, row, up_world,
     wait_answer,

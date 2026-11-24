@@ -592,5 +592,5 @@ all.
   but not the requests pending beside them, which take places in the
   same table. Showing them gives jig's census row a count its owner
   sets as the report is handed on, and moves jig's client wire
-  (`../../draft/redeploys.md`, section 8): out of proportion to the
+  (`../../draft/archive/redeploys.md`, section 8): out of proportion to the
   table's fix, the user judged (2026-11-19). Default: not shown.

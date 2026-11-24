@@ -101,7 +101,7 @@ Moved to [`settings-kinds.md`](settings-kinds.md), section 1.
   rules changed reach its next merge. So a project's owners may land
   with less than an agent's review in their own project, and a
   deployment that wants a floor sets one in kind 1
-  (`../../draft/stock-ways.md`, 3.1).
+  (`../../draft/archive/stock-ways.md`, 3.1).
 - **jig's rules are the deployment owners' to change,** the two
   requirements among them. A change that removes one leaves landing to
   the change procedure's waits alone; the review page says so under
@@ -286,7 +286,7 @@ Moved to [`settings-output.md`](settings-output.md), section 1.
 ## 8. The stock ways
 
 The ways a project can work, pre-made settings of its own scope that it
-opts into (`../../draft/stock-ways.md`, sections 2 and 5): data in the
+opts into (`../../draft/archive/stock-ways.md`, sections 2 and 5): data in the
 `stock` module, given to the engine at each start beside the forge's
 defaults (`stock.md`), so that a test world gives its own or none.
 
@@ -322,7 +322,7 @@ defaults (`stock.md`), so that a test world gives its own or none.
   start with a goal. You approve and Agents review set no kind 15
   either: a project's triager stays as it is.
 - **The standing roles a way brings** (`../../draft/standing-roles.md`,
-  section 10; `../../draft/stock-ways.md`, section 2): each way lists
+  section 10; `../../draft/archive/stock-ways.md`, section 2): each way lists
   them, each a `WayRole { charter, words, budget }`: the charter it runs
   by, the words its spec takes, what it covers and how, and its budget
   a week, in the deployment's unit. Draft first brings the triager:

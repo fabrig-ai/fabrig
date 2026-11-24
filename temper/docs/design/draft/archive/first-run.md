@@ -380,7 +380,7 @@ experience; good defaults for a person's real work are open (section 8).
   and answers. Run without the box (../../protocol/setup/box.md, 4), the client names
   the commands to run instead.
 - **The engine takes the handover at runtime,** through the same
-  connect a pasted managed admin's token takes (`../github-forgejo.md`,
+  connect a pasted managed admin's token takes (`github-forgejo.md`,
   1.2), where today it takes it only at its start.
 
 ### 3.9 The box, changed
