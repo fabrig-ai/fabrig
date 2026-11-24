@@ -501,7 +501,13 @@ three runs at once, each one of the domain world's stories
 (`temper/tests/worker/domain/src/whole/faults.rs`' draw), started at
 drawn steps over one domain at the world's limits, so that its tables
 reach their capacity; drawn from `Workload`, part `worker`, as that draw
-is. Its parks:
+is. Four of those stories strike the whole worker (a drain, a drain that
+expires, a link lost that drains, one whose grace passes), so runs at
+once share them: the cohort's first run draws among all eight; when it
+draws one of the four, every run of the cohort takes that story, each
+started at its own drawn step, and the one worker-wide event falls once,
+on all of them; otherwise each other run draws among the four that
+strike one run. Every run then ends as its story says. Its parks:
 
 - **`DELIVERED_THEN_PARKED`:** a run delivers, parks, and finishes in its
   next run with the commit it delivered, as
