@@ -6,9 +6,7 @@
   the twins' documents among `temper-playground`'s stories: B0's and
   B1's are still the real loop's own fixtures
   (`tests/real-loop/tests/fixtures/b0`, `b1`).  B2's twin
-  (`../../development/acceptance.md`, section 8).
-  the whole document: the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  (`../../development/acceptance.md`, section 8).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
    the later live ladder rungs remain `live-tier.status.md` (Not yet).
    the live GitHub pull-read proof remains `live-tier.status.md` (Not yet).

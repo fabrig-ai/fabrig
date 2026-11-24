@@ -1,17 +1,18 @@
 # cluster: status
 
-2026-11-12. Where the tree's code lags or departs from [cluster.md](cluster.md).
+2026-11-24. Where the tree's code lags or departs from [cluster.md](cluster.md).
 
 
-- **Not yet:** 6: the retained case 4.6 process story is ignored until
-  its fixture stops expecting models in the startup configuration
-  (`../testing/process-tier.status.md`); jig's fleet takes a draining
-  worker out of placement before its runs end (jig's
-  `domain/engine/fleet.md`), and the real-loop story supplies no
-  proof of that process boundary. No reference-case story runs in this tier; the task-per-worker,
-  lost-worker, hung-worker and late-worker boundary stories remain.
+- **Not yet:** 6: the engine's domain world holds no lost attempt's
+  journal beside its replacement's, no fenced attempt's late traffic
+  beside its worker's new work, no late worker's first placement and no
+  returning worker's new work at its position. [in flight: change 15047]
+- **Not yet:** 6: the process tier's stories still wait for a killed or
+  hung worker's replacement, still start a worker later and restart one
+  for its placement, and the ignored case 4.6 story and its adapter
+  stand. [in flight: change 15051]
 
-- **Departs:**  the group-file departure remains `forge/engine.status.md`, 2 and 8.  the source-name admission departure remains `service-routing.status.md`, 1 and 2. 5, 6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`testing/temper-box-kit/src/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
+- **Departs:**  the group-file departure remains `forge/engine.status.md`, 2 and 8.  the source-name admission departure remains `service-routing.status.md`, 1 and 2. 5, 6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields; its purpose, the lab, is retired, and the code awaits removal with this design.
 
 `binaries.md`, section 2's `temper-engine` is present, with `binaries.md`, 1's rules: its
 table of `help`, `serve`, `versions`, the forge's six verbs and
