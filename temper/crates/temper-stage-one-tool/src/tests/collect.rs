@@ -488,6 +488,15 @@ fn arguments(evidence: &Path) -> Vec<String> {
 }
 #[test]
 fn collect_requires_each_flag_once_and_one_evidence_directory() {
+    let refusal = collect::arguments(&[]).expect_err("no flags");
+    let (reason, usage) = refusal.split_once("\nusage:\n").expect("usage follows the refusal");
+    assert_eq!(reason, "temper-stage-one collect: missing --temper");
+    assert_eq!(
+        usage.split_whitespace().collect::<Vec<_>>().join(" "),
+        "temper-stage-one collect --temper PATH --ctl DIR --project NUMBER --revision NUMBER --proposal TASK/NUMBER --chat NUMBER --forge HOST --repository OWNER/NAME EVIDENCE"
+    );
+    assert_eq!(collect::main(&[]), std::process::ExitCode::from(2));
+
     let args = arguments(Path::new("evidence"));
     let parsed = CollectArgs::parse(&args).expect("all flags");
     assert_eq!(parsed.project, 1);
