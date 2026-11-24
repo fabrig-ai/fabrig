@@ -7,4 +7,3 @@
 
 - **Not yet:** the reference-binary crash and fake-store gaps remain `testing.status.md`, 1.
 
-- **Not yet:** 1.8: no `Unplanned::Unkept`, `Unkept` or `Layout { why: Unkept }` words. [in flight: change 15823]

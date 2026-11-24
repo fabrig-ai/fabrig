@@ -18,4 +18,3 @@
 - **Departs:** 1: `jig/tests/store/src/model.rs` reads a copy as a settings revision's and panics on any other row, because the core copies only that one, so no story reaches it; `jig/crates/jig-protocol-store/src/tests/commits.rs` holds a copy of another row and `commits.md`, section 1's two rules of a copy.
 - **Not yet:** 1: the reference binary killed around each phase of a turn's commit (`jig/testing/jig-test/tests/process.rs` kills and restarts it once); `jig/tests/ops` and `jig/testing/jig-conformance` run `jig-fake-store`, where no world fakes the store.
 
-- **Not yet:** 1: the transcripts' tests are the frame patcher's, over `jig-test-patches-smith` and `jig-test-patches-jig`, not frames converted by their layouts' plans. [in flight: change 15827]
