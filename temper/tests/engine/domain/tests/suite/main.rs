@@ -69,6 +69,7 @@ mod fuzzy {
     mod loads;
     mod opening;
     mod reds_owed;
+    mod restarts;
     mod roles;
     mod see;
     mod walking;
