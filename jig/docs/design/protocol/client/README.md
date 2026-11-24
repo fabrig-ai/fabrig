@@ -16,7 +16,6 @@ is still open is listed in `README.md`, section 12.
 
 - [`wire.md`](wire.md): jig's messages and their framing.
 - [`versions.md`](versions.md): versions of the client's wire and its records.
-- [`contracts.md`](contracts.md): the shapes shared while client layouts are built, until that goal lands.
 - [`small-store.md`](small-store.md): the small store's keys and encoding.
 - [`sign-in.md`](sign-in.md): sign-in flows and credentials.
 - [`openid.md`](openid.md): sign-in with OpenID.
