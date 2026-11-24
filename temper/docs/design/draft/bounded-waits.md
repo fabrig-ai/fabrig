@@ -91,7 +91,17 @@ A closed set, so that every view, test and tool reads the same names:
 ### 4.1 Whose clock
 
 - **A wait that has its own clock keeps it.** A resource queue's 120 seconds, an escalation's and a proposal's one-hour stall, a change's 30-minute forge stall and its CI clock, which counts running, waiting for a runner and unknown apart (`../domain/forge/change/stalls.md`, 2), a landing's prepare job and its gate's timeout: each stays as it is, and is its wait's bound.
-- **A wait with no clock** gets one figure per kind from one table in the settings' limits, stock figures and a deployment's own. Its bound is its *since* plus the figure, or the task's deadline where that comes first. The new figures are the user's (the status file lists them), and the stock is meant to be generous: a bound catches a wait that has stopped, not a slow one.
+- **A wait with no clock** gets one figure per kind from one table in the settings' limits, stock figures and a deployment's own. Its bound is its *since* plus the figure, or the task's deadline where that comes first. The stock is meant to be generous: a bound catches a wait that has stopped, not a slow one. The new kinds' stock figures, the user's of 2026-11-24:
+
+  | Kind | Stock figure | Then |
+  |---|---|---|
+  | `question` from a task to its requester | 2 h | passed up |
+  | `party`, a question to a person (escalations and proposals keep their 1 h stall) | 8 h | passed to the next holder |
+  | `news`, for a task with a deadline or one that isn't a standing role | 24 h | held |
+  | `host`, and `account` with no known reset | 2 h | held |
+  | `step` waiting on a read or read admission | 30 min | held |
+  | `room` behind an entry whose owner has ended | 30 min from that end | held |
+  | `sign-off` | 24 h | overdue |
 - **A wait behind another task is bounded by that task.** A follower waiting for a turn, or a waiter behind the outbox's earlier entries, has no clock of its own while what it waits behind lives: what bounds it is the turn holder's own waits, or the waits of the entries' owners. Its record names them, so a stall shows where it is. A `room` wait behind an entry whose owner has ended, P124's leak, has nobody's wait to end it, so from that owner's end it takes its kind's figure.
 - **No bound:** a `dependency` or `delegate` wait in a task with no deadline (it shows its age); a standing role's `news`, since waiting for news is its work; an operator's landing hold, which is a person's act (`../domain/landing-settings.md`). Each shows its age in the views.
 
