@@ -343,7 +343,7 @@ Then task show TASK --until replied.
 pub const MESSAGE: Tool = Tool {
     name: b"task message",
     line: b"Send words to a task",
-    prints: b"`done: task N, message`",
+    prints: b"`done: task N, message`, where N is the task that took the words",
     result: b"message",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
@@ -351,7 +351,9 @@ pub const MESSAGE: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"",
+    notes: b"Words to a change reach its producer when the producer is active or held while active.
+An act that is not offered exits 2: task message: task N takes no words; to direct it, amend it: task amend N --spec FILE REASON
+",
 };
 pub const CLOSE: Tool = Tool {
     name: b"chat close",

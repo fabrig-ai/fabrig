@@ -1,4 +1,5 @@
 //! Exhaustive child routing and synchronous handoffs (jig's domain/root.md, 5).
+//! Party words to a change route before admission (temper/docs/design/domain/forge/change/questions.md, 1).
 mod applications;
 pub(crate) mod approvals;
 mod asks;
@@ -72,6 +73,19 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as forge_change;
 use temper_engine_domain_forge_issues as forge_issues;
 pub(crate) use tools::relay_payload;
+
+/// Select by the producer's phase; jig admits the routed ask as a direct message.
+fn party_words_producer(domain: &Domain, task: u64) -> Option<u64> {
+    let producer = forge_route::live_producer(domain, domain.forge.change(task)?.delegate)?;
+    let row = domain.core.tasks.task(producer)?;
+    match row.phase {
+        tasks::Phase::Active(_) | tasks::Phase::Held { was: tasks::Was::Active(_), .. } => Some(producer),
+        tasks::Phase::Waiting
+        | tasks::Phase::Closing(_)
+        | tasks::Phase::Ended(_)
+        | tasks::Phase::Held { was: tasks::Was::Waiting | tasks::Was::Closing(_), .. } => None,
+    }
+}
 
 /// Route one admitted input and its synchronous continuations in one decision.
 /// Admission is `try_step`'s, including public reading's immediate busy answer
@@ -257,7 +271,12 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             let admission = applications::Admission { reply_to, sign_in, key, digest, scope, carried };
             applications::start(domain, admission, request);
         }
-        Event::Party(crate::PartyInput::Ask { reply_to, sign_in, key, ask, models }) => {
+        Event::Party(crate::PartyInput::Ask { reply_to, sign_in, key, mut ask, models }) => {
+            if let people::Ask::Say { task, .. } = &mut ask
+                && let Some(producer) = party_words_producer(domain, *task)
+            {
+                *task = producer;
+            }
             domain.work.push(Work::People(people::Event::Ask { reply_to, sign_in, key, ask, models }));
         }
         Event::Party(crate::PartyInput::Key { reply_to, sign_in, key, ask, carried }) => {

@@ -185,7 +185,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
     decision
 }
 
-fn live_producer(domain: &Domain, delegate: Option<(u64, change::Delegate)>) -> Option<u64> {
+pub(in crate::route) fn live_producer(domain: &Domain, delegate: Option<(u64, change::Delegate)>) -> Option<u64> {
     let (child, change::Delegate::Produce) = delegate? else { return None };
     let record = domain.core.tasks.task(child)?;
     match record.phase {
