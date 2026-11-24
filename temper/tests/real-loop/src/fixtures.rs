@@ -788,6 +788,41 @@ mod tests {
     }
 
     #[test]
+    fn the_shipped_agent_fits_standards_page_with_derived_carriers() {
+        // The stock profile and model declarations give this turn body bound.
+        const STOCK_TURN_BYTES: u32 = 18_431_842;
+        let address = ([127, 0, 0, 1], 9).into();
+        let (mut agent, mut document) = documents(Path::new("/template-bounds"), address, address);
+        crate::landing::configure(&mut document, &mut agent, address);
+        document.use_stock_carriers();
+
+        let mut init: serde_json::Value =
+            serde_json::from_slice(&temper_config_shell::init_document(true)).expect("init start");
+        init["engine"]["clients"]["provider"] = serde_json::Value::Null;
+        let mut stock = temper_agent_fixtures::with_providers(&init, &temper_service::stock::providers());
+        // Only declarations determine the turn bound; use inert direct endpoints.
+        stock["programs"] = serde_json::json!({});
+        for endpoint in stock["endpoints"].as_array_mut().expect("stock endpoints") {
+            endpoint.as_object_mut().expect("endpoint").remove("program");
+        }
+        let transcript = turn_bounds::turn_body(&stock);
+        assert_eq!(transcript, STOCK_TURN_BYTES);
+        turn_bounds::apply(&mut document, transcript);
+        let given = own_defaults(&document, &document["world_settings"]);
+        temper_playground::documents::settings::strip_models(&mut document);
+        document.as_object_mut().expect("deployment").remove("world_settings");
+        let bytes = serde_json::to_vec(&document).expect("shipped agent configuration");
+        temper_service::startup::named_with_limits(
+            &bytes,
+            &jig_protocol_config::Directories::working(),
+            &given,
+            &document.jig,
+            &document.limits,
+        )
+        .expect("the shipped agent fits Standard's page with derived carriers");
+    }
+
+    #[test]
     fn the_stopped_owner_fixture_fits_its_stock_charters() {
         let deferred = ([127, 0, 0, 1], 0).into();
         let (_, config) = configured(crate::case::fixture_5_2(), deferred, deferred);
