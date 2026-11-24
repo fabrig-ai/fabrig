@@ -1,6 +1,6 @@
 //! Accepted streams and the workers' component (jig/docs/design/protocol/channel/worker-link.md, 1.2).
 //! The owner's pull and listener lifecycle (jig/docs/design/protocol/service-parts.md, 1.3).
-use crate::{Component, Event, Limits, Loss, Request};
+use crate::{Component, Event, Limits, Loss, PreparedWires, Request};
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::Grant;
@@ -149,6 +149,18 @@ impl Workers {
     ) -> Result<Self, Problems> {
         Self::build(config, tokens, application, limits, Some(schema))
     }
+    /// Constructs a fresh host without parsing its prepared wire texts again.
+    pub fn with_prepared_wires(
+        config: &config::Engine,
+        tokens: Tokens,
+        limits: &Limits,
+        schema: skein_channel::Schema,
+        wires: PreparedWires,
+    ) -> Result<Self, Problems> {
+        let component =
+            Component::with_prepared_wires(limits, Box::new([]), wires, schema).or(Err(invalid(What::Bound)))?;
+        Self::from_component(config, tokens, limits, component)
+    }
     fn build(
         config: &config::Engine,
         tokens: Tokens,
@@ -163,6 +175,14 @@ impl Workers {
         };
         let component =
             Component::with_schema(limits, Box::new([]), spoken, application, schema).or(Err(invalid(What::Bound)))?;
+        Self::from_component(config, tokens, limits, component)
+    }
+    fn from_component(
+        config: &config::Engine,
+        tokens: Tokens,
+        limits: &Limits,
+        component: Component,
+    ) -> Result<Self, Problems> {
         let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;
         if count == 0 || count > config.limits.io.sockets {
             return Err(invalid(What::Bound));

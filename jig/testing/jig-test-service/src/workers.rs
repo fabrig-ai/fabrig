@@ -14,21 +14,42 @@ pub(super) struct Workers {
     deployment: [u8; 16],
     endpoints: List<jig_protocol_charter::EndpointName>,
 }
+/// Immutable channel setup; each reader starts with empty peer caches.
+#[derive(Debug)]
+pub(super) struct PreparedHost {
+    schema: skein_channel::Schema,
+    wires: kit::PreparedWires,
+}
+impl PreparedHost {
+    pub(super) fn new(limits: &kit::Limits) -> Result<Self, Problems> {
+        let schema = kit::limits::schema(limits).ok_or(kit::host::invalid(config::What::Bound))?;
+        let wires =
+            kit::PreparedWires::new(wire::spoken(), application()).or(Err(kit::host::invalid(config::What::Bound)))?;
+        Ok(Self { schema, wires })
+    }
+    pub(super) fn fresh(&self) -> Self {
+        Self { schema: self.schema.clone(), wires: self.wires.fresh() }
+    }
+}
+fn application() -> wire::Application {
+    wire::Application::opaque(List::with_capacity(0))
+}
 impl Workers {
     pub fn new(
         config: &config::Engine,
         deployment: [u8; 16],
         limits: &kit::Limits,
-        schema: Option<skein_channel::Schema>,
+        prepared: Option<PreparedHost>,
     ) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
-        let application = jig_protocol_worker_wire::Application::opaque(List::with_capacity(0));
-        let mut host = match schema {
-            Some(schema) => kit::host::Workers::with_schema(config, tokens, application, limits, schema),
-            None => kit::host::Workers::new(config, tokens, application, limits),
+        let mut host = match prepared {
+            Some(PreparedHost { schema, wires }) => {
+                kit::host::Workers::with_prepared_wires(config, tokens, limits, schema, wires)
+            }
+            None => kit::host::Workers::new(config, tokens, application(), limits),
         }?;
         let mut limits_by_name = List::with_capacity(wire::CEILINGS.figures_limits);
         for (name, value) in &config::overrides::list(&config.limits) {
