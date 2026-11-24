@@ -151,7 +151,7 @@ fn the_link_dials_only_once_the_git_component_has_started() {
 #[test]
 fn an_unusable_git_refuses_the_worker_naming_its_program() {
     let mut stand = fixtures::WorkerStand::new();
-    stand.below.script.invocations.front_mut().unwrap().transcript.stdout = b"git version 2.40.0\n".as_slice().into();
+    stand.below.script.invocations.front_mut().unwrap().stdout = b"git version 2.40.0\n".as_slice().into();
     for _ in 0_u16..1000 {
         if !stand.turn() {
             break;

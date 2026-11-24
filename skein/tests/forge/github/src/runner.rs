@@ -1,6 +1,7 @@
 //! One request path for both targets, with write-ahead mutations and controlled cleanup.
 use crate::{
     Result,
+    directory::{Directory, transcript},
     fake::{self, World},
     journal::{Journal, Made},
     live::{Connector, Fixtures},
@@ -20,7 +21,7 @@ use skein_forge_conformance::{
 };
 use skein_forge_connection::grow::LogTail;
 use skein_lib::{Duration, Wall};
-use std::{fmt::Write as _, fs, path::Path};
+use std::{fmt::Write as _, path::Path};
 const WORD: &[u8] = b"conformance";
 // Keep the App JWT's ten-minute life and renew at half life before an App request.
 const JWT_LIFE: Duration = Duration::from_secs(600);
@@ -42,7 +43,7 @@ pub struct Token {
     journal: usize,
     value: String,
 }
-pub struct Runner<'a> {
+pub struct Runner {
     capture: bool,
     pub replay: Vec<(&'static str, Request)>,
     pub(crate) phase: &'static str,
@@ -55,7 +56,7 @@ pub struct Runner<'a> {
     pub secrets: Secrets,
     pub(crate) mask: Mask,
     pub journal: Journal,
-    pub(crate) out: &'a Path,
+    pub out: Directory,
     pub(crate) case: &'static str,
     pub requests: usize,
     pub case_limit: usize,
@@ -75,32 +76,32 @@ pub struct Runner<'a> {
     response_bytes: Vec<u8>,
     pub leftover_mints: Vec<String>,
 }
-impl<'a> Runner<'a> {
+impl Runner {
     /// Enable the integration suite's request capture and fault injection.
     #[must_use]
     pub fn for_suite(mut self) -> Self {
         self.capture = true;
         self
     }
-    pub fn new(target: Target, fixtures: Fixtures, out: &'a Path) -> Result<Self> {
+    pub fn new(target: Target, fixtures: Fixtures, mut out: Directory) -> Result<Self> {
         let secrets = fixtures.secrets();
-        let journal = Journal::create(out, matches!(&target, Target::Live(_)), &secrets)?;
+        let journal = Journal::create(&mut out, matches!(&target, Target::Live(_)), &secrets)?;
         if let Some(source) = &fixtures.source {
             let text = source.to_str().ok_or("fixture path is not text")?;
             write::check("fixture path", text.as_bytes(), b"", &secrets)?;
-            fs::write(out.join("fixture-path.txt"), text)?;
+            out.write("fixture-path.txt", text.as_bytes())?;
         }
         Ok(Self::with_journal(target, fixtures, out, journal, secrets))
     }
-    pub fn resume(target: Target, fixtures: Fixtures, out: &'a Path) -> Result<Self> {
-        let (journal, live) = Journal::load(out)?;
+    pub fn resume(target: Target, fixtures: Fixtures, mut out: Directory) -> Result<Self> {
+        let (journal, live) = Journal::load(&mut out)?;
         if live != matches!(&target, Target::Live(_)) {
             return Err("cleanup target differs from journal".into());
         }
         let secrets = fixtures.secrets();
         Ok(Self::with_journal(target, fixtures, out, journal, secrets))
     }
-    fn with_journal(target: Target, fixtures: Fixtures, out: &'a Path, journal: Journal, secrets: Secrets) -> Self {
+    fn with_journal(target: Target, fixtures: Fixtures, out: Directory, journal: Journal, secrets: Secrets) -> Self {
         Self {
             capture: false,
             replay: vec![],
@@ -329,7 +330,7 @@ impl<'a> Runner<'a> {
             if response.status == 201 {
                 let id = id.ok_or("created object has no write-ahead entry")?;
                 let number = response.json()?.root().get("number").u64().ok_or("created number absent")?;
-                self.journal.created(id, number, &self.secrets)?;
+                self.journal.created(&mut self.out, id, number, &self.secrets)?;
                 if request.target.ends_with("/pulls")
                     && response.json()?.root().get("mergeable").kind() == Some(skein_json::Kind::Null)
                 {
@@ -338,7 +339,7 @@ impl<'a> Runner<'a> {
             } else if let Some(id) = id
                 && !self.journal.numbers.contains_key(&id)
             {
-                self.journal.cancel(id, &self.secrets)?;
+                self.journal.cancel(&mut self.out, id, &self.secrets)?;
             }
         }
         Ok(())
@@ -378,7 +379,7 @@ impl<'a> Runner<'a> {
             .ok_or("probe repository absent".into())
     }
     pub fn before(&mut self, made: Made) -> Result<usize> {
-        self.journal.before(made, &self.secrets)
+        self.journal.before(&mut self.out, made, &self.secrets)
     }
     pub fn mint(&mut self, index: usize, contents: bool) -> Result<String> {
         let installation = self.fixtures.installations.get(index).ok_or("installation absent")?.id;
@@ -493,8 +494,8 @@ impl<'a> Runner<'a> {
         Ok(())
     }
     pub fn flush(&mut self) -> Result<()> {
-        if !self.request_bytes.is_empty() || !self.out.join("transcripts").join(self.case).join("request").exists() {
-            write::case(self.out, self.case, &self.request_bytes, &self.response_bytes, &self.secrets)?;
+        if !self.request_bytes.is_empty() || !self.out.exists(&format!("transcripts/{}/request", self.case)) {
+            transcript(&mut self.out, self.case, &self.request_bytes, &self.response_bytes, &self.secrets)?;
             self.request_bytes.clear();
             self.response_bytes.clear();
         }
@@ -840,7 +841,7 @@ impl<'a> Runner<'a> {
             let result = self.raw(Method::Delete, "/installation/token", &token.value, b"");
             match result {
                 Ok(r) if r.status == 204 || r.status == 401 => {
-                    if let Err(e) = self.journal.done(token.journal, &self.secrets)
+                    if let Err(e) = self.journal.done(&mut self.out, token.journal, &self.secrets)
                         && error.is_none()
                     {
                         error = Some(e);
@@ -892,7 +893,7 @@ impl<'a> Runner<'a> {
                 }
                 let report =
                     format!("minted token for installation {installation}: not revoked, expires by {}", at + 3600);
-                cleanup_report(self.out, std::slice::from_ref(&report), &self.secrets)?;
+                cleanup_report(&mut self.out, std::slice::from_ref(&report), &self.secrets)?;
                 self.leftover_mints.push(report);
             }
             Made::Branch { repo, name } => {
@@ -998,7 +999,7 @@ impl<'a> Runner<'a> {
                 }
             }
         }
-        self.journal.done(id, &self.secrets)
+        self.journal.done(&mut self.out, id, &self.secrets)
     }
     fn close_number(&mut self, repo: &str, number: u64, token: &str) -> Result<()> {
         let target = format!("/repos/{repo}/issues/{number}");
@@ -1027,7 +1028,7 @@ impl<'a> Runner<'a> {
         setup?;
         report
     }
-    pub fn report(&self) -> Result<()> {
+    pub fn report(&mut self) -> Result<()> {
         let mut text = self.provenance.join("\n");
         text.push('\n');
         for leftover in &self.leftover_mints {
@@ -1039,7 +1040,7 @@ impl<'a> Runner<'a> {
             text.push_str(&fact.line());
         }
         write::check("facts", text.as_bytes(), b"", &self.secrets)?;
-        fs::write(self.out.join("facts.txt"), text)?;
+        self.out.write("facts.txt", text.as_bytes())?;
         Ok(())
     }
 }
@@ -1083,6 +1084,11 @@ fn decode(
 /// # Errors
 /// Returns a fixture, request, transcript, leak or cleanup failure.
 pub fn run_fake(out: &Path) -> Result<Report> {
+    let (report, _) = run_fake_in(Directory::Host(out.to_owned()))?;
+    Ok(report)
+}
+
+pub fn run_fake_in(out: Directory) -> Result<(Report, Directory)> {
     let world = World::new()?;
     let fixtures = World::fixtures()?;
     execute(Runner::new(Target::Fake(world), fixtures, out)?)
@@ -1091,11 +1097,12 @@ pub fn run_fake(out: &Path) -> Result<Report> {
 /// # Errors
 /// Refuses insecure fixtures, disallowed mutations, leaks and budget excess.
 pub fn run_live(dir: &Path, out: &Path) -> Result<Report> {
-    let fixtures = Fixtures::load(dir)?;
+    let fixtures = Fixtures::load(&mut Directory::Host(dir.to_owned()))?;
     let connector = Connector::new(&fixtures)?;
-    execute(Runner::new(Target::Live(connector), fixtures, out)?)
+    let (report, _) = execute(Runner::new(Target::Live(connector), fixtures, Directory::Host(out.to_owned()))?)?;
+    Ok(report)
 }
-fn execute(mut runner: Runner<'_>) -> Result<Report> {
+fn execute(mut runner: Runner) -> Result<(Report, Directory)> {
     let run = runner.start().and_then(|()| crate::cases::run(&mut runner)).and_then(|()| {
         let found: std::collections::BTreeSet<_> = runner.facts.iter().map(|f| f.name).collect();
         if found.len() != runner.facts.len() || found != crate::cases::NAMES.iter().copied().collect() {
@@ -1110,50 +1117,58 @@ fn execute(mut runner: Runner<'_>) -> Result<Report> {
     };
     result?;
     shutdown?;
-    Ok(Report { facts: runner.facts, requests: runner.requests, leftover_mints: runner.leftover_mints })
+    let report = Report { facts: runner.facts, requests: runner.requests, leftover_mints: runner.leftover_mints };
+    Ok((report, runner.out))
 }
 /// Finishes recorded repository intentions; unavailable minted values are reported by expiry.
 /// # Errors
 /// Refuses a malformed journal or missing/insecure live fixtures and cleanup failures.
 pub fn clean(out: &Path, live: Option<&Path>) -> Result<()> {
-    let (journal, is_live) = Journal::load(out)?;
+    clean_in(Directory::Host(out.to_owned()), live)?;
+    Ok(())
+}
+
+pub fn clean_in(mut out: Directory, live: Option<&Path>) -> Result<Directory> {
+    let (journal, is_live) = Journal::load(&mut out)?;
     if !is_live {
-        // No hosted state survives a fake process; only unavailable mint reports remain.
-        let fixtures = World::fixtures()?;
-        let secrets = fixtures.secrets();
-        let mut journal = journal;
-        let mut leftovers = vec![];
-        for (id, made) in journal.pending.clone() {
-            if let Made::Mint { installation, at } = made {
-                let report =
-                    format!("minted token for installation {installation}: not revoked, expires by {}", at + 3600);
-                cleanup_report(out, std::slice::from_ref(&report), &secrets)?;
-                leftovers.push(report);
-            }
-            journal.done(id, &secrets)?;
-        }
-        return cleanup_report(out, &leftovers, &secrets);
+        cleanup_fake(&mut out, journal)?;
+        return Ok(out);
+    }
+    if out.host_path().is_none() {
+        return Err("cleanup target differs from journal".into());
     }
     let fixtures = if let Some(dir) = live {
-        Fixtures::load(dir)?
+        Fixtures::load(&mut Directory::Host(dir.to_owned()))?
     } else {
-        let saved = fs::read_to_string(out.join("fixture-path.txt"))?;
-        Fixtures::load(Path::new(&saved))?
+        let saved = out.read_text("fixture-path.txt")?;
+        Fixtures::load(&mut Directory::Host(saved.into()))?
     };
     let target = Target::Live(Connector::new(&fixtures)?);
     let mut r = Runner::resume(target, fixtures, out)?;
     let result = r.finish();
-    cleanup_report(out, &r.leftover_mints, &r.secrets)?;
+    cleanup_report(&mut r.out, &r.leftover_mints, &r.secrets)?;
     result?;
-    match &mut r.target {
-        Target::Fake(w) => w.shutdown(),
-        Target::Live(_) => Ok(()),
-    }
+    Ok(r.out)
 }
 
-fn cleanup_report(out: &Path, leftovers: &[String], secrets: &Secrets) -> Result<()> {
-    let path = out.join("facts.txt");
-    let mut text = match fs::read_to_string(&path) {
+fn cleanup_fake(out: &mut Directory, mut journal: Journal) -> Result<()> {
+    // No hosted state survives a fake process; only unavailable mint reports remain.
+    let fixtures = World::fixtures()?;
+    let secrets = fixtures.secrets();
+    let mut leftovers = vec![];
+    for (id, made) in journal.pending.clone() {
+        if let Made::Mint { installation, at } = made {
+            let report = format!("minted token for installation {installation}: not revoked, expires by {}", at + 3600);
+            cleanup_report(out, std::slice::from_ref(&report), &secrets)?;
+            leftovers.push(report);
+        }
+        journal.done(out, id, &secrets)?;
+    }
+    cleanup_report(out, &leftovers, &secrets)
+}
+
+fn cleanup_report(out: &mut Directory, leftovers: &[String], secrets: &Secrets) -> Result<()> {
+    let mut text = match out.read_text("facts.txt") {
         Ok(text) => text,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => "# resumed cleanup\n".into(),
         Err(e) => return Err(e.into()),
@@ -1165,8 +1180,8 @@ fn cleanup_report(out: &Path, leftovers: &[String], secrets: &Secrets) -> Result
         }
     }
     write::check("facts", text.as_bytes(), b"", secrets)?;
-    fs::write(&path, text)?;
-    fs::File::open(path)?.sync_all()?;
-    fs::File::open(out)?.sync_all()?;
+    out.write("facts.txt", text.as_bytes())?;
+    out.sync("facts.txt")?;
+    out.sync("")?;
     Ok(())
 }

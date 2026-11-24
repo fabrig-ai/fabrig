@@ -77,6 +77,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
             let indexed = domain.names.insert(number, id);
             assert!(indexed == Ok(None), "restored name admitted");
             crate::waits::refresh(domain, number);
+            crate::escalation::restore_holder(domain, number);
         }
         Stored::Stub(stub) => {
             assert!(!domain.stubs.contains_key(&stub.task), "restore {key:?}: duplicate stub index");
