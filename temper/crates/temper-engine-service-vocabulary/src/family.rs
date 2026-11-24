@@ -1,8 +1,10 @@
 //! The forge family's records at the clients' boundary (client/engine.md).
 //! Trials: temper/docs/design/domain/trial.md, 6.
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
-use skein_lib::{List, Token, Wall, Writer};
+use skein_codec::{Reason, convert};
+use skein_lib::{List, Token, Writer};
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
@@ -16,7 +18,33 @@ mod landing_views;
 mod milestones;
 mod refusals;
 mod ways;
+pub(crate) use findings::{finding_blame_act_to_domain, finding_blame_to_record};
+pub(crate) use history::priority_to_record;
+pub(crate) use landing_views::prefix_gate_to_record;
 pub use ways::ways_panel;
+pub(crate) use ways::{proposal_item_to_record, roles_view_to_record, way_role_to_record};
+
+// Each direction passes only the read-only inputs its owner uses.
+pub(crate) enum Context<'a> {
+    Receiving(&'a jig_protocol_config::Directories),
+    Sending(&'a w::Limits),
+}
+
+impl Context<'_> {
+    fn limits(&self) -> &w::Limits {
+        match self {
+            Self::Sending(limits) => limits,
+            Self::Receiving(_) => unreachable!("only record translation reads wire limits"),
+        }
+    }
+
+    fn directories(&self) -> &jig_protocol_config::Directories {
+        match self {
+            Self::Receiving(directories) => directories,
+            Self::Sending(_) => unreachable!("only domain translation resolves program paths"),
+        }
+    }
+}
 
 // client/forge/records.md: connector documents and their wire share every bound.
 const _: () = {
@@ -79,14 +107,6 @@ pub fn to_root(
                     }));
                 }
                 w::Request::OpenChange(value) => {
-                    let repository = match value.repository {
-                        Some(named) => Some(forge::DraftRepository { owner: named.owner, name: named.name }),
-                        None => None,
-                    };
-                    let budget = match value.budget {
-                        w::OpenBudget::Amount(value) => forge::OpenBudget::Amount(value.amount),
-                        w::OpenBudget::AsAllowed => forge::OpenBudget::AsAllowed,
-                    };
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -94,28 +114,10 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: root::Application::OpenChange(forge::OpenChange {
-                            project: value.project,
-                            repository,
-                            branch: value.branch,
-                            at: value.at,
-                            into: value.into,
-                            title: value.title,
-                            body: value.body,
-                            budget,
-                        }),
+                        request: root::Application::OpenChange(maps::open_change_to_domain(value)),
                     }));
                 }
                 w::Request::SetDraft(value) => {
-                    let repository = match value.repository {
-                        Some(named) => Some(forge::DraftRepository { owner: named.owner, name: named.name }),
-                        None => None,
-                    };
-                    let change = match value.change {
-                        w::DraftChange::Ready(value) => forge::DraftChange::Ready { chat: value.chat },
-                        w::DraftChange::NotReady => forge::DraftChange::NotReady,
-                        w::DraftChange::Started(value) => forge::DraftChange::Started { goal: value.goal },
-                    };
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -123,23 +125,10 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft {
-                            project: value.project,
-                            repository,
-                            path: value.path,
-                            change,
-                        })),
+                        request: root::Application::Forge(forge::Ask::SetDraft(maps::set_draft_to_domain(value))),
                     }));
                 }
                 w::Request::TierAct(value) => {
-                    let repository = match value.repository {
-                        Some(named) => Some(forge::DraftRepository { owner: named.owner, name: named.name }),
-                        None => None,
-                    };
-                    let act = match value.act {
-                        w::TierAct::Hold(value) => forge::TierAct::Hold { reason: value.reason },
-                        w::TierAct::Release => forge::TierAct::Release,
-                    };
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -147,27 +136,12 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: root::Application::Tier(forge::TierActRequest {
-                            project: value.project,
-                            repository,
-                            tier: value.tier,
-                            act,
-                        }),
+                        request: root::Application::Tier(maps::tier_act_request_to_domain(value)),
                     }));
                 }
                 w::Request::FollowAct(value) => {
-                    let act = match value.act {
-                        w::FollowAct::Start(v) => forge::follows::FollowAct::Start { after: v.after },
-                        w::FollowAct::Hold(v) => {
-                            let p = v;
-                            forge::follows::FollowAct::Hold { after: p.after, reason: p.reason }
-                        }
-                        w::FollowAct::Skip(v) => {
-                            let p = v;
-                            forge::follows::FollowAct::Skip { after: p.after, reason: p.reason }
-                        }
-                        w::FollowAct::Merge(v) => forge::follows::FollowAct::Merge { afters: v.afters.into_boxed() },
-                    };
+                    let w::FollowActRequest { project, follow, act } = value;
+                    let act = maps::follow_act_to_domain(act);
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -175,11 +149,11 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: root::Application::Follow { project: value.project, follow: value.follow, act },
+                        request: root::Application::Follow { project, follow, act },
                     }));
                 }
                 w::Request::SetUp(value) => {
-                    let Some(forge) = making(value.forge, directories) else {
+                    let Ok(forge) = maps::making_to_domain(value.forge, &Context::Receiving(directories)) else {
                         return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
                             to: reply_to,
                         })));
@@ -206,11 +180,7 @@ pub fn to_root(
                             let how = match value.how {
                                 w::How::ForgejoAdmin(admin) => {
                                     let first = match admin.first {
-                                        Some(first) => Some(forge::FirstAsk {
-                                            org: first.org,
-                                            repository: first.repository,
-                                            label: first.label,
-                                        }),
+                                        Some(first) => Some(maps::first_ask_to_domain(first)),
                                         None => None,
                                     };
                                     forge::How::ForgejoAdmin { first }
@@ -233,9 +203,9 @@ pub fn to_root(
                                 }
                             };
                             forge::Ask::Connect {
-                                forge: match making(value.forge, directories) {
-                                    Some(forge) => forge,
-                                    None => {
+                                forge: match maps::making_to_domain(value.forge, &Context::Receiving(directories)) {
+                                    Ok(forge) => forge,
+                                    Err(_problem) => {
                                         return Err(Box::new(kit::Event::Application(
                                             kit::FromApplication::Undecodable { to: reply_to },
                                         )));
@@ -414,20 +384,7 @@ pub fn to_root(
                     }));
                 }
                 w::Request::Dismiss(value) => {
-                    let what = match value.what {
-                        w::PersonFact::KeepAsking(value) => forge::PersonFact::KeepAsking {
-                            project: value.project,
-                            subject: temper_protocol_reaches::subject_from(&value.subject),
-                            at: value.at,
-                        },
-                        w::PersonFact::ToBegin(value) => forge::PersonFact::ToBegin { project: value.project },
-                        w::PersonFact::GoalFrom(value) => forge::PersonFact::GoalFrom {
-                            project: value.project,
-                            chat: value.chat,
-                            goal: value.goal,
-                            at: value.at,
-                        },
-                    };
+                    let what = maps::person_fact_to_domain(value.what);
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -450,7 +407,6 @@ pub fn to_root(
                     }));
                 }
                 w::Request::AddDevice(value) => {
-                    let w::AddDevice { endpoint, p256dh, auth, label } = value;
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -458,7 +414,7 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: root::Application::AddDevice(forge::AddDevice { endpoint, p256dh, auth, label }),
+                        request: root::Application::AddDevice(maps::add_device_to_domain(value)),
                     }));
                 }
                 w::Request::RemoveDevice(value) => {
@@ -484,7 +440,7 @@ pub fn to_root(
                             project: value.project,
                             on: value.on,
                             until: match value.until {
-                                Some(until) => Some(Wall::from_nanos(until)),
+                                Some(until) => Some(convert::wall_to_domain(until)),
                                 None => None,
                             },
                         },
@@ -501,7 +457,7 @@ pub fn to_root(
                         request: root::Application::Overturn { project: value.project, number: value.number },
                     }));
                 }
-                value @ (w::Request::FileFinding(_) | w::Request::HandFinding(_) | w::Request::TriageFinding(_)) => {
+                w::Request::FileFinding(value) => {
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -509,7 +465,29 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: findings::request(value).expect("findings request"),
+                        request: root::Application::FileFinding(maps::file_finding_to_domain(value)),
+                    }));
+                }
+                w::Request::HandFinding(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::HandFinding(maps::hand_finding_to_domain(value)),
+                    }));
+                }
+                w::Request::TriageFinding(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::TriageFinding(maps::triage_finding_to_domain(value)),
                     }));
                 }
                 w::Request::Adopt(value) => value,
@@ -533,7 +511,7 @@ pub fn to_root(
                     owner: a.owner,
                     name: a.name,
                     prefix: a.prefix,
-                    role: role(a.role),
+                    role: maps::role_to_domain(a.role),
                     landing: a.landing,
                     ci: a.ci,
                     checks: a.checks.into_boxed(),
@@ -613,13 +591,13 @@ pub fn to_root(
                     w::Watch::Change(subject) if subject.task > 0 => jig_domain_core::documents::Watched::Application {
                         scope,
                         connector: wire::FORGE,
-                        subject: Token::new(subject.task),
+                        subject: convert::token_to_domain(subject.task),
                     },
                     w::Watch::Landing(subject) if subject.task > 0 => {
                         jig_domain_core::documents::Watched::Application {
                             scope,
                             connector: wire::FORGE,
-                            subject: Token::new(subject.task),
+                            subject: convert::token_to_domain(subject.task),
                         }
                     }
                     w::Watch::Follows(subject) => jig_domain_core::documents::Watched::Application {
@@ -676,7 +654,7 @@ pub fn to_root(
                         scope: jig_domain_people::ApplicationScope::Project(subject.project),
                         connector: wire::FORGE,
                         subject: Token::new(
-                            forge::findings_subject(subject.project, findings::filter(&subject.filter))
+                            forge::findings_subject(subject.project, maps::findings_filter_to_domain(subject.filter))
                                 .unwrap_or(u64::MAX),
                         ),
                     },
@@ -966,14 +944,6 @@ fn pull_address(
 pub fn host(git: &[u8]) -> Box<[u8]> {
     forge::host(git)
 }
-fn role(role: w::Role) -> forge::Role {
-    match role {
-        w::Role::Owned => forge::Role::Owned,
-        w::Role::Adopted => forge::Role::Adopted,
-        w::Role::Fork => forge::Role::Fork,
-        w::Role::Context => forge::Role::Context,
-    }
-}
 fn encoded_role(role: forge::Role) -> w::Role {
     match role {
         forge::Role::Owned => w::Role::Owned,
@@ -1040,9 +1010,9 @@ pub fn answer(
             };
             w::Outcome::Tier(w::TierOutcome { refusal })
         }
-        Some(root::ApplicationAnswer::FileFinding(value)) => findings::file_answer(value, limits)?,
-        Some(root::ApplicationAnswer::HandFinding(value)) => findings::hand_answer(value, limits)?,
-        Some(root::ApplicationAnswer::TriageFinding(value)) => findings::triage_answer(value, limits)?,
+        Some(root::ApplicationAnswer::FileFinding(value)) => findings::file_answer(value)?,
+        Some(root::ApplicationAnswer::HandFinding(value)) => findings::hand_answer(value)?,
+        Some(root::ApplicationAnswer::TriageFinding(value)) => findings::triage_answer(value)?,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::Tried)) => w::Outcome::Tried,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
@@ -1695,10 +1665,10 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     branch: value.round.branch,
                     pull,
                     combined: match value.round.combined {
-                        Some(value) => Some(landing_views::combined(value)),
+                        Some(value) => Some(maps::combined_to_record(&value)),
                         None => None,
                     },
-                    step: landing_views::step(value.step),
+                    step: maps::landing_step_to_record(&value.step),
                     upstream: value.round.upstream,
                     failure: forge::text::fit(
                         &value.round.failure,
@@ -1713,7 +1683,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             }
             let panel = w::LandingPanel {
                 waits: match value.waits {
-                    Some(wait) => Some(landing_views::wait(wait, limits)?),
+                    Some(wait) => Some(landing_views::wait(&wait, limits)?),
                     None => None,
                 },
                 task: value.task,
@@ -1730,7 +1700,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             panel.encode(limits).ok()
         }
         forge::Document::Devices(value) => devices(value, limits),
-        forge::Document::Findings(value) => findings::document(value, limits),
+        forge::Document::Findings(value) => findings::document(&value, limits),
         forge::Document::Aways(value) => aways(value, limits),
         forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
@@ -1754,7 +1724,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                 landings
                     .push(w::LandingLine {
                         step: match line.step {
-                            Some(step) => Some(landing_views::step(step)),
+                            Some(step) => Some(maps::landing_step_to_record(&step)),
                             None => None,
                         },
                         last_event: match line.last_event {
@@ -1907,7 +1877,7 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                         task: value.task,
                         member: value.member,
                         round: value.round,
-                        step: landing_views::step(value.step),
+                        step: maps::landing_step_to_record(&value.step),
                         title: value.title,
                         ready_since: value.ready_since.as_nanos(),
                     }),
@@ -2009,7 +1979,7 @@ fn landing_member(
                 None => None,
             },
             judgement: match member.judgement {
-                Some(value) => Some(landing_views::judgement(value, limits)?),
+                Some(value) => Some(landing_views::judgement(&value, limits)?),
                 None => None,
             },
             change: member.change,
@@ -2049,35 +2019,37 @@ fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
 }
 
 // temper/docs/design/protocol/forge/engine.md, 2: a new forge carries its whole place.
-fn making(value: w::Making, directories: &jig_protocol_config::Directories) -> Option<forge::Making> {
-    Some(match value {
-        w::Making::Kept(value) => forge::Making::Kept(value.forge),
-        w::Making::New(value) => forge::Making::New(match value.forge {
-            w::ForgeAsk::Github => forge::ForgeAsk::GitHub,
-            w::ForgeAsk::Owned => forge::ForgeAsk::Owned,
-            value @ (w::ForgeAsk::Managed(_) | w::ForgeAsk::Connected(_)) => {
-                let (value, connected) = match value {
-                    w::ForgeAsk::Managed(value) => (value, false),
-                    w::ForgeAsk::Connected(value) => (value, true),
-                    w::ForgeAsk::Github | w::ForgeAsk::Owned => unreachable!("Forgejo place"),
-                };
+pub(crate) fn forge_ask_to_domain(record: w::ForgeAsk, context: &Context<'_>) -> Result<forge::ForgeAsk, w::Problem> {
+    Ok(match record {
+        w::ForgeAsk::Github => forge::ForgeAsk::GitHub,
+        w::ForgeAsk::Owned => forge::ForgeAsk::Owned,
+        value @ (w::ForgeAsk::Managed(_) | w::ForgeAsk::Connected(_)) => {
+            let (value, connected) = match value {
+                w::ForgeAsk::Managed(value) => (value, false),
+                w::ForgeAsk::Connected(value) => (value, true),
+                w::ForgeAsk::Github | w::ForgeAsk::Owned => unreachable!("Forgejo place"),
+            };
 
-                let git_program = match value.git_program {
-                    Some(program) => Some(directories.join(jig_protocol_config::Directory::Data, &program).ok()?),
-                    None => None,
-                };
-                let place = forge::Place {
-                    api: forge::Address { host: value.host, port: value.port, tls: value.tls },
-                    git: value.git,
-                    web: value.web,
-                };
-                if connected {
-                    forge::ForgeAsk::Connected { place, git_program }
-                } else {
-                    forge::ForgeAsk::Managed { place, git_program }
+            let git_program = match value.git_program {
+                Some(program) => {
+                    let Ok(program) = context.directories().join(jig_protocol_config::Directory::Data, &program) else {
+                        return Err(w::paths::MANAGED_FORGE_GIT_PROGRAM.problem(Reason::Malformed));
+                    };
+                    Some(program)
                 }
+                None => None,
+            };
+            let place = forge::Place {
+                api: forge::Address { host: value.host, port: value.port, tls: value.tls },
+                git: value.git,
+                web: value.web,
+            };
+            if connected {
+                forge::ForgeAsk::Connected { place, git_program }
+            } else {
+                forge::ForgeAsk::Managed { place, git_program }
             }
-        }),
+        }
     })
 }
 fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
@@ -2094,13 +2066,7 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
 }
 
 fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
-    let answer = w::DeploymentAnswer {
-        welcome: deployment.welcome,
-        owned: deployment.owned,
-        program_login: deployment.program_login.clone(),
-        push: deployment.push,
-    };
-    answer.encode(limits).expect("checked deployment facts fit the wire")
+    maps::deployment_answer_to_record(deployment).encode(limits).expect("checked deployment facts fit the wire")
 }
 
 /// The kept row supplies progress and ids; settings supply the scripted model's public view.
@@ -2159,7 +2125,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
         root::ForgeReadAnswer::History(value) => history::answer(value, limits),
         root::ForgeReadAnswer::Milestone(value) => milestones::answer(value, limits),
         root::ForgeReadAnswer::Finding(value) => findings::read_answer(value, limits),
-        root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
+        root::ForgeReadAnswer::View(view) => ways::view_answer(&view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
             let record = w::ProgramEnvironmentAnswer { environment: program_environment.into() };
             record.encode(limits).ok()

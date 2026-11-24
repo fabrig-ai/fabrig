@@ -1,0 +1,235 @@
+# The engine's end of the frozen client wire (skein/docs/design/data/codec/maps.md, 9).
+records temper_client_protocol_wire::v1
+use f = temper_engine_domain_forge
+use c = temper_engine_domain_forge_change
+use d = temper_engine_domain
+use h = crate::family
+use history = temper_engine_domain_forge::history
+use ways = temper_engine_domain::ways
+use reach = temper_protocol_reaches
+use api = skein_forge::api
+use s = skein_codec::convert
+by hand h
+context h::Context<'_>
+refuses h::forge_ask_to_domain
+with context h::forge_ask_to_domain
+refuses h::finding_blame_to_record
+with context h::finding_blame_to_record
+refuses h::roles_view_to_record
+with context h::roles_view_to_record
+direction to record
+
+enum Role = f::Role to domain
+record Adopt by hand
+record Kept stands for forge
+record ManagedForge by hand
+enum ForgeAsk by hand
+record NewForge stands for forge
+enum Making = f::Making to domain { kept tuple, new tuple }
+enum SetUpFirst by hand
+record SetUp by hand
+record GitHubApp by hand
+record GitHubManifest by hand
+record FirstAsk = f::FirstAsk to domain
+enum How by hand
+record Install by hand
+record Accept by hand
+
+enum ReachKind = reach::Kind to domain
+record ReachSet stands for number
+record ReachKindOf stands for kind
+enum ClassSubject = reach::Subject to domain { kind tuple, set tuple }
+record ToBegin
+record GoalFrom
+record KeepAsking
+enum PersonFact = f::PersonFact to domain
+
+record MakeCopy by hand
+enum MakeFrom by hand
+record MakeInto by hand
+record MakeRepository by hand
+record DraftRepository = f::DraftRepository to domain
+record ReadyDraft
+record StartedDraft
+record FollowAt
+record FollowReasonAct
+record FollowMergeAct { afters slice }
+
+record HolderTask stands for number
+record HolderParty stands for number
+record HolderRole stands for number
+record HandFinding = f::HandFinding to domain
+record FindingRoute stands for task
+record FindingDrop stands for reason
+record FindingAreas stands for areas slice
+record FindingsFull stands for count
+record FindingWords stands for field
+
+enum DraftChange = f::DraftChange to domain
+record SetDraft = f::SetDraft to domain
+enum FollowAct = f::follows::FollowAct to domain
+record AddDevice = f::AddDevice to domain
+
+enum FindingKind = f::FindingKind both ways
+enum Severity = f::Severity both ways
+record FileFinding = f::FileFinding to domain
+enum FindingState = f::FindingState both ways
+record FindingsTriage
+record FindingsGoal stands for goal
+record FindingsMilestone stands for milestone
+enum FindingsFilter = f::FindingsFilter to domain { goal tuple, milestone tuple }
+enum Holder = f::Holder { task tuple, party tuple, role tuple }
+record FindingNotYours stands for holder
+enum Filer = f::Filer { task tuple, party tuple }
+record FindingClearing = f::FindingClearing { at via s::wall }
+record FindingRow = f::FindingRow { at via s::wall }
+enum BlameStrength = f::BlameStrength
+record BlamedGoal = f::BlamedGoal
+record BlamedLanding = f::BlamedLanding { goals slice }
+record FindingBlame by hand
+record FindingDetail = f::FindingAnswer
+record FindingRepair = f::RepairAct to domain { more slice }
+record FindingBlameAct by hand
+record Triaged by hand
+enum Triage = f::Triage to domain { route tuple, drop tuple, repair tuple, blame tuple }
+record TriageFinding = f::TriageFinding to domain
+enum FindingRefusal = f::FindingRefusal { no_area tuple, full tuple, not_yours tuple, words tuple }
+
+record TierHoldAct
+enum TierAct = f::TierAct to domain
+record TierActRequest = f::TierActRequest to domain
+record OpenAmount stands for amount
+enum OpenBudget = f::OpenBudget to domain { amount tuple }
+record OpenChange = f::OpenChange to domain
+enum Request by hand
+record Requesting by hand
+
+enum SettingEdit by hand
+record ProposalItem by hand
+enum Actor = ways::Actor
+enum PathStep = ways::Step
+record OpensCharter stands for charter
+record OpensRule
+record OpensGate
+record OpensTier stands for name
+enum Opens = ways::Opens { charter tuple, tier tuple }
+record Fact = ways::Fact
+record Card = ways::Card { facts slice }
+record Stop = ways::Stop
+record BranchPath = ways::Path { stops slice }
+record ProjectWords = f::settings::ProjectWords
+record WayRole by hand
+record StockWay = ways::WayEntry { items slice, roles slice }
+record PathRule = ways::PathRule
+record PathRules = ways::PathRules { rows slice }
+record WaysPanel = ways::WaysDocument { ways slice }
+record WayView
+record ProposalView
+record CharterView
+record RuleView
+record RolesView by hand
+record NotDrawn stands for words
+enum View = ways::View { path tuple, roles tuple, not_drawn tuple }
+
+record HistoryRepository = api::Repository
+record HistoryNumber stands for number
+record HistoryCommit
+enum HistoryUpdateStyle = api::UpdateStyle
+record HistoryGateRefused
+record HistoryGateFailed
+record HistoryLeftChange
+record HistoryBlamed
+enum HistoryLeave = f::LandingLeave { head_moved { commit = head } }
+record HistoryTask stands for task
+enum HistoryOf = history::Of to domain { change tuple, landing tuple }
+record HistoryRead by hand
+record HistoryInLanding = history::InLanding
+enum HistoryUnready = history::Unready
+enum HistoryLine = history::Line
+record HistoryJoined { priority via h::priority }
+record HistoryLandingDeparture stands for cause
+enum HistoryDeparture = history::Departure { landing tuple }
+record HistoryDeparted
+record HistoryUpdate
+enum HistoryUpdateOutcome = history::UpdateOutcome
+record HistoryUpdated
+enum HistoryJob = history::Job
+record HistoryJobStarted
+enum HistoryJobFailure = history::JobFailure
+record HistoryJobFailed
+enum HistoryJobOutcome = history::JobOutcome
+record HistoryJobEnded
+enum HistoryWith = history::With
+record HistoryConflict
+enum HistoryAsk = history::Ask
+record HistoryAsked
+enum HistoryDelegateOutcome = history::Answer
+record HistoryAnswered
+record HistoryDelivered
+enum HistoryPause = history::Pause
+record HistoryPaused
+record HistoryMember = history::Member
+record HistoryFormed
+enum HistoryRoundCause = history::RoundCause
+record HistoryRoundEnded
+record HistoryGate
+enum HistoryGateVerdict = history::GateVerdict
+record HistoryGateEnded
+record HistoryProof = history::Proof
+record HistoryProved
+record HistorySearched
+record HistoryProbeEnded
+record HistoryTurn
+enum HistoryRecordedState = history::RecordedState
+record HistoryRecorded
+enum HistoryEnding = history::Ending
+record HistoryEnded
+enum HistoryLandingOutcome = history::LandingOutcome
+record HistoryLandingEnded
+enum HistoryOn = history::On
+enum HistoryBy = history::By { party tuple, task tuple }
+record HistoryHold
+enum HistoryAfterVerdict = history::AfterVerdict
+record HistoryAfter
+record HistoryUnreadyStep
+enum HistoryWhat = history::What { formed { members slice }, proved { proofs slice } }
+record HistoryEvent = history::Event { at via s::wall, source_at via s::wall }
+record HistoryPage by hand
+enum HistoryReply by hand
+
+record MilestoneAnswer by hand
+enum Read by hand
+enum PlaygroundState by hand
+record PlaygroundAnswer by hand
+record DeploymentAnswer = h::Deployment
+enum Watch by hand
+
+enum Ci = c::Status
+enum LandingHold by hand
+enum Combined = f::LandingCombine
+record Train by hand
+enum LandingStep = f::LandingStep
+record SearchBound by hand
+record SearchSelection = f::SearchSelection { ids slice }
+record SearchPass = f::SearchPass
+record SearchByTest { gates slice, passes slice }
+enum SearchTests = f::LandingSearchTests
+record LandingSearch by hand
+enum LandingLeave by hand
+record PrefixGate by hand
+record PrefixJudgement = f::PrefixJudgement { gates slice }
+enum LandingWaitFor = f::LandingWaitFor
+record LandingWait = f::LandingWait
+
+record Checkpointed = d::Checkpointed
+record CheckpointPath { path via s::text }
+record CheckpointFailed { path via s::text, error via s::text }
+enum CheckpointWhy = d::CheckpointWhy
+
+record AreaTask stands for number
+record AreaParty stands for number
+record AreaRole stands for number
+record AreaCharter stands for number
+enum AreaOwner = f::settings::AreaOwner { task tuple, party tuple, role tuple, charter tuple }
+record AreaRow = f::AreaRow
+record Findings = f::Findings { rows slice, areas slice }

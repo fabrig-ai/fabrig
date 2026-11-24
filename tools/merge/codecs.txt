@@ -46,6 +46,7 @@ smith/crates/smith-protocol-translate/src/generated/transcript.rs smith/crates/s
 smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema
 temper/crates/temper-client-protocol-wire/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
 temper/crates/temper-client-protocol-wire/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema
+temper/crates/temper-engine-service-vocabulary/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-engine-service-vocabulary/schema/client_wire.maps
 temper/crates/temper-engine-service-vocabulary/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema temper/crates/temper-engine-service-vocabulary/schema/worker_wire.maps
 temper/crates/temper-protocol-records/src/generated/secrets.rs temper/crates/temper-protocol-records/schema/secrets-v1.schema
 temper/crates/temper-protocol-store-codec/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema

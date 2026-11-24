@@ -78,6 +78,16 @@ fn client_wire_schema_matches_generated_code() {
 }
 
 #[test]
+fn client_wire_maps_match_generated_engine_translation() {
+    let schema = &values(temper_client_protocol_wire::CLIENT_SCHEMA).schema;
+    let maps = include_str!("../../../../crates/temper-engine-service-vocabulary/schema/client_wire.maps");
+    let translation = skein_codegen::translate(schema, maps).expect("engine client wire maps valid");
+    let path =
+        skein_scratch::paths::tree().join("crates/temper-engine-service-vocabulary/src/generated/client_wire.rs");
+    check_text(&path, &translation, temper_test_env::rewrite());
+}
+
+#[test]
 fn store_schema_matches_generated_code() {
     use temper_protocol_store::{OWNER_SET, v25 as codec};
     let source = OWNER_SET.families.first().expect("store family").current;
