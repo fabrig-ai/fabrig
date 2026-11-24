@@ -6,7 +6,7 @@ use crate::{
     testing::{Disk, USER},
 };
 use jig_domain_core::{CoreRecord, Deployment, Record, settings as s};
-use jig_protocol_store::{Event, Request, Write};
+use jig_protocol_store::{BackRefusal, Event, Generations, OpenRefusal, Request, Write};
 use skein_fake_machine::{How, Item, Machine};
 use skein_lib::{List, Wall};
 use temper_engine_service::{self as service, startup, store::Store, upgrade::Report};
@@ -67,24 +67,57 @@ impl Rehearsal {
     pub fn empty(&self) {
         let mut disk = disk(None);
         let refusal = service::End::Stopped(service::Stop::StoreOpen {
-            why: jig_protocol_store::OpenRefusal::Generations { why: jig_protocol_store::Generations::Unreadable },
+            why: OpenRefusal::Generations { why: Generations::Unreadable },
         });
         self.check(&mut disk, |report, _| assert_eq!(report.end, Some(refusal)));
+        self.back(&mut disk, BackRefusal::Unreadable);
+    }
 
+    /// A separate handle keeps the configured source busy through store-first opening.
+    pub fn held_source(&self, mut machine: Machine) {
+        let root = machine.reopen_root(DATA);
+        let held = machine.open(root, STATE, How::DirectoryNoFollow).expect("floor's source");
+        machine.close(root);
+        machine.lock(held).expect("another process holds the source");
+        let mut disk = Disk::new(machine);
+        let (text, code) = self.check(&mut disk, |report, settings| {
+            assert_eq!(
+                report.end,
+                Some(service::End::Stopped(service::Stop::StoreOpen {
+                    why: OpenRefusal::Generations { why: Generations::Busy },
+                }))
+            );
+            assert!(settings.is_none(), "the copy never opened");
+        });
+        assert_eq!(code, 1, "{text}");
+        assert!(text.contains("temper-engine serve: Another process has /data/state open"), "{text}");
+        disk.machine.close(held);
+    }
+
+    /// The configured, settled floor has no previous generation to reactivate.
+    pub fn no_previous(&self, machine: Machine) {
+        let (text, code) = self.back(&mut Disk::new(machine), BackRefusal::NoPrevious);
+        assert_eq!(code, 1, "{text}");
+        assert!(
+            text.contains("temper-engine upgrade: no previous generation; restore a backup to go back\n"),
+            "{text}"
+        );
+    }
+
+    fn back(&self, disk: &mut Disk, refusal: BackRefusal) -> (String, u8) {
         let before = files::image_root(&mut disk.machine, DATA);
         let limits = startup::resolve_limits(&self.inputs(), &[], &[]).expect("stock limits");
         let mut service = self.service(&limits);
         service.engine_component().back_store(disk.directory(DATA, STATE), USER).expect("back adopts source");
-        settle(&mut disk, &mut service);
+        settle(disk, &mut service);
         let report = service.upgrade_report().expect("back report");
         assert!(report.done);
-        assert!(
-            report.events.iter().any(|event| matches!(
-                event,
-                Event::BackRefused { why: jig_protocol_store::BackRefusal::Unreadable, .. }
-            ))
-        );
+        assert!(report.events.iter().any(|event| matches!(
+            event,
+            Event::BackRefused { why, .. } if *why == refusal
+        )));
         files::unchanged(&before, &files::image_root(&mut disk.machine, DATA));
+        temper_engine_shell::upgrade::lines("temper-engine", report, &self.directories, SOURCE)
     }
 
     /// The copy's held identity limit refuses the kept person's record, not the owner seed.
@@ -219,7 +252,7 @@ impl Rehearsal {
         &self,
         disk: &mut Disk,
         assert_report: impl FnOnce(&Report, Option<&service::limit_settings::LimitSettings>),
-    ) {
+    ) -> (String, u8) {
         let before = files::image_root(&mut disk.machine, DATA);
         let mut store = self.store();
         let began = disk.sim.now();
@@ -252,6 +285,7 @@ impl Rehearsal {
         assert!(diagnostics.is_empty(), "unexpected limit warning: {}", String::from_utf8_lossy(&diagnostics));
         files::unchanged(&before, &files::image_root(&mut disk.machine, DATA));
         assert_eq!(files::image_root(&mut disk.machine, SCRATCH).len(), EMPTY_ROOT_ENTRIES, "scratch emptied");
+        (text, code)
     }
 
     fn seed(&self, disk: &mut Disk, mut writes: Vec<Write>, people: u64) {

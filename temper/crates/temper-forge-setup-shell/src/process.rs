@@ -21,23 +21,35 @@ pub enum Refused {
 }
 /// Takes an exclusive lock without waiting, making its file private.
 pub fn lock(path: &Path) -> Result<Lock, Refused> {
-    let file = fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .mode(0o600)
-        .open(path)
-        .map_err(|why| Refused::Io(why.kind()))?;
-    lock_file(file)
+    lock_with(
+        path,
+        |path, mode| fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).mode(mode).open(path),
+        fs::File::try_lock,
+    )
+    .map(|file| Lock { file })
+}
+
+#[doc(hidden)]
+pub fn lock_with<F>(
+    path: &Path,
+    open: impl FnOnce(&Path, u32) -> io::Result<F>,
+    try_lock: impl FnOnce(&F) -> Result<(), fs::TryLockError>,
+) -> Result<F, Refused> {
+    let file = open(path, 0o600).map_err(|why| Refused::Io(why.kind()))?;
+    lock_file_with(file, try_lock)
 }
 /// Locks an already opened and validated file without reopening its path.
 pub fn lock_file(file: fs::File) -> Result<Lock, Refused> {
-    file.try_lock().map_err(|why| match why {
+    lock_file_with(file, fs::File::try_lock).map(|file| Lock { file })
+}
+
+#[doc(hidden)]
+pub fn lock_file_with<F>(file: F, try_lock: impl FnOnce(&F) -> Result<(), fs::TryLockError>) -> Result<F, Refused> {
+    try_lock(&file).map_err(|why| match why {
         fs::TryLockError::WouldBlock => Refused::Held,
         fs::TryLockError::Error(why) => Refused::Io(why.kind()),
     })?;
-    Ok(Lock { file })
+    Ok(file)
 }
 /// Builds the exec's isolated command; its lock is standard input.
 #[must_use]
@@ -112,8 +124,6 @@ pub fn login_id() -> Result<Box<[u8]>, String> {
 
 /// Streams one archive member into a preopened part file, bounded and hashed.
 pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> Extraction {
-    use std::io::{Read as _, Write as _};
-    const CHUNK: usize = 16_384;
     let Ok(mut child) = Command::new("/usr/bin/tar")
         .arg("-xzOf")
         .arg(crate::path(archive))
@@ -127,7 +137,22 @@ pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -
         return Extraction::Failed;
     };
     let mut output = child.stdout.take().expect("tar stdout piped");
-    let mut buffer = [0; CHUNK];
+    extract_with(&mut output, file, bound, &mut child, std::process::Child::kill, |child| {
+        child.wait().map(|status| status.success())
+    })
+}
+
+const EXTRACT_CHUNK: usize = 16_384;
+
+fn extract_with<C>(
+    output: &mut impl io::Read,
+    file: &mut dyn io::Write,
+    bound: u64,
+    child: &mut C,
+    kill: impl FnOnce(&mut C) -> io::Result<()>,
+    wait: impl FnOnce(&mut C) -> io::Result<bool>,
+) -> Extraction {
+    let mut buffer = [0; EXTRACT_CHUNK];
     let mut total = 0_u64;
     let mut hash = Sha256::new();
     let refusal = loop {
@@ -148,12 +173,15 @@ pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -
         }
     };
     if let Some(refusal) = refusal {
-        drop(child.kill());
-        drop(child.wait());
+        drop(kill(child));
+        drop(wait(child));
         return refusal;
     }
-    match child.wait() {
-        Ok(status) if status.success() && total != 0 => Extraction::Digest(hash.finish()),
+    match wait(child) {
+        Ok(true) if total != 0 => Extraction::Digest(hash.finish()),
         Ok(_) | Err(_) => Extraction::Failed,
     }
 }
+
+#[cfg(test)]
+mod tests;

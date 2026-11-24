@@ -19,7 +19,7 @@ const SOURCE_DEADLINE: Duration = Duration::from_millis(200);
 const DISCOVERY: &[u8] = b"http://127.0.0.1:31000/.well-known/openid-configuration";
 const LEFTOVER: &str = "/fixture/forge-1/forgejo/left-over";
 
-fn owned(runner: bool) -> Owned {
+pub(super) fn owned(runner: bool) -> Owned {
     let dirs = jig_protocol_config::Directories::given(b"/fixture", b"/fixture", b"/fixture").expect("fixture dirs");
     let setup = setup_file::read_with(&dirs, SLOT, BoxKind::Owned, |_, _| {
         Ok(Secret::new(fixtures::setup_bytes(runner, false)))

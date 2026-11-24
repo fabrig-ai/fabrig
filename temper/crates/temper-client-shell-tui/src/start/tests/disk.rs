@@ -1,5 +1,6 @@
 use super::super::deployment::{self, Files};
 use skein_fake_machine::{Facts, How, Is, Item, Machine, Opened, Refusal};
+use skein_io::kernel::{Kind, Stat};
 use skein_lib::Secret;
 use std::{
     ffi::{OsStr, OsString},
@@ -40,6 +41,10 @@ impl Disk {
         Ok(facts)
     }
 
+    pub(super) fn mode(&mut self, path: &Path) -> u32 {
+        self.facts(path).expect("directory metadata").mode
+    }
+
     pub(super) fn exists(&mut self, path: &Path) -> bool {
         self.facts(path).is_ok()
     }
@@ -77,6 +82,16 @@ fn parent_and_name(path: &Path) -> (&Path, &OsStr) {
 
 fn io_error(why: Refusal) -> io::Error {
     if why == Refusal::NotFound { io::ErrorKind::NotFound.into() } else { io::Error::other(format!("{why:?}")) }
+}
+
+fn stat(facts: Facts) -> Stat {
+    let kind = match facts.is {
+        Is::Directory => Kind::Directory,
+        Is::Link => Kind::Symlink,
+        Is::File => Kind::File,
+        Is::Fifo | Is::Device => Kind::Other,
+    };
+    Stat { kind, owner: facts.owner, mode: facts.mode, size: facts.size, links: facts.links }
 }
 
 fn owned_private(facts: Facts, user: u32) -> bool {
@@ -122,12 +137,7 @@ impl Files for Disk {
     }
 
     fn private_root(&mut self, path: &Path, user: u32) -> Result<(), String> {
-        let facts = self.facts(path).map_err(|why| why.to_string())?;
-        if facts.is == Is::Directory && owned_private(facts, user) {
-            Ok(())
-        } else {
-            Err(format!("{} is not a private directory", path.display()))
-        }
+        temper_shell::directories::private_root_with(user, self.facts(path).map(stat))
     }
 
     fn make_private(&mut self, path: &Path, user: u32) -> Result<(), String> {

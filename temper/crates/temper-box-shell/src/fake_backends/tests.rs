@@ -6,7 +6,7 @@ use crate::testing::fake_backend_fixtures::{
 };
 use machine::Tree;
 use skein_fake_machine::Item;
-use std::ffi::OsString;
+use std::{ffi::OsString, io::Write};
 
 mod machine;
 
@@ -1098,4 +1098,368 @@ fn import_refuses_the_former_file_before_hashing_source_bytes() {
             )
         );
     }
+}
+
+const BUNDLE: &str = "/bundle";
+const REPLACEMENT: &str = "/replacement";
+
+fn sandbox(import: bool) -> (Directories, machine::Sandbox) {
+    let mut items = if import {
+        source_items(&init_file(Some(Path::new(BUNDLE))))
+    } else {
+        vec![Item::directory(b"source-config").mode(0o700)]
+    };
+    items.extend([
+        Item::directory(b"bundle"),
+        Item::file(b"bundle/index.html", PAGE),
+        Item::directory(b"replacement"),
+        Item::file(b"replacement/index.html", PAGE),
+        Item::directory(b"programs"),
+        Item::file(b"programs/fake-claude", b"inert adapter").mode(0o700),
+        Item::file(
+            b"a.json",
+            br#"{"cued":[{"cue":"A","turns":["a"]}],"asked":[{"cue":"A","turns":["asked a"]}],"otherwise":["X"]}"#,
+        ),
+        Item::file(b"b.json", br#"{"cued":[{"cue":"B","turns":["b"]}],"asked":[{"cue":"B","turns":["asked b"]}]}"#),
+    ]);
+    (fixture_directories(), machine::Sandbox::new(&items))
+}
+
+fn sandbox_start(
+    source: &Directories,
+    disk: &machine::Sandbox,
+    bundle: Option<&str>,
+) -> Result<Startup<machine::Sandbox>, String> {
+    prepare_with(
+        source,
+        &Options { bundle: bundle.map(PathBuf::from), ..Options::default() },
+        Path::new(machine::ADAPTER_PATH),
+        None,
+        disk,
+    )
+}
+
+fn sandbox_json(bytes: &[u8]) -> serde_json::Value {
+    serde_json::from_slice(bytes).expect("document JSON")
+}
+
+#[test]
+fn given_scripts_join_at_each_start_without_replacing_the_model() {
+    let (source, disk) = sandbox(true);
+    let run = |options: &Options| {
+        prepare_with(&source, options, Path::new(machine::ADAPTER_PATH), None, &disk).expect("scripted start")
+    };
+    let options = Options { scripts: vec!["/a.json".into(), "/b.json".into()], strict: true, ..Options::default() };
+    let first = run(&options);
+    let config = crate::path(&first.directories.config);
+    let model = config.join("llm.json");
+    let original = disk.tree.read(&model);
+    let joined = config.join("llm-scripts.json");
+    assert!(disk.effects.borrow().contains(&machine::Effect::Open(joined.clone(), 0o600, false)));
+    assert_eq!(disk.metadata(&joined).unwrap().stat.mode, 0o600);
+    assert_eq!(
+        sandbox_json(&disk.tree.read(&joined)),
+        serde_json::json!({
+            "cued":[{"cue":"A","turns":["a"]},{"cue":"B","turns":["b"]}],
+            "asked":[{"cue":"A","turns":["asked a"]},{"cue":"B","turns":["asked b"]}],
+            "otherwise":["X"]
+        })
+    );
+    assert_model_script_arguments(&first.steps, Some(&joined), true);
+    disk.effects.borrow_mut().clear();
+    write_with(&disk, Path::new("/b.json"), br#"{"otherwise":[]}"#, true).expect("new scripts");
+    let retained = run(&options);
+    assert_eq!(sandbox_json(&disk.tree.read(&joined))["otherwise"], serde_json::json!([]));
+    assert_model_script_arguments(&retained.steps, Some(&joined), true);
+    assert_eq!(disk.tree.read(&model), original);
+
+    let plain = run(&Options::default());
+    assert!(!disk.exists(&joined));
+    assert_model_script_arguments(&plain.steps, None, false);
+    assert_eq!(disk.tree.read(&model), original);
+    let strict = run(&Options { strict: true, ..Options::default() });
+    assert!(!disk.exists(&joined));
+    assert_model_script_arguments(&strict.steps, None, true);
+    assert_eq!(disk.tree.read(&model), original);
+    assert!(disk.effects.borrow().iter().all(|effect| !effect.under(&model)), "the model node is never changed");
+}
+
+fn assert_model_script_arguments(steps: &[temper_forge_setup::Step], scripts: Option<&Path>, strict: bool) {
+    let mut models = 0;
+    for step in steps {
+        if step.name() != b"fake model" {
+            assert!(
+                !step.arguments().iter().any(|word| [b"--scripts".as_slice(), b"--strict"].contains(&word.as_ref()))
+            );
+            continue;
+        }
+        models += 1;
+        let mut expected = Vec::new();
+        if let Some(path) = scripts {
+            expected.extend([Box::from(b"--scripts".as_slice()), bytes(path)]);
+        }
+        if strict {
+            expected.push(Box::from(b"--strict".as_slice()));
+        }
+        assert_eq!(step.arguments().get(6..).expect("base peer arguments"), expected);
+    }
+    assert_eq!(models, 1, "exactly one fake model step");
+}
+
+#[test]
+fn a_reservation_that_loses_its_port_takes_another() {
+    let mut calls = 0;
+    let held: SocketAddr = ([127, 0, 0, 1], 9100).into();
+    let reserved = reserve_from_with(
+        &[],
+        || {
+            calls += 1;
+            match calls {
+                1 => Err(io::ErrorKind::AddrInUse.into()),
+                2 => Ok(held),
+                _ => panic!("only one replacement bind"),
+            }
+        },
+        |port| Ok(*port),
+    )
+    .expect("another reservation after losing a port");
+    assert_eq!(calls, 2);
+    assert_eq!(reserved, held);
+    assert_ne!(reserved.port(), 0);
+}
+
+#[test]
+fn explicit_bundle_leaves_existing_empty_source_configuration_untouched() {
+    let (source, disk) = sandbox(false);
+    let config = crate::path(&source.config);
+    let before = disk.metadata(config).expect("the empty directory already exists");
+    let started = sandbox_start(&source, &disk, Some(BUNDLE)).expect("bundle in otherwise empty source");
+    assert_eq!(disk.tree.list(config, 1).unwrap(), []);
+    assert_eq!(disk.metadata(config).unwrap(), before);
+    assert!(!disk.exists(&config_path(&source)));
+    assert!(disk.effects.borrow().iter().all(|effect| !effect.under(config)), "no source configuration effects");
+    assert_eq!(sandbox_json(&started.bytes)["application"]["clients"]["bundle"], BUNDLE);
+    let document = disk.tree.read(&config_path(&started.directories));
+    let validated = validate_with(&disk, &started.directories, &document, Path::new(machine::ADAPTER_PATH))
+        .expect("ordinary effective admission");
+    let secret = crate::path(&started.directories.data).join("worker.secret");
+    assert!(validated.named.files.iter().any(|file| file.private && file.path == bytes(&secret)));
+    assert_eq!(disk.tree.read(&secret).as_ref(), machine::SECRET);
+}
+
+#[test]
+fn fresh_preparation_is_private_and_isolates_imported_resources() {
+    use machine::Effect;
+    let (source, disk) = sandbox(true);
+    let started = sandbox_start(&source, &disk, None).expect("fresh preparation from provisioned source");
+    let effective = &started.directories;
+    assert_ne!(effective.config, source.config);
+    assert_ne!(effective.data, source.data);
+    assert_eq!(effective.cache, source.cache);
+    let root = crate::path(&source.data).join("box/fake-backends");
+    assert_eq!(effective.config, bytes(&root.join("config")));
+    let document = disk.tree.read(&config_path(effective));
+    let tree = sandbox_json(&started.bytes);
+    assert!(tree["workers"][0].get("agent").is_none());
+    assert_eq!(tree["application"]["clients"]["bundle"], BUNDLE);
+    validate_with(&disk, effective, &document, Path::new(machine::ADAPTER_PATH)).expect("ordinary effective admission");
+    assert!(started.listeners.is_none(), "import keeps the original source ports, not the init reservations");
+
+    let effects = disk.effects.borrow();
+    for name in ["", "config", "data"] {
+        assert!(effects.contains(&Effect::Directory(root.join(name), 0o700)), "{name}");
+    }
+    for name in [
+        "prepared",
+        "lock",
+        "config/github.json",
+        "config/oauth.json",
+        "config/llm.json",
+        "config/forgejo.json",
+        "config/fake-claude.path",
+        "data/worker.secret",
+        "data/providers.setting",
+        "data/github-app.pem",
+    ] {
+        assert!(effects.contains(&Effect::Open(root.join(name), 0o600, false)), "{name}");
+    }
+    assert!(effects.contains(&Effect::Open(config_path(effective), 0o600, true)));
+    assert_eq!(effects.last(), Some(&Effect::Sync(root.join("prepared"))), "publish the marker last");
+}
+
+#[test]
+fn reuse_atomically_replaces_bundle_and_preserves_every_other_edit() {
+    use machine::Effect;
+    let (source, disk) = sandbox(true);
+    let first = sandbox_start(&source, &disk, None).expect("fresh sandbox");
+    let document = config_path(&first.directories);
+    let mut file = disk.read_config(&first.directories).unwrap().file;
+    file.owner = Some("retained-owner@localhost".into());
+    write_with(&disk, &document, &temper_config_shell::render(&file, Shape::Standalone), true).unwrap();
+    let mut edited = sandbox_json(&disk.read_config(&first.directories).unwrap().document);
+    let old_node = disk.metadata(&document).unwrap().identity;
+    let root = crate::path(&source.data).join("box/fake-backends");
+    let data = root.join("data/retained-fixture");
+    write_with(&disk, &data, b"keep this data", false).unwrap();
+    let resources = [
+        "prepared",
+        "config/github.json",
+        "config/oauth.json",
+        "config/llm.json",
+        "data/worker.secret",
+        "data/retained-fixture",
+    ]
+    .map(|name| {
+        let path = root.join(name);
+        let content = disk.tree.read(&path);
+        (path, content)
+    });
+    disk.remove(&Path::new(BUNDLE).join("index.html")).expect("old bundle unavailable");
+    disk.effects.borrow_mut().clear();
+
+    let second = sandbox_start(&source, &disk, Some(REPLACEMENT)).expect("replace retained bundle");
+    edited["application"]["clients"]["bundle"] = REPLACEMENT.into();
+    assert_eq!(sandbox_json(&second.bytes), edited);
+    assert_eq!(second.bytes, disk.read_config(&second.directories).unwrap().document);
+    assert_ne!(disk.metadata(&document).unwrap().identity, old_node);
+    let staging = document.with_file_name(format!("{FILE}.bundle-staging"));
+    assert!(!disk.exists(&staging));
+    let effects = disk.effects.borrow();
+    assert_eq!(
+        effects.iter().filter(|effect| effect.under(&staging) || effect.under(&document)).collect::<Vec<_>>(),
+        [
+            &Effect::Open(staging.clone(), 0o600, false),
+            &Effect::Write(staging.clone()),
+            &Effect::Sync(staging.clone()),
+            &Effect::Rename(staging, document),
+        ]
+    );
+    for (path, bytes) in resources {
+        assert_eq!(disk.tree.read(&path), bytes);
+        assert!(effects.iter().all(|effect| !effect.under(&path)), "unchanged node {}", path.display());
+    }
+    drop(effects);
+    let third = sandbox_start(&source, &disk, None).expect("no flag keeps the replacement selected");
+    assert_eq!(third.bytes, second.bytes);
+}
+
+#[test]
+fn repeating_the_same_bundle_preserves_document_bytes_and_inode() {
+    let (source, disk) = sandbox(true);
+    let first = sandbox_start(&source, &disk, None).expect("fresh sandbox");
+    let document = config_path(&first.directories);
+    let retained = [b"\n ".as_slice(), &disk.tree.read(&document), b" \n"].concat();
+    write_with(&disk, &document, &retained, true).expect("custom formatting");
+    let before = disk.metadata(&document).unwrap();
+    disk.effects.borrow_mut().clear();
+
+    let second = sandbox_start(&source, &disk, Some(BUNDLE)).expect("same bundle passes validation");
+    assert_eq!(disk.tree.read(&document).as_ref(), retained);
+    assert_eq!(second.bytes, disk.read_config(&second.directories).unwrap().document);
+    assert_eq!(disk.metadata(&document).unwrap(), before);
+    assert_no_bundle_publication(&disk, &document);
+}
+
+fn assert_no_bundle_publication(disk: &machine::Sandbox, document: &Path) {
+    let staging = document.with_file_name(format!("{FILE}.bundle-staging"));
+    assert!(!disk.exists(&staging));
+    assert!(disk.effects.borrow().iter().all(|effect| !effect.under(&staging) && !effect.under(document)));
+}
+
+#[test]
+fn invalid_replacement_bundle_preserves_retained_document() {
+    let (source, disk) = sandbox(true);
+    let first = sandbox_start(&source, &disk, None).expect("fresh sandbox");
+    refuse_replacement(&source, &disk, &config_path(&first.directories), "/absent", "index.html");
+}
+
+#[test]
+fn invalid_retained_configuration_refuses_a_valid_replacement_without_mutation() {
+    let (source, disk) = sandbox(true);
+    let first = sandbox_start(&source, &disk, None).expect("fresh sandbox");
+    let document = config_path(&first.directories);
+    let invalid = [&disk.tree.read(&document)[..], b"\n[application]\nworkers = []\n"].concat();
+    write_with(&disk, &document, &invalid, true).expect("invalid retained document");
+    assert_eq!(
+        provisioned_bundle(&disk, Some(Path::new(REPLACEMENT)), temper_service::limits::stock().clients)
+            .expect("valid replacement"),
+        Path::new(REPLACEMENT)
+    );
+    refuse_replacement(&source, &disk, &document, REPLACEMENT, "application");
+}
+
+fn refuse_replacement(source: &Directories, disk: &machine::Sandbox, document: &Path, replacement: &str, member: &str) {
+    let before = disk.tree.read(document);
+    let node = disk.metadata(document).unwrap().identity;
+    disk.effects.borrow_mut().clear();
+    let why = sandbox_start(source, disk, Some(replacement)).err().expect("replacement refused");
+    assert!(why.contains(member), "{why}");
+    assert_no_bundle_publication(disk, document);
+    assert_eq!(disk.tree.read(document), before);
+    assert_eq!(disk.metadata(document).unwrap().identity, node);
+}
+
+#[test]
+fn fake_adapter_is_retained_outside_fixed_worker_configuration() {
+    let (source, disk) = sandbox(true);
+    let first = sandbox_start(&source, &disk, None).expect("fresh sandbox");
+    assert!(sandbox_json(&first.bytes)["application"].get("workers").is_none());
+    let record = crate::path(&first.directories.config).join(ADAPTER);
+    assert_eq!(disk.tree.read(&record).as_ref(), machine::ADAPTER_PATH.as_bytes());
+    assert!(disk.effects.borrow().contains(&machine::Effect::Open(record.clone(), 0o600, false)));
+    let adapter = PathBuf::from(machine::ADAPTER_PATH);
+    assert_eq!(configured_claude_with(&first.directories, &disk).unwrap(), Some(adapter.clone()));
+    assert_eq!(disk.program_reads.borrow().last(), Some(&adapter));
+    disk.remove(&record).expect("absent record with the marker still present");
+    disk.binary_reads.set(0);
+    disk.program_reads.borrow_mut().clear();
+    let why = configured_claude_with(&first.directories, &disk).expect_err("no fall back to PATH");
+    assert!(why.contains(ADAPTER), "{why}");
+    assert_eq!(disk.binary_reads.get(), 0);
+    assert!(disk.program_reads.borrow().is_empty());
+}
+
+#[test]
+fn own_app_key_is_the_seeded_apps_private_pem() {
+    let (source, disk) = sandbox(true);
+    let first = sandbox_start(&source, &disk, None).expect("fresh sandbox");
+    let path = crate::path(&first.directories.data).join("github-app.pem");
+    let key = disk.tree.read(&path);
+    let github = crate::path(&first.directories.config).join("github.json");
+    let forge = temper_fake::forge::Document::decode(&disk.tree.read(&github)).expect("generated GitHub document");
+    assert!(key == forge.github_app_key().expect("seeded App"), "publish the seeded App's key");
+    assert!(key.starts_with(b"-----BEGIN RSA PRIVATE KEY-----"));
+    assert!(disk.effects.borrow().contains(&machine::Effect::Open(path.clone(), 0o600, false)));
+    disk.effects.borrow_mut().clear();
+    let _reused = sandbox_start(&source, &disk, None).expect("reuse keeps the key");
+    assert!(disk.tree.read(&path) == key, "reuse retains the seeded bytes");
+    assert!(disk.effects.borrow().iter().all(|effect| !effect.under(&path)));
+}
+
+#[test]
+fn a_new_sandbox_takes_the_nine_ports_its_test_named_and_a_restart_keeps_them() {
+    let (source, disk) = sandbox(false);
+    let options = Options { bundle: Some(BUNDLE.into()), ..Options::default() };
+    let chosen = chosen_ports(OsStr::new("8200,8201,8202,8203,8204,8205,8206,8207,8208")).expect("nine named ports");
+    assert_eq!(chosen.listeners, [8200, 8201, 8202, 8203, 8204]);
+    assert_eq!(chosen.peers, [8205, 8206, 8207, 8208]);
+    let start = |ports| prepare_with(&source, &options, Path::new(machine::ADAPTER_PATH), Some(ports), &disk);
+    let first = start(&chosen).expect("chosen fresh sandbox");
+    assert_eq!(*disk.init_ports.borrow(), [[8200, 8204]], "the standalone file uses clients and webhooks");
+    assert_eq!(*disk.binds.borrow(), [8205, 8206, 8207, 8208]);
+    let doc = sandbox_json(&first.bytes);
+    for (section, port) in [("clients", 8200), ("webhooks", 8204)] {
+        assert_eq!(doc["application"][section]["listener"]["socket"], format!("127.0.0.1:{port}"));
+    }
+    let Peers { github, oauth, llm, forgejo } = first.peers;
+    assert_eq!([github, oauth, llm, forgejo].map(|address| address.port()), [8205, 8206, 8207, 8208]);
+
+    disk.init_ports.borrow_mut().clear();
+    disk.binds.borrow_mut().clear();
+    let other = chosen_ports(OsStr::new("8300,8301,8302,8303,8304,8305,8306,8307,8308")).expect("other named ports");
+    let retained = start(&other).expect("retained sandbox ignores new choices");
+    assert_eq!(retained.bytes, first.bytes);
+    assert_eq!(retained.peers, first.peers);
+    assert!(disk.init_ports.borrow().is_empty());
+    assert!(disk.binds.borrow().is_empty());
 }

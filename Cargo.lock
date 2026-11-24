@@ -7449,6 +7449,7 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
+ "skein-sim",
  "skein-tls",
  "skein-tls-kit",
  "temper-agent-fixtures",
@@ -7638,6 +7639,7 @@ name = "temper-fetch-shell"
 version = "0.0.0"
 dependencies = [
  "flate2",
+ "skein-fake-machine",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -7678,6 +7680,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "rustls",
+ "skein-fake-machine",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -8405,6 +8408,7 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
  "rustix",
+ "skein-fake-machine",
  "skein-io",
  "skein-json",
  "skein-lib",
@@ -8432,9 +8436,9 @@ dependencies = [
 name = "temper-shell"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-machine",
  "skein-io",
  "skein-lib",
- "skein-scratch",
  "skein-shell",
  "temper-docs",
 ]

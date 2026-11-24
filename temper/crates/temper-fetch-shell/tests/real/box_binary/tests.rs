@@ -4,7 +4,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
 use temper_fetch::box_binary::{self as machine, Build, Candidate, Event, Request};
-use temper_fetch_shell::testing::{Files, absent, cached, digest, gzip, identity, scratch, script, site, suffix};
+use temper_fetch_shell::testing::{Files, cached, digest, gzip, identity, scratch, script, site, suffix};
 
 fn next(machine: &mut machine::Find, event: Event) -> Request {
     let mut out = Queue::uncapped();
@@ -17,38 +17,16 @@ fn next(machine: &mut machine::Find, event: Event) -> Request {
 fn candidate_is_run_and_bounded() {
     let directory = scratch("identity");
     let file = directory.join("temper-box");
-    for (body, line, success) in [
-        (
-            "#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n",
-            b"temper-box 0.0.0 (0123456789ab)\n".as_slice(),
-            true,
-        ),
-        ("#!/bin/sh\nprintf 'another\\n'\n", b"another\n", true),
-        ("#!/bin/sh\nprintf 'another\\n'; exit 1\n", b"another\n", false),
-        (
-            "#!/bin/sh\n[ \"$1\" = --version ] || exit 1\n[ -z \"$HOME\" ] || exit 1\nprintf 'checked\\n'\n",
-            b"checked\n",
-            true,
-        ),
-    ] {
-        script(&file, body.as_bytes());
-        assert_eq!(identity(&file), Candidate { line: line.into(), success });
-    }
-    script(&file, format!("#!/bin/sh\nprintf '{}'\n", "x".repeat(257)).as_bytes());
-    let candidate = identity(&file);
-    assert!(!candidate.success);
-    assert_eq!(candidate.line.len(), 256);
-    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
-    assert_eq!(identity(&file), absent());
-    assert_eq!(identity(&directory), absent());
-    assert_eq!(identity(&directory.join("missing")), absent());
+    script(&file, b"#!/bin/sh\n[ \"$1\" = --version ] || exit 1\n[ -z \"$HOME\" ] || exit 1\nprintf 'checked\\n'\n");
+    assert_eq!(identity(&file), Candidate { line: b"checked\n".as_slice().into(), success: true });
     fs::remove_dir_all(directory).unwrap();
 }
 
 /// The production file interpreter is driven by a fake HTTP body, not a TLS server.
-#[expect(clippy::too_many_lines, reason = "the scratch replay observes each publication effect before answering it")]
-fn staged(name: &str, body: &[u8], success: bool) {
-    let root = scratch(name);
+#[test]
+fn lock_cleanup_and_publication_order() {
+    let root = scratch("publish");
+    let body = b"#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n".as_slice();
     let mut machine = machine::Find::new(Build {
         beside: root.as_os_str().as_bytes().into(),
         cache: root.as_os_str().as_bytes().into(),
@@ -135,26 +113,16 @@ fn staged(name: &str, body: &[u8], success: bool) {
             | Request::Publish { .. }) => files.answer(request).unwrap(),
         };
     };
-    assert_eq!(result.is_ok(), success, "{result:?}");
+    assert!(result.is_ok(), "{result:?}");
     assert!(cache_read);
     for suffix_name in [".gz.part", ".part", ".sha256.part"] {
         assert!(!suffix(&file, suffix_name).exists());
     }
-    if success {
-        assert_eq!(publication, ["sum", "rename sum", "publish"]);
-        assert_eq!(fs::read(&file).unwrap(), body);
-        assert_eq!(cached(&file).unwrap(), Event::Cached { file: Some(digest(body)), sum: Some(digest(body)) });
-        assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o755);
-        assert_eq!(fs::metadata(suffix(&file, ".sha256")).unwrap().permissions().mode() & 0o777, 0o600);
-    } else {
-        assert_eq!(publication.len(), 0);
-        assert!(!file.exists());
-    }
+    assert_eq!(publication, ["sum", "rename sum", "publish"]);
+    assert_eq!(fs::read(&file).unwrap(), body);
+    assert_eq!(cached(&file).unwrap(), Event::Cached { file: Some(digest(body)), sum: Some(digest(body)) });
+    assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o755);
+    assert_eq!(fs::metadata(suffix(&file, ".sha256")).unwrap().permissions().mode() & 0o777, 0o600);
     drop(files);
     fs::remove_dir_all(root).unwrap();
-}
-#[test]
-fn lock_cleanup_and_publication_order() {
-    staged("publish", b"#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n", true);
-    staged("refuse", b"#!/bin/sh\nprintf 'wrong build\\n'\n", false);
 }

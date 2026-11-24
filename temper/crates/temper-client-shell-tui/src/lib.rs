@@ -11,5 +11,5 @@ pub mod start;
 
 #[doc(hidden)]
 pub mod testing {
-    pub use crate::start::testing::{deployment, origin};
+    pub use crate::start::testing::origin;
 }
