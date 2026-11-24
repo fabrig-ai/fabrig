@@ -29,7 +29,7 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 
 ### 1.3 A worker hung
 
-`a_worker_hung_past_the_grace_is_fenced_and_links_again`: **shortened** to `a_worker_stopped_past_the_silence_links_again_as_the_same_process`: w1 stopped (`SIGSTOP`) past the engine's silence, its host read disconnected, continued within the fleet's grace; the same process links again and the same attempt answers there, one begin, nothing placed twice; the cluster stops in reverse. Its second stop, past the grace, goes.
+`a_worker_hung_past_the_grace_is_fenced_and_links_again`: **shortened** to `a_worker_stopped_past_the_silence_links_again_as_the_same_process`: w1 stopped (`SIGSTOP`) past the engine's silence, its host read disconnected, continued within the fleet's grace; the same process links again and the same attempt answers there, one begin, nothing placed twice; the cluster stops in reverse. Only w1 starts; the second stop, past the grace, goes.
 
 | Assertion | Holder |
 |---|---|
@@ -44,7 +44,7 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 | Assertion | Holder |
 |---|---|
 | The second chat due, unclaimed and unplaced while w1's one slot is taken; its first and only assignment to w2 at w2's hello | `temper-engine-domain-world::suite` `a_late_workers_hello_takes_the_task_waiting_for_a_slot` (*added*); `jig-domain-fleet` lib `a_start_waits_for_a_worker_then_for_a_slot` |
-| A worker started after the engine links and its process ends 0 | every cluster story above starts w2 once w1 holds its run |
+| A worker started after the engine links and its process ends 0 | `a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes` starts w2 once w1 holds its run |
 
 ### 1.5 A worker restarted at its position
 
@@ -63,7 +63,7 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 |---|---|
 | The director's first placement on ws, its read question kept unanswered across ws's stop, the retry elsewhere fenced, the person's answer delivered once | `temper-engine-domain-world::suite` `a_stopped_director_keeps_its_read_unanswered_question_once`, `a_stopped_chat_retries_elsewhere_with_a_fenced_journal` and `a_person_answers_a_question_its_task_has_already_read`; `temper-real-loop-world::suite` `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once` |
 | ws's two lives, one link each, the reverse stop | the shortened stories of 1.3 and 2.2 |
-| No worker's input holds the forge's admin token | the holder its change names, or one it adds where a worker's documents are written (*added* where none) |
+| No worker's input holds the forge's admin token | `temper-box::suite` `support_tests::cluster_turn_worker_inputs_exclude_the_forge_admin_token` (*added*) |
 
 ## 2. Landing by turn on the cluster
 

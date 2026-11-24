@@ -128,7 +128,7 @@
   | `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` | four, the second red, on the shipped capacities and a copied policy: narrowed, the rest landed in round 2 | D `landing_copied.rs`, `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` |
 
 - **The cluster's restarts on the fake forge,** two stories of
-  `bin/temper-box/tests/process.rs`, on the cluster's processes
+  `bin/temper-box/tests/cluster_turn/mod.rs` (in `temper-box::process`), on the cluster's processes
   (`testing/temper-box-kit/src/cluster.rs`; the cluster, below): the
   deployment's binaries (`Cluster::deployment_binaries`), the engine
   alone, one worker alone and its agents, each a process started by its
@@ -137,12 +137,12 @@
   never a copy of it, and land nothing: a landing across a restart is
   the engine's worlds' (the table above) and the restart faults'
   (`restarts.md`, 4 and 5):
-  - *an engine killed is started again on its directories:* a chat
+  - `an_engine_killed_is_started_again_on_its_directories_and_its_worker_links_again`: a chat
     answered on the worker; the engine killed (`Members::kill`), ending
     by signal 9, and, once it has ended, started again on its
     directories (`Members::restart`); it opens, the worker prints
     `linked` again, and the chat's committed turn reads as before;
-  - *a worker restarted mid-delivery:* a change's producer, scripted
+  - `a_worker_restarted_mid_delivery_links_again_on_its_directories`: a change's producer, scripted
     through the fake model, writes a line and saves, then writes a
     second and delivers; the worker's git program, a wrapper of the
     fake git that the story writes, holds the delivery's push until the

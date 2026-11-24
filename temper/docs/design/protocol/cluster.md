@@ -290,21 +290,22 @@ to the run is the engine's domain world's, as the table says.
   `temper-box internal agent`; the fakes and the client stay the box's
   `temper-box`. The process tier builds the three beside the box's
   binary (`tools/tiers/design.md`).
-- **A worker killed:** w1 killed mid-run, its process first, then its
+- **A worker killed** (`a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes`):
+  w1 killed mid-run, its process first, then its
   tree, so the engine sees its link close, not an agent's end, and no
   silence is waited on: w1 ends by signal 9, the engine reads its link
   closed, and the others stop in reverse, exiting 0. The killed
   process's end is the story's, not a failure.
-- **A worker stopped and continued:** w1 stopped past the engine's
+- **A worker stopped and continued** (`a_worker_stopped_past_the_silence_links_again_as_the_same_process`):
+  w1 alone is started, then stopped past the engine's
   silence alone, read disconnected, then continued within the fleet's
   grace: the same process links again and the same attempt answers
   there, nothing placed twice.
 - **Every story waits on what shows each step,** read through the
   client and the processes' lines, never on a clock, within one bound;
-  w2 starts only once w1 holds its run, so which worker takes a chat is
-  never left to placement's order; and each chat is closed and ended
-  before the cluster stops, since a worker's ending under a waiting
-  run fails it into a retry.
+  in the kill story w2 starts only once w1 holds its run. Chat stories
+  that stop normally close their chats and wait for them to end first,
+  since a worker's ending under a waiting run fails it into a retry.
 - **A mixed document,** each shape's departures, refuses its start,
   exiting 1 and naming the path.
 
