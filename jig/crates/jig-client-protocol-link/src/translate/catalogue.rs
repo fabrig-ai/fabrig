@@ -67,19 +67,13 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
     for _ in 0..count {
         let item = skein_codec::piece::counted(&mut reader);
         let value = w::PayerReadiness::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let payer = super::accounts::account_use(&value.payer);
+        let value = client::payer_readiness_to_domain(value);
         for old in &rows {
-            if old.provider == value.provider && old.payer == payer {
+            if old.provider == value.provider && old.payer == value.payer {
                 return Err(piece_problem(skein_codec::Reason::Malformed));
             }
         }
-        rows.push(c::PayerReadiness {
-            provider: value.provider,
-            payer,
-            readiness: client::readiness_to_domain(value.readiness),
-            settled: value.settled,
-        })
-        .or(Err(too_large()))?;
+        rows.push(value).or(Err(too_large()))?;
     }
     Ok(rows)
 }

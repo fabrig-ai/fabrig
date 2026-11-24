@@ -2,6 +2,7 @@
 use super::{
     Box, Limits, Wall, c, chip_fields, offered_piece, piece_problem, task_contract_document_fields, task_link_piece, w,
 };
+#[cfg(test)]
 use crate::generated::client;
 
 pub(crate) fn result_value_fields(value: &w::ResultValue, limits: &Limits) -> Result<c::ResultValue, w::Problem> {
@@ -94,6 +95,7 @@ pub(crate) fn chip_ending_fields(value: &w::ChipEnding, limits: &Limits) -> Resu
     }
 }
 
+#[cfg(test)]
 pub(crate) fn effect_fields(value: &w::Effect) -> c::Effect {
     client::effect_to_domain(value.clone())
 }

@@ -1,70 +1,7 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
-use super::{Limits, List, Reader, Wall, c, task_link_fields, too_large, w};
+use super::{Limits, List, Reader, Wall, c, too_large, w};
 use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
-
-pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
-    c::StoreFill { bytes: value.bytes, mark: value.mark }
-}
-
-pub(crate) fn host_kind_fields(value: &w::HostKind) -> c::HostKind {
-    client::host_kind_to_domain(value.clone())
-}
-
-pub(crate) fn attempt_state_fields(value: &w::AttemptState) -> c::AttemptState {
-    match value {
-        w::AttemptState::Waiting => c::AttemptState::Waiting,
-        w::AttemptState::Adopted => c::AttemptState::Adopted,
-        w::AttemptState::Claimed => c::AttemptState::Claimed,
-        w::AttemptState::Cancelled => c::AttemptState::Cancelled,
-        w::AttemptState::Handed => c::AttemptState::Handed,
-        w::AttemptState::Acknowledged => c::AttemptState::Acknowledged,
-        w::AttemptState::Stray => c::AttemptState::Stray,
-        w::AttemptState::Kept => c::AttemptState::Kept,
-        w::AttemptState::Fenced => c::AttemptState::Fenced,
-        w::AttemptState::Closed => c::AttemptState::Closed,
-    }
-}
-
-pub(crate) fn run_location_fields(value: &w::RunLocation) -> c::RunLocation {
-    match value {
-        w::RunLocation::None => c::RunLocation::None,
-        w::RunLocation::Connected(row) => {
-            c::RunLocation::Connected { channel: row.channel, kind: host_kind_fields(&row.kind) }
-        }
-        w::RunLocation::Adrift(row) => {
-            let opt0 = match &row.channel {
-                Some(item) => Some(*item),
-                None => None,
-            };
-            let opt1 = match &row.until {
-                Some(item) => Some(Wall::from_nanos(*item)),
-                None => None,
-            };
-            let opt2 = match &row.remaining {
-                Some(item) => Some(*item),
-                None => None,
-            };
-            c::RunLocation::Adrift { channel: opt0, until: opt1, remaining: opt2 }
-        }
-    }
-}
-
-pub(crate) fn host_run_fields(value: &w::HostRun, limits: &Limits) -> Result<c::HostRun, w::Problem> {
-    let opt0 = match &value.grace_until {
-        Some(item) => Some(Wall::from_nanos(*item)),
-        None => None,
-    };
-    Ok(c::HostRun {
-        task: task_link_fields(&value.task, limits)?,
-        attempt: value.attempt,
-        kept: value.kept,
-        listed: value.listed,
-        state: attempt_state_fields(&value.state),
-        location: run_location_fields(&value.location),
-        grace_until: opt0,
-    })
-}
 
 pub(crate) fn host_run_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::HostRun>, w::Problem> {
     let mut reader = Reader::new(bytes);
@@ -73,7 +10,7 @@ pub(crate) fn host_run_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resul
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::HostRun::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = host_run_fields(&row, limits)?;
+        let row = client::host_run_to_domain(row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -97,15 +34,10 @@ pub(crate) fn host_fields(value: &w::Host, limits: &Limits, room: &mut u64) -> R
     Ok(c::Host {
         name,
         awaiting_logins: value.awaiting_logins,
-        rule: match &value.rule {
-            w::HostRule::Open => c::HostRule::Open,
-            w::HostRule::Person(person) => c::HostRule::Person(person.party),
-            w::HostRule::Several => c::HostRule::Several,
-            w::HostRule::Unknown => c::HostRule::Unknown,
-        },
+        rule: client::host_rule_to_domain(value.rule.clone()),
         programs: crate::translate::programs::logins(&value.programs, limits, room)?,
         channel: value.channel,
-        kind: host_kind_fields(&value.kind),
+        kind: client::host_kind_to_domain(value.kind.clone()),
         slots: value.slots,
         used: value.used,
         free: value.free,

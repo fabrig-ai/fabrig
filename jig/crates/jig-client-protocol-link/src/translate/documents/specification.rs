@@ -2,6 +2,7 @@
 use super::{Limits, List, Reader, c, raw, too_large, w};
 use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
+use skein_lib::length::len_u64;
 
 pub(crate) fn document_specification_fields(
     value: &w::DocumentSpecification,
@@ -36,19 +37,16 @@ pub(crate) fn specification_document_fields(
     client::specification_document_to_domain(value.clone(), limits)
 }
 
-pub(crate) fn field_rule_fields(value: &w::FieldRule, limits: &Limits) -> Result<c::FieldRule, w::Problem> {
-    Ok(c::FieldRule { name: raw(&value.name, limits)?, max: value.max })
-}
-
-pub(crate) fn verdict_choice_fields(value: &w::VerdictChoice, limits: &Limits) -> Result<c::VerdictChoice, w::Problem> {
+pub(crate) fn check_verdict_choice(value: &w::VerdictChoice, limits: &Limits) -> Result<(), w::Problem> {
     if value.fields.len() > limits.client().fields {
         return Err(too_large());
     }
-    let mut list0 = List::with_capacity(value.fields.len());
     for item in &value.fields {
-        list0.push(field_rule_fields(item, limits)?).expect("reserved supplied list");
+        if len_u64(item.name.len()) > u64::from(limits.client().text) {
+            return Err(too_large());
+        }
     }
-    Ok(c::VerdictChoice { code: value.code, words: value.words, followups: value.followups, fields: list0 })
+    Ok(())
 }
 
 pub(crate) fn verdict_choice_piece(
@@ -62,7 +60,8 @@ pub(crate) fn verdict_choice_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::VerdictChoice::decode(limits.wire(), &mut Reader::new(&item))?;
-        let row = verdict_choice_fields(&row, limits)?;
+        check_verdict_choice(&row, limits)?;
+        let row = client::verdict_choice_to_domain(row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }

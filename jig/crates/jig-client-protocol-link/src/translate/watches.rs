@@ -12,27 +12,7 @@ use skein_lib::{List, Reader, Writer, length::len_u64};
 
 #[must_use]
 pub fn subject(value: &c::Subject) -> w::Subject {
-    match value {
-        c::Subject::Settings => w::Subject::Settings,
-        c::Subject::Me => w::Subject::Me,
-        c::Subject::Task { task } => w::Subject::Task(w::SubjectTask { task: *task }),
-        c::Subject::Tree { task, window } => w::Subject::Tree(w::SubjectTree { task: *task, window: *window }),
-        c::Subject::Chips { tasks } => w::Subject::Chips(w::SubjectChips { tasks: tasks.clone() }),
-        c::Subject::Inbox { window } => w::Subject::Inbox(w::SubjectInbox { window: *window }),
-        c::Subject::Tasks { query, window } => {
-            w::Subject::Tasks(w::SubjectTasks { query: super::queries::query(query), window: *window })
-        }
-        c::Subject::Run { task, turn, offset } => {
-            let turn = match turn {
-                Some(turn) => Some(client::provisional_turn_name_to_record(turn)),
-                None => None,
-            };
-            w::Subject::Run(w::SubjectRun { task: *task, turn, offset: *offset })
-        }
-        c::Subject::Deployment => w::Subject::Deployment,
-        c::Subject::Accounts => w::Subject::Accounts,
-        c::Subject::Terminal { terminal } => w::Subject::Terminal(w::SubjectTerminal { terminal: *terminal }),
-    }
+    client::subject_to_record(value)
 }
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
     let (owner, version, record) = match value {
@@ -52,12 +32,7 @@ pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Proble
 }
 #[must_use]
 pub fn refused(value: &w::WatchRefusal) -> c::WatchEnd {
-    match value {
-        w::WatchRefusal::Unknown => c::WatchEnd::Unknown,
-        w::WatchRefusal::NotAllowed => c::WatchEnd::NotAllowed,
-        w::WatchRefusal::Busy => c::WatchEnd::Busy,
-        w::WatchRefusal::SignedOut => c::WatchEnd::SignedOut,
-    }
+    client::watch_refusal_to_domain(value.clone())
 }
 #[must_use]
 pub fn ended(value: &w::WatchEnd) -> c::WatchEnd {
@@ -97,7 +72,7 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
             }))
         }
         w::DeliveryValue::Settings(value) => {
-            c::Delivery::Settings(Box::new(match super::settings::restore_settings_document(&value, limits) {
+            c::Delivery::Settings(Box::new(match client::settings_document_to_domain(value, limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))

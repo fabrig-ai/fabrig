@@ -10,10 +10,6 @@ pub(crate) fn seen(value: &w::SeenThrough) -> c::SeenThrough {
     client::seen_through_to_domain(value.clone())
 }
 
-pub(crate) fn proposer(value: &w::Proposer) -> c::Proposer {
-    client::proposer_to_domain(value.clone())
-}
-
 pub(crate) fn proposal_key(value: &w::ProposalKey) -> c::ProposalKey {
     client::proposal_key_to_domain(value.clone())
 }
@@ -178,26 +174,6 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
     })
 }
 
-pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
-    Ok(match value {
-        w::Outcome::WorkerPauseAsked(value) => c::Outcome::WorkerPauseAsked { worker: value.worker },
-        w::Outcome::Restored(value) => restore_outcome_restored(value),
-        w::Outcome::Account(value) => c::Outcome::Account(match &value.answer {
-            w::AccountAnswer::Reading(row) => c::AccountAnswer::Reading { count: row.count },
-        }),
-        w::Outcome::Document(row) => c::Outcome::Document(document_outcome(&row.value, limits)?),
-        w::Outcome::Made(row) => c::Outcome::Made { what: made(&row.what)? },
-        w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {
-            newest: value.newest,
-            moved: value.moved,
-            stayed: value.stayed,
-        }),
-        w::Outcome::SettingsChanged(value) => {
-            c::Outcome::SettingsChanged(super::settings::restore_outcome_settings_changed(value))
-        }
-    })
-}
-
 pub(crate) fn held_role(value: &w::HeldRole) -> c::HeldRole {
     client::held_role_to_domain(value.clone())
 }
@@ -211,10 +187,6 @@ pub(crate) fn placed(value: Option<&w::PlacedLine>, limits: &Limits) -> Result<O
 }
 pub(crate) fn lacking(value: &w::Lacking) -> c::Lacking {
     client::lacking_to_domain(value.clone())
-}
-
-pub(crate) fn admission_limit(value: &w::AdmissionLimit) -> c::AdmissionLimit {
-    client::admission_limit_to_domain(value.clone())
 }
 
 pub(crate) fn limit(value: &w::Limit) -> c::Limit {
@@ -263,23 +235,9 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::Limit(row) => c::Refusal::Limit { which: limit(&row.which) },
         w::Refusal::Moved(row) => c::Refusal::Moved { now: revision(&row.now), what: moved(&row.what, limits)? },
         w::Refusal::Ended(row) => c::Refusal::Ended { how: ending(&row.how, limits)? },
-        w::Refusal::Malformed(row) => c::Refusal::Malformed {
-            at: row.at,
-            why: match &row.why {
-                w::Malformed::Settings(value) => {
-                    c::Malformed::Settings(super::settings::restore_malformed_settings(value))
-                }
-                w::Malformed::Running => c::Malformed::Running,
-                w::Malformed::SettingsUnchanged => c::Malformed::SettingsUnchanged,
-                w::Malformed::TwoAsAllowed => c::Malformed::TwoAsAllowed,
-                w::Malformed::ConversationNotAgent => c::Malformed::ConversationNotAgent,
-                w::Malformed::Name(value) => c::Malformed::Name(client::name_rule_to_domain(value.rule.clone())),
-                w::Malformed::EndedBy => c::Malformed::EndedBy,
-                w::Malformed::Cycle => c::Malformed::Cycle,
-                w::Malformed::ProposedAsAllowed => c::Malformed::ProposedAsAllowed,
-                w::Malformed::ProjectMismatch => c::Malformed::ProjectMismatch,
-            },
-        },
+        w::Refusal::Malformed(row) => {
+            c::Refusal::Malformed { at: row.at, why: client::malformed_to_domain(row.why.clone()) }
+        }
         w::Refusal::SignInRedirect(row) => {
             c::Refusal::SignInRedirect { why: client::sign_in_redirect_why_to_domain(row.why.clone()) }
         }
@@ -350,27 +308,23 @@ pub fn answer(record: w::KeyedAnswer, limits: &Limits) -> Result<c::Answer, supe
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
-    match value {
-        w::Final::Done(value) => match outcome(&value.outcome, limits) {
-            Ok(value) => Ok(c::Answer::Done(value)),
-            Err(problem) => Err(classify(problem)),
-        },
-        w::Final::Refused(value) => match refusal(&value.refusal, limits) {
-            Ok(refusal) => Ok(c::Answer::Refused { refusal, at: value.at }),
-            Err(problem) => Err(classify(problem)),
-        },
+    match client::final_to_domain(value, limits) {
+        Ok(value) => Ok(value),
+        Err(problem) => Err(classify(problem)),
     }
 }
 
 #[must_use]
-pub fn restore_outcome_restored(value: &w::OutcomeRestored) -> c::Outcome {
-    let mut left_out = List::with_capacity(value.left_out.len());
-    for setting in &value.left_out {
-        left_out.push(super::settings::restore_setting(setting)).expect("same capacity");
-    }
-    c::Outcome::Restored { proposal: value.proposal, to: value.to, left_out }
-}
-#[must_use]
 pub fn restore_refusal_forgotten(value: &w::RefusalForgotten) -> c::Refusal {
     c::Refusal::Forgotten { oldest: value.oldest }
+}
+
+#[cfg(test)]
+pub(crate) fn admission_limit(value: &w::AdmissionLimit) -> c::AdmissionLimit {
+    client::admission_limit_to_domain(value.clone())
+}
+
+#[cfg(test)]
+pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
+    client::outcome_to_domain(value.clone(), limits)
 }

@@ -1694,6 +1694,33 @@ pub fn decide_on_to_record(value: &jig_client_domain::contract::DecideOn) -> jig
     }
 }
 
+pub fn decide_on_to_domain(record: jig_client_protocol_wire::v44::DecideOn, context: &crate::Limits) -> Result<jig_client_domain::contract::DecideOn, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::DecideOn::Proposal(held) => {
+            let jig_client_protocol_wire::v44::DecideProposal { proposal: field_000000, decision: field_000001, running: field_000002 } = held;
+            jig_client_domain::contract::DecideOn::Proposal {
+                proposal: proposal_key_to_domain(field_000000),
+                decision: crate::translate::client::decision_to_domain(field_000001, context)?,
+                running: match field_000002 {
+                    Some(item) => {
+                        let converted = running_to_domain(item);
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::DecideOn::Escalation(held) => {
+            let jig_client_protocol_wire::v44::DecideEscalation { task: field_000000, revision: field_000001, decision: field_000002 } = held;
+            jig_client_domain::contract::DecideOn::Escalation {
+                task: field_000000,
+                revision: revision_to_domain(field_000001),
+                decision: crate::translate::client::decision_to_domain(field_000002, context)?
+            }
+        },
+    })
+}
+
 #[must_use]
 pub fn concluded_to_domain(record: jig_client_protocol_wire::v44::Concluded) -> jig_client_domain::contract::Concluded {
     let jig_client_protocol_wire::v44::Concluded { by: field_000000, at: field_000001 } = record;
@@ -1713,6 +1740,15 @@ pub fn field_rule_to_record(value: &jig_client_domain::contract::FieldRule) -> j
 }
 
 #[must_use]
+pub fn field_rule_to_domain(record: jig_client_protocol_wire::v44::FieldRule) -> jig_client_domain::contract::FieldRule {
+    let jig_client_protocol_wire::v44::FieldRule { name: field_000000, max: field_000001 } = record;
+    jig_client_domain::contract::FieldRule {
+        name: field_000000,
+        max: field_000001
+    }
+}
+
+#[must_use]
 pub fn verdict_choice_to_record(value: &jig_client_domain::contract::VerdictChoice) -> jig_client_protocol_wire::v44::VerdictChoice {
     let jig_client_domain::contract::VerdictChoice { code: field_000000, words: field_000001, followups: field_000002, fields: field_000003 } = value;
     jig_client_protocol_wire::v44::VerdictChoice {
@@ -1725,6 +1761,26 @@ pub fn verdict_choice_to_record(value: &jig_client_domain::contract::VerdictChoi
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source {
                 let converted = field_rule_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    }
+}
+
+#[must_use]
+pub fn verdict_choice_to_domain(record: jig_client_protocol_wire::v44::VerdictChoice) -> jig_client_domain::contract::VerdictChoice {
+    let jig_client_protocol_wire::v44::VerdictChoice { code: field_000000, words: field_000001, followups: field_000002, fields: field_000003 } = record;
+    jig_client_domain::contract::VerdictChoice {
+        code: field_000000,
+        words: field_000001,
+        followups: field_000002,
+        fields: {
+            let source = field_000003;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = field_rule_to_domain(item);
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
@@ -1777,6 +1833,41 @@ pub fn new_contract_to_record(value: &jig_client_domain::contract::NewContract) 
             kind: *field_000001,
             words: *field_000002
         }),
+    }
+}
+
+#[must_use]
+pub fn new_contract_to_domain(record: jig_client_protocol_wire::v44::NewContract) -> jig_client_domain::contract::NewContract {
+    match record {
+        jig_client_protocol_wire::v44::NewContract::Report(held) => {
+            let jig_client_protocol_wire::v44::ContractReport { words: field_000000 } = held;
+            jig_client_domain::contract::NewContract::Report {
+                words: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::NewContract::Verdict(held) => {
+            let jig_client_protocol_wire::v44::ContractVerdict { choices: field_000000 } = held;
+            jig_client_domain::contract::NewContract::Verdict {
+                choices: {
+                    let source = field_000000;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = verdict_choice_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::NewContract::Change(held) => {
+            let jig_client_protocol_wire::v44::ContractChange { connector: field_000000, kind: field_000001, words: field_000002 } = held;
+            jig_client_domain::contract::NewContract::Change {
+                connector: field_000000,
+                kind: field_000001,
+                words: field_000002
+            }
+        },
     }
 }
 
@@ -2930,6 +3021,16 @@ pub fn create_procedure_to_domain(record: jig_client_protocol_wire::v44::CreateP
     jig_client_domain::contract::CreateProcedure {
         connector: field_000000,
         code: field_000001
+    }
+}
+
+#[must_use]
+pub fn kind_implication_to_record(value: &jig_client_domain::contract::KindImplication) -> jig_client_protocol_wire::v44::KindImplication {
+    let jig_client_domain::contract::KindImplication { connector: field_000000, kind: field_000001, implies: field_000002 } = value;
+    jig_client_protocol_wire::v44::KindImplication {
+        connector: *field_000000,
+        kind: *field_000001,
+        implies: *field_000002
     }
 }
 
@@ -4159,6 +4260,15 @@ pub fn me_prices_to_domain(record: jig_client_protocol_wire::v44::MePrices) -> j
 }
 
 #[must_use]
+pub fn model_source_to_record(value: &jig_client_domain::contract::ModelSource) -> jig_client_protocol_wire::v44::ModelSource {
+    match value {
+        jig_client_domain::contract::ModelSource::Stock => jig_client_protocol_wire::v44::ModelSource::Stock,
+        jig_client_domain::contract::ModelSource::List => jig_client_protocol_wire::v44::ModelSource::List,
+        jig_client_domain::contract::ModelSource::Person => jig_client_protocol_wire::v44::ModelSource::Person,
+    }
+}
+
+#[must_use]
 pub fn model_source_to_domain(record: jig_client_protocol_wire::v44::ModelSource) -> jig_client_domain::contract::ModelSource {
     match record {
         jig_client_protocol_wire::v44::ModelSource::Stock => jig_client_domain::contract::ModelSource::Stock,
@@ -4512,5 +4622,2928 @@ pub fn tree_fold_to_domain(record: jig_client_protocol_wire::v44::TreeFold) -> j
         phases: phase_counts_to_domain(field_000001),
         held_below: field_000002
     }
+}
+
+#[must_use]
+pub fn subject_to_record(value: &jig_client_domain::contract::Subject) -> jig_client_protocol_wire::v44::Subject {
+    match value {
+        jig_client_domain::contract::Subject::Me => jig_client_protocol_wire::v44::Subject::Me,
+        jig_client_domain::contract::Subject::Task { task: field_000000 } => jig_client_protocol_wire::v44::Subject::Task(jig_client_protocol_wire::v44::SubjectTask {
+            task: *field_000000
+        }),
+        jig_client_domain::contract::Subject::Tree { task: field_000000, window: field_000001 } => jig_client_protocol_wire::v44::Subject::Tree(jig_client_protocol_wire::v44::SubjectTree {
+            task: *field_000000,
+            window: *field_000001
+        }),
+        jig_client_domain::contract::Subject::Chips { tasks: field_000000 } => jig_client_protocol_wire::v44::Subject::Chips(jig_client_protocol_wire::v44::SubjectChips {
+            tasks: field_000000.clone()
+        }),
+        jig_client_domain::contract::Subject::Inbox { window: field_000000 } => jig_client_protocol_wire::v44::Subject::Inbox(jig_client_protocol_wire::v44::SubjectInbox {
+            window: *field_000000
+        }),
+        jig_client_domain::contract::Subject::Tasks { query: field_000000, window: field_000001 } => jig_client_protocol_wire::v44::Subject::Tasks(jig_client_protocol_wire::v44::SubjectTasks {
+            query: task_query_to_record(field_000000),
+            window: *field_000001
+        }),
+        jig_client_domain::contract::Subject::Run { task: field_000000, turn: field_000001, offset: field_000002 } => jig_client_protocol_wire::v44::Subject::Run(jig_client_protocol_wire::v44::SubjectRun {
+            task: *field_000000,
+            turn: match field_000001 {
+                Some(item) => {
+                    let converted = provisional_turn_name_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            },
+            offset: *field_000002
+        }),
+        jig_client_domain::contract::Subject::Deployment => jig_client_protocol_wire::v44::Subject::Deployment,
+        jig_client_domain::contract::Subject::Accounts => jig_client_protocol_wire::v44::Subject::Accounts,
+        jig_client_domain::contract::Subject::Settings => jig_client_protocol_wire::v44::Subject::Settings,
+        jig_client_domain::contract::Subject::Terminal { terminal: field_000000 } => jig_client_protocol_wire::v44::Subject::Terminal(jig_client_protocol_wire::v44::SubjectTerminal {
+            terminal: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn store_fill_to_domain(record: jig_client_protocol_wire::v44::StoreFill) -> jig_client_domain::contract::StoreFill {
+    let jig_client_protocol_wire::v44::StoreFill { bytes: field_000000, mark: field_000001 } = record;
+    jig_client_domain::contract::StoreFill {
+        bytes: field_000000,
+        mark: field_000001
+    }
+}
+
+#[must_use]
+pub fn census_head_to_domain(record: jig_client_protocol_wire::v44::CensusHead) -> jig_client_domain::contract::CensusHead {
+    let jig_client_protocol_wire::v44::CensusHead { head: field_000000, rows: field_000001 } = record;
+    jig_client_domain::contract::CensusHead {
+        head: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        rows: field_000001
+    }
+}
+
+pub fn census_keyspace_to_domain(record: jig_client_protocol_wire::v44::CensusKeyspace) -> Result<jig_client_domain::contract::CensusKeyspace, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::CensusKeyspace { prefix: field_000000, name: field_000001, rows: field_000002, keys: field_000003, values: field_000004, heads: field_000005, puts: field_000006, erases: field_000007, written: field_000008 } = record;
+    Ok(jig_client_domain::contract::CensusKeyspace {
+        prefix: field_000000,
+        name: match skein_codec::convert::text_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::CENSUS_KEYSPACE_NAME.problem(reason)) },
+        rows: field_000002,
+        keys: field_000003,
+        values: field_000004,
+        heads: {
+            let source = field_000005;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = census_head_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        puts: field_000006,
+        erases: field_000007,
+        written: field_000008
+    })
+}
+
+#[must_use]
+pub fn capacity_to_domain(record: jig_client_protocol_wire::v44::Capacity) -> jig_client_domain::contract::Capacity {
+    let jig_client_protocol_wire::v44::Capacity { used: field_000000, limit: field_000001 } = record;
+    jig_client_domain::contract::Capacity {
+        used: field_000000,
+        limit: field_000001
+    }
+}
+
+#[must_use]
+pub fn project_capacity_to_domain(record: jig_client_protocol_wire::v44::ProjectCapacity) -> jig_client_domain::contract::ProjectCapacity {
+    let jig_client_protocol_wire::v44::ProjectCapacity { project: field_000000, tasks: field_000001, proposals: field_000002 } = record;
+    jig_client_domain::contract::ProjectCapacity {
+        project: field_000000,
+        tasks: capacity_to_domain(field_000001),
+        proposals: field_000002
+    }
+}
+
+#[must_use]
+pub fn attempt_state_to_domain(record: jig_client_protocol_wire::v44::AttemptState) -> jig_client_domain::contract::AttemptState {
+    match record {
+        jig_client_protocol_wire::v44::AttemptState::Waiting => jig_client_domain::contract::AttemptState::Waiting,
+        jig_client_protocol_wire::v44::AttemptState::Adopted => jig_client_domain::contract::AttemptState::Adopted,
+        jig_client_protocol_wire::v44::AttemptState::Claimed => jig_client_domain::contract::AttemptState::Claimed,
+        jig_client_protocol_wire::v44::AttemptState::Cancelled => jig_client_domain::contract::AttemptState::Cancelled,
+        jig_client_protocol_wire::v44::AttemptState::Handed => jig_client_domain::contract::AttemptState::Handed,
+        jig_client_protocol_wire::v44::AttemptState::Acknowledged => jig_client_domain::contract::AttemptState::Acknowledged,
+        jig_client_protocol_wire::v44::AttemptState::Stray => jig_client_domain::contract::AttemptState::Stray,
+        jig_client_protocol_wire::v44::AttemptState::Kept => jig_client_domain::contract::AttemptState::Kept,
+        jig_client_protocol_wire::v44::AttemptState::Fenced => jig_client_domain::contract::AttemptState::Fenced,
+        jig_client_protocol_wire::v44::AttemptState::Closed => jig_client_domain::contract::AttemptState::Closed,
+    }
+}
+
+#[must_use]
+pub fn run_location_to_domain(record: jig_client_protocol_wire::v44::RunLocation) -> jig_client_domain::contract::RunLocation {
+    match record {
+        jig_client_protocol_wire::v44::RunLocation::None => jig_client_domain::contract::RunLocation::None,
+        jig_client_protocol_wire::v44::RunLocation::Connected(held) => {
+            let jig_client_protocol_wire::v44::RunLocationConnected { channel: field_000000, kind: field_000001 } = held;
+            jig_client_domain::contract::RunLocation::Connected {
+                channel: field_000000,
+                kind: host_kind_to_domain(field_000001)
+            }
+        },
+        jig_client_protocol_wire::v44::RunLocation::Adrift(held) => {
+            let jig_client_protocol_wire::v44::RunLocationAdrift { channel: field_000000, until: field_000001, remaining: field_000002 } = held;
+            jig_client_domain::contract::RunLocation::Adrift {
+                channel: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                until: match field_000001 {
+                    Some(item) => {
+                        let converted = skein_codec::convert::wall_to_domain(item);
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                remaining: match field_000002 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+    }
+}
+
+pub fn host_run_to_domain(record: jig_client_protocol_wire::v44::HostRun, context: &crate::Limits) -> Result<jig_client_domain::contract::HostRun, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::HostRun { task: field_000000, attempt: field_000001, kept: field_000002, listed: field_000003, state: field_000004, location: field_000005, grace_until: field_000006 } = record;
+    Ok(jig_client_domain::contract::HostRun {
+        task: task_link_to_domain(field_000000, context)?,
+        attempt: field_000001,
+        kept: field_000002,
+        listed: field_000003,
+        state: attempt_state_to_domain(field_000004),
+        location: run_location_to_domain(field_000005),
+        grace_until: match field_000006 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn program_failure_to_domain(record: jig_client_protocol_wire::v44::ProgramFailure) -> jig_client_domain::contract::ProgramFailure {
+    match record {
+        jig_client_protocol_wire::v44::ProgramFailure::Missing => jig_client_domain::contract::ProgramFailure::Missing,
+        jig_client_protocol_wire::v44::ProgramFailure::Deadline => jig_client_domain::contract::ProgramFailure::Deadline,
+        jig_client_protocol_wire::v44::ProgramFailure::Unreadable => jig_client_domain::contract::ProgramFailure::Unreadable,
+        jig_client_protocol_wire::v44::ProgramFailure::Exited => jig_client_domain::contract::ProgramFailure::Exited,
+        jig_client_protocol_wire::v44::ProgramFailure::Unconfigured => jig_client_domain::contract::ProgramFailure::Unconfigured,
+        jig_client_protocol_wire::v44::ProgramFailure::Unknown => jig_client_domain::contract::ProgramFailure::Unknown,
+        jig_client_protocol_wire::v44::ProgramFailure::Closed => jig_client_domain::contract::ProgramFailure::Closed,
+    }
+}
+
+#[must_use]
+pub fn host_rule_to_domain(record: jig_client_protocol_wire::v44::HostRule) -> jig_client_domain::contract::HostRule {
+    match record {
+        jig_client_protocol_wire::v44::HostRule::Open => jig_client_domain::contract::HostRule::Open,
+        jig_client_protocol_wire::v44::HostRule::Person(held) => jig_client_domain::contract::HostRule::Person({
+            let jig_client_protocol_wire::v44::HostPerson { party: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::HostRule::Several => jig_client_domain::contract::HostRule::Several,
+        jig_client_protocol_wire::v44::HostRule::Unknown => jig_client_domain::contract::HostRule::Unknown,
+    }
+}
+
+#[must_use]
+pub fn hello_refusal_line_to_domain(record: jig_client_protocol_wire::v44::HelloRefusalLine) -> jig_client_domain::contract::HelloRefusalLine {
+    let jig_client_protocol_wire::v44::HelloRefusalLine { channel: field_000000, at: field_000001, slots: field_000002, stop_bound: field_000003, why: field_000004 } = record;
+    jig_client_domain::contract::HelloRefusalLine {
+        channel: field_000000,
+        at: skein_codec::convert::wall_to_domain(field_000001),
+        slots: field_000002,
+        stop_bound: field_000003,
+        why: hello_refusal_to_domain(field_000004)
+    }
+}
+
+#[must_use]
+pub fn request_key_to_domain(record: jig_client_protocol_wire::v44::RequestKey) -> jig_client_domain::contract::RequestKey {
+    let jig_client_protocol_wire::v44::RequestKey { person: field_000000, key: field_000001 } = record;
+    jig_client_domain::contract::RequestKey {
+        person: field_000000,
+        key: field_000001
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
+#[must_use]
+pub fn person_capacity_action_to_domain(record: jig_client_protocol_wire::v44::PersonCapacityAction) -> jig_client_domain::contract::PersonCapacityAction {
+    match record {
+        jig_client_protocol_wire::v44::PersonCapacityAction::Create => jig_client_domain::contract::PersonCapacityAction::Create,
+        jig_client_protocol_wire::v44::PersonCapacityAction::Compound => jig_client_domain::contract::PersonCapacityAction::Compound,
+        jig_client_protocol_wire::v44::PersonCapacityAction::Application(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionApplication { connector: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Application {
+                connector: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Note(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionNote { name: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Note {
+                name: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Service => jig_client_domain::contract::PersonCapacityAction::Service,
+        jig_client_protocol_wire::v44::PersonCapacityAction::Adoption => jig_client_domain::contract::PersonCapacityAction::Adoption,
+        jig_client_protocol_wire::v44::PersonCapacityAction::Roles => jig_client_domain::contract::PersonCapacityAction::Roles,
+        jig_client_protocol_wire::v44::PersonCapacityAction::Policy => jig_client_domain::contract::PersonCapacityAction::Policy,
+        jig_client_protocol_wire::v44::PersonCapacityAction::Pool(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionPool { person: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Pool {
+                person: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Escalation(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionEscalation { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Escalation {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Proposal(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionProposal { proposer: field_000000, number: field_000001 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Proposal {
+                proposer: proposer_to_domain(field_000000),
+                number: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Words(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionWords { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Words {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Question(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionQuestion { task: field_000000, question: field_000001 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Question {
+                task: field_000000,
+                question: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Amend(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionAmend { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Amend {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::MoveTask(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionMove { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Move {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::TakePerson(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionTakePerson { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::TakePerson {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::HandBackPerson(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionHandBackPerson { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::HandBackPerson {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::AnswerPerson(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionAnswerPerson { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::AnswerPerson {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Stop(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionStop { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Stop {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Cancel(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionCancel { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Cancel {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Release(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionRelease { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Release {
+                task: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::MarkSeen(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionMarkSeen { seen: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::MarkSeen {
+                seen: seen_through_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::AccountSignIn => jig_client_domain::contract::PersonCapacityAction::AccountSignIn,
+        jig_client_protocol_wire::v44::PersonCapacityAction::AccountSignOut => jig_client_domain::contract::PersonCapacityAction::AccountSignOut,
+        jig_client_protocol_wire::v44::PersonCapacityAction::AccountChange => jig_client_domain::contract::PersonCapacityAction::AccountChange,
+        jig_client_protocol_wire::v44::PersonCapacityAction::Lift(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionLift { hold: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Lift {
+                hold: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityAction::Conclude(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityActionConclude { task: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityAction::Conclude {
+                task: field_000000
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn person_capacity_cause_to_domain(record: jig_client_protocol_wire::v44::PersonCapacityCause) -> jig_client_domain::contract::PersonCapacityCause {
+    match record {
+        jig_client_protocol_wire::v44::PersonCapacityCause::Requests(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityCauseRequests { limit: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityCause::Requests {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityCause::Pending(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityCausePending { limit: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityCause::Pending {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityCause::Waiters(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityCauseWaiters { limit: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityCause::Waiters {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::PersonCapacityCause::Limit(held) => {
+            let jig_client_protocol_wire::v44::PersonCapacityCauseLimit { which: field_000000 } = held;
+            jig_client_domain::contract::PersonCapacityCause::Limit {
+                which: admission_limit_to_domain(field_000000)
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn person_capacity_refusal_to_domain(record: jig_client_protocol_wire::v44::PersonCapacityRefusal) -> jig_client_domain::contract::PersonCapacityRefusal {
+    let jig_client_protocol_wire::v44::PersonCapacityRefusal { key: field_000000, project: field_000001, action: field_000002, at: field_000003, cause: field_000004 } = record;
+    jig_client_domain::contract::PersonCapacityRefusal {
+        key: request_key_to_domain(field_000000),
+        project: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        action: person_capacity_action_to_domain(field_000002),
+        at: skein_codec::convert::wall_to_domain(field_000003),
+        cause: person_capacity_cause_to_domain(field_000004)
+    }
+}
+
+#[must_use]
+pub fn authorize_why_to_domain(record: jig_client_protocol_wire::v44::AuthorizeWhy) -> crate::AuthorizeWhy {
+    match record {
+        jig_client_protocol_wire::v44::AuthorizeWhy::Malformed => crate::AuthorizeWhy::Malformed,
+        jig_client_protocol_wire::v44::AuthorizeWhy::UnknownClient => crate::AuthorizeWhy::UnknownClient,
+        jig_client_protocol_wire::v44::AuthorizeWhy::UnknownRedirect => crate::AuthorizeWhy::UnknownRedirect,
+        jig_client_protocol_wire::v44::AuthorizeWhy::NoProvider => crate::AuthorizeWhy::NoProvider,
+        jig_client_protocol_wire::v44::AuthorizeWhy::NotAPerson => crate::AuthorizeWhy::NotAPerson,
+    }
+}
+
+#[must_use]
+pub fn authorize_answer_to_domain(record: jig_client_protocol_wire::v44::AuthorizeAnswer) -> crate::Authorized {
+    match record {
+        jig_client_protocol_wire::v44::AuthorizeAnswer::Go(held) => {
+            let jig_client_protocol_wire::v44::AuthorizeGo { location: field_000000 } = held;
+            crate::Authorized::Go {
+                location: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AuthorizeAnswer::Refused(held) => crate::Authorized::Refused({
+            let jig_client_protocol_wire::v44::AuthorizeRefused { why: held } = held;
+            authorize_why_to_domain(held)
+        }),
+        jig_client_protocol_wire::v44::AuthorizeAnswer::SignedOut => crate::Authorized::SignedOut,
+        jig_client_protocol_wire::v44::AuthorizeAnswer::NotReady => crate::Authorized::NotReady,
+        jig_client_protocol_wire::v44::AuthorizeAnswer::Busy => crate::Authorized::Busy,
+    }
+}
+
+#[must_use]
+pub fn task_capacity_action_to_domain(record: jig_client_protocol_wire::v44::TaskCapacityAction) -> jig_client_domain::contract::TaskCapacityAction {
+    match record {
+        jig_client_protocol_wire::v44::TaskCapacityAction::Batch(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionBatch { first: field_000000, members: field_000001 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Batch {
+                first: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                members: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Proposal(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionProposal { number: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Proposal {
+                number: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::PersonProposal(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionPersonProposal { number: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityAction::PersonProposal {
+                number: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Message(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionMessage { task: field_000000, number: field_000001 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Message {
+                task: field_000000,
+                number: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Source(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionSource { funder: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Source {
+                funder: funder_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Introduce(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionIntroduce { left: field_000000, right: field_000001 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Introduce {
+                left: field_000000,
+                right: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Subscription(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionSubscription { number: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Subscription {
+                number: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Effect(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionEffect { entry: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Effect {
+                entry: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Claim(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionClaim { attempt: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Claim {
+                attempt: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityAction::Release => jig_client_domain::contract::TaskCapacityAction::Release,
+        jig_client_protocol_wire::v44::TaskCapacityAction::MoveTask => jig_client_domain::contract::TaskCapacityAction::Move,
+        jig_client_protocol_wire::v44::TaskCapacityAction::Place(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityActionPlace { hold: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityAction::Place {
+                hold: field_000000
+            }
+        },
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
+#[must_use]
+pub fn task_capacity_cause_to_domain(record: jig_client_protocol_wire::v44::TaskCapacityCause) -> jig_client_domain::contract::TaskCapacityCause {
+    match record {
+        jig_client_protocol_wire::v44::TaskCapacityCause::Tasks(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseTasks { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Tasks {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::CreationFlights(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseCreationFlights { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::CreationFlights {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::ResourceReports(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseResourceReports { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::ResourceReports {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::ProjectTasks(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseProjectTasks { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::ProjectTasks {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Tree(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseTree { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Tree {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Delegates(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseDelegates { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Delegates {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Inbox(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseInbox { task: field_000000, messages: field_000001, bytes: field_000002 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Inbox {
+                task: field_000000,
+                messages: field_000001,
+                bytes: field_000002
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Holdings(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseHoldings { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Holdings {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::HoldWaiters(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseHoldWaiters { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::HoldWaiters {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Proposals(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseProposals { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Proposals {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::References(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseReferences { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::References {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Subscriptions(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseSubscriptions { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Subscriptions {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Funders(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseFunders { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Funders {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Writers(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseWriters { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Writers {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::PlacedHolds(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCausePlacedHolds { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::PlacedHolds {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::ProjectPlacedHolds(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseProjectPlacedHolds { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::ProjectPlacedHolds {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::PartyPlacedHolds(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCausePartyPlacedHolds { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::PartyPlacedHolds {
+                limit: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::TaskCapacityCause::Exemptions(held) => {
+            let jig_client_protocol_wire::v44::TaskCapacityCauseExemptions { limit: field_000000 } = held;
+            jig_client_domain::contract::TaskCapacityCause::Exemptions {
+                limit: field_000000
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn task_capacity_request_to_domain(record: jig_client_protocol_wire::v44::TaskCapacityRequest) -> jig_client_domain::contract::TaskCapacityRequest {
+    let jig_client_protocol_wire::v44::TaskCapacityRequest { project: field_000000, by: field_000001, action: field_000002, cause: field_000003 } = record;
+    jig_client_domain::contract::TaskCapacityRequest {
+        project: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        by: requester_to_domain(field_000001),
+        action: task_capacity_action_to_domain(field_000002),
+        cause: task_capacity_cause_to_domain(field_000003)
+    }
+}
+
+#[must_use]
+pub fn task_capacity_refusal_to_domain(record: jig_client_protocol_wire::v44::TaskCapacityRefusal) -> jig_client_domain::contract::TaskCapacityRefusal {
+    let jig_client_protocol_wire::v44::TaskCapacityRefusal { request: field_000000, at: field_000001 } = record;
+    jig_client_domain::contract::TaskCapacityRefusal {
+        request: task_capacity_request_to_domain(field_000000),
+        at: skein_codec::convert::wall_to_domain(field_000001)
+    }
+}
+
+#[must_use]
+pub fn watch_refusal_to_domain(record: jig_client_protocol_wire::v44::WatchRefusal) -> jig_client_domain::contract::WatchEnd {
+    match record {
+        jig_client_protocol_wire::v44::WatchRefusal::Unknown => jig_client_domain::contract::WatchEnd::Unknown,
+        jig_client_protocol_wire::v44::WatchRefusal::NotAllowed => jig_client_domain::contract::WatchEnd::NotAllowed,
+        jig_client_protocol_wire::v44::WatchRefusal::Busy => jig_client_domain::contract::WatchEnd::Busy,
+        jig_client_protocol_wire::v44::WatchRefusal::SignedOut => jig_client_domain::contract::WatchEnd::SignedOut,
+    }
+}
+
+#[must_use]
+pub fn account_place_to_domain(record: jig_client_protocol_wire::v44::AccountPlace) -> jig_client_domain::contract::AccountPlace {
+    match record {
+        jig_client_protocol_wire::v44::AccountPlace::Directory => jig_client_domain::contract::AccountPlace::Directory,
+        jig_client_protocol_wire::v44::AccountPlace::File => jig_client_domain::contract::AccountPlace::File,
+    }
+}
+
+#[must_use]
+pub fn account_unread_to_domain(record: jig_client_protocol_wire::v44::AccountUnread) -> jig_client_domain::contract::AccountUnread {
+    match record {
+        jig_client_protocol_wire::v44::AccountUnread::Unreadable => jig_client_domain::contract::AccountUnread::Unreadable,
+        jig_client_protocol_wire::v44::AccountUnread::Refused => jig_client_domain::contract::AccountUnread::Refused,
+        jig_client_protocol_wire::v44::AccountUnread::Failed => jig_client_domain::contract::AccountUnread::Failed,
+        jig_client_protocol_wire::v44::AccountUnread::Stalled => jig_client_domain::contract::AccountUnread::Stalled,
+        jig_client_protocol_wire::v44::AccountUnread::TooLarge => jig_client_domain::contract::AccountUnread::TooLarge,
+    }
+}
+
+#[must_use]
+pub fn account_state_to_domain(record: jig_client_protocol_wire::v44::AccountState) -> jig_client_domain::contract::AccountState {
+    match record {
+        jig_client_protocol_wire::v44::AccountState::Asking => jig_client_domain::contract::AccountState::Asking,
+        jig_client_protocol_wire::v44::AccountState::Granted => jig_client_domain::contract::AccountState::Granted,
+        jig_client_protocol_wire::v44::AccountState::Later(held) => {
+            let jig_client_protocol_wire::v44::AccountStateLater { until: field_000000 } = held;
+            jig_client_domain::contract::AccountState::Later {
+                until: match field_000000 {
+                    Some(item) => {
+                        let converted = skein_codec::convert::wall_to_domain(item);
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::AccountState::SignInAgain => jig_client_domain::contract::AccountState::SignInAgain,
+        jig_client_protocol_wire::v44::AccountState::Misconfigured => jig_client_domain::contract::AccountState::Misconfigured,
+        jig_client_protocol_wire::v44::AccountState::Unloaded(held) => {
+            let jig_client_protocol_wire::v44::AccountStateUnloaded { at: field_000000, why: field_000001 } = held;
+            jig_client_domain::contract::AccountState::Unloaded {
+                at: account_place_to_domain(field_000000),
+                why: account_unread_to_domain(field_000001)
+            }
+        },
+        jig_client_protocol_wire::v44::AccountState::Cancelled => jig_client_domain::contract::AccountState::Cancelled,
+        jig_client_protocol_wire::v44::AccountState::Closing => jig_client_domain::contract::AccountState::Closing,
+        jig_client_protocol_wire::v44::AccountState::Moving => jig_client_domain::contract::AccountState::Moving,
+    }
+}
+
+#[must_use]
+pub fn account_use_to_record(value: &jig_client_domain::contract::AccountUse) -> jig_client_protocol_wire::v44::AccountUse {
+    match value {
+        jig_client_domain::contract::AccountUse::Party(held) => jig_client_protocol_wire::v44::AccountUse::Party(jig_client_protocol_wire::v44::AccountUseParty { party: *held }),
+        jig_client_domain::contract::AccountUse::Project(held) => jig_client_protocol_wire::v44::AccountUse::Project(jig_client_protocol_wire::v44::AccountUseProject { project: *held }),
+    }
+}
+
+#[must_use]
+pub fn account_use_to_domain(record: jig_client_protocol_wire::v44::AccountUse) -> jig_client_domain::contract::AccountUse {
+    match record {
+        jig_client_protocol_wire::v44::AccountUse::Party(held) => jig_client_domain::contract::AccountUse::Party({
+            let jig_client_protocol_wire::v44::AccountUseParty { party: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::AccountUse::Project(held) => jig_client_domain::contract::AccountUse::Project({
+            let jig_client_protocol_wire::v44::AccountUseProject { project: held } = held;
+            held
+        }),
+    }
+}
+
+#[must_use]
+pub fn payer_readiness_to_domain(record: jig_client_protocol_wire::v44::PayerReadiness) -> jig_client_domain::contract::PayerReadiness {
+    let jig_client_protocol_wire::v44::PayerReadiness { provider: field_000000, payer: field_000001, readiness: field_000002, settled: field_000003 } = record;
+    jig_client_domain::contract::PayerReadiness {
+        provider: field_000000,
+        payer: account_use_to_domain(field_000001),
+        readiness: readiness_to_domain(field_000002),
+        settled: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn login_exit_to_record(value: &jig_client_domain::contract::LoginExit) -> jig_client_protocol_wire::v44::LoginExit {
+    match value {
+        jig_client_domain::contract::LoginExit::Exited { code: field_000000 } => jig_client_protocol_wire::v44::LoginExit::Exited(jig_client_protocol_wire::v44::LoginExitExited {
+            code: *field_000000
+        }),
+        jig_client_domain::contract::LoginExit::Killed { signal: field_000000 } => jig_client_protocol_wire::v44::LoginExit::Killed(jig_client_protocol_wire::v44::LoginExitKilled {
+            signal: *field_000000
+        }),
+        jig_client_domain::contract::LoginExit::NotStarted => jig_client_protocol_wire::v44::LoginExit::NotStarted,
+    }
+}
+
+#[must_use]
+pub fn login_exit_to_domain(record: jig_client_protocol_wire::v44::LoginExit) -> jig_client_domain::contract::LoginExit {
+    match record {
+        jig_client_protocol_wire::v44::LoginExit::Exited(held) => {
+            let jig_client_protocol_wire::v44::LoginExitExited { code: field_000000 } = held;
+            jig_client_domain::contract::LoginExit::Exited {
+                code: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::LoginExit::Killed(held) => {
+            let jig_client_protocol_wire::v44::LoginExitKilled { signal: field_000000 } = held;
+            jig_client_domain::contract::LoginExit::Killed {
+                signal: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::LoginExit::NotStarted => jig_client_domain::contract::LoginExit::NotStarted,
+    }
+}
+
+pub fn account_change_to_record(value: &jig_client_domain::contract::AccountChange) -> Result<jig_client_protocol_wire::v44::AccountChange, jig_client_protocol_wire::v44::Problem> {
+    Ok(match value {
+        jig_client_domain::contract::AccountChange::AddKey { provider: field_000000, join: field_000001, digest: field_000002 } => jig_client_protocol_wire::v44::AccountChange::AddKey(jig_client_protocol_wire::v44::AccountChangeAddKey {
+            provider: *field_000000,
+            join: match field_000001 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            digest: *field_000002
+        }),
+        jig_client_domain::contract::AccountChange::ReplaceKey { source: field_000000, digest: field_000001 } => jig_client_protocol_wire::v44::AccountChange::ReplaceKey(jig_client_protocol_wire::v44::AccountChangeReplaceKey {
+            source: *field_000000,
+            digest: *field_000001
+        }),
+        jig_client_domain::contract::AccountChange::RemoveKey { source: field_000000 } => jig_client_protocol_wire::v44::AccountChange::RemoveKey(jig_client_protocol_wire::v44::AccountChangeRemoveKey {
+            source: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::Resume { source: field_000000 } => jig_client_protocol_wire::v44::AccountChange::Resume(jig_client_protocol_wire::v44::AccountChangeResume {
+            source: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::Remove { account: field_000000 } => jig_client_protocol_wire::v44::AccountChange::Remove(jig_client_protocol_wire::v44::AccountChangeRemove {
+            account: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::MoveAccount { account: field_000000, place: field_000001 } => jig_client_protocol_wire::v44::AccountChange::MoveAccount(jig_client_protocol_wire::v44::AccountChangeMoveAccount {
+            account: *field_000000,
+            place: *field_000001
+        }),
+        jig_client_domain::contract::AccountChange::MoveSource { account: field_000000, source: field_000001, place: field_000002 } => jig_client_protocol_wire::v44::AccountChange::MoveSource(jig_client_protocol_wire::v44::AccountChangeMoveSource {
+            account: *field_000000,
+            source: *field_000001,
+            place: *field_000002
+        }),
+        jig_client_domain::contract::AccountChange::SetUses { account: field_000000, uses: field_000001 } => jig_client_protocol_wire::v44::AccountChange::SetUses(jig_client_protocol_wire::v44::AccountChangeSetUses {
+            account: *field_000000,
+            uses: match field_000001 {
+                Some(item) => {
+                    let converted = {
+                        let source = item;
+                        let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::ACCOUNT_CHANGE_SET_USES_USES.problem(skein_codec::Reason::Bound)) };
+                        let mut translated = skein_lib::List::with_capacity(count);
+                        for item in source.as_ref() {
+                            let converted = account_use_to_record(item);
+                            assert!(translated.push(converted).is_ok(), "one output per source item");
+                        }
+                        translated
+                    };
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::AccountChange::DeclareProgram { provider: field_000000, join: field_000001, name: field_000002 } => jig_client_protocol_wire::v44::AccountChange::DeclareProgram(jig_client_protocol_wire::v44::AccountChangeDeclareProgram {
+            provider: *field_000000,
+            join: match field_000001 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            name: field_000002.clone()
+        }),
+        jig_client_domain::contract::AccountChange::CheckProgram { source: field_000000 } => jig_client_protocol_wire::v44::AccountChange::CheckProgram(jig_client_protocol_wire::v44::AccountChangeCheckProgram {
+            source: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::MoveOut { account: field_000000 } => jig_client_protocol_wire::v44::AccountChange::MoveOut(jig_client_protocol_wire::v44::AccountChangeMoveOut {
+            account: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::Written { number: field_000000 } => jig_client_protocol_wire::v44::AccountChange::Written(jig_client_protocol_wire::v44::AccountChangeWritten {
+            number: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::MoveIn { digest: field_000000 } => jig_client_protocol_wire::v44::AccountChange::MoveIn(jig_client_protocol_wire::v44::AccountChangeMoveIn {
+            digest: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::FinishSignIn { source: field_000000, digest: field_000001 } => jig_client_protocol_wire::v44::AccountChange::FinishSignIn(jig_client_protocol_wire::v44::AccountChangeFinishSignIn {
+            source: *field_000000,
+            digest: *field_000001
+        }),
+        jig_client_domain::contract::AccountChange::LoginProgram { provider: field_000000, name: field_000001 } => jig_client_protocol_wire::v44::AccountChange::LoginProgram(jig_client_protocol_wire::v44::AccountChangeLoginProgram {
+            provider: *field_000000,
+            name: field_000001.clone()
+        }),
+        jig_client_domain::contract::AccountChange::CancelLogin { number: field_000000 } => jig_client_protocol_wire::v44::AccountChange::CancelLogin(jig_client_protocol_wire::v44::AccountChangeCancelLogin {
+            number: *field_000000
+        }),
+        jig_client_domain::contract::AccountChange::LoginEnded { number: field_000000, exit: field_000001 } => jig_client_protocol_wire::v44::AccountChange::LoginEnded(jig_client_protocol_wire::v44::AccountChangeLoginEnded {
+            number: *field_000000,
+            exit: login_exit_to_record(field_000001)
+        }),
+    })
+}
+
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
+#[must_use]
+pub fn account_change_to_domain(record: jig_client_protocol_wire::v44::AccountChange) -> jig_client_domain::contract::AccountChange {
+    match record {
+        jig_client_protocol_wire::v44::AccountChange::AddKey(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeAddKey { provider: field_000000, join: field_000001, digest: field_000002 } = held;
+            jig_client_domain::contract::AccountChange::AddKey {
+                provider: field_000000,
+                join: match field_000001 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                digest: field_000002
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::ReplaceKey(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeReplaceKey { source: field_000000, digest: field_000001 } = held;
+            jig_client_domain::contract::AccountChange::ReplaceKey {
+                source: field_000000,
+                digest: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::RemoveKey(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeRemoveKey { source: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::RemoveKey {
+                source: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::Resume(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeResume { source: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::Resume {
+                source: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::Remove(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeRemove { account: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::Remove {
+                account: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::MoveAccount(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeMoveAccount { account: field_000000, place: field_000001 } = held;
+            jig_client_domain::contract::AccountChange::MoveAccount {
+                account: field_000000,
+                place: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::MoveSource(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeMoveSource { account: field_000000, source: field_000001, place: field_000002 } = held;
+            jig_client_domain::contract::AccountChange::MoveSource {
+                account: field_000000,
+                source: field_000001,
+                place: field_000002
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::SetUses(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeSetUses { account: field_000000, uses: field_000001 } = held;
+            jig_client_domain::contract::AccountChange::SetUses {
+                account: field_000000,
+                uses: match field_000001 {
+                    Some(item) => {
+                        let converted = {
+                            let source = item;
+                            let count = source.len();
+                            let mut translated = skein_lib::List::with_capacity(count);
+                            for item in source.into_boxed() {
+                                let converted = account_use_to_domain(item);
+                                assert!(translated.push(converted).is_ok(), "one output per source item");
+                            }
+                            Box::from(translated)
+                        };
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::DeclareProgram(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeDeclareProgram { provider: field_000000, join: field_000001, name: field_000002 } = held;
+            jig_client_domain::contract::AccountChange::DeclareProgram {
+                provider: field_000000,
+                join: match field_000001 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                name: field_000002
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::CheckProgram(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeCheckProgram { source: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::CheckProgram {
+                source: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::MoveOut(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeMoveOut { account: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::MoveOut {
+                account: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::Written(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeWritten { number: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::Written {
+                number: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::MoveIn(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeMoveIn { digest: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::MoveIn {
+                digest: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::FinishSignIn(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeFinishSignIn { source: field_000000, digest: field_000001 } = held;
+            jig_client_domain::contract::AccountChange::FinishSignIn {
+                source: field_000000,
+                digest: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::LoginProgram(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeLoginProgram { provider: field_000000, name: field_000001 } = held;
+            jig_client_domain::contract::AccountChange::LoginProgram {
+                provider: field_000000,
+                name: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::CancelLogin(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeCancelLogin { number: field_000000 } = held;
+            jig_client_domain::contract::AccountChange::CancelLogin {
+                number: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountChange::LoginEnded(held) => {
+            let jig_client_protocol_wire::v44::AccountChangeLoginEnded { number: field_000000, exit: field_000001 } = held;
+            jig_client_domain::contract::AccountChange::LoginEnded {
+                number: field_000000,
+                exit: login_exit_to_domain(field_000001)
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn account_holder_to_domain(record: jig_client_protocol_wire::v44::AccountHolder) -> jig_client_domain::contract::AccountHolder {
+    match record {
+        jig_client_protocol_wire::v44::AccountHolder::Deployment => jig_client_domain::contract::AccountHolder::Deployment,
+        jig_client_protocol_wire::v44::AccountHolder::Party(held) => jig_client_domain::contract::AccountHolder::Party({
+            let jig_client_protocol_wire::v44::AccountHolderParty { party: held } = held;
+            held
+        }),
+    }
+}
+
+#[must_use]
+pub fn account_kind_to_domain(record: jig_client_protocol_wire::v44::AccountKind) -> jig_client_domain::contract::AccountKind {
+    match record {
+        jig_client_protocol_wire::v44::AccountKind::SignIn => jig_client_domain::contract::AccountKind::SignIn,
+        jig_client_protocol_wire::v44::AccountKind::Key => jig_client_domain::contract::AccountKind::Key,
+        jig_client_protocol_wire::v44::AccountKind::Program => jig_client_domain::contract::AccountKind::Program,
+        jig_client_protocol_wire::v44::AccountKind::None => jig_client_domain::contract::AccountKind::None,
+    }
+}
+
+#[must_use]
+pub fn account_bound_to_domain(record: jig_client_protocol_wire::v44::AccountBound) -> jig_client_domain::contract::AccountBound {
+    match record {
+        jig_client_protocol_wire::v44::AccountBound::Accounts => jig_client_domain::contract::AccountBound::Accounts,
+        jig_client_protocol_wire::v44::AccountBound::HolderAccounts => jig_client_domain::contract::AccountBound::HolderAccounts,
+        jig_client_protocol_wire::v44::AccountBound::Sources => jig_client_domain::contract::AccountBound::Sources,
+        jig_client_protocol_wire::v44::AccountBound::SignIns => jig_client_domain::contract::AccountBound::SignIns,
+    }
+}
+
+#[must_use]
+pub fn account_key_failure_to_domain(record: jig_client_protocol_wire::v44::AccountKeyFailure) -> jig_client_domain::contract::AccountKeyFailure {
+    match record {
+        jig_client_protocol_wire::v44::AccountKeyFailure::TooLong => jig_client_domain::contract::AccountKeyFailure::TooLong,
+        jig_client_protocol_wire::v44::AccountKeyFailure::NotStored => jig_client_domain::contract::AccountKeyFailure::NotStored,
+    }
+}
+
+#[must_use]
+pub fn worker_pause_mode_to_record(value: &jig_client_domain::contract::WorkerPauseMode) -> jig_client_protocol_wire::v44::WorkerPauseMode {
+    match value {
+        jig_client_domain::contract::WorkerPauseMode::Resume => jig_client_protocol_wire::v44::WorkerPauseMode::Resume,
+        jig_client_domain::contract::WorkerPauseMode::Pause => jig_client_protocol_wire::v44::WorkerPauseMode::Pause,
+        jig_client_domain::contract::WorkerPauseMode::Drain => jig_client_protocol_wire::v44::WorkerPauseMode::Drain,
+    }
+}
+
+#[must_use]
+pub fn worker_pause_mode_to_domain(record: jig_client_protocol_wire::v44::WorkerPauseMode) -> jig_client_domain::contract::WorkerPauseMode {
+    match record {
+        jig_client_protocol_wire::v44::WorkerPauseMode::Resume => jig_client_domain::contract::WorkerPauseMode::Resume,
+        jig_client_protocol_wire::v44::WorkerPauseMode::Pause => jig_client_domain::contract::WorkerPauseMode::Pause,
+        jig_client_protocol_wire::v44::WorkerPauseMode::Drain => jig_client_domain::contract::WorkerPauseMode::Drain,
+    }
+}
+
+#[must_use]
+pub fn worker_pause_to_domain(record: jig_client_protocol_wire::v44::WorkerPause) -> jig_client_domain::contract::WorkerPause {
+    match record {
+        jig_client_protocol_wire::v44::WorkerPause::Taking => jig_client_domain::contract::WorkerPause::Taking,
+        jig_client_protocol_wire::v44::WorkerPause::Paused => jig_client_domain::contract::WorkerPause::Paused,
+        jig_client_protocol_wire::v44::WorkerPause::Draining => jig_client_domain::contract::WorkerPause::Draining,
+        jig_client_protocol_wire::v44::WorkerPause::Drained => jig_client_domain::contract::WorkerPause::Drained,
+    }
+}
+
+#[must_use]
+pub fn account_refusal_to_domain(record: jig_client_protocol_wire::v44::AccountRefusal) -> jig_client_domain::contract::AccountRefusal {
+    match record {
+        jig_client_protocol_wire::v44::AccountRefusal::NotLimited => jig_client_domain::contract::AccountRefusal::NotLimited,
+        jig_client_protocol_wire::v44::AccountRefusal::Uses => jig_client_domain::contract::AccountRefusal::Uses,
+        jig_client_protocol_wire::v44::AccountRefusal::NotKept(held) => {
+            let jig_client_protocol_wire::v44::AccountRefusalNotKept { why: field_000000 } = held;
+            jig_client_domain::contract::AccountRefusal::NotKept {
+                why: account_key_failure_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::AccountRefusal::Limit(held) => {
+            let jig_client_protocol_wire::v44::AccountRefusalLimit { bound: field_000000 } = held;
+            jig_client_domain::contract::AccountRefusal::Limit {
+                bound: account_bound_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::AccountRefusal::Held(held) => {
+            let jig_client_protocol_wire::v44::AccountRefusalHeld { provider: field_000000 } = held;
+            jig_client_domain::contract::AccountRefusal::Held {
+                provider: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountRefusal::Provider(held) => {
+            let jig_client_protocol_wire::v44::AccountRefusalProvider { provider: field_000000 } = held;
+            jig_client_domain::contract::AccountRefusal::Provider {
+                provider: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountRefusal::Subject => jig_client_domain::contract::AccountRefusal::Subject,
+        jig_client_protocol_wire::v44::AccountRefusal::Unknown => jig_client_domain::contract::AccountRefusal::Unknown,
+        jig_client_protocol_wire::v44::AccountRefusal::Numbers => jig_client_domain::contract::AccountRefusal::Numbers,
+        jig_client_protocol_wire::v44::AccountRefusal::Kind(held) => {
+            let jig_client_protocol_wire::v44::AccountRefusalKind { kind: field_000000 } = held;
+            jig_client_domain::contract::AccountRefusal::Kind {
+                kind: account_kind_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::AccountRefusal::Closing => jig_client_domain::contract::AccountRefusal::Closing,
+        jig_client_protocol_wire::v44::AccountRefusal::NotStarted => jig_client_domain::contract::AccountRefusal::NotStarted,
+        jig_client_protocol_wire::v44::AccountRefusal::NotSignedIn => jig_client_domain::contract::AccountRefusal::NotSignedIn,
+        jig_client_protocol_wire::v44::AccountRefusal::NotOurs => jig_client_domain::contract::AccountRefusal::NotOurs,
+        jig_client_protocol_wire::v44::AccountRefusal::Cancelled => jig_client_domain::contract::AccountRefusal::Cancelled,
+        jig_client_protocol_wire::v44::AccountRefusal::Moving => jig_client_domain::contract::AccountRefusal::Moving,
+        jig_client_protocol_wire::v44::AccountRefusal::ProgramNameReserved => jig_client_domain::contract::AccountRefusal::ProgramNameReserved,
+    }
+}
+
+#[must_use]
+pub fn account_failure_to_domain(record: jig_client_protocol_wire::v44::AccountFailure) -> jig_client_domain::contract::AccountFailure {
+    match record {
+        jig_client_protocol_wire::v44::AccountFailure::Later(held) => {
+            let jig_client_protocol_wire::v44::AccountFailureLater { after: field_000000 } = held;
+            jig_client_domain::contract::AccountFailure::Later {
+                after: match field_000000 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::AccountFailure::SignInAgain => jig_client_domain::contract::AccountFailure::SignInAgain,
+        jig_client_protocol_wire::v44::AccountFailure::MissingScope(held) => {
+            let jig_client_protocol_wire::v44::AccountFailureMissingScope { scope: field_000000 } = held;
+            jig_client_domain::contract::AccountFailure::MissingScope {
+                scope: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountFailure::Misconfigured => jig_client_domain::contract::AccountFailure::Misconfigured,
+        jig_client_protocol_wire::v44::AccountFailure::Unloaded(held) => {
+            let jig_client_protocol_wire::v44::AccountFailureUnloaded { at: field_000000, why: field_000001 } = held;
+            jig_client_domain::contract::AccountFailure::Unloaded {
+                at: account_place_to_domain(field_000000),
+                why: account_unread_to_domain(field_000001)
+            }
+        },
+        jig_client_protocol_wire::v44::AccountFailure::Cancelled => jig_client_domain::contract::AccountFailure::Cancelled,
+    }
+}
+
+#[must_use]
+pub fn account_end_to_domain(record: jig_client_protocol_wire::v44::AccountEnd) -> jig_client_domain::contract::AccountEnd {
+    match record {
+        jig_client_protocol_wire::v44::AccountEnd::Made(held) => {
+            let jig_client_protocol_wire::v44::AccountEndMade { account: field_000000, declined: field_000001 } = held;
+            jig_client_domain::contract::AccountEnd::Made {
+                account: field_000000,
+                declined: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::AccountEnd::Renewed(held) => {
+            let jig_client_protocol_wire::v44::AccountEndRenewed { account: field_000000, declined: field_000001 } = held;
+            jig_client_domain::contract::AccountEnd::Renewed {
+                account: field_000000,
+                declined: field_000001
+            }
+        },
+        jig_client_protocol_wire::v44::AccountEnd::Refused(held) => {
+            let jig_client_protocol_wire::v44::AccountEndRefused { refusal: field_000000 } = held;
+            jig_client_domain::contract::AccountEnd::Refused {
+                refusal: account_refusal_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::AccountEnd::Failed(held) => {
+            let jig_client_protocol_wire::v44::AccountEndFailed { failure: field_000000 } = held;
+            jig_client_domain::contract::AccountEnd::Failed {
+                failure: account_failure_to_domain(field_000000)
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn account_list_failure_to_domain(record: jig_client_protocol_wire::v44::AccountListFailure) -> jig_client_domain::contract::AccountListFailure {
+    match record {
+        jig_client_protocol_wire::v44::AccountListFailure::Refused(held) => {
+            let jig_client_protocol_wire::v44::AccountListRefused { status: field_000000 } = held;
+            jig_client_domain::contract::AccountListFailure::Refused {
+                status: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::AccountListFailure::Unreachable => jig_client_domain::contract::AccountListFailure::Unreachable,
+        jig_client_protocol_wire::v44::AccountListFailure::Unreadable => jig_client_domain::contract::AccountListFailure::Unreadable,
+        jig_client_protocol_wire::v44::AccountListFailure::Deadline => jig_client_domain::contract::AccountListFailure::Deadline,
+        jig_client_protocol_wire::v44::AccountListFailure::Agent => jig_client_domain::contract::AccountListFailure::Agent,
+        jig_client_protocol_wire::v44::AccountListFailure::Room => jig_client_domain::contract::AccountListFailure::Room,
+    }
+}
+
+#[must_use]
+pub fn account_list_to_domain(record: jig_client_protocol_wire::v44::AccountList) -> jig_client_domain::contract::AccountList {
+    let jig_client_protocol_wire::v44::AccountList { read: field_000000, tried: field_000001, failure: field_000002, left_out: field_000003 } = record;
+    jig_client_domain::contract::AccountList {
+        read: match field_000000 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        tried: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        failure: match field_000002 {
+            Some(item) => {
+                let converted = account_list_failure_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        left_out: field_000003
+    }
+}
+
+pub fn account_window_to_domain(record: jig_client_protocol_wire::v44::AccountWindow) -> Result<jig_client_domain::contract::AccountWindow, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::AccountWindow { length: field_000000, used: field_000001, resets: field_000002, state: field_000003, rate: field_000004 } = record;
+    Ok(jig_client_domain::contract::AccountWindow {
+        length: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        used: match field_000001 {
+            Some(item) => {
+                let converted = match crate::translate::client::basis_to_domain(item) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::ACCOUNT_WINDOW_USED.problem(reason)) };
+                Some(converted)
+            }
+            None => None,
+        },
+        resets: match field_000002 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        state: field_000003,
+        rate: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn account_fact_value_to_domain(record: jig_client_protocol_wire::v44::AccountFactValue) -> Result<jig_client_domain::contract::AccountFactValue, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::AccountFactValue::Text(held) => jig_client_domain::contract::AccountFactValue::Text({
+            let jig_client_protocol_wire::v44::AccountFactText { text: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::AccountFactValue::Count(held) => jig_client_domain::contract::AccountFactValue::Count({
+            let jig_client_protocol_wire::v44::AccountFactCount { count: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::AccountFactValue::Instant(held) => jig_client_domain::contract::AccountFactValue::Instant({
+            let jig_client_protocol_wire::v44::AccountFactInstant { at: held } = held;
+            skein_codec::convert::wall_to_domain(held)
+        }),
+        jig_client_protocol_wire::v44::AccountFactValue::Span(held) => jig_client_domain::contract::AccountFactValue::Span({
+            let jig_client_protocol_wire::v44::AccountFactSpan { nanos: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::AccountFactValue::Share(held) => jig_client_domain::contract::AccountFactValue::Share({
+            let jig_client_protocol_wire::v44::AccountFactShare { basis: held } = held;
+            match crate::translate::client::basis_to_domain(held) { Ok(value) => value, Err(reason) => return Err(jig_client_protocol_wire::v44::paths::ACCOUNT_FACT_SHARE_BASIS.problem(reason)) }
+        }),
+        jig_client_protocol_wire::v44::AccountFactValue::Window(held) => jig_client_domain::contract::AccountFactValue::Window(account_window_to_domain(held)?),
+    })
+}
+
+pub fn account_fact_to_domain(record: jig_client_protocol_wire::v44::AccountFact) -> Result<jig_client_domain::contract::AccountFact, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::AccountFact { kind: field_000000, label: field_000001, value: field_000002, seen: field_000003, source: field_000004, origin: field_000005 } = record;
+    Ok(jig_client_domain::contract::AccountFact {
+        kind: field_000000,
+        label: field_000001,
+        value: account_fact_value_to_domain(field_000002)?,
+        seen: skein_codec::convert::wall_to_domain(field_000003),
+        source: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        origin: field_000005
+    })
+}
+
+#[must_use]
+pub fn account_sign_in_to_domain(record: jig_client_protocol_wire::v44::AccountSignIn) -> jig_client_domain::contract::AccountSignIn {
+    let jig_client_protocol_wire::v44::AccountSignIn { source: field_000000, provider: field_000001, holder: field_000002 } = record;
+    jig_client_domain::contract::AccountSignIn {
+        source: field_000000,
+        provider: field_000001,
+        holder: account_holder_to_domain(field_000002)
+    }
+}
+
+#[must_use]
+pub fn account_last_end_to_domain(record: jig_client_protocol_wire::v44::AccountLastEnd) -> jig_client_domain::contract::AccountLastEnd {
+    let jig_client_protocol_wire::v44::AccountLastEnd { source: field_000000, end: field_000001 } = record;
+    jig_client_domain::contract::AccountLastEnd {
+        source: field_000000,
+        end: account_end_to_domain(field_000001)
+    }
+}
+
+#[must_use]
+pub fn login_end_to_domain(record: jig_client_protocol_wire::v44::LoginEnd) -> jig_client_domain::contract::LoginEnd {
+    match record {
+        jig_client_protocol_wire::v44::LoginEnd::SignedIn(held) => {
+            let jig_client_protocol_wire::v44::LoginEndSignedIn { source: field_000000 } = held;
+            jig_client_domain::contract::LoginEnd::SignedIn {
+                source: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::LoginEnd::NotFinished(held) => {
+            let jig_client_protocol_wire::v44::LoginEndNotFinished { exit: field_000000 } = held;
+            jig_client_domain::contract::LoginEnd::NotFinished {
+                exit: match field_000000 {
+                    Some(item) => {
+                        let converted = login_exit_to_domain(item);
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::LoginEnd::Cancelled => jig_client_domain::contract::LoginEnd::Cancelled,
+        jig_client_protocol_wire::v44::LoginEnd::Refused(held) => {
+            let jig_client_protocol_wire::v44::LoginEndRefused { refusal: field_000000 } = held;
+            jig_client_domain::contract::LoginEnd::Refused {
+                refusal: account_refusal_to_domain(field_000000)
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn account_lent_end_to_domain(record: jig_client_protocol_wire::v44::AccountLentEnd) -> jig_client_domain::contract::AccountLentEnd {
+    let jig_client_protocol_wire::v44::AccountLentEnd { number: field_000000, end: field_000001 } = record;
+    jig_client_domain::contract::AccountLentEnd {
+        number: field_000000,
+        end: login_end_to_domain(field_000001)
+    }
+}
+
+pub fn provider_list_to_record(value: &jig_client_domain::contract::ProviderList) -> Result<jig_client_protocol_wire::v44::ProviderList, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_domain::contract::ProviderList { keep: field_000000, drop: field_000001 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderList {
+        keep: {
+            let source = field_000000;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_LIST_KEEP.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        drop: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_LIST_DROP.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn provider_list_to_domain(record: jig_client_protocol_wire::v44::ProviderList) -> jig_client_domain::contract::ProviderList {
+    let jig_client_protocol_wire::v44::ProviderList { keep: field_000000, drop: field_000001 } = record;
+    jig_client_domain::contract::ProviderList {
+        keep: {
+            let source = field_000000;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        drop: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    }
+}
+
+#[must_use]
+pub fn provider_transport_to_record(value: &jig_client_domain::contract::Transport) -> jig_client_protocol_wire::v44::ProviderTransport {
+    match value {
+        jig_client_domain::contract::Transport::Tls { server_name: field_000000, trust: field_000001 } => jig_client_protocol_wire::v44::ProviderTransport::Tls(jig_client_protocol_wire::v44::ProviderTls {
+            server_name: field_000000.clone(),
+            trust: match field_000001 {
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Transport::Plaintext => jig_client_protocol_wire::v44::ProviderTransport::Plaintext,
+    }
+}
+
+#[must_use]
+pub fn provider_transport_to_domain(record: jig_client_protocol_wire::v44::ProviderTransport) -> jig_client_domain::contract::Transport {
+    match record {
+        jig_client_protocol_wire::v44::ProviderTransport::Tls(held) => {
+            let jig_client_protocol_wire::v44::ProviderTls { server_name: field_000000, trust: field_000001 } = held;
+            jig_client_domain::contract::Transport::Tls {
+                server_name: field_000000,
+                trust: match field_000001 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::ProviderTransport::Plaintext => jig_client_domain::contract::Transport::Plaintext,
+    }
+}
+
+pub fn provider_registration_to_record(value: &jig_client_domain::contract::Registration) -> Result<jig_client_protocol_wire::v44::ProviderRegistration, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_domain::contract::Registration { issuer: field_000000, client: field_000001, scopes: field_000002, name_hint: field_000003, authorization: field_000004, token: field_000005, revocation: field_000006, keys: field_000007, endpoint_transport: field_000008, must_grant: field_000009, resource: field_000010, redirect_path: field_000011, redirect_port: field_000012 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderRegistration {
+        issuer: field_000000.clone(),
+        client: field_000001.clone(),
+        scopes: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_REGISTRATION_SCOPES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        name_hint: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        authorization: field_000004.clone(),
+        token: field_000005.clone(),
+        revocation: match field_000006 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: field_000007.clone(),
+        endpoint_transport: provider_transport_to_record(field_000008),
+        must_grant: {
+            let source = field_000009;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_REGISTRATION_MUST_GRANT.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        resource: match field_000010 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        redirect_path: field_000011.clone(),
+        redirect_port: match field_000012 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn provider_registration_to_domain(record: jig_client_protocol_wire::v44::ProviderRegistration) -> jig_client_domain::contract::Registration {
+    let jig_client_protocol_wire::v44::ProviderRegistration { issuer: field_000000, client: field_000001, scopes: field_000002, name_hint: field_000003, authorization: field_000004, token: field_000005, revocation: field_000006, keys: field_000007, endpoint_transport: field_000008, must_grant: field_000009, resource: field_000010, redirect_path: field_000011, redirect_port: field_000012 } = record;
+    jig_client_domain::contract::Registration {
+        issuer: field_000000,
+        client: field_000001,
+        scopes: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        name_hint: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        authorization: field_000004,
+        token: field_000005,
+        revocation: match field_000006 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: field_000007,
+        endpoint_transport: provider_transport_to_domain(field_000008),
+        must_grant: {
+            let source = field_000009;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        resource: match field_000010 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        redirect_path: field_000011,
+        redirect_port: match field_000012 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+pub fn provider_to_record(value: &jig_client_domain::contract::Provider) -> Result<jig_client_protocol_wire::v44::Provider, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_domain::contract::Provider { name: field_000000, number: field_000001, endpoint: field_000002, direct: field_000003, list: field_000004, signed_in_plan: field_000005, manage_usage: field_000006, sign_in: field_000007, keys: field_000008, programs: field_000009 } = value;
+    Ok(jig_client_protocol_wire::v44::Provider {
+        name: field_000000.clone(),
+        number: *field_000001,
+        endpoint: match field_000002 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        direct: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        list: match field_000004 {
+            Some(item) => {
+                let converted = provider_list_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        signed_in_plan: *field_000005,
+        manage_usage: match field_000006 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        sign_in: match field_000007 {
+            Some(item) => {
+                let converted = provider_registration_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: *field_000008,
+        programs: {
+            let source = field_000009;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_PROGRAMS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = jig_client_protocol_wire::v44::ProviderText { bytes: item.clone() };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn provider_to_domain(record: jig_client_protocol_wire::v44::Provider) -> jig_client_domain::contract::Provider {
+    let jig_client_protocol_wire::v44::Provider { name: field_000000, number: field_000001, endpoint: field_000002, direct: field_000003, list: field_000004, signed_in_plan: field_000005, manage_usage: field_000006, sign_in: field_000007, keys: field_000008, programs: field_000009 } = record;
+    jig_client_domain::contract::Provider {
+        name: field_000000,
+        number: field_000001,
+        endpoint: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        direct: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        list: match field_000004 {
+            Some(item) => {
+                let converted = provider_list_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        signed_in_plan: field_000005,
+        manage_usage: match field_000006 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        sign_in: match field_000007 {
+            Some(item) => {
+                let converted = provider_registration_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        keys: field_000008,
+        programs: {
+            let source = field_000009;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = {
+                    let jig_client_protocol_wire::v44::ProviderText { bytes: held } = item;
+                    held
+                };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    }
+}
+
+#[must_use]
+pub fn provider_header_to_record(value: &jig_client_domain::contract::Header) -> jig_client_protocol_wire::v44::ProviderHeader {
+    let jig_client_domain::contract::Header { name: field_000000, value: field_000001 } = value;
+    jig_client_protocol_wire::v44::ProviderHeader {
+        name: field_000000.clone(),
+        value: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn provider_header_to_domain(record: jig_client_protocol_wire::v44::ProviderHeader) -> jig_client_domain::contract::Header {
+    let jig_client_protocol_wire::v44::ProviderHeader { name: field_000000, value: field_000001 } = record;
+    jig_client_domain::contract::Header {
+        name: field_000000,
+        value: field_000001
+    }
+}
+
+pub fn provider_endpoint_to_record(value: &jig_client_domain::contract::Endpoint) -> Result<jig_client_protocol_wire::v44::ProviderEndpoint, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_domain::contract::Endpoint { name: field_000000, number: field_000001, dialect: field_000002, provider: field_000003, program: field_000004, address: field_000005, transport: field_000006, headers: field_000007, connect: field_000008, handshake: field_000009 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderEndpoint {
+        name: field_000000.clone(),
+        number: *field_000001,
+        dialect: *field_000002,
+        provider: field_000003.clone(),
+        program: match field_000004 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        address: crate::translate::client::provider_address_to_record(field_000005),
+        transport: provider_transport_to_record(field_000006),
+        headers: {
+            let source = field_000007;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_ENDPOINT_HEADERS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = provider_header_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        connect: *field_000008,
+        handshake: *field_000009
+    })
+}
+
+#[must_use]
+pub fn provider_endpoint_to_domain(record: jig_client_protocol_wire::v44::ProviderEndpoint) -> jig_client_domain::contract::Endpoint {
+    let jig_client_protocol_wire::v44::ProviderEndpoint { name: field_000000, number: field_000001, dialect: field_000002, provider: field_000003, program: field_000004, address: field_000005, transport: field_000006, headers: field_000007, connect: field_000008, handshake: field_000009 } = record;
+    jig_client_domain::contract::Endpoint {
+        name: field_000000,
+        number: field_000001,
+        dialect: field_000002,
+        provider: field_000003,
+        program: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        address: crate::translate::client::provider_address_to_domain(field_000005),
+        transport: provider_transport_to_domain(field_000006),
+        headers: {
+            let source = field_000007;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = provider_header_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        connect: field_000008,
+        handshake: field_000009
+    }
+}
+
+pub fn provider_setting_to_record(value: &jig_client_domain::contract::ProviderSetting) -> Result<jig_client_protocol_wire::v44::ProviderSetting, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_domain::contract::ProviderSetting { provider: field_000000, endpoints: field_000001, withdrawn: field_000002 } = value;
+    Ok(jig_client_protocol_wire::v44::ProviderSetting {
+        provider: provider_to_record(field_000000)?,
+        endpoints: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(jig_client_protocol_wire::v44::paths::PROVIDER_SETTING_ENDPOINTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = provider_endpoint_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        withdrawn: *field_000002
+    })
+}
+
+#[must_use]
+pub fn provider_setting_to_domain(record: jig_client_protocol_wire::v44::ProviderSetting) -> jig_client_domain::contract::ProviderSetting {
+    let jig_client_protocol_wire::v44::ProviderSetting { provider: field_000000, endpoints: field_000001, withdrawn: field_000002 } = record;
+    jig_client_domain::contract::ProviderSetting {
+        provider: provider_to_domain(field_000000),
+        endpoints: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = provider_endpoint_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        withdrawn: field_000002
+    }
+}
+
+#[must_use]
+pub fn worker_setting_to_record(value: &jig_client_domain::contract::WorkerSetting) -> jig_client_protocol_wire::v44::WorkerSetting {
+    let jig_client_domain::contract::WorkerSetting { number: field_000000, name: field_000001, places: field_000002, digest: field_000003, withdrawn: field_000004 } = value;
+    jig_client_protocol_wire::v44::WorkerSetting {
+        number: *field_000000,
+        name: field_000001.clone(),
+        places: *field_000002,
+        digest: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        withdrawn: *field_000004
+    }
+}
+
+#[must_use]
+pub fn worker_setting_to_domain(record: jig_client_protocol_wire::v44::WorkerSetting) -> jig_client_domain::contract::WorkerSetting {
+    let jig_client_protocol_wire::v44::WorkerSetting { number: field_000000, name: field_000001, places: field_000002, digest: field_000003, withdrawn: field_000004 } = record;
+    jig_client_domain::contract::WorkerSetting {
+        number: field_000000,
+        name: field_000001,
+        places: field_000002,
+        digest: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        withdrawn: field_000004
+    }
+}
+
+#[must_use]
+pub fn worker_state_to_domain(record: jig_client_protocol_wire::v44::WorkerState) -> jig_client_domain::contract::WorkerState {
+    let jig_client_protocol_wire::v44::WorkerState { number: field_000000, name: field_000001, places: field_000002, digest: field_000003, withdrawn: field_000004, linked: field_000005, since: field_000006, pause: field_000007 } = record;
+    jig_client_domain::contract::WorkerState {
+        number: field_000000,
+        name: field_000001,
+        places: field_000002,
+        digest: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        withdrawn: field_000004,
+        linked: field_000005,
+        since: match field_000006 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        pause: worker_pause_to_domain(field_000007)
+    }
+}
+
+#[must_use]
+pub fn setting_hosts_to_record(value: &jig_client_domain::contract::SettingHosts) -> jig_client_protocol_wire::v44::SettingHosts {
+    match value {
+        jig_client_domain::contract::SettingHosts::Workers => jig_client_protocol_wire::v44::SettingHosts::Workers,
+        jig_client_domain::contract::SettingHosts::Engine => jig_client_protocol_wire::v44::SettingHosts::Engine,
+        jig_client_domain::contract::SettingHosts::Both => jig_client_protocol_wire::v44::SettingHosts::Both,
+    }
+}
+
+#[must_use]
+pub fn setting_hosts_to_domain(record: jig_client_protocol_wire::v44::SettingHosts) -> jig_client_domain::contract::SettingHosts {
+    match record {
+        jig_client_protocol_wire::v44::SettingHosts::Workers => jig_client_domain::contract::SettingHosts::Workers,
+        jig_client_protocol_wire::v44::SettingHosts::Engine => jig_client_domain::contract::SettingHosts::Engine,
+        jig_client_protocol_wire::v44::SettingHosts::Both => jig_client_domain::contract::SettingHosts::Both,
+    }
+}
+
+#[must_use]
+pub fn charter_document_to_record(value: &jig_client_domain::contract::CharterDocument) -> jig_client_protocol_wire::v44::CharterDocument {
+    let jig_client_domain::contract::CharterDocument { connector: field_000000, name: field_000001, path: field_000002, heading: field_000003 } = value;
+    jig_client_protocol_wire::v44::CharterDocument {
+        connector: *field_000000,
+        name: field_000001.clone(),
+        path: field_000002.clone(),
+        heading: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn charter_document_to_domain(record: jig_client_protocol_wire::v44::CharterDocument) -> jig_client_domain::contract::CharterDocument {
+    let jig_client_protocol_wire::v44::CharterDocument { connector: field_000000, name: field_000001, path: field_000002, heading: field_000003 } = record;
+    jig_client_domain::contract::CharterDocument {
+        connector: field_000000,
+        name: field_000001,
+        path: field_000002,
+        heading: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+pub fn rules_to_domain(record: jig_client_protocol_wire::v44::Rules, context: &crate::Limits) -> Result<jig_client_domain::contract::Rules, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::Rules { ceiling: field_000000, period_spend: field_000001, minimum_run_spend: field_000002, maximum_run_spend: field_000003, implies: field_000004, requirements: field_000005 } = record;
+    Ok(jig_client_domain::contract::Rules {
+        ceiling: crate::translate::client::authority_to_domain(field_000000, context)?,
+        period_spend: field_000001,
+        minimum_run_spend: field_000002,
+        maximum_run_spend: field_000003,
+        implies: {
+            let source = field_000004;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = kind_implication_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        requirements: {
+            let source = field_000005;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = policy_requirement_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn override_to_record(value: &jig_client_domain::contract::Override) -> jig_client_protocol_wire::v44::Override {
+    let jig_client_domain::contract::Override { name: field_000000, value: field_000001, reason: field_000002 } = value;
+    jig_client_protocol_wire::v44::Override {
+        name: field_000000.clone(),
+        value: *field_000001,
+        reason: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn override_to_domain(record: jig_client_protocol_wire::v44::Override) -> jig_client_domain::contract::Override {
+    let jig_client_protocol_wire::v44::Override { name: field_000000, value: field_000001, reason: field_000002 } = record;
+    jig_client_domain::contract::Override {
+        name: field_000000,
+        value: field_000001,
+        reason: field_000002
+    }
+}
+
+pub fn setting_value_to_domain(record: jig_client_protocol_wire::v44::SettingValue, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingValue, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::SettingValue::Charter(held) => jig_client_domain::contract::SettingValue::Charter(Box::new(crate::translate::client::charter_to_domain(*held)?)),
+        jig_client_protocol_wire::v44::SettingValue::Template(held) => jig_client_domain::contract::SettingValue::Template(Box::new(template_to_domain(*held, context)?)),
+        jig_client_protocol_wire::v44::SettingValue::Policy(held) => jig_client_domain::contract::SettingValue::Policy(Box::new(crate::translate::client::setting_policy_to_domain(*held, context)?)),
+        jig_client_protocol_wire::v44::SettingValue::Rules(held) => jig_client_domain::contract::SettingValue::Rules(Box::new(rules_to_domain(*held, context)?)),
+        jig_client_protocol_wire::v44::SettingValue::Application(held) => jig_client_domain::contract::SettingValue::Application({
+            let jig_client_protocol_wire::v44::ApplicationValue { bytes: held } = held;
+            held
+        }),
+        jig_client_protocol_wire::v44::SettingValue::Model(held) => jig_client_domain::contract::SettingValue::Model(Box::new(crate::translate::client::catalogue_entry_to_domain(*held)?)),
+        jig_client_protocol_wire::v44::SettingValue::Overlay(held) => jig_client_domain::contract::SettingValue::Overlay(Box::new(crate::translate::client::overlay_to_domain(*held)?)),
+        jig_client_protocol_wire::v44::SettingValue::Worker(held) => jig_client_domain::contract::SettingValue::Worker(Box::new(worker_setting_to_domain(*held))),
+        jig_client_protocol_wire::v44::SettingValue::Provider(held) => jig_client_domain::contract::SettingValue::Provider(Box::new(provider_setting_to_domain(*held))),
+        jig_client_protocol_wire::v44::SettingValue::Limits(held) => jig_client_domain::contract::SettingValue::Limits({
+            let jig_client_protocol_wire::v44::LimitsValue { overrides: held } = held;
+            {
+                let source = held;
+                let count = source.len();
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.into_boxed() {
+                    let converted = override_to_domain(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                Box::from(translated)
+            }
+        }),
+    })
+}
+
+pub fn setting_set_to_domain(record: jig_client_protocol_wire::v44::SettingSet, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingSet, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::SettingSet { value: field_000000 } = record;
+    Ok(jig_client_domain::contract::SettingSet {
+        value: setting_value_to_domain(field_000000, context)?
+    })
+}
+
+pub fn setting_edit_to_domain(record: jig_client_protocol_wire::v44::SettingEdit, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingEdit, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::SettingEdit::Set(held) => jig_client_domain::contract::SettingEdit::Set(setting_set_to_domain(held, context)?),
+        jig_client_protocol_wire::v44::SettingEdit::Removed => jig_client_domain::contract::SettingEdit::Removed,
+        jig_client_protocol_wire::v44::SettingEdit::Reset => jig_client_domain::contract::SettingEdit::Reset,
+    })
+}
+
+pub fn setting_item_to_domain(record: jig_client_protocol_wire::v44::SettingItem, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingItem, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::SettingItem { setting: field_000000, edit: field_000001 } = record;
+    Ok(jig_client_domain::contract::SettingItem {
+        setting: setting_to_domain(field_000000),
+        edit: setting_edit_to_domain(field_000001, context)?
+    })
+}
+
+#[must_use]
+pub fn change_model_to_record(value: &jig_client_domain::contract::ChangeModel) -> jig_client_protocol_wire::v44::ChangeModel {
+    let jig_client_domain::contract::ChangeModel { act: field_000000 } = value;
+    jig_client_protocol_wire::v44::ChangeModel {
+        act: crate::translate::client::model_act_to_record(field_000000)
+    }
+}
+
+pub fn change_model_to_domain(record: jig_client_protocol_wire::v44::ChangeModel, context: &crate::Limits) -> Result<jig_client_domain::contract::ChangeModel, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::ChangeModel { act: field_000000 } = record;
+    Ok(jig_client_domain::contract::ChangeModel {
+        act: crate::translate::client::model_act_to_domain(field_000000, context)?
+    })
+}
+
+#[must_use]
+pub fn outcome_settings_changed_to_domain(record: jig_client_protocol_wire::v44::OutcomeSettingsChanged) -> jig_client_domain::contract::OutcomeSettingsChanged {
+    let jig_client_protocol_wire::v44::OutcomeSettingsChanged { revision: field_000000 } = record;
+    jig_client_domain::contract::OutcomeSettingsChanged {
+        revision: field_000000
+    }
+}
+
+#[must_use]
+pub fn refusal_stale_to_domain(record: jig_client_protocol_wire::v44::RefusalStale) -> jig_client_domain::contract::RefusalStale {
+    let jig_client_protocol_wire::v44::RefusalStale { newest: field_000000 } = record;
+    jig_client_domain::contract::RefusalStale {
+        newest: field_000000
+    }
+}
+
+#[must_use]
+pub fn refusal_full_to_domain(record: jig_client_protocol_wire::v44::RefusalFull) -> jig_client_domain::contract::RefusalFull {
+    let jig_client_protocol_wire::v44::RefusalFull { revision: field_000000, tasks: field_000001, more: field_000002 } = record;
+    jig_client_domain::contract::RefusalFull {
+        revision: field_000000,
+        tasks: field_000001,
+        more: field_000002
+    }
+}
+
+#[must_use]
+pub fn setting_fault_to_domain(record: jig_client_protocol_wire::v44::SettingFault) -> jig_client_domain::contract::SettingFault {
+    match record {
+        jig_client_protocol_wire::v44::SettingFault::Shape => jig_client_domain::contract::SettingFault::Shape,
+        jig_client_protocol_wire::v44::SettingFault::Count => jig_client_domain::contract::SettingFault::Count,
+        jig_client_protocol_wire::v44::SettingFault::Reference => jig_client_domain::contract::SettingFault::Reference,
+        jig_client_protocol_wire::v44::SettingFault::Rules => jig_client_domain::contract::SettingFault::Rules,
+        jig_client_protocol_wire::v44::SettingFault::Budget => jig_client_domain::contract::SettingFault::Budget,
+        jig_client_protocol_wire::v44::SettingFault::Grace => jig_client_domain::contract::SettingFault::Grace,
+        jig_client_protocol_wire::v44::SettingFault::Owner => jig_client_domain::contract::SettingFault::Owner,
+        jig_client_protocol_wire::v44::SettingFault::Judged => jig_client_domain::contract::SettingFault::Judged,
+        jig_client_protocol_wire::v44::SettingFault::Linked => jig_client_domain::contract::SettingFault::Linked,
+        jig_client_protocol_wire::v44::SettingFault::Accounts => jig_client_domain::contract::SettingFault::Accounts,
+        jig_client_protocol_wire::v44::SettingFault::Range => jig_client_domain::contract::SettingFault::Range,
+    }
+}
+
+#[must_use]
+pub fn setting_member_to_domain(record: jig_client_protocol_wire::v44::SettingMember) -> jig_client_domain::contract::SettingMember {
+    match record {
+        jig_client_protocol_wire::v44::SettingMember::Documents => jig_client_domain::contract::SettingMember::Documents,
+        jig_client_protocol_wire::v44::SettingMember::NameSegments => jig_client_domain::contract::SettingMember::NameSegments,
+        jig_client_protocol_wire::v44::SettingMember::NameSegmentBytes => jig_client_domain::contract::SettingMember::NameSegmentBytes,
+        jig_client_protocol_wire::v44::SettingMember::Path => jig_client_domain::contract::SettingMember::Path,
+        jig_client_protocol_wire::v44::SettingMember::Heading => jig_client_domain::contract::SettingMember::Heading,
+        jig_client_protocol_wire::v44::SettingMember::Connector => jig_client_domain::contract::SettingMember::Connector,
+        jig_client_protocol_wire::v44::SettingMember::StoredPolicy => jig_client_domain::contract::SettingMember::StoredPolicy,
+    }
+}
+
+#[must_use]
+pub fn setting_rule_to_domain(record: jig_client_protocol_wire::v44::SettingRule) -> jig_client_domain::contract::SettingRule {
+    match record {
+        jig_client_protocol_wire::v44::SettingRule::Maximum => jig_client_domain::contract::SettingRule::Maximum,
+        jig_client_protocol_wire::v44::SettingRule::Minimum => jig_client_domain::contract::SettingRule::Minimum,
+        jig_client_protocol_wire::v44::SettingRule::Registered => jig_client_domain::contract::SettingRule::Registered,
+    }
+}
+
+#[must_use]
+pub fn setting_detail_to_domain(record: jig_client_protocol_wire::v44::SettingDetail) -> jig_client_domain::contract::SettingDetail {
+    let jig_client_protocol_wire::v44::SettingDetail { member: field_000000, document: field_000001, segment: field_000002, rule: field_000003, supplied: field_000004, bound: field_000005 } = record;
+    jig_client_domain::contract::SettingDetail {
+        member: setting_member_to_domain(field_000000),
+        document: field_000001,
+        segment: field_000002,
+        rule: setting_rule_to_domain(field_000003),
+        supplied: field_000004,
+        bound: field_000005
+    }
+}
+
+#[must_use]
+pub fn malformed_settings_to_domain(record: jig_client_protocol_wire::v44::MalformedSettings) -> jig_client_domain::contract::MalformedSettings {
+    let jig_client_protocol_wire::v44::MalformedSettings { setting: field_000000, fault: field_000001, detail: field_000002 } = record;
+    jig_client_domain::contract::MalformedSettings {
+        setting: setting_to_domain(field_000000),
+        fault: setting_fault_to_domain(field_000001),
+        detail: match field_000002 {
+            Some(item) => {
+                let converted = setting_detail_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn read_setting_to_record(value: &jig_client_domain::contract::ReadSetting) -> jig_client_protocol_wire::v44::ReadSetting {
+    let jig_client_domain::contract::ReadSetting { setting: field_000000, revision: field_000001, proposal: field_000002 } = value;
+    jig_client_protocol_wire::v44::ReadSetting {
+        setting: setting_to_record(field_000000),
+        revision: *field_000001,
+        proposal: match field_000002 {
+            Some(item) => {
+                let converted = proposal_key_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn read_revision_to_record(value: &jig_client_domain::contract::ReadRevision) -> jig_client_protocol_wire::v44::ReadRevision {
+    let jig_client_domain::contract::ReadRevision { number: field_000000 } = value;
+    jig_client_protocol_wire::v44::ReadRevision {
+        number: *field_000000
+    }
+}
+
+#[must_use]
+pub fn read_revisions_to_record(value: &jig_client_domain::contract::ReadRevisions) -> jig_client_protocol_wire::v44::ReadRevisions {
+    let jig_client_domain::contract::ReadRevisions { before: field_000000 } = value;
+    jig_client_protocol_wire::v44::ReadRevisions {
+        before: match field_000000 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn setting_follows_to_domain(record: jig_client_protocol_wire::v44::SettingFollows) -> jig_client_domain::contract::SettingFollows {
+    match record {
+        jig_client_protocol_wire::v44::SettingFollows::Default => jig_client_domain::contract::SettingFollows::Default,
+        jig_client_protocol_wire::v44::SettingFollows::Change => jig_client_domain::contract::SettingFollows::Change,
+        jig_client_protocol_wire::v44::SettingFollows::Overlay => jig_client_domain::contract::SettingFollows::Overlay,
+    }
+}
+
+#[must_use]
+pub fn application_follows_to_domain(record: jig_client_protocol_wire::v44::ApplicationFollows) -> jig_client_domain::contract::ApplicationFollows {
+    match record {
+        jig_client_protocol_wire::v44::ApplicationFollows::Default => jig_client_domain::contract::ApplicationFollows::Default,
+        jig_client_protocol_wire::v44::ApplicationFollows::Changed(held) => {
+            let jig_client_protocol_wire::v44::ApplicationRevision { revision: field_000000 } = held;
+            jig_client_domain::contract::ApplicationFollows::Changed {
+                revision: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::ApplicationFollows::Removed(held) => {
+            let jig_client_protocol_wire::v44::ApplicationRevision { revision: field_000000 } = held;
+            jig_client_domain::contract::ApplicationFollows::Removed {
+                revision: field_000000
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn application_state_to_domain(record: jig_client_protocol_wire::v44::ApplicationState) -> jig_client_domain::contract::ApplicationState {
+    let jig_client_protocol_wire::v44::ApplicationState { follows: field_000000, size: field_000001, charters: field_000002 } = record;
+    jig_client_domain::contract::ApplicationState {
+        follows: application_follows_to_domain(field_000000),
+        size: field_000001,
+        charters: field_000002
+    }
+}
+
+pub fn setting_line_to_domain(record: jig_client_protocol_wire::v44::SettingLine, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingLine, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::SettingLine { setting: field_000000, name: field_000001, follows: field_000002, last: field_000003, application: field_000004 } = record;
+    Ok(jig_client_domain::contract::SettingLine {
+        setting: setting_to_domain(field_000000),
+        name: match field_000001 {
+            Some(item) => {
+                let converted = crate::translate::client::document_text_to_domain(item, context)?;
+                Some(converted)
+            }
+            None => None,
+        },
+        follows: setting_follows_to_domain(field_000002),
+        last: match field_000003 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        application: match field_000004 {
+            Some(item) => {
+                let converted = application_state_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn revision_party_to_domain(record: jig_client_protocol_wire::v44::RevisionParty) -> jig_client_domain::contract::RevisionParty {
+    let jig_client_protocol_wire::v44::RevisionParty { number: field_000000 } = record;
+    jig_client_domain::contract::RevisionParty {
+        number: field_000000
+    }
+}
+
+#[must_use]
+pub fn revision_decider_to_domain(record: jig_client_protocol_wire::v44::RevisionDecider) -> jig_client_domain::contract::RevisionDecider {
+    match record {
+        jig_client_protocol_wire::v44::RevisionDecider::FirstStart => jig_client_domain::contract::RevisionDecider::FirstStart,
+        jig_client_protocol_wire::v44::RevisionDecider::Release => jig_client_domain::contract::RevisionDecider::Release,
+        jig_client_protocol_wire::v44::RevisionDecider::Party(held) => jig_client_domain::contract::RevisionDecider::Party(revision_party_to_domain(held)),
+        jig_client_protocol_wire::v44::RevisionDecider::List(held) => {
+            let jig_client_protocol_wire::v44::RevisionList { provider: field_000000 } = held;
+            jig_client_domain::contract::RevisionDecider::List {
+                provider: field_000000
+            }
+        },
+    }
+}
+
+#[must_use]
+pub fn revision_head_to_domain(record: jig_client_protocol_wire::v44::RevisionHead) -> jig_client_domain::contract::RevisionHead {
+    let jig_client_protocol_wire::v44::RevisionHead { number: field_000000, against: field_000001, at: field_000002, by: field_000003, proposal: field_000004, moved: field_000005 } = record;
+    jig_client_domain::contract::RevisionHead {
+        number: field_000000,
+        against: field_000001,
+        at: skein_codec::convert::wall_to_domain(field_000002),
+        by: revision_decider_to_domain(field_000003),
+        proposal: match field_000004 {
+            Some(item) => {
+                let converted = proposal_key_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        moved: field_000005
+    }
+}
+
+#[must_use]
+pub fn held_revision_to_domain(record: jig_client_protocol_wire::v44::HeldRevision) -> jig_client_domain::contract::HeldRevision {
+    let jig_client_protocol_wire::v44::HeldRevision { head: field_000000, holders: field_000001 } = record;
+    jig_client_domain::contract::HeldRevision {
+        head: revision_head_to_domain(field_000000),
+        holders: field_000001
+    }
+}
+
+#[must_use]
+pub fn settings_proposal_to_domain(record: jig_client_protocol_wire::v44::SettingsProposal) -> jig_client_domain::contract::SettingsProposal {
+    let jig_client_protocol_wire::v44::SettingsProposal { proposer: field_000000, number: field_000001 } = record;
+    jig_client_domain::contract::SettingsProposal {
+        proposer: proposer_to_domain(field_000000),
+        number: field_000001
+    }
+}
+
+pub fn settings_document_to_domain(record: jig_client_protocol_wire::v44::SettingsDocument, context: &crate::Limits) -> Result<jig_client_domain::contract::SettingsDocument, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::SettingsDocument { newest: field_000000, settings: field_000001, held: field_000002, pending: field_000003 } = record;
+    Ok(jig_client_domain::contract::SettingsDocument {
+        newest: field_000000,
+        settings: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = setting_line_to_domain(item, context)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        held: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = held_revision_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        pending: {
+            let source = field_000003;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = settings_proposal_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn sized_edit_to_domain(record: jig_client_protocol_wire::v44::SizedEdit) -> jig_client_domain::contract::SizedEdit {
+    match record {
+        jig_client_protocol_wire::v44::SizedEdit::Set(held) => {
+            let jig_client_protocol_wire::v44::ApplicationSize { size: field_000000 } = held;
+            jig_client_domain::contract::SizedEdit::Set {
+                size: field_000000
+            }
+        },
+        jig_client_protocol_wire::v44::SizedEdit::Remove => jig_client_domain::contract::SizedEdit::Remove,
+        jig_client_protocol_wire::v44::SizedEdit::Reset => jig_client_domain::contract::SizedEdit::Reset,
+    }
+}
+
+#[must_use]
+pub fn size_to_domain(record: jig_client_protocol_wire::v44::Size) -> jig_client_domain::contract::Size {
+    let jig_client_protocol_wire::v44::Size { bytes: field_000000 } = record;
+    jig_client_domain::contract::Size {
+        bytes: field_000000
+    }
+}
+
+pub fn revision_edit_to_domain(record: jig_client_protocol_wire::v44::RevisionEdit, context: &crate::Limits) -> Result<jig_client_domain::contract::RevisionEdit, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::RevisionEdit::Set(held) => jig_client_domain::contract::RevisionEdit::Set(setting_set_to_domain(held, context)?),
+        jig_client_protocol_wire::v44::RevisionEdit::TooLarge(held) => jig_client_domain::contract::RevisionEdit::TooLarge(size_to_domain(held)),
+        jig_client_protocol_wire::v44::RevisionEdit::Removed => jig_client_domain::contract::RevisionEdit::Removed,
+        jig_client_protocol_wire::v44::RevisionEdit::Reset => jig_client_domain::contract::RevisionEdit::Reset,
+        jig_client_protocol_wire::v44::RevisionEdit::Application(held) => jig_client_domain::contract::RevisionEdit::Application({
+            let jig_client_protocol_wire::v44::ApplicationEdit { edit: held } = held;
+            sized_edit_to_domain(held)
+        }),
+    })
+}
+
+pub fn revision_replaced_to_domain(record: jig_client_protocol_wire::v44::RevisionReplaced, context: &crate::Limits) -> Result<jig_client_domain::contract::RevisionReplaced, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::RevisionReplaced::Value(held) => jig_client_domain::contract::RevisionReplaced::Value(setting_set_to_domain(held, context)?),
+        jig_client_protocol_wire::v44::RevisionReplaced::TooLarge(held) => jig_client_domain::contract::RevisionReplaced::TooLarge(size_to_domain(held)),
+        jig_client_protocol_wire::v44::RevisionReplaced::Default => jig_client_domain::contract::RevisionReplaced::Default,
+        jig_client_protocol_wire::v44::RevisionReplaced::Removed => jig_client_domain::contract::RevisionReplaced::Removed,
+        jig_client_protocol_wire::v44::RevisionReplaced::NotOffered => jig_client_domain::contract::RevisionReplaced::NotOffered,
+        jig_client_protocol_wire::v44::RevisionReplaced::Application(held) => {
+            let jig_client_protocol_wire::v44::ApplicationSize { size: field_000000 } = held;
+            jig_client_domain::contract::RevisionReplaced::Application {
+                size: field_000000
+            }
+        },
+    })
+}
+
+pub fn revision_item_to_domain(record: jig_client_protocol_wire::v44::RevisionItem, context: &crate::Limits) -> Result<jig_client_domain::contract::RevisionItem, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::RevisionItem { setting: field_000000, edit: field_000001, replaced: field_000002 } = record;
+    Ok(jig_client_domain::contract::RevisionItem {
+        setting: setting_to_domain(field_000000),
+        edit: revision_edit_to_domain(field_000001, context)?,
+        replaced: revision_replaced_to_domain(field_000002, context)?
+    })
+}
+
+#[must_use]
+pub fn revision_forgotten_to_domain(record: jig_client_protocol_wire::v44::RevisionForgotten) -> jig_client_domain::contract::RevisionForgotten {
+    let jig_client_protocol_wire::v44::RevisionForgotten { oldest: field_000000 } = record;
+    jig_client_domain::contract::RevisionForgotten {
+        oldest: field_000000
+    }
+}
+
+pub fn revision_answer_to_domain(record: jig_client_protocol_wire::v44::RevisionAnswer, context: &crate::Limits) -> Result<jig_client_domain::contract::RevisionAnswer, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::RevisionAnswer::Revision(held) => jig_client_domain::contract::RevisionAnswer::Revision(crate::translate::client::revision_document_to_domain(held, context)?),
+        jig_client_protocol_wire::v44::RevisionAnswer::Forgotten(held) => jig_client_domain::contract::RevisionAnswer::Forgotten(revision_forgotten_to_domain(held)),
+        jig_client_protocol_wire::v44::RevisionAnswer::Unknown => jig_client_domain::contract::RevisionAnswer::Unknown,
+    })
+}
+
+pub fn read_revision_answer_to_domain(record: jig_client_protocol_wire::v44::ReadRevisionAnswer, context: &crate::Limits) -> Result<jig_client_domain::contract::ReadRevisionAnswer, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::ReadRevisionAnswer { value: field_000000 } = record;
+    Ok(jig_client_domain::contract::ReadRevisionAnswer {
+        value: revision_answer_to_domain(field_000000, context)?
+    })
+}
+
+#[must_use]
+pub fn revision_row_to_domain(record: jig_client_protocol_wire::v44::RevisionRow) -> jig_client_domain::contract::RevisionRow {
+    let jig_client_protocol_wire::v44::RevisionRow { head: field_000000, items: field_000001, more: field_000002 } = record;
+    jig_client_domain::contract::RevisionRow {
+        head: revision_head_to_domain(field_000000),
+        items: {
+            let source = field_000001;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = revision_item_head_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        more: field_000002
+    }
+}
+
+#[must_use]
+pub fn revisions_page_to_domain(record: jig_client_protocol_wire::v44::RevisionsPage) -> jig_client_domain::contract::RevisionsPage {
+    let jig_client_protocol_wire::v44::RevisionsPage { rows: field_000000, next: field_000001, forgotten: field_000002 } = record;
+    jig_client_domain::contract::RevisionsPage {
+        rows: {
+            let source = field_000000;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = revision_row_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        next: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        forgotten: field_000002
+    }
+}
+
+#[must_use]
+pub fn outcome_moved_to_newest_to_domain(record: jig_client_protocol_wire::v44::OutcomeMovedToNewest) -> jig_client_domain::contract::OutcomeMovedToNewest {
+    let jig_client_protocol_wire::v44::OutcomeMovedToNewest { newest: field_000000, moved: field_000001, stayed: field_000002 } = record;
+    jig_client_domain::contract::OutcomeMovedToNewest {
+        newest: field_000000,
+        moved: field_000001,
+        stayed: field_000002
+    }
+}
+
+#[must_use]
+pub fn account_answer_to_domain(record: jig_client_protocol_wire::v44::AccountAnswer) -> jig_client_domain::contract::AccountAnswer {
+    match record {
+        jig_client_protocol_wire::v44::AccountAnswer::Reading(held) => {
+            let jig_client_protocol_wire::v44::AccountReading { count: field_000000 } = held;
+            jig_client_domain::contract::AccountAnswer::Reading {
+                count: field_000000
+            }
+        },
+    }
+}
+
+pub fn outcome_to_domain(record: jig_client_protocol_wire::v44::Outcome, context: &crate::Limits) -> Result<jig_client_domain::contract::Outcome, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::Outcome::Document(held) => jig_client_domain::contract::Outcome::Document({
+            let jig_client_protocol_wire::v44::OutcomeDocument { value: held } = held;
+            crate::translate::client::document_outcome_to_domain(held, context)?
+        }),
+        jig_client_protocol_wire::v44::Outcome::Made(held) => {
+            let jig_client_protocol_wire::v44::OutcomeMade { what: field_000000 } = held;
+            jig_client_domain::contract::Outcome::Made {
+                what: crate::translate::client::made_to_domain(field_000000)?
+            }
+        },
+        jig_client_protocol_wire::v44::Outcome::SettingsChanged(held) => jig_client_domain::contract::Outcome::SettingsChanged(outcome_settings_changed_to_domain(held)),
+        jig_client_protocol_wire::v44::Outcome::MovedToNewest(held) => jig_client_domain::contract::Outcome::MovedToNewest(outcome_moved_to_newest_to_domain(held)),
+        jig_client_protocol_wire::v44::Outcome::Restored(held) => {
+            let jig_client_protocol_wire::v44::OutcomeRestored { proposal: field_000000, to: field_000001, left_out: field_000002 } = held;
+            jig_client_domain::contract::Outcome::Restored {
+                proposal: field_000000,
+                to: field_000001,
+                left_out: {
+                    let source = field_000002;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = setting_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                }
+            }
+        },
+        jig_client_protocol_wire::v44::Outcome::Account(held) => jig_client_domain::contract::Outcome::Account({
+            let jig_client_protocol_wire::v44::OutcomeAccount { answer: held } = held;
+            account_answer_to_domain(held)
+        }),
+        jig_client_protocol_wire::v44::Outcome::WorkerPauseAsked(held) => {
+            let jig_client_protocol_wire::v44::OutcomeWorkerPauseAsked { worker: field_000000 } = held;
+            jig_client_domain::contract::Outcome::WorkerPauseAsked {
+                worker: field_000000
+            }
+        },
+    })
+}
+
+#[must_use]
+pub fn malformed_to_domain(record: jig_client_protocol_wire::v44::Malformed) -> jig_client_domain::contract::Malformed {
+    match record {
+        jig_client_protocol_wire::v44::Malformed::ProjectMismatch => jig_client_domain::contract::Malformed::ProjectMismatch,
+        jig_client_protocol_wire::v44::Malformed::TwoAsAllowed => jig_client_domain::contract::Malformed::TwoAsAllowed,
+        jig_client_protocol_wire::v44::Malformed::ConversationNotAgent => jig_client_domain::contract::Malformed::ConversationNotAgent,
+        jig_client_protocol_wire::v44::Malformed::Cycle => jig_client_domain::contract::Malformed::Cycle,
+        jig_client_protocol_wire::v44::Malformed::ProposedAsAllowed => jig_client_domain::contract::Malformed::ProposedAsAllowed,
+        jig_client_protocol_wire::v44::Malformed::EndedBy => jig_client_domain::contract::Malformed::EndedBy,
+        jig_client_protocol_wire::v44::Malformed::Name(held) => jig_client_domain::contract::Malformed::Name({
+            let jig_client_protocol_wire::v44::MalformedName { rule: held } = held;
+            name_rule_to_domain(held)
+        }),
+        jig_client_protocol_wire::v44::Malformed::Settings(held) => jig_client_domain::contract::Malformed::Settings(malformed_settings_to_domain(held)),
+        jig_client_protocol_wire::v44::Malformed::SettingsUnchanged => jig_client_domain::contract::Malformed::SettingsUnchanged,
+        jig_client_protocol_wire::v44::Malformed::Running => jig_client_domain::contract::Malformed::Running,
+    }
+}
+
+pub fn final_to_domain(record: jig_client_protocol_wire::v44::Final, context: &crate::Limits) -> Result<jig_client_domain::contract::Answer, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::Final::Done(held) => jig_client_domain::contract::Answer::Done({
+            let jig_client_protocol_wire::v44::Done { outcome: held } = held;
+            outcome_to_domain(held, context)?
+        }),
+        jig_client_protocol_wire::v44::Final::Refused(held) => {
+            let jig_client_protocol_wire::v44::Refused { refusal: field_000000, at: field_000001 } = held;
+            jig_client_domain::contract::Answer::Refused {
+                refusal: crate::translate::client::refusal_to_domain(field_000000, context)?,
+                at: match field_000001 {
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                }
+            }
+        },
+    })
+}
+
+#[must_use]
+pub fn task_text_field_to_record(value: &jig_client_domain::contract::TaskTextField) -> jig_client_protocol_wire::v44::TaskTextField {
+    match value {
+        jig_client_domain::contract::TaskTextField::Specification => jig_client_protocol_wire::v44::TaskTextField::Specification,
+        jig_client_domain::contract::TaskTextField::Instructions => jig_client_protocol_wire::v44::TaskTextField::Instructions,
+        jig_client_domain::contract::TaskTextField::Result => jig_client_protocol_wire::v44::TaskTextField::Result,
+    }
+}
+
+#[must_use]
+pub fn task_text_field_to_domain(record: jig_client_protocol_wire::v44::TaskTextField) -> jig_client_domain::contract::TaskTextField {
+    match record {
+        jig_client_protocol_wire::v44::TaskTextField::Specification => jig_client_domain::contract::TaskTextField::Specification,
+        jig_client_protocol_wire::v44::TaskTextField::Instructions => jig_client_domain::contract::TaskTextField::Instructions,
+        jig_client_protocol_wire::v44::TaskTextField::Result => jig_client_domain::contract::TaskTextField::Result,
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
+#[must_use]
+pub fn read_to_record(value: &jig_client_domain::contract::Read) -> jig_client_protocol_wire::v44::Read {
+    match value {
+        jig_client_domain::contract::Read::Tasks { query: field_000000, live: field_000001, ended: field_000002 } => jig_client_protocol_wire::v44::Read::Tasks(jig_client_protocol_wire::v44::ReadTasks {
+            query: task_query_to_record(field_000000),
+            live: match field_000001 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            },
+            ended: match field_000002 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Read::Me => jig_client_protocol_wire::v44::Read::Me,
+        jig_client_domain::contract::Read::Task { task: field_000000 } => jig_client_protocol_wire::v44::Read::Task(jig_client_protocol_wire::v44::ReadTask {
+            task: *field_000000
+        }),
+        jig_client_domain::contract::Read::Proposal { proposal: field_000000 } => jig_client_protocol_wire::v44::Read::Proposal(jig_client_protocol_wire::v44::ReadProposal {
+            proposal: proposal_key_to_record(field_000000)
+        }),
+        jig_client_domain::contract::Read::Escalation { task: field_000000 } => jig_client_protocol_wire::v44::Read::Escalation(jig_client_protocol_wire::v44::ReadEscalation {
+            task: *field_000000
+        }),
+        jig_client_domain::contract::Read::Question { task: field_000000, message: field_000001 } => jig_client_protocol_wire::v44::Read::Question(jig_client_protocol_wire::v44::ReadQuestion {
+            task: *field_000000,
+            message: *field_000001
+        }),
+        jig_client_domain::contract::Read::PersonTask { task: field_000000 } => jig_client_protocol_wire::v44::Read::PersonTask(jig_client_protocol_wire::v44::ReadPersonTask {
+            task: *field_000000
+        }),
+        jig_client_domain::contract::Read::Result { task: field_000000 } => jig_client_protocol_wire::v44::Read::Result(jig_client_protocol_wire::v44::ReadResult {
+            task: *field_000000
+        }),
+        jig_client_domain::contract::Read::Ended { task: field_000000, after: field_000001 } => jig_client_protocol_wire::v44::Read::Ended(jig_client_protocol_wire::v44::ReadEnded {
+            task: *field_000000,
+            after: match field_000001 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Read::History { task: field_000000, subtree: field_000001, after: field_000002 } => jig_client_protocol_wire::v44::Read::History(jig_client_protocol_wire::v44::ReadHistory {
+            task: *field_000000,
+            subtree: *field_000001,
+            after: match field_000002 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Read::Activity { task: field_000000, before: field_000001 } => jig_client_protocol_wire::v44::Read::Activity(jig_client_protocol_wire::v44::ReadActivity {
+            task: *field_000000,
+            before: match field_000001 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Read::Inbox { group: field_000000, project: field_000001, kind: field_000002, goal: field_000003, after: field_000004 } => jig_client_protocol_wire::v44::Read::Inbox(jig_client_protocol_wire::v44::ReadInbox {
+            group: inbox_read_group_to_record(field_000000),
+            project: match field_000001 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            kind: match field_000002 {
+                Some(item) => {
+                    let converted = inbox_group_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            },
+            goal: match field_000003 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            },
+            after: match field_000004 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Read::Spend { project: field_000000, after: field_000001 } => jig_client_protocol_wire::v44::Read::Spend(jig_client_protocol_wire::v44::ReadSpend {
+            project: *field_000000,
+            after: match field_000001 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Read::Project { project: field_000000 } => jig_client_protocol_wire::v44::Read::Project(jig_client_protocol_wire::v44::ReadProject {
+            project: *field_000000
+        }),
+        jig_client_domain::contract::Read::Notes { scope: field_000000, description: field_000001, after: field_000002 } => jig_client_protocol_wire::v44::Read::Notes(jig_client_protocol_wire::v44::ReadNotes {
+            scope: crate::translate::client::note_scope_to_record(field_000000),
+            description: match field_000001 {
+                Some(item) => {
+                    let converted = crate::translate::client::client_text_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            },
+            after: match field_000002 {
+                Some(item) => {
+                    let converted = crate::translate::client::cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        jig_client_domain::contract::Read::Deployment => jig_client_protocol_wire::v44::Read::Deployment,
+        jig_client_domain::contract::Read::Turn { task: field_000000, attempt: field_000001, turn: field_000002 } => jig_client_protocol_wire::v44::Read::Turn(jig_client_protocol_wire::v44::ReadTurn {
+            task: *field_000000,
+            attempt: *field_000001,
+            turn: *field_000002
+        }),
+        jig_client_domain::contract::Read::Settings => jig_client_protocol_wire::v44::Read::Settings,
+        jig_client_domain::contract::Read::Setting(held) => jig_client_protocol_wire::v44::Read::Setting(read_setting_to_record(held)),
+        jig_client_domain::contract::Read::Revision(held) => jig_client_protocol_wire::v44::Read::Revision(read_revision_to_record(held)),
+        jig_client_domain::contract::Read::Revisions(held) => jig_client_protocol_wire::v44::Read::Revisions(read_revisions_to_record(held)),
+        jig_client_domain::contract::Read::TaskText { task: field_000000, field: field_000001, from: field_000002 } => jig_client_protocol_wire::v44::Read::TaskText(jig_client_protocol_wire::v44::ReadTaskText {
+            task: *field_000000,
+            field: task_text_field_to_record(field_000001),
+            from: *field_000002
+        }),
+        jig_client_domain::contract::Read::ActivityBeside { task: field_000000, position: field_000001, side: field_000002 } => jig_client_protocol_wire::v44::Read::ActivityBeside(jig_client_protocol_wire::v44::ReadActivityBeside {
+            task: *field_000000,
+            position: *field_000001,
+            side: activity_side_to_record(field_000002)
+        }),
+    }
+}
+
+pub fn beyond_to_domain(record: jig_client_protocol_wire::v44::Beyond, context: &crate::Limits) -> Result<jig_client_domain::contract::Beyond, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::Beyond::Proposed(held) => {
+            let jig_client_protocol_wire::v44::BeyondProposed { to: field_000000 } = held;
+            jig_client_domain::contract::Beyond::Proposed {
+                to: recipient_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::Beyond::Refused(held) => jig_client_domain::contract::Beyond::Refused({
+            let jig_client_protocol_wire::v44::BeyondRefused { value: held } = held;
+            crate::translate::client::refusal_to_domain(held, context)?
+        }),
+    })
+}
+
+pub fn admission_to_domain(record: jig_client_protocol_wire::v44::Admission, context: &crate::Limits) -> Result<jig_client_domain::contract::Admission, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::Admission::Allowed => jig_client_domain::contract::Admission::Allowed,
+        jig_client_protocol_wire::v44::Admission::Proposed(held) => {
+            let jig_client_protocol_wire::v44::AdmissionProposed { to: field_000000 } = held;
+            jig_client_domain::contract::Admission::Proposed {
+                to: recipient_to_domain(field_000000)
+            }
+        },
+        jig_client_protocol_wire::v44::Admission::Bounded(held) => {
+            let jig_client_protocol_wire::v44::AdmissionBounded { within: field_000000, beyond: field_000001 } = *held;
+            jig_client_domain::contract::Admission::Bounded {
+                within: crate::translate::client::bounds_to_domain(field_000000, context)?,
+                beyond: beyond_to_domain(field_000001, context)?
+            }
+        },
+        jig_client_protocol_wire::v44::Admission::Refused(held) => jig_client_domain::contract::Admission::Refused({
+            let jig_client_protocol_wire::v44::AdmissionRefused { value: held } = held;
+            crate::translate::client::refusal_to_domain(held, context)?
+        }),
+    })
+}
+
+pub fn offered_to_domain(record: jig_client_protocol_wire::v44::Offered, context: &crate::Limits) -> Result<jig_client_domain::contract::Offered, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::Offered { act: field_000000, admission: field_000001, effect: field_000002 } = record;
+    Ok(jig_client_domain::contract::Offered {
+        act: act_kind_to_domain(field_000000),
+        admission: admission_to_domain(field_000001, context)?,
+        effect: match field_000002 {
+            Some(item) => {
+                let converted = effect_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn creating_bounds_to_domain(record: jig_client_protocol_wire::v44::CreatingBounds, context: &crate::Limits) -> Result<jig_client_domain::contract::Creating, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::CreatingBounds { within: field_000000, beyond: field_000001 } = record;
+    Ok(jig_client_domain::contract::Creating {
+        within: crate::translate::client::bounds_create_to_domain(field_000000, context)?,
+        beyond: beyond_to_domain(field_000001, context)?
+    })
+}
+
+#[must_use]
+pub fn move_to_newest_to_record(value: &jig_client_domain::contract::MoveToNewest) -> jig_client_protocol_wire::v44::MoveToNewest {
+    let jig_client_domain::contract::MoveToNewest { revision: field_000000 } = value;
+    jig_client_protocol_wire::v44::MoveToNewest {
+        revision: *field_000000
+    }
+}
+
+#[must_use]
+pub fn move_to_newest_to_domain(record: jig_client_protocol_wire::v44::MoveToNewest) -> jig_client_domain::contract::MoveToNewest {
+    let jig_client_protocol_wire::v44::MoveToNewest { revision: field_000000 } = record;
+    jig_client_domain::contract::MoveToNewest {
+        revision: field_000000
+    }
+}
+
+#[must_use]
+pub fn origin_revision_to_domain(record: jig_client_protocol_wire::v44::OriginRevision) -> jig_client_domain::contract::OriginRevision {
+    let jig_client_protocol_wire::v44::OriginRevision { revision: field_000000 } = record;
+    jig_client_domain::contract::OriginRevision {
+        revision: field_000000
+    }
+}
+
+#[must_use]
+pub fn setting_origin_to_domain(record: jig_client_protocol_wire::v44::SettingOrigin) -> jig_client_domain::contract::SettingOrigin {
+    match record {
+        jig_client_protocol_wire::v44::SettingOrigin::Default(held) => jig_client_domain::contract::SettingOrigin::Default(origin_revision_to_domain(held)),
+        jig_client_protocol_wire::v44::SettingOrigin::Change(held) => jig_client_domain::contract::SettingOrigin::Change(origin_revision_to_domain(held)),
+        jig_client_protocol_wire::v44::SettingOrigin::NotOffered => jig_client_domain::contract::SettingOrigin::NotOffered,
+    }
+}
+
+pub fn review_value_to_domain(record: jig_client_protocol_wire::v44::ReviewValue, context: &crate::Limits) -> Result<jig_client_domain::contract::ReviewValue, jig_client_protocol_wire::v44::Problem> {
+    Ok(match record {
+        jig_client_protocol_wire::v44::ReviewValue::Value(held) => jig_client_domain::contract::ReviewValue::Value(setting_set_to_domain(held, context)?),
+        jig_client_protocol_wire::v44::ReviewValue::TooLarge(held) => jig_client_domain::contract::ReviewValue::TooLarge(size_to_domain(held)),
+        jig_client_protocol_wire::v44::ReviewValue::None => jig_client_domain::contract::ReviewValue::None,
+    })
+}
+
+#[must_use]
+pub fn application_review_to_domain(record: jig_client_protocol_wire::v44::ApplicationReview) -> jig_client_domain::contract::ApplicationReview {
+    let jig_client_protocol_wire::v44::ApplicationReview { edit: field_000000, now: field_000001 } = record;
+    jig_client_domain::contract::ApplicationReview {
+        edit: sized_edit_to_domain(field_000000),
+        now: match field_000001 {
+            Some(item) => {
+                let converted = application_state_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+pub fn review_item_to_domain(record: jig_client_protocol_wire::v44::ReviewItem, context: &crate::Limits) -> Result<jig_client_domain::contract::ReviewItem, jig_client_protocol_wire::v44::Problem> {
+    let jig_client_protocol_wire::v44::ReviewItem { setting: field_000000, edit: field_000001, now: field_000002, origin: field_000003, would_be: field_000004, application: field_000005 } = record;
+    Ok(jig_client_domain::contract::ReviewItem {
+        setting: setting_to_domain(field_000000),
+        edit: revision_item_edit_to_domain(field_000001),
+        now: review_value_to_domain(field_000002, context)?,
+        origin: setting_origin_to_domain(field_000003),
+        would_be: review_value_to_domain(field_000004, context)?,
+        application: match field_000005 {
+            Some(item) => {
+                let converted = application_review_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
 }
 

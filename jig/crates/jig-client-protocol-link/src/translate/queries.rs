@@ -5,9 +5,6 @@ use crate::generated::client;
 use jig_client_domain::contract as c;
 use skein_lib::Wall;
 
-pub(super) fn query(value: &c::TaskQuery) -> w::TaskQuery {
-    client::task_query_to_record(value)
-}
 pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
     client::task_flags_to_domain(value.clone())
 }

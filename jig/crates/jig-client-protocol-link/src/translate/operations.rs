@@ -133,23 +133,20 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
     for item in &v.dependencies {
         dependencies.push(client::task_ref_to_domain(item.clone())).expect("same capacity");
     }
-    let contract = match &v.contract {
-        w::NewContract::Report(v) => c::NewContract::Report { words: v.words },
-        w::NewContract::Change(v) => c::NewContract::Change { connector: v.connector, kind: v.kind, words: v.words },
-        w::NewContract::Verdict(v) => {
-            let mut choices = List::with_capacity(v.choices.len());
-            for choice in &v.choices {
-                choices.push(super::documents::verdict_choice_fields(choice, limits)?).expect("same capacity");
+    match &v.contract {
+        w::NewContract::Verdict(verdict) => {
+            for choice in &verdict.choices {
+                super::documents::check_verdict_choice(choice, limits)?;
             }
-            c::NewContract::Verdict { choices }
         }
-    };
+        w::NewContract::Report(_) | w::NewContract::Change(_) => {}
+    }
     Ok(c::NewTask {
         symbols: super::documents::me::symbols(&v.symbols),
         deadline: client::new_deadline_to_domain(v.deadline.clone()),
         executor: super::facts::executor(&v.executor),
         spec: super::pages::specification_fields(&v.spec, limits)?,
-        contract,
+        contract: client::new_contract_to_domain(v.contract.clone()),
         authority: super::documents::authority_fields(&v.authority, limits)?,
         budget: client::new_budget_to_domain(v.budget.clone()),
         wake: restore_wake(v.wake.as_ref()),

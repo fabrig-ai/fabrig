@@ -1,6 +1,7 @@
 //! Checked translations reached by the link's maps (skein/docs/design/data/codec/maps.md, 4.2).
 use super::facts;
 use crate::Limits;
+use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 use skein_lib::bytes;
@@ -138,4 +139,71 @@ pub(crate) fn wait_resource_name_to_domain(
 
 pub(crate) fn proposal_decision_created_to_domain(record: w::ProposalDecisionCreated) -> (u64, u64) {
     (record.first, record.last)
+}
+
+/// A basis-point measurement fits a whole share (jig/docs/design/client/domain/contract/documents.md, 1).
+pub(crate) fn basis_to_domain(value: u16) -> Result<u16, skein_codec::Reason> {
+    if value > 10_000 {
+        return Err(skein_codec::Reason::Bound);
+    }
+    Ok(value)
+}
+
+pub(crate) use super::settings::providers::{provider_address_to_domain, provider_address_to_record};
+pub(crate) use super::settings::{model_act_to_domain, model_act_to_record};
+
+pub(crate) fn revision_document_to_domain(
+    value: w::RevisionDocument,
+    limits: &Limits,
+) -> Result<c::RevisionDocument, w::Problem> {
+    super::settings::restore_revision_document(&value, limits)
+}
+
+pub(crate) use super::asks::wire_note_scope as note_scope_to_record;
+pub(crate) use super::documents::bounds_create_to_domain;
+
+pub(crate) fn client_text_to_record(value: &c::Text) -> Box<[u8]> {
+    bytes::copy_of(value.bytes())
+}
+
+pub(crate) fn document_outcome_to_domain(
+    value: w::DocumentOutcome,
+    limits: &Limits,
+) -> Result<c::DocumentOutcome, w::Problem> {
+    super::answers::document_outcome(&value, limits)
+}
+
+pub(crate) fn made_to_domain(value: w::Made) -> Result<c::Made, w::Problem> {
+    super::answers::made(&value)
+}
+
+pub(crate) fn refusal_to_domain(value: w::Refusal, limits: &Limits) -> Result<c::Refusal, w::Problem> {
+    super::answers::refusal(&value, limits)
+}
+
+pub(crate) fn bounds_to_domain(value: w::Bounds, limits: &Limits) -> Result<c::Bounds, w::Problem> {
+    super::documents::bounds_fields(&value, limits)
+}
+
+pub(crate) fn decision_to_domain(value: w::Decision, limits: &Limits) -> Result<c::Decision, w::Problem> {
+    super::answers::decision(&value, limits)
+}
+
+pub(crate) fn charter_to_domain(value: w::Charter) -> Result<c::Charter, w::Problem> {
+    super::settings::restore_charter(&value)
+}
+
+pub(crate) fn catalogue_entry_to_domain(value: w::CatalogueEntry) -> Result<c::CatalogueEntry, w::Problem> {
+    super::settings::restore_catalogue(&value)
+}
+
+pub(crate) fn overlay_to_domain(value: w::Overlay) -> Result<c::Overlay, w::Problem> {
+    super::settings::restore_overlay(&value)
+}
+
+pub(crate) fn setting_policy_to_domain(
+    value: w::SettingPolicy,
+    limits: &Limits,
+) -> Result<c::SettingPolicy, w::Problem> {
+    super::settings::restore_setting_policy(&value, limits)
 }

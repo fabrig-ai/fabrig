@@ -31,6 +31,7 @@ pub(crate) fn wire_person_answer(value: &c::PersonAnswer) -> w::PersonAnswer {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn wire_proposal_key(value: &c::ProposalKey) -> w::ProposalKey {
     client::proposal_key_to_record(value)
 }
@@ -336,17 +337,12 @@ pub(crate) fn wire_holding(value: &c::Holding) -> w::Holding {
 #[expect(clippy::too_many_lines, reason = "one exhaustive field translation arm per client ask")]
 pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     Ok(match value {
-        c::Ask::PauseWorker { worker, mode } => w::Ask::PauseWorker(w::PauseWorker {
-            worker: *worker,
-            mode: match mode {
-                c::WorkerPauseMode::Resume => w::WorkerPauseMode::Resume,
-                c::WorkerPauseMode::Pause => w::WorkerPauseMode::Pause,
-                c::WorkerPauseMode::Drain => w::WorkerPauseMode::Drain,
-            },
-        }),
+        c::Ask::PauseWorker { worker, mode } => {
+            w::Ask::PauseWorker(w::PauseWorker { worker: *worker, mode: client::worker_pause_mode_to_record(mode) })
+        }
         c::Ask::ReadLists { provider } => w::Ask::ReadLists(w::ReadLists { provider: *provider }),
         c::Ask::Restore { revision, reason } => w::Ask::Restore(wire_ask_restore(*revision, reason)),
-        c::Ask::MoveToNewest(value) => w::Ask::MoveToNewest(w::MoveToNewest { revision: value.revision }),
+        c::Ask::MoveToNewest(value) => w::Ask::MoveToNewest(client::move_to_newest_to_record(value)),
         c::Ask::ChangeModel(value) => w::Ask::ChangeModel(super::settings::wire_change_model(value)),
         c::Ask::ChangeSettings(value) => w::Ask::ChangeSettings(super::settings::wire_change_settings(value, limits)?),
         c::Ask::Propose { project, action, reason } => super::operations::propose(*project, action, reason, limits)?,
@@ -477,106 +473,40 @@ fn account_holder(value: c::AskAccountHolder) -> w::AskAccountHolder {
     client::ask_account_holder_to_record(&value)
 }
 
-fn login_exit(value: c::LoginExit) -> w::LoginExit {
-    match value {
-        c::LoginExit::Exited { code } => w::LoginExit::Exited(w::LoginExitExited { code }),
-        c::LoginExit::Killed { signal } => w::LoginExit::Killed(w::LoginExitKilled { signal }),
-        c::LoginExit::NotStarted => w::LoginExit::NotStarted,
-    }
-}
 fn account_change(value: &c::AccountChange, limits: &w::Limits) -> Result<w::AccountChange, w::Problem> {
-    Ok(match value {
-        c::AccountChange::LoginProgram { provider, name } => {
+    match value {
+        c::AccountChange::DeclareProgram { name, .. } | c::AccountChange::LoginProgram { name, .. } => {
             if !c::valid_program_name(name) {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));
             }
-            w::AccountChange::LoginProgram(w::AccountChangeLoginProgram { provider: *provider, name: name.clone() })
         }
-        c::AccountChange::CancelLogin { number } => {
-            w::AccountChange::CancelLogin(w::AccountChangeCancelLogin { number: *number })
-        }
-        c::AccountChange::LoginEnded { number, exit } => {
-            w::AccountChange::LoginEnded(w::AccountChangeLoginEnded { number: *number, exit: login_exit(*exit) })
-        }
-        c::AccountChange::MoveOut { account } => {
-            w::AccountChange::MoveOut(w::AccountChangeMoveOut { account: *account })
-        }
-        c::AccountChange::Written { number } => w::AccountChange::Written(w::AccountChangeWritten { number: *number }),
-        c::AccountChange::FinishSignIn { source, digest } => {
-            w::AccountChange::FinishSignIn(w::AccountChangeFinishSignIn { source: *source, digest: *digest })
-        }
-        c::AccountChange::MoveIn { digest } => w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest: *digest }),
-        c::AccountChange::DeclareProgram { provider, join, name } => {
-            if !c::valid_program_name(name) {
-                return Err(super::piece_problem(skein_codec::Reason::Malformed));
-            }
-            w::AccountChange::DeclareProgram(w::AccountChangeDeclareProgram {
-                provider: *provider,
-                join: *join,
-                name: name.clone(),
-            })
-        }
-        c::AccountChange::CheckProgram { source } => {
-            w::AccountChange::CheckProgram(w::AccountChangeCheckProgram { source: *source })
-        }
-        c::AccountChange::AddKey { provider, join, digest } => {
-            w::AccountChange::AddKey(w::AccountChangeAddKey { provider: *provider, join: *join, digest: *digest })
-        }
-        c::AccountChange::ReplaceKey { source, digest } => {
-            w::AccountChange::ReplaceKey(w::AccountChangeReplaceKey { source: *source, digest: *digest })
-        }
-        c::AccountChange::RemoveKey { source } => {
-            w::AccountChange::RemoveKey(w::AccountChangeRemoveKey { source: *source })
-        }
-        c::AccountChange::Resume { source } => w::AccountChange::Resume(w::AccountChangeResume { source: *source }),
-        c::AccountChange::Remove { account } => w::AccountChange::Remove(w::AccountChangeRemove { account: *account }),
-        c::AccountChange::MoveAccount { account, place } => {
-            w::AccountChange::MoveAccount(w::AccountChangeMoveAccount { account: *account, place: *place })
-        }
-        c::AccountChange::MoveSource { account, source, place } => {
-            w::AccountChange::MoveSource(w::AccountChangeMoveSource {
-                account: *account,
-                source: *source,
-                place: *place,
-            })
-        }
-        c::AccountChange::SetUses { account, uses } => account_set_uses(*account, uses.as_deref(), limits)?,
-    })
-}
-
-fn account_set_uses(
-    account: u32,
-    uses: Option<&[c::AccountUse]>,
-    limits: &w::Limits,
-) -> Result<w::AccountChange, w::Problem> {
-    Ok(w::AccountChange::SetUses(w::AccountChangeSetUses {
-        account,
-        uses: match uses {
-            None => None,
-            Some(uses) => {
-                if uses.len()
+        c::AccountChange::SetUses { uses, .. } => {
+            if let Some(uses) = uses
+                && uses.len()
                     > skein_lib::length::usize_of(limits.account_change_set_uses_uses_some.min(c::ACCOUNT_USES))
-                {
-                    return Err(w::Problem {
-                        path: w::paths::ACCOUNT_CHANGE_SET_USES_USES,
-                        reason: skein_codec::Reason::Bound,
-                    });
-                }
-                let mut rows =
-                    List::with_capacity(u32::try_from(uses.len()).expect("account uses bounded by the wire"));
-                for use_ in uses {
-                    rows.push(match use_ {
-                        c::AccountUse::Party(value) => w::AccountUse::Party(w::AccountUseParty { party: *value }),
-                        c::AccountUse::Project(value) => {
-                            w::AccountUse::Project(w::AccountUseProject { project: *value })
-                        }
-                    })
-                    .expect("reserved uses");
-                }
-                Some(rows)
+            {
+                return Err(w::Problem {
+                    path: w::paths::ACCOUNT_CHANGE_SET_USES_USES,
+                    reason: skein_codec::Reason::Bound,
+                });
             }
-        },
-    }))
+        }
+        c::AccountChange::AddKey { .. }
+        | c::AccountChange::ReplaceKey { .. }
+        | c::AccountChange::RemoveKey { .. }
+        | c::AccountChange::Resume { .. }
+        | c::AccountChange::Remove { .. }
+        | c::AccountChange::MoveAccount { .. }
+        | c::AccountChange::MoveSource { .. }
+        | c::AccountChange::CheckProgram { .. }
+        | c::AccountChange::MoveOut { .. }
+        | c::AccountChange::Written { .. }
+        | c::AccountChange::MoveIn { .. }
+        | c::AccountChange::FinishSignIn { .. }
+        | c::AccountChange::CancelLogin { .. }
+        | c::AccountChange::LoginEnded { .. } => {}
+    }
+    client::account_change_to_record(value)
 }
 
 #[must_use]

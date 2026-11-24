@@ -67,6 +67,10 @@ pub const FAMILIES: &[Family] = &[
                 maps: include_str!("../crates/jig-client-protocol-link/schema/client.maps"),
                 module: "crates/jig-client-protocol-link/src/generated/client.rs",
             },
+            Translation {
+                maps: include_str!("../crates/jig-client-protocol-http/schema/client.maps"),
+                module: "crates/jig-client-protocol-http/src/generated/client.rs",
+            },
         ],
     },
     Family {

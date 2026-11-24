@@ -24,13 +24,7 @@ pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Resu
         pool: opt1,
         templates: super::me::templates(&value.templates, limits)?,
         creating: match &value.creating {
-            Some(value) => Some(c::Creating {
-                within: match super::bounds_fields(&w::Bounds::Create(value.within.clone()), limits)? {
-                    c::Bounds::Create(value) => value,
-                    c::Bounds::Amend { .. } => unreachable!("wire creating bounds"),
-                },
-                beyond: super::beyond_fields(&value.beyond, limits)?,
-            }),
+            Some(value) => Some(client::creating_bounds_to_domain(value.clone(), limits)?),
             None => None,
         },
         models: crate::translate::llm::models(&value.models, limits)?,
