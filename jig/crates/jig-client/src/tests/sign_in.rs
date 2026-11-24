@@ -430,7 +430,7 @@ fn unknown_page() -> Readout {
 }
 fn assert_no_read_exchange(c: &Client) {
     for request in c.requests() {
-        if let Request::Exchange { message: Message::Read(_), .. } = request {
+        if let Request::Exchange { message: Message::Read(_) | Message::Batch(_), .. } = request {
             panic!("unexpected read replay: {request:?}");
         }
     }
@@ -466,10 +466,20 @@ fn replacement_survives_old_terminals(c: &mut Client, old: &[skein_lib::Token]) 
 
 #[test]
 fn held_and_transport_installation_end_reads_even_before_first_sign_in() {
-    for start in [Client::new, Client::signed_in] {
+    for already_signed_in in [false, true] {
         for with in [With::Held(fixtures::credential(&NEW_CREDENTIAL)), With::Transport] {
-            let mut c = start();
-            let reads = [c.read(TASK), c.read(ME)];
+            let mut c = Client::new();
+            let reads: &[_] = if already_signed_in {
+                c.sign_in();
+                &[c.read(TASK), c.read(ME)]
+            } else {
+                // Before the first sign-in there is no stream to judge these reads.
+                for handle in [TASK, ME] {
+                    c.step(Event::Read { handle, read: Readable::Jig(contract::Read::Project { project: PROJECT }) });
+                    assert_no_read_exchange(&c);
+                }
+                &[]
+            };
             let expected_credential = match &with {
                 With::Held(credential) => Some(credential.clone()),
                 With::Transport => None,
@@ -478,7 +488,7 @@ fn held_and_transport_installation_end_reads_even_before_first_sign_in() {
             c.step(Event::SignIn { with });
             assert_eq!(fixtures::pages(c.requests()).as_slice(), &[(TASK, signed_out_page()), (ME, signed_out_page())]);
             assert_eq!(c.machine.link().credential, expected_credential.as_ref());
-            replacement_survives_old_terminals(&mut c, &reads);
+            replacement_survives_old_terminals(&mut c, reads);
         }
     }
 }
