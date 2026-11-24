@@ -238,6 +238,8 @@ pub struct World {
 #[derive(Clone, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
+    /// The workload's independent scheduling stream, before the fake forge is seeded.
+    pub scheduling_seed: Option<u64>,
     /// Gather startup edits before constructing either the store or the root.
     pub second_project: bool,
     pub forge_entries: Option<u32>,
@@ -313,6 +315,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// Files accumulated by the workload's disjoint edits on main.
+    pub forge_files: Option<u32>,
     /// A complete CI diagnostic and its metadata may exceed the tiny client's answer.
     pub forge_answer_bytes: Option<u32>,
     /// The peer's pull bodies may exceed the issue-projection bound in landing stories.
@@ -552,6 +556,21 @@ impl World {
             Some((defaults, model, Some(limits))),
             &[],
         )
+    }
+
+    /// Give the workload's two people independent owner identities at bootstrap.
+    #[must_use]
+    pub fn with_workload_parties(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.core.owners =
+            Box::new([7, 8].map(|user| people::InitialOwner { project: 1, identity: forge_top::user_key(1, user) }));
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("workload owners");
+        self
     }
 
     /// Keep the project's roles distinct from its policy template before bootstrap.
@@ -1490,6 +1509,9 @@ impl World {
         if let Some(commits) = timing.forge_commits {
             fake_config.limits.commits = commits;
         }
+        if let Some(files) = timing.forge_files {
+            fake_config.limits.files = files;
+        }
         if let Some(branches) = timing.forge_branches {
             fake_config.limits.branches = branches;
         }
@@ -1517,7 +1539,7 @@ impl World {
             // The two failed test cases and JUnit wrapper exceed a source file's 128 bytes.
             fake_config.limits.content_bytes = 512;
         }
-        let mut fake = fake::Domain::new(&fake_config, 71);
+        let mut fake = fake::Domain::new(&fake_config, timing.scheduling_seed.unwrap_or(71));
         let setup = raw::Setup {
             workflows: crate::tier_runs::workflows(
                 tier,

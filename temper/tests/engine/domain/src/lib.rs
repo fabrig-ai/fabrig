@@ -1,5 +1,6 @@
 //! The walking root with real children, an ordered paged fake store, scripted
 //! person and worker, independent durable-delivery referee and restart cuts.
+pub mod acts;
 pub mod checks;
 pub mod host_tool;
 pub mod journal_limits;
@@ -9,6 +10,7 @@ pub mod replay;
 pub mod store;
 pub mod walking;
 pub mod walking_referee;
+pub mod workload;
 
 /// Real held-chat escalation driver.
 pub mod escalation;

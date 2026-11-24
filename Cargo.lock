@@ -6998,6 +6998,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -7021,6 +7022,7 @@ dependencies = [
  "jig-test-profile",
  "jig-test-store-files",
  "serde_json",
+ "skein-checks",
  "skein-fake-forge-domain",
  "skein-fake-llm-domain",
  "skein-forge",
@@ -7064,6 +7066,7 @@ dependencies = [
  "temper-service-core",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",
+ "temper-workload",
 ]
 
 [[package]]
