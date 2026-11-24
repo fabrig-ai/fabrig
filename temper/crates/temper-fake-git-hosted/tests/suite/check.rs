@@ -113,6 +113,7 @@ fn each_builder_vector_is_admitted_with_its_whole_environment() {
         ("checkout", Command::CheckOut { commit: one }),
         ("clean", Command::Clean),
         ("merge", Command::Merge { theirs: two }),
+        ("merge history", Command::MergeHistory { theirs: two }),
         ("unmerged", Command::Unmerged),
         ("add", Command::Add),
         ("diff", Command::DiffIndex { parent: one }),
