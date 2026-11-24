@@ -63,7 +63,8 @@ pub fn limits() -> w::Limits {
         current_call_input: 32,
         current_call_tool: 32,
         call_identity_id: 32,
-        cursor_value: 64,
+        // Leave 64 bytes of room plus the cursor's 32-byte layout.
+        cursor_value: 96,
         inbox_selection_goals: 2,
         me_projects: 512,
         document_specification_parameters: 2,
