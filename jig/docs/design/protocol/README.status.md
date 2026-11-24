@@ -4,7 +4,6 @@
 
 
 - **Not yet:** 4: agents in a host's own process: no engine or worker of jig's composes `smith-inline-agent`.
-- **Not yet:** 7: jig's wire layout named by the stream's hello and judged by the client [in flight: change 15801]
 
 `decisions.md`, section 1's third built-in sign-in is present: the clients' component
 holds browser approvals and makes an ordinary sign-in only at the take.
