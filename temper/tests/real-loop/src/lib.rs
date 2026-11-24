@@ -16,7 +16,6 @@ pub mod llm;
 pub mod repair;
 pub mod scripts;
 pub mod terminal;
-pub mod turn_landing;
 
 /// A real deadline bounds every story, including startup and drain.
 pub const PATIENCE: skein_lib::Duration = skein_world::real::host_bound(skein_lib::Duration::from_secs(20));
