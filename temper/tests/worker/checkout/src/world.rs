@@ -820,7 +820,7 @@ impl World {
         assert!(client.operation.is_none(), "a client acts between its operations");
         let ready = match client.prepared {
             Some(Prepared::Candidate { .. }) => unreachable!("branch-only clients"),
-            Some(Prepared::Ready { .. }) => true,
+            Some(Prepared::Ready { .. } | Prepared::Recovered { .. }) => true,
             Some(Prepared::Failed { .. } | Prepared::Aborted) => false,
             Some(Prepared::Refused { .. }) | None => unreachable!("a client acts once it holds a workspace"),
         };
@@ -987,7 +987,7 @@ impl World {
         let stats = &mut self.stats;
         match prepared {
             Prepared::Candidate { .. } => unreachable!("branch-only clients"),
-            Prepared::Ready { workspace, .. } => {
+            Prepared::Ready { workspace, .. } | Prepared::Recovered { workspace, .. } => {
                 stats.ready += 1;
                 client.workspace = Some(*workspace);
                 self.check_ready(name, *workspace);
@@ -1182,15 +1182,15 @@ impl World {
         assert!(client.release != Release::Done, "no operation touches a workspace after its release");
         let operation = client.operation;
         assert!(
-            operation.is_some() || client.release == Release::Asked,
-            "an operation runs while its client waits, including the kept release"
+            operation.is_some() || client.release == Release::Asked || op.kind() == Kind::Keep,
+            "git runs while its client waits; a held mark may finish after its answer"
         );
         let limits = self.settings.checkout;
         if let Op::Pack { at, store } = &op {
             assert_eq!(operation, Some(Operation::Prepare), "only a prepare packs");
             client.packs.push((at.clone(), *store));
-        } else if operation == Some(Operation::Prepare) {
-            assert!(client.packs.is_empty(), "packing follows all other operations of a prepare");
+        } else if operation == Some(Operation::Prepare) && op.kind() != Kind::Keep {
+            assert!(client.packs.is_empty(), "packing follows all other git operations of a prepare");
         }
         if operation == Some(Operation::Prepare) {
             assert!(self.preparing_io.insert(owner), "one operation per prepare");
@@ -1376,7 +1376,7 @@ impl World {
         let client = self.clients.get(self.holds.get(&owner).expect("a hold's")).expect("a hold's client");
         assert!(client.release != Release::Done, "nothing touches a workspace once its hold is released");
         assert!(
-            client.operation.is_some() || client.release == Release::Asked,
+            client.operation.is_some() || client.release == Release::Asked || op.kind() == Kind::Keep,
             "workspace operations settle before release ends"
         );
         if op.kind() == Kind::Make && self.disk.exists(&translate::dir(workspace.expect("Make has a workspace"))) {

@@ -71,6 +71,7 @@ pub(crate) struct Items {
     from_saved: Box<[bool]>,
     landed: Map<u64, ([u8; 32], bool)>,
     saved: Option<Box<[wire::SavedRepository]>>,
+    recovered: bool,
     delivery: Option<agent::Delivery>,
     preparation: Option<wire::Preparation>,
 }
@@ -165,6 +166,7 @@ fn stage_items(
         from_saved: from_saved.into_boxed(),
         landed: Map::with_capacity(count),
         saved: None,
+        recovered: false,
         delivery: None,
         preparation: None,
     };
@@ -229,6 +231,7 @@ fn work_parts(
     if let Some(work) = work {
         if let Some(left) = work.left {
             let items = domain.items.get(&left).expect("a run's items live to its answer");
+            saved.clone_from(&items.saved);
             landed = List::with_capacity(items.landed.len());
             for (tag, (commit, checked)) in &items.landed {
                 landed
@@ -471,6 +474,28 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, client: Token, hold: 
 pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, prepared: checkout::Prepared) {
     let id = Id::<Workspace>::from_token(client);
     let prepared = match prepared {
+        checkout::Prepared::Recovered { workspace, conflicts, saved } => {
+            let record = domain.workspaces.get(id).expect("preparing workspace");
+            let items = domain.items.get_mut(&record.items).expect("assignment items");
+            let mut repositories = List::with_capacity(record.repositories);
+            for (index, repository) in saved.into_iter().enumerate() {
+                let tag = *items.tags.get(index).expect("each repository has a tag");
+                let from_saved = *items.from_saved.get(index).expect("each repository has a start");
+                let writable = items.branches.get(index).expect("each repository has an access").is_some();
+                let landing = if writable {
+                    wire::Landing::Landed { commit: repository.commit.raw() }
+                } else {
+                    wire::Landing::Unchanged
+                };
+                repositories.push(wire::SavedRepository { tag, from_saved, landing }).expect("each saved repository");
+                if writable {
+                    *items.from_saved.get_mut(index).expect("each repository has a start") = true;
+                }
+            }
+            items.saved = Some(repositories.into_boxed());
+            items.recovered = true;
+            checkout::Prepared::Ready { workspace, conflicts }
+        }
         checkout::Prepared::Candidate { workspace, outcome } => {
             let owner = domain.workspaces.get(id).expect("preparing workspace").run;
             crate::jobs::candidate(domain, owner, &outcome);
@@ -489,7 +514,9 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
             let items = domain.items.get(&items).expect("the assignment lives through prepare");
             Some(translate::failure(*failure, &items.tags))
         }
-        checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
+        checkout::Prepared::Candidate { .. } | checkout::Prepared::Recovered { .. } => {
+            unreachable!("special preparation moved to workspace metadata")
+        }
         checkout::Prepared::Ready { .. } | checkout::Prepared::Aborted => None,
     };
     if let Some(failure) = failure {
@@ -500,7 +527,9 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
     let state = mem::replace(&mut record.state, State::Closed);
     record.state = match state {
         State::Preparing { hold, abandoned } => match prepared {
-            checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
+            checkout::Prepared::Candidate { .. } | checkout::Prepared::Recovered { .. } => {
+                unreachable!("special preparation moved to workspace metadata")
+            }
             checkout::Prepared::Ready { workspace, conflicts } => {
                 record.conflicts = conflicts;
                 ended(
@@ -630,6 +659,15 @@ fn record_written(
     } else {
         let mut saved = List::with_capacity(u32::try_from(next.tags.len()).expect("checked item count"));
         for (index, landing) in landings.into_iter().enumerate() {
+            if next.recovered
+                && landing == wire::Landing::Unchanged
+                && let Some(previous) = &next.saved
+            {
+                saved
+                    .push(previous.get(index).expect("every recovered repository").clone())
+                    .expect("room for every saved item");
+                continue;
+            }
             let tag = *next.tags.get(index).expect("every item has a tag");
             let from_saved = *next.from_saved.get(index).expect("every item has a start");
             saved.push(wire::SavedRepository { tag, from_saved, landing }).expect("room for every saved item");
@@ -732,7 +770,9 @@ fn ended(
     then: &mut Then,
 ) -> State {
     match prepared {
-        checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
+        checkout::Prepared::Candidate { .. } | checkout::Prepared::Recovered { .. } => {
+            unreachable!("special preparation moved to workspace metadata")
+        }
         checkout::Prepared::Ready { workspace: directory, conflicts } => {
             assert!(conflicts.is_empty(), "conflicts moved to the workspace record before the transition");
             assert!(!abandoned, "a released hold's prepare ends aborted");

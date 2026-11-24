@@ -166,6 +166,11 @@ pub struct Hold {
     cut: bool,
     /// The deadline handed to io, retained until its terminal event.
     operation: Option<Time>,
+    /// Marks share the workspace's IO lane, but their rewrites do not delay answers.
+    marking: bool,
+    pending: Queue<(Op, bool)>,
+    releasing: bool,
+    marked: Option<crate::git::Kept>,
 }
 
 impl Hold {
@@ -194,14 +199,14 @@ impl Hold {
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn is_preparing(&self) -> bool {
-        active(&self.state)
+        active(&self.state) || self.holding.recovering
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub const fn is_ended(&self) -> bool {
         match self.state {
-            State::Closed => true,
+            State::Closed => self.operation.is_none(),
             State::Queued { .. }
             | State::Preparing { .. }
             | State::Waiting { .. }
@@ -231,6 +236,9 @@ struct Holding {
     kept: Option<crate::git::Kept>,
     saved: Option<Box<[crate::git::KeptRepository]>>,
     preserve: bool,
+    recovering: bool,
+    recovered: bool,
+    original_starts: List<(u32, Start)>,
     arrived: Time,
     admitted: Time,
     stores: Box<[crate::cache::Borrowed]>,
@@ -325,6 +333,8 @@ enum State {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
     Unkeep,
+    Mark,
+    Marked,
     CompareKept {
         repository: u32,
     },
@@ -539,6 +549,7 @@ enum Asked {
 /// What a prepare does once an operation has ended.
 enum Next {
     Step(PrepareStep),
+    Recover,
     Stores { from: u32, look: bool },
     Ready { pack_from: u32 },
     Failed(Failure),
@@ -575,6 +586,9 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         kept,
         saved: None,
         preserve: false,
+        recovering: false,
+        recovered: false,
+        original_starts: List::uncapped(),
         arrived: env.now,
         admitted: env.now,
         stores,
@@ -584,7 +598,16 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         fetched: List::uncapped(),
         candidate,
     };
-    let hold = Hold { holding, state: State::Closed, cut: false, operation: None };
+    let hold = Hold {
+        holding,
+        state: State::Closed,
+        cut: false,
+        operation: None,
+        marking: false,
+        pending: Queue::uncapped(),
+        releasing: false,
+        marked: None,
+    };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
     if domain.active < env.limits.preparations {
@@ -594,7 +617,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         domain.queued.push(id);
         domain.facts.push(Fact::Queued { client });
     }
-    conclude(domain, id, false, out, mark);
+    conclude(domain, env, id, false, out, mark);
 }
 
 /// The first step is shared by prepares arriving with a free permit and
@@ -640,7 +663,7 @@ fn admissions(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         };
         let mark = out.len();
         admit(domain, env, id, cached, out);
-        conclude(domain, id, false, out, mark);
+        conclude(domain, env, id, false, out, mark);
     }
 }
 
@@ -664,7 +687,7 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
         return;
     };
     let hold = domain.holds.get_mut(id).expect("addressed above");
-    let was_active = active(&hold.state);
+    let was_active = active(&hold.state) || hold.holding.recovering;
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Ready if hold.cut => {
@@ -690,7 +713,7 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
         }
         State::Keeping { .. } | State::Closed => unreachable!("an addressed hold has not been released"),
     };
-    conclude(domain, id, was_active, out, mark);
+    conclude(domain, env, id, was_active, out, mark);
 }
 
 pub(crate) fn dependency_landed(
@@ -703,7 +726,7 @@ pub(crate) fn dependency_landed(
     let Some(id) = addressed(&domain.holds, hold) else { return };
     let mark = out.len();
     let hold = domain.holds.get_mut(id).expect("addressed hold");
-    let was_active = active(&hold.state);
+    let was_active = active(&hold.state) || hold.holding.recovering;
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Pushing { push, step: PushStep::Dependency { repository, head, merging }, asked } => {
@@ -723,7 +746,7 @@ pub(crate) fn dependency_landed(
         | State::Keeping { .. }
         | State::Closed) => other,
     };
-    conclude(domain, id, was_active, out, mark);
+    conclude(domain, env, id, was_active, out, mark);
 }
 
 pub(crate) fn abort(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
@@ -769,7 +792,7 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
         return;
     };
     let hold = domain.holds.get_mut(id).expect("addressed above");
-    let was_active = active(&hold.state);
+    let was_active = active(&hold.state) || hold.holding.recovering;
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Preparing { step, asked, timing } => {
@@ -819,13 +842,16 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
         },
         State::Keeping { .. } | State::Closed => unreachable!("an addressed hold has not been released"),
     };
-    conclude(domain, id, was_active, out, mark);
+    conclude(domain, env, id, was_active, out, mark);
     admissions(domain, env, out);
 }
 
 fn optional(state: &State) -> bool {
     match state {
-        State::Reds(_) | State::Preparing { step: PrepareStep::Reds { .. } | PrepareStep::Pack { .. }, .. } => true,
+        State::Reds(_)
+        | State::Preparing { step: PrepareStep::Reds { .. } | PrepareStep::Pack { .. } | PrepareStep::Mark, .. } => {
+            true
+        }
         State::Queued { .. }
         | State::Preparing { .. }
         | State::Waiting { .. }
@@ -845,13 +871,42 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     let id = Id::from_token(owner);
     let hold = domain.holds.get_mut(id).expect("a hold lives until its operation has ended");
     hold.operation = None;
+    if hold.marking {
+        domain.facts.push(Fact::Ended { client: hold.holding.client, done: ending(&done) });
+        hold.marking = false;
+        if hold.cut
+            && !hold.pending.is_empty()
+            && let State::Pushing { .. } = hold.state
+        {
+            let State::Pushing { push, asked, .. } = mem::replace(&mut hold.state, State::Closed) else {
+                unreachable!("pending push");
+            };
+            let (_, background) = hold.pending.pop().expect("the unstarted git operation");
+            assert!(!background, "the push waits behind this mark");
+            hold.state = end_push(&hold.holding, push, asked, out);
+        }
+        let was_active = active(&hold.state) || hold.holding.recovering;
+        conclude(domain, env, id, was_active, out, mark);
+        return;
+    }
     let told = ending(&done);
     domain.facts.push(Fact::Ended { client: hold.holding.client, done: told });
     if !optional(&hold.state) && damages(&done) {
         domain.cache.spoil(hold.holding.workspace);
     }
-    let was_active = active(&hold.state);
+    let was_active = active(&hold.state) || hold.holding.recovering;
     let state = mem::replace(&mut hold.state, State::Closed);
+    let recovery_asked = match &state {
+        State::Pushing { asked, .. } => *asked,
+        State::Queued { .. }
+        | State::Preparing { .. }
+        | State::Waiting { .. }
+        | State::Ready
+        | State::Reds(_)
+        | State::Unprepared
+        | State::Keeping { .. }
+        | State::Closed => Asked::Nothing,
+    };
     let holding = &mut hold.holding;
     let mut waiters = Queue::uncapped();
     let mut store_succeeded = false;
@@ -859,6 +914,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
         State::Keeping { mark } => {
             if done == Done::Succeeded {
                 domain.cache.keep(holding.workspace, mark);
+                hold.marked = None;
             }
             released(holding.client, out)
         }
@@ -872,6 +928,8 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                     waiters = domain.cache.finished(borrowed(holding, repository).store, id, store_succeeded);
                 }
                 PrepareStep::Unkeep
+                | PrepareStep::Mark
+                | PrepareStep::Marked
                 | PrepareStep::CompareKept { .. }
                 | PrepareStep::Pack { .. }
                 | PrepareStep::Reds { .. }
@@ -932,7 +990,25 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             hold.holding.saved = saved_repositories(&hold.holding, outcome);
         }
     }
-    conclude(domain, id, was_active, out, mark);
+    if hold.holding.recovering && (matches_ready(&hold.state) || matches_closed(&hold.state)) {
+        let mut retained = Queue::uncapped();
+        let length = out.len();
+        for index in 0..length {
+            let request = out.pop().expect("produced request");
+            if index >= mark
+                && let Request::Saved { client, .. } = &request
+                && *client == hold.holding.client
+            {
+                continue;
+            }
+            retained.push(request);
+        }
+        *out = retained;
+        let next = recovered(&mut hold.holding);
+        hold.state =
+            prepare_next(&mut hold.holding, &mut domain.cache, id, next, Box::new([]), recovery_asked, env, out);
+    }
+    conclude(domain, env, id, was_active, out, mark);
     for _ in 0..waiters.len() {
         let waiter = waiters.pop().expect("the waiters to resume");
         let mark = out.len();
@@ -953,7 +1029,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 unreachable!("only waiting holds are queued");
             }
         };
-        conclude(domain, waiter, true, out, mark);
+        conclude(domain, env, waiter, true, out, mark);
     }
     admissions(domain, env, out);
 }
@@ -977,29 +1053,30 @@ fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
 
 /// Applied after every transition: what it tells, and what the new state
 /// implies. `mark` is where the requests the transition made begin in `out`.
-fn conclude(domain: &mut Domain, id: Id<Hold>, was_active: bool, out: &Queue<Request>, mark: u32) {
+fn conclude(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    id: Id<Hold>,
+    was_active: bool,
+    out: &mut Queue<Request>,
+    mark: u32,
+) {
     let hold = domain.holds.get_mut(id).expect("a hold lives until it is retired");
-    let from = usize::try_from(mark).expect("a u32 fits in a usize");
-    for request in out.iter().skip(from) {
-        match request {
-            Request::Io { owner, deadline, .. } => {
-                if *owner == id.token() {
-                    hold.operation = Some(*deadline);
-                }
-            }
-            Request::Held { .. }
-            | Request::Prepared { .. }
-            | Request::Pushed { .. }
-            | Request::Saved { .. }
-            | Request::Released { .. }
-            | Request::Cancel { .. }
-            | Request::DependencyLanded { .. }
-            | Request::Results { .. }
-            | Request::ResultsEnd { .. } => {}
-        }
+    if let Some(previous) = &hold.marked
+        && let Some(current) = held_mark(&hold.holding, env)
+        && previous.repositories != current.repositories
+        && !hold.holding.recovering
+    {
+        hold.marked = Some(current.clone());
+        io(id, Op::Keep { workspace: current.workspace, mark: Some(current) }, env, out);
     }
+    if matches_closed(&hold.state) && hold.marked.is_some() {
+        hold.marked = None;
+        io(id, Op::Keep { workspace: hold.holding.disk, mark: None }, env, out);
+    }
+    schedule(hold, id, env, out, mark);
     sent(&mut domain.facts, &mut domain.cache, &hold.holding, out, mark);
-    if was_active && !active(&hold.state) {
+    if was_active && !(active(&hold.state) || hold.holding.recovering) {
         domain.active = domain.active.checked_sub(1).expect("a settled prepare returns its permit once");
     }
     follow(&mut domain.holds, &mut domain.cache, id);
@@ -1080,7 +1157,7 @@ fn ending(done: &Done) -> Ending {
 fn preparation(prepared: &Prepared) -> Preparation {
     match prepared {
         Prepared::Candidate { workspace, .. } => Preparation::Ready { workspace: *workspace, conflicts: 0 },
-        Prepared::Ready { workspace, conflicts } => {
+        Prepared::Ready { workspace, conflicts } | Prepared::Recovered { workspace, conflicts, .. } => {
             let mut paths = 0_u64;
             for conflict in conflicts {
                 paths = paths
@@ -1157,8 +1234,10 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
     let hold = holds.get(id).expect("a hold lives until it is retired");
     match hold.state {
         State::Closed => {
-            cache.release(hold.holding.workspace);
-            holds.retire(id);
+            if hold.operation.is_none() && hold.pending.is_empty() {
+                cache.release(hold.holding.workspace);
+                holds.retire(id);
+            }
         }
         State::Queued { .. }
         | State::Preparing { .. }
@@ -1181,6 +1260,9 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
     reason = "the preparation transition table handles every terminal workspace outcome together"
 )]
 fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: Done, limits: &Limits) -> Next {
+    if step == PrepareStep::Mark {
+        return Next::Step(PrepareStep::Marked);
+    }
     if let PrepareStep::Reds { repository } = step {
         return reds_prepare(holding, after(repository));
     }
@@ -1212,7 +1294,12 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 return Next::Failed(Failure::Transient);
             }
             if matches_kept(holding) {
-                Next::Step(PrepareStep::CompareKept { repository: 0 })
+                if holding.kept.as_ref().expect("candidate").state == crate::git::KeptState::Held {
+                    restore_tips(holding);
+                    Next::Recover
+                } else {
+                    Next::Step(PrepareStep::CompareKept { repository: 0 })
+                }
             } else {
                 holding.kept = None;
                 Next::Stores { from: 0, look: false }
@@ -1222,6 +1309,11 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             let commit = match done {
                 Done::Fetched { commit } => commit,
                 Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => {
+                    if holding.recovered {
+                        restore_assignment(holding);
+                        holding.kept = None;
+                        return Next::Stores { from: 0, look: false };
+                    }
                     return Next::Failed(failure(repository, fault));
                 }
                 Done::Succeeded
@@ -1249,18 +1341,21 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 .expect("matching shape")
                 .commit;
             if commit != wanted {
+                restore_assignment(holding);
                 holding.kept = None;
                 Next::Stores { from: 0, look: false }
             } else if repository < last {
                 Next::Step(PrepareStep::CompareKept { repository: after(repository) })
             } else {
                 holding.preserve = true;
+                holding.original_starts = List::uncapped();
                 holding.kept = None;
                 let commit = fetched(holding, 0, &start_want(&nth(holding, 0).start)).expect("compared every start");
                 fetched_start(holding, 0, commit)
             }
         }
 
+        PrepareStep::Mark | PrepareStep::Marked => unreachable!("mark completes outside repository preparation"),
         PrepareStep::Pack { repository, .. } => Next::Ready { pack_from: after(repository) },
         PrepareStep::Reds { .. } => unreachable!("reds settled above"),
         PrepareStep::Candidate { .. } => unreachable!("candidate preparation was dispatched before the fetch memo"),
@@ -1806,6 +1901,8 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
         PrepareStep::Unkeep
+        | PrepareStep::Mark
+        | PrepareStep::Marked
         | PrepareStep::CompareKept { .. }
         | PrepareStep::Pack { .. }
         | PrepareStep::Reds { .. }
@@ -1883,6 +1980,8 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
         PrepareStep::FetchBase { repository, base, .. } => (repository, Want::Commit { commit: base }),
         PrepareStep::Pack { .. } | PrepareStep::Counts { .. } => return,
         PrepareStep::Unkeep
+        | PrepareStep::Mark
+        | PrepareStep::Marked
         | PrepareStep::Reds { .. }
         | PrepareStep::Candidate { .. }
         | PrepareStep::Store { .. }
@@ -2168,7 +2267,8 @@ fn prepare_next(
                         .expect("compared every start");
                     fetched_start(holding, repository, commit)
                 }
-                other @ (Next::Step(_) | Next::Stores { .. } | Next::Ready { .. } | Next::Failed(_)) => {
+                other
+                @ (Next::Step(_) | Next::Recover | Next::Stores { .. } | Next::Ready { .. } | Next::Failed(_)) => {
                     next = other;
                     break;
                 }
@@ -2178,20 +2278,23 @@ fn prepare_next(
     let client = holding.client;
     match asked {
         Asked::Nothing => match next {
+            Next::Step(PrepareStep::Marked) => ready(holding, out),
             Next::Step(step) => prepare_step(holding, cache, id, step, env, out),
+            Next::Recover => {
+                holding.recovering = true;
+                begin(holding, id, To::Saved, Message { title: copy_of(crate::SAVED), body: Box::new([]) }, env, out)
+            }
             Next::Stores { from, look } => stores_step(holding, cache, id, from, look, env, out),
             Next::Ready { pack_from } => {
                 if let Some(step) = next_pack(holding, cache, pack_from) {
                     return prepare_step(holding, cache, id, step, env, out);
                 }
                 holding.fetched = List::uncapped();
-                let conflicts = mem::replace(&mut holding.conflicts, List::with_capacity(0));
-                let prepared = match &holding.candidate {
-                    Some(stack) => Prepared::Candidate { workspace: holding.disk, outcome: candidate::result(stack) },
-                    None => Prepared::Ready { workspace: holding.disk, conflicts: conflicts.into_boxed() },
-                };
-                out.push(Request::Prepared { client, prepared });
-                State::Ready
+                if held_mark(holding, env).is_some() {
+                    prepare_step(holding, cache, id, PrepareStep::Mark, env, out)
+                } else {
+                    ready(holding, out)
+                }
             }
             Next::Failed(failure) => {
                 out.push(Request::Prepared { client, prepared: Prepared::Failed { failure, detail } });
@@ -2235,6 +2338,8 @@ fn prepare_step(
     let workspace = holding.disk;
     let op = match step {
         PrepareStep::Unkeep => Op::Keep { workspace, mark: None },
+        PrepareStep::Mark => Op::Keep { workspace, mark: held_mark(holding, env) },
+        PrepareStep::Marked => unreachable!("completed mark has no operation"),
         PrepareStep::Pack { repository } => {
             let borrowed = borrowed(holding, repository);
             let store = if cache.store_due(borrowed.store) { Some(borrowed.token) } else { None };
@@ -2746,7 +2851,13 @@ fn unpushed(holding: &Holding, to: &To, repository: u32) -> Option<Commit> {
             }
             tips.pushed
         }
-        To::Saved => Some(tips.start),
+        To::Saved => {
+            if holding.recovering {
+                None
+            } else {
+                Some(tips.start)
+            }
+        }
     };
     if Some(tips.head) == base { None } else { Some(tips.head) }
 }
@@ -3256,13 +3367,16 @@ pub(crate) fn reds(
     out: &mut Queue<Request>,
 ) {
     let Some(id) = addressed(&domain.holds, token) else { return };
+    let mark = out.len();
     let hold = domain.holds.get_mut(id).expect("addressed hold");
+    let was_active = active(&hold.state) || hold.holding.recovering;
     if hold.cut {
         reds::interrupted(&hold.holding, &action, out);
         return;
     }
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = reds::update(&hold.holding, id, state, action, env, out);
+    conclude(domain, env, id, was_active, out, mark);
 }
 
 /// Keep only a completed save: each unchanged repository names its start.
@@ -3292,7 +3406,13 @@ fn saved_repositories(holding: &Holding, outcome: &Outcome) -> Option<Box<[crate
             | Landing::Aborted => return None,
         };
         repositories
-            .push(crate::git::KeptRepository { name: spec.name.clone(), remote: spec.remote.clone(), commit })
+            .push(crate::git::KeptRepository {
+                name: spec.name.clone(),
+                remote: spec.remote.clone(),
+                commit,
+                merging: None,
+                unchecked: false,
+            })
             .expect("repository capacity");
     }
     if repositories.len() != count(holding.repositories.len()) {
@@ -3302,6 +3422,7 @@ fn saved_repositories(holding: &Holding, outcome: &Outcome) -> Option<Box<[crate
 }
 
 pub(crate) fn keep(domain: &mut Domain, env: &Env<Limits>, token: Token, out: &mut Queue<Request>) {
+    let from = out.len();
     let Some(id) = addressed(&domain.holds, token) else {
         return;
     };
@@ -3314,12 +3435,13 @@ pub(crate) fn keep(domain: &mut Domain, env: &Env<Limits>, token: Token, out: &m
     let mark = crate::git::Kept {
         workspace: hold.holding.disk,
         key: hold.holding.key.clone(),
+        state: crate::git::KeptState::Kept,
         repositories,
         when: env.wall.as_nanos(),
     };
-    domain.facts.push(Fact::Started { client: hold.holding.client, op: crate::git::Kind::Keep });
     io(id, Op::Keep { workspace: mark.workspace, mark: Some(mark.clone()) }, env, out);
     hold.state = State::Keeping { mark };
+    conclude(domain, env, id, false, out, from);
 }
 
 fn matches_ready(state: &State) -> bool {
@@ -3336,6 +3458,189 @@ fn matches_ready(state: &State) -> bool {
     }
 }
 
+/// One IO lane per held workspace keeps rewrites, subsequent git operations and
+/// removal in order. Only the first mark participates in preparation.
+fn schedule(hold: &mut Hold, id: Id<Hold>, env: &Env<Limits>, out: &mut Queue<Request>, mark: u32) {
+    let mut produced = Queue::uncapped();
+    let length = out.len();
+    for index in 0..length {
+        let request = out.pop().expect("the requests to route");
+        if index < mark {
+            produced.push(request);
+            continue;
+        }
+        match request {
+            Request::Io { owner, op, deadline: _ } if owner == id.token() => {
+                let background = if let Op::Keep { mark, .. } = &op {
+                    match mark {
+                        Some(mark) if mark.state == crate::git::KeptState::Held => hold.marked = Some(mark.clone()),
+                        None => hold.marked = None,
+                        Some(_) => {}
+                    }
+                    match hold.state {
+                        State::Preparing { step: PrepareStep::Mark | PrepareStep::Unkeep, .. }
+                        | State::Keeping { .. } => false,
+                        State::Queued { .. }
+                        | State::Preparing { .. }
+                        | State::Waiting { .. }
+                        | State::Ready
+                        | State::Reds(_)
+                        | State::Unprepared
+                        | State::Pushing { .. }
+                        | State::Closed => true,
+                    }
+                } else {
+                    false
+                };
+                hold.pending.push((op, background));
+            }
+            Request::Released { client } if client == hold.holding.client => hold.releasing = true,
+            other @ (Request::Io { .. }
+            | Request::Released { .. }
+            | Request::Held { .. }
+            | Request::Prepared { .. }
+            | Request::Pushed { .. }
+            | Request::Saved { .. }
+            | Request::Cancel { .. }
+            | Request::DependencyLanded { .. }
+            | Request::Results { .. }
+            | Request::ResultsEnd { .. }) => produced.push(other),
+        }
+    }
+    if hold.operation.is_none()
+        && let Some((op, background)) = hold.pending.pop()
+    {
+        let timeout = operation_timeout(&op, &env.limits);
+        let deadline = env.now.saturating_add(timeout);
+        if let State::Preparing { timing, .. } = &mut hold.state {
+            *timing = Timing { started: env.now, timeout };
+        }
+        hold.operation = Some(deadline);
+        hold.marking = background;
+        produced.push(Request::Io { owner: id.token(), op, deadline });
+    }
+    if hold.releasing && hold.operation.is_none() && hold.pending.is_empty() {
+        produced.push(Request::Released { client: hold.holding.client });
+        hold.releasing = false;
+    }
+    *out = produced;
+}
+
+fn matches_closed(state: &State) -> bool {
+    match state {
+        State::Closed => true,
+        State::Queued { .. }
+        | State::Preparing { .. }
+        | State::Waiting { .. }
+        | State::Ready
+        | State::Reds(_)
+        | State::Unprepared
+        | State::Pushing { .. }
+        | State::Keeping { .. } => false,
+    }
+}
+
+fn held_mark(holding: &Holding, env: &Env<Limits>) -> Option<crate::git::Kept> {
+    let mut saving = false;
+    for spec in &holding.repositories {
+        saving |= spec.push.is_some() && spec.save.is_some();
+    }
+    if holding.tips.len() != count(holding.repositories.len()) || !saving {
+        return None;
+    }
+    let mut repositories = List::with_capacity(holding.tips.len());
+    for (spec, tips) in holding.repositories.iter().zip(holding.tips.as_slice()) {
+        repositories
+            .push(crate::git::KeptRepository {
+                name: spec.name.clone(),
+                remote: spec.remote.clone(),
+                commit: tips.head,
+                merging: tips.merging,
+                unchecked: tips.unchecked,
+            })
+            .expect("one mark per repository");
+    }
+    Some(crate::git::Kept {
+        workspace: holding.disk,
+        key: holding.key.clone(),
+        state: crate::git::KeptState::Held,
+        repositories: repositories.into_boxed(),
+        when: env.wall.as_nanos(),
+    })
+}
+
+fn ready(holding: &mut Holding, out: &mut Queue<Request>) -> State {
+    let conflicts = mem::replace(&mut holding.conflicts, List::with_capacity(0)).into_boxed();
+    let prepared = if holding.recovered {
+        Prepared::Recovered { workspace: holding.disk, conflicts, saved: holding.saved.clone().expect("taken-up save") }
+    } else {
+        match &holding.candidate {
+            Some(stack) => Prepared::Candidate { workspace: holding.disk, outcome: candidate::result(stack) },
+            None => Prepared::Ready { workspace: holding.disk, conflicts },
+        }
+    };
+    out.push(Request::Prepared { client: holding.client, prepared });
+    State::Ready
+}
+
+fn recovered(holding: &mut Holding) -> Next {
+    holding.recovering = false;
+    holding.tips = List::with_capacity(count(holding.repositories.len()));
+    let Some(repositories) = holding.saved.clone() else {
+        holding.kept = None;
+        return Next::Stores { from: 0, look: false };
+    };
+    for (index, spec) in holding.repositories.iter_mut().enumerate() {
+        if spec.push.is_some() {
+            let start = Start::Saved { branch: spec.save.clone().expect("matched save destination") };
+            let original = mem::replace(&mut spec.start, start);
+            holding.original_starts.push((count(index), original)).expect("writable repository");
+        }
+    }
+    let mark = holding.kept.as_mut().expect("recovering a held mark");
+    mark.state = crate::git::KeptState::Kept;
+    mark.repositories = repositories;
+    holding.recovered = true;
+    Next::Step(PrepareStep::CompareKept { repository: 0 })
+}
+
+fn restore_assignment(holding: &mut Holding) {
+    let originals = mem::replace(&mut holding.original_starts, List::uncapped());
+    for (index, start) in originals.into_boxed() {
+        holding
+            .repositories
+            .get_mut(usize::try_from(index).expect("repository index"))
+            .expect("original repository")
+            .start = start;
+    }
+    holding.recovered = false;
+    holding.saved = None;
+    holding.tips = List::with_capacity(count(holding.repositories.len()));
+    holding.fetched = List::uncapped();
+}
+
+fn restore_tips(holding: &mut Holding) {
+    let mark = holding.kept.as_ref().expect("matched held mark");
+    for repository in &mark.repositories {
+        holding
+            .tips
+            .push(Tips {
+                start: repository.commit,
+                head: repository.commit,
+                merging: repository.merging,
+                unchecked: repository.unchecked,
+                pushed: None,
+                delivered: false,
+                redeliver: false,
+                expected: None,
+                landing: None,
+                design_merged: None,
+                caught_up: None,
+            })
+            .expect("matched repositories");
+    }
+}
+
 fn matches_kept(holding: &Holding) -> bool {
     let Some(mark) = &holding.kept else {
         return false;
@@ -3344,7 +3649,11 @@ fn matches_kept(holding: &Holding) -> bool {
         return false;
     }
     for (saved, spec) in mark.repositories.iter().zip(holding.repositories.iter()) {
-        if saved.name != spec.name || saved.remote != spec.remote || !spec.start.is_saved() {
+        let accepts = match mark.state {
+            crate::git::KeptState::Kept => spec.start.is_saved(),
+            crate::git::KeptState::Held => spec.push.is_none() || spec.save.is_some(),
+        };
+        if saved.name != spec.name || saved.remote != spec.remote || !accepts {
             return false;
         }
     }

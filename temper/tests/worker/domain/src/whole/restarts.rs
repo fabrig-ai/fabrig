@@ -275,6 +275,9 @@ fn crash(world: &mut World, check: &mut Option<agent::Ask>, recovery: Recovery) 
     assert_eq!(world.report.cancellations, 0);
     if recovery == Recovery::AnotherWorker {
         world.disk = Checkout::new();
+        world.marks.clear();
+    } else {
+        world.domain.restore_workspaces(world.marks.values().cloned().collect::<Vec<_>>().into_boxed_slice());
     }
     assert_eq!(
         world.disk.exists(b"worker-state"),
@@ -284,8 +287,17 @@ fn crash(world: &mut World, check: &mut Option<agent::Ask>, recovery: Recovery) 
     world.env.now = world.env.now.saturating_add(Duration::from_secs(2));
     world.connect().expect("worker inspection");
     assert_eq!(world.domain.agent().agents(), 0, "new root has no old agents");
-    assert!(world.workstreams.is_empty(), "no old claim in the new hello");
+    assert_eq!(
+        world.workstreams.as_ref(),
+        if recovery == Recovery::SameWorker { &[super::WORKSTREAM][..] } else { &[] }
+    );
+    let before = world.report.trace.len();
     next_attempt(world, false);
+    let remade = world.report.trace[before..]
+        .iter()
+        .any(|line| line.contains("op: Make {") || line.contains("op: Clone {") || line.contains("op: CheckOut {"));
+    assert_eq!(remade, recovery == Recovery::AnotherWorker);
+    assert_eq!(world.report.saves, u32::from(recovery == Recovery::SameWorker));
 }
 
 fn next_attempt(world: &mut World, saved: bool) {
