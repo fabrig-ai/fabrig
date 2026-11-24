@@ -90,26 +90,7 @@ fn task_holds(condition: &Condition, task: &c::Task, me: Option<&c::Me>) -> Opti
         Condition::Held => task.chip.phase == c::Phase::Held,
         Condition::Phase(phase) => task.chip.phase == *phase,
         Condition::WaitingOnMe => waits_on_me(&task.waits_on, task.project, me?),
-        Condition::Replied => {
-            match facts::chat_status(&task.chip, &task.waits_on, task.run_wait.as_ref(), task.project, me?) {
-                ChatStatus::RunWaiting(facts::RunWaitKind::Account)
-                | ChatStatus::HostRefused(_)
-                | ChatStatus::Parked
-                | ChatStatus::WaitingForYou { .. }
-                | ChatStatus::WaitingFor(_)
-                | ChatStatus::Held(_)
-                | ChatStatus::Closing
-                | ChatStatus::Ended { .. } => true,
-                ChatStatus::RunWaiting(
-                    facts::RunWaitKind::Credential | facts::RunWaitKind::Host | facts::RunWaitKind::Worker { .. },
-                )
-                | ChatStatus::Starting
-                | ChatStatus::Writing
-                | ChatStatus::Tool { .. }
-                | ChatStatus::Working { .. }
-                | ChatStatus::Retrying { .. } => false,
-            }
-        }
+        Condition::Replied => replied(task, &task.waits_on, me)?,
         Condition::Changed
         | Condition::Usable
         | Condition::Settled
@@ -119,6 +100,26 @@ fn task_holds(condition: &Condition, task: &c::Task, me: Option<&c::Me>) -> Opti
         | Condition::Paused(_) => {
             return None;
         }
+    })
+}
+pub(crate) fn replied(task: &c::Task, waits_on: &c::WaitsOn, me: Option<&c::Me>) -> Option<bool> {
+    Some(match facts::chat_status(&task.chip, waits_on, task.run_wait.as_ref(), task.project, me?) {
+        ChatStatus::RunWaiting(facts::RunWaitKind::Account)
+        | ChatStatus::HostRefused(_)
+        | ChatStatus::Parked
+        | ChatStatus::WaitingForYou { .. }
+        | ChatStatus::WaitingFor(_)
+        | ChatStatus::Held(_)
+        | ChatStatus::Closing
+        | ChatStatus::Ended { .. } => true,
+        ChatStatus::RunWaiting(
+            facts::RunWaitKind::Credential | facts::RunWaitKind::Host | facts::RunWaitKind::Worker { .. },
+        )
+        | ChatStatus::Starting
+        | ChatStatus::Writing
+        | ChatStatus::Tool { .. }
+        | ChatStatus::Working { .. }
+        | ChatStatus::Retrying { .. } => false,
     })
 }
 fn worker_holds(condition: &Condition, deployment: &c::Deployment) -> Option<bool> {
