@@ -31,14 +31,14 @@ pub struct Format {
 impl Format {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = maps::format_to_record(self, &())?;
+        let row = maps::format_to_record(self);
         row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::Format::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::format_to_domain(row, &())
+        Ok(maps::format_to_domain(row))
     }
 
     /// The component family's version a stored row begins with, read before
@@ -64,12 +64,12 @@ pub struct Manifest {
 impl Manifest {
     #[must_use]
     pub fn encode(self) -> Box<[u8]> {
-        let row = maps::manifest_to_record(&self, &()).expect("manifest translation is infallible");
+        let row = maps::manifest_to_record(&self);
         row.encode(&wire::CEILINGS).expect("manifest counts fit the checked sets")
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::Manifest::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::manifest_to_domain(row, &())
+        Ok(maps::manifest_to_domain(row))
     }
 }
 
@@ -86,12 +86,12 @@ pub struct Checkpoint {
 }
 impl Checkpoint {
     pub fn encode(self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = maps::checkpoint_to_record(&self, &())?;
+        let row = maps::checkpoint_to_record(&self);
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::Checkpoint::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::checkpoint_to_domain(row, &())
+        Ok(maps::checkpoint_to_domain(row))
     }
 }
 
@@ -105,14 +105,14 @@ pub struct Transcript {
 impl Transcript {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = maps::transcript_to_record(self, &())?;
+        let row = maps::transcript_to_record(self);
         row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::Transcript::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::transcript_to_domain(row, &())
+        Ok(maps::transcript_to_domain(row))
     }
 }
 
@@ -125,14 +125,14 @@ pub struct Attempt {
 impl Attempt {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = maps::attempt_to_record(self, &())?;
+        let row = maps::attempt_to_record(self);
         row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::Attempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::attempt_to_domain(row, &())
+        Ok(maps::attempt_to_domain(row))
     }
 }
 
@@ -143,12 +143,12 @@ pub struct HistoryLog {
 }
 impl HistoryLog {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = maps::history_log_to_record(self, &())?;
+        let row = maps::history_log_to_record(self);
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::HistoryLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::history_log_to_domain(row, &())
+        Ok(maps::history_log_to_domain(row))
     }
 }
 
@@ -159,12 +159,12 @@ pub struct TurnLog {
 }
 impl TurnLog {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = maps::turn_log_to_record(self, &())?;
+        let row = maps::turn_log_to_record(self);
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::TurnLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::turn_log_to_domain(row, &())
+        Ok(maps::turn_log_to_domain(row))
     }
 }
 
@@ -175,11 +175,11 @@ pub struct LogAttempt {
 }
 impl LogAttempt {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = maps::log_attempt_to_record(self, &())?;
+        let row = maps::log_attempt_to_record(self);
         row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
         let row = wire::LogAttempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
-        maps::log_attempt_to_domain(row, &())
+        Ok(maps::log_attempt_to_domain(row))
     }
 }

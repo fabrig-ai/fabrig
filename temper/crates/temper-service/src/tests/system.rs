@@ -168,7 +168,7 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
     assert!(stand.service.worker.as_ref().unwrap().git_ready(), "git completions reached the worker");
-    assert_eq!(stand.kernel.files, 11, "layout opens both checkout trees and making while keeping stores");
+    assert_eq!(stand.kernel.files, 15, "layout reads kept marks and sweeps both checkout trees while keeping stores");
     stand.service.process.told().push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
     assert_eq!(
@@ -451,7 +451,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
     use fixtures::http as peer;
     let link = stand.service.links().pop().expect("sign-in link");
     let engine = stand.service.engine.as_mut().unwrap();
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {

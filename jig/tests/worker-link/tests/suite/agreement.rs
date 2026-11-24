@@ -213,6 +213,7 @@ mod agreement {
         );
         world.run();
         let mut expected = fixtures::assignment();
+        expected.tell_parts = true;
         expected.assignment.workspace.as_mut().expect("workspace").items = Token::new(1);
         assert_eq!(down(&world).0, &host::LinkDown::Assign { assignment: expected });
         assert_eq!(down(&world).1, [Part { token: Token::new(1), bytes: b"items".as_slice().into() }]);

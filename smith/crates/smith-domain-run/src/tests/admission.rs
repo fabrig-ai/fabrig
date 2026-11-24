@@ -206,6 +206,7 @@ fn charters_beyond_the_limits_are_refused_as_invalid() {
 fn zero_activation_has_its_own_refusal_before_admission() {
     let mut harness = Harness::new(LIMITS);
     let requests = harness.step(Event::Start {
+        tell_parts: false,
         messages: Box::default(),
         window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
         reply_to: ReplyTo::new(Token::new(81)),

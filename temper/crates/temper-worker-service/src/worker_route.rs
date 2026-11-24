@@ -13,6 +13,10 @@ pub use route::activity;
 #[must_use]
 pub fn encode(value: Encodable, agent: &crate::settings::Agent) -> Encoded {
     match value {
+        Encodable::Part(part) => match route::encode_part(part, &agent.limits, &agent.endpoints) {
+            Some(part) => Encoded::Part(part),
+            None => Encoded::Undecodable,
+        },
         Encodable::Turn(turn) => match route::encode_turn(turn, &agent.limits, &agent.endpoints) {
             Some(turn) => Encoded::Turn(turn),
             None => Encoded::Undecodable,
@@ -245,6 +249,7 @@ pub fn fit_start(mut start: smith::Start, limits: &smith_domain_run::Limits, cha
                     writable: directory.writable,
                     git: directory.git,
                     conflicts: directory.conflicts.clone(),
+                    results: None,
                 })
                 .expect("one entry per prepared directory");
         }

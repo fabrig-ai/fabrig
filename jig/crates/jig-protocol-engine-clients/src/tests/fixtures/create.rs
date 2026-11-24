@@ -43,7 +43,6 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
     )
 }
 fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::NewTask, p::Member) {
-    let l = wire();
     let dependencies = List::from_boxed(Box::new([
         w::TaskRef::Member(w::TaskRefMember { value: 1 }),
         w::TaskRef::Task(w::TaskRefTask { value: u64::MAX }),
@@ -63,7 +62,7 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
     };
     let task = w::NewTask {
         symbols: List::with_capacity(0),
-        llm: if role { None } else { Some(careful_and_quick(&l)) },
+        llm: if role { None } else { Some(careful_and_quick()) },
         deadline: w::NewDeadline::Named,
         executor,
         spec,
@@ -130,11 +129,11 @@ fn expected_member(role: bool, expected: p::Authority) -> p::Member {
     }
 }
 /// The fixture's careful model at its high effort, its sub-agents the quick one.
-pub fn careful_and_quick(l: &w::Limits) -> w::LlmChoice {
-    llm_choice(l, b"careful", Some(b"high"), b"quick")
+pub fn careful_and_quick() -> w::LlmChoice {
+    llm_choice(b"careful", Some(b"high"), b"quick")
 }
 /// A main model and effort, and one sub-agent model at its default effort, by name.
-pub fn llm_choice(_l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::LlmChoice {
+pub fn llm_choice(main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::LlmChoice {
     let main = w::ModelEffort {
         model: main.into(),
         effort: match effort {

@@ -1,12 +1,37 @@
 //! Plain, exhaustive translation functions (data/codec/maps.md, 3-5).
 
-use super::{Item, Mapping, Maps, Mode, Shape, check, name};
-use crate::{Declaration, Enumeration, Field, Record, Schema, Type, Variant, pascal, snake};
+use alloc::collections::{BTreeMap, BTreeSet};
+
+use super::{Item, Mapping, Maps, Mode, Shape, check, error, name};
+use crate::{Declaration, Enumeration, Error, Field, Record, Schema, Type, Variant, pascal, snake};
+
+#[derive(Clone, Copy, Default)]
+struct Reach {
+    refuses: bool,
+    context: bool,
+}
+
+impl Reach {
+    fn include(&mut self, other: Self) {
+        self.refuses |= other.refuses;
+        self.context |= other.context;
+    }
+
+    fn result(self, value: String) -> String {
+        if self.refuses { format!("Ok({value})") } else { value }
+    }
+}
 
 struct Emitter<'a> {
     schema: &'a Schema,
     maps: &'a Maps,
     domain: bool,
+    reach: Reach,
+    // A schema only names earlier declarations. Keep each direction's reach
+    // once it has been emitted, so nested calls inherit just those effects.
+    generated: BTreeMap<(&'a str, bool), Reach>,
+    converters_called: BTreeSet<String>,
+    hand_called: BTreeSet<String>,
 }
 
 struct Binding<'a> {
@@ -18,7 +43,7 @@ struct Binding<'a> {
     shape: Shape,
 }
 
-impl Emitter<'_> {
+impl<'a> Emitter<'a> {
     fn record_type(&self, name: &str) -> String {
         format!("{}::{name}", self.maps.path(&self.maps.records))
     }
@@ -28,19 +53,32 @@ impl Emitter<'_> {
         format!("{}::paths::{constant}", self.maps.path(&self.maps.records))
     }
 
-    fn convert(&self, input: &str, via: &str, path: &str) -> String {
-        let direction = if self.domain { "domain" } else { "record" };
-        let via = self.maps.path(via);
-        format!(
-            "match {via}_to_{direction}({input}) {{ Ok(value) => value, Err(reason) => return Err({path}.problem(reason)) }}"
-        )
+    fn direction(&self) -> &'static str {
+        if self.domain { "domain" } else { "record" }
     }
 
-    fn value(&self, ty: &Type, input: &str, via: Option<&str>, shape: Shape, path: &str) -> String {
+    fn convert(&mut self, input: &str, via: &str, path: &str) -> String {
+        let function = format!("{}_to_{}", self.maps.path(via), self.direction());
+        let refuses = self.maps.refuses.contains_key(&function);
+        let call = format!("{function}({input})");
+        self.converters_called.insert(function);
+        self.reach.refuses |= refuses;
+        if refuses {
+            format!("match {call} {{ Ok(value) => value, Err(reason) => return Err({path}.problem(reason)) }}")
+        } else {
+            call
+        }
+    }
+
+    fn value(&mut self, ty: &Type, input: &str, via: Option<&str>, shape: Shape, path: &str) -> String {
         match ty {
             Type::Option(inner) => {
                 let converted = self.value(inner, "item", via, shape, path);
-                format!("match {input} {{\nSome(item) => Some({converted}),\nNone => None,\n}}")
+                // Bind before constructing Some: this stays a step, not an
+                // Option::map callback, even for a plain conversion.
+                format!(
+                    "match {input} {{\nSome(item) => {{\nlet converted = {converted};\nSome(converted)\n}}\nNone => None,\n}}"
+                )
             }
             Type::List(_, inner) => self.list(inner, input, via, shape, path),
             Type::Named(name) => {
@@ -60,7 +98,7 @@ impl Emitter<'_> {
         }
     }
 
-    fn list(&self, inner: &Type, input: &str, via: Option<&str>, shape: Shape, path: &str) -> String {
+    fn list(&mut self, inner: &Type, input: &str, via: Option<&str>, shape: Shape, path: &str) -> String {
         // A plain-value list already is the domain list, unless the maps mark a slice.
         if via.is_none() && plain(inner) && shape == Shape::Same {
             return if self.domain { input.to_owned() } else { format!("{input}.clone()") };
@@ -68,6 +106,7 @@ impl Emitter<'_> {
         let count = if self.domain || shape == Shape::Same {
             "source.len()".to_owned()
         } else {
+            self.reach.refuses = true;
             format!(
                 "match u32::try_from(source.len()) {{ Ok(count) => count, Err(_error) => return Err({path}.problem(skein_codec::Reason::Bound)) }}"
             )
@@ -82,11 +121,11 @@ impl Emitter<'_> {
         let converted = self.value(inner, "item", via, Shape::Same, path);
         let result = if self.domain && shape == Shape::Slice { "Box::from(translated)" } else { "translated" };
         format!(
-            "{{\nlet source = {input};\nlet count = {count};\nlet mut translated = skein_lib::List::with_capacity(count);\nfor item in {iteration} {{\nlet converted = {converted};\nif translated.push(converted).is_err() {{ return Err({path}.problem(skein_codec::Reason::Bound)); }}\n}}\n{result}\n}}"
+            "{{\nlet source = {input};\nlet count = {count};\nlet mut translated = skein_lib::List::with_capacity(count);\nfor item in {iteration} {{\nlet converted = {converted};\nassert!(translated.push(converted).is_ok(), \"one output per source item\");\n}}\n{result}\n}}"
         )
     }
 
-    fn named(&self, name: &str, input: &str) -> String {
+    fn named(&mut self, name: &str, input: &str) -> String {
         let mapping = self.maps.mapping(name).expect("validated dependency");
         match &mapping.mode {
             Mode::Stands { field, via } => {
@@ -103,19 +142,29 @@ impl Emitter<'_> {
                 }
             }
             Mode::Mirror(_) | Mode::Hand => {
-                let prefix = if matches!(mapping.mode, Mode::Hand) {
-                    format!("{}::", self.maps.path(self.maps.hand.as_deref().expect("validated by-hand module")))
+                let stem = format!("{}_to_{}", snake(name), self.direction());
+                let (function, reach) = if matches!(mapping.mode, Mode::Hand) {
+                    let module = self.maps.hand.as_deref().expect("validated by-hand module");
+                    let function = format!("{}::{stem}", self.maps.path(module));
+                    let reach = Reach {
+                        refuses: self.maps.refuses.contains_key(&function),
+                        context: self.maps.with_context.contains_key(&function),
+                    };
+                    self.hand_called.insert(function.clone());
+                    (function, reach)
                 } else {
-                    String::new()
+                    (stem, *self.generated.get(&(name, self.domain)).expect("earlier generated pair"))
                 };
-                let direction = if self.domain { "domain" } else { "record" };
-                format!("{prefix}{}_to_{direction}({input}, context)?", snake(name))
+                self.reach.include(reach);
+                let context = if reach.context { ", context" } else { "" };
+                let question = if reach.refuses { "?" } else { "" };
+                format!("{function}({input}{context}){question}")
             }
             Mode::Payload => unreachable!("payload-only map has no value"),
         }
     }
 
-    fn bindings<'a>(&self, record: &'a Record, mapping: &'a Mapping, overrides: &'a [Item]) -> Vec<Binding<'a>> {
+    fn bindings<'b>(&self, record: &'b Record, mapping: &'b Mapping, overrides: &'b [Item]) -> Vec<Binding<'b>> {
         record
             .fields
             .iter()
@@ -152,7 +201,7 @@ impl Emitter<'_> {
             .join(", ")
     }
 
-    fn fields(&self, record: &Record, bindings: &[Binding<'_>], to: &str) -> String {
+    fn fields(&mut self, record: &Record, bindings: &[Binding<'_>], to: &str) -> String {
         let fields: Vec<_> = bindings
             .iter()
             .map(|binding| {
@@ -169,7 +218,7 @@ impl Emitter<'_> {
         format!("{to} {{\n{}\n}}", fields.join(",\n"))
     }
 
-    fn variant(&self, variant: &Variant, mapping: &Mapping, domain: &str) -> String {
+    fn variant(&mut self, variant: &Variant, mapping: &Mapping, domain: &str) -> String {
         let settings = check::item(&mapping.items, &variant.name);
         let record_variant = pascal(&variant.name);
         let domain_variant = settings.and_then(|item| item.rename.as_deref()).unwrap_or(&record_variant);
@@ -177,7 +226,7 @@ impl Emitter<'_> {
         let domain = format!("{domain}::{domain_variant}");
         let (from, to) = if self.domain { (&record, &domain) } else { (&domain, &record) };
         let Some(payload) = &variant.record else {
-            return format!("{from} => Ok({to}),\n");
+            return format!("{from} => {to},\n");
         };
         let record_type = self.record_type(payload);
         let tuple = settings.is_some_and(|item| item.tuple);
@@ -187,7 +236,7 @@ impl Emitter<'_> {
             let box_output =
                 if self.domain { settings.is_some_and(|item| item.shape == Shape::Boxed) } else { variant.boxed };
             let value = if box_output { format!("Box::new({value})") } else { value };
-            return format!("{from}(held) => Ok({to}({value})),\n");
+            return format!("{from}(held) => {to}({value}),\n");
         }
         let payload_record = check::record(self.schema, payload);
         let payload_map = self.maps.mapping(payload).expect("validated payload");
@@ -197,27 +246,27 @@ impl Emitter<'_> {
         if self.domain {
             let input = if variant.boxed { "*held" } else { "held" };
             let value = self.fields(payload_record, &bindings, to);
-            format!("{from}(held) => {{\nlet {record_type} {{ {pattern} }} = {input};\nOk({value})\n}},\n")
+            format!("{from}(held) => {{\nlet {record_type} {{ {pattern} }} = {input};\n{value}\n}},\n")
         } else {
             let value = self.fields(payload_record, &bindings, &record_type);
             let value = if variant.boxed { format!("Box::new({value})") } else { value };
-            format!("{from} {{ {pattern} }} => Ok({to}({value})),\n")
+            format!("{from} {{ {pattern} }} => {to}({value}),\n")
         }
     }
 
-    fn enumeration(&self, enumeration: &Enumeration, mapping: &Mapping, domain: &str, input: &str) -> String {
+    fn enumeration(&mut self, enumeration: &Enumeration, mapping: &Mapping, domain: &str, input: &str) -> String {
         let variants: String =
             enumeration.variants.iter().map(|variant| self.variant(variant, mapping, domain)).collect();
         format!("match {input} {{\n{variants}}}")
     }
 
-    fn function(&self, declaration: &Declaration, mapping: &Mapping, domain: &str) -> String {
+    fn function(&mut self, declaration: &'a Declaration, mapping: &Mapping, domain: &str) -> String {
+        self.reach = Reach::default();
         let decl_name = name(declaration);
         let record = self.record_type(decl_name);
-        let direction = if self.domain { "domain" } else { "record" };
+        let direction = self.direction();
         let parameter = if self.domain { format!("record: {record}") } else { format!("value: &{domain}") };
         let result = if self.domain { domain } else { &record };
-        let problem = self.record_type("Problem");
         let input = if self.domain { "record" } else { "value" };
         let body = match declaration {
             Declaration::Record(record_decl) => {
@@ -225,11 +274,26 @@ impl Emitter<'_> {
                 let bindings = self.bindings(record_decl, mapping, &[]);
                 let pattern = Self::pattern(&bindings);
                 let value = self.fields(record_decl, &bindings, to);
-                format!("let {from} {{ {pattern} }} = {input};\nOk({value})")
+                let value = self.reach.result(value);
+                format!("let {from} {{ {pattern} }} = {input};\n{value}")
             }
-            Declaration::Enum(enumeration) => self.enumeration(enumeration, mapping, domain, input),
+            Declaration::Enum(enumeration) => {
+                let value = self.enumeration(enumeration, mapping, domain, input);
+                self.reach.result(value)
+            }
         };
-        let context = if body.contains(", context)") { "context" } else { "_context" };
+        self.generated.insert((decl_name, self.domain), self.reach);
+        let context = if self.reach.context {
+            let (_, ty) = self.maps.context.as_ref().expect("validated context type");
+            format!(", context: &{}", self.maps.path(ty))
+        } else {
+            String::new()
+        };
+        let result = if self.reach.refuses {
+            format!("Result<{result}, {}>", self.record_type("Problem"))
+        } else {
+            result.to_owned()
+        };
         // Clippy excludes the outer braces and blank or comment-only lines.
         // The emitted body has no block comments, only whole-line comments.
         let indented = indent(&body);
@@ -239,11 +303,10 @@ impl Emitter<'_> {
         } else {
             ""
         };
+        let must_use = if self.reach.refuses { "" } else { "#[must_use]\n" };
         format!(
-            "// Maps line {}: {decl_name}.\n{expectation}pub fn {}_to_{direction}({parameter}, {context}: &{}) -> Result<{result}, {problem}> {{\n{body}\n}}\n\n",
-            mapping.line,
-            snake(decl_name),
-            self.maps.path(&self.maps.context)
+            "{expectation}{must_use}pub fn {}_to_{direction}({parameter}{context}) -> {result} {{\n{body}\n}}\n\n",
+            snake(decl_name)
         )
     }
 }
@@ -265,8 +328,16 @@ fn plain(ty: &Type) -> bool {
     }
 }
 
-pub(super) fn generate(schema: &Schema, maps: &Maps) -> String {
-    let mut emitter = Emitter { schema, maps, domain: false };
+pub(super) fn generate(schema: &Schema, maps: &Maps) -> Result<String, Error> {
+    let mut emitter = Emitter {
+        schema,
+        maps,
+        domain: false,
+        reach: Reach::default(),
+        generated: BTreeMap::new(),
+        converters_called: BTreeSet::new(),
+        hand_called: BTreeSet::new(),
+    };
     let mut body = String::new();
     for declaration in &schema.declarations {
         if let Some(mapping) = maps.mapping(name(declaration))
@@ -279,12 +350,22 @@ pub(super) fn generate(schema: &Schema, maps: &Maps) -> String {
             body.push_str(&emitter.function(declaration, mapping, &domain));
         }
     }
+    for (path, line) in &maps.refuses {
+        if !emitter.converters_called.contains(path) && !emitter.hand_called.contains(path) {
+            return Err(error(schema, *line, format!("refuses names an uncalled function {path}")));
+        }
+    }
+    for (path, line) in &maps.with_context {
+        if !emitter.hand_called.contains(path) {
+            return Err(error(schema, *line, format!("with context names an uncalled by-hand function {path}")));
+        }
+    }
     let imports = if body.contains("Box::") { "use alloc::boxed::Box;\n\n" } else { "" };
     let output = format!(
         "// Generated by skein-codegen from {} {} and its maps. Do not edit.\n// Translation pairs (skein/docs/design/data/codec/maps.md, 4).\n\n{imports}{body}",
         schema.family, schema.version
     );
-    indent(&output)
+    Ok(indent(&output))
 }
 
 // Expressions have balanced braces; keep their nested steps readable without

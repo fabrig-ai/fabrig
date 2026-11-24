@@ -10,25 +10,25 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
-pub const SCHEMA: &str = include_str!("../schema/transcript-v7.schema");
+pub const SCHEMA: &str = include_str!("../schema/transcript-v8.schema");
 
 #[rustfmt::skip]
 mod generated {
-    /// Current bounded transcript codec, written from transcript-v7.schema.
-    pub mod v7 {
+    /// Current bounded transcript codec, written from transcript-v8.schema.
+    pub mod v8 {
         include!("generated/transcript.rs");
     }
 }
 
-pub use generated::v7;
+pub use generated::v8;
 
-pub use v7::{
+pub use v8::{
     Affinity, AfterFailedWrite, AllowedCalls, Ambiguous, Backend, Block, ByteClamp, BytesClamp, CEILINGS, Call,
     CallName, CallProblem, CommandEnd, CommandRunning, CutProblem, DurationClamp, EditFailed, Edited, Entry, Exit,
-    ExitCode, ExitSignal, Failed, Fault, FieldProblem, Found, Hit, Invalid, JobEnd, JobExit, JobRead, JobsFullProblem,
-    Kind, LineNumber, Listed, Message, Mismatch, Next, NotRun, NotRunWhy, Opaque, Opening, OtherPath, Outcome,
-    OutsideChoice, OutsidePath, OversizeProblem, OwnedOutcome, Problem, Program, Read, ReadCut, Record, Replay,
-    Resolved, ResolvedFailure, Returned, Role, Said, SizePart, Text, TimeoutClamp, TooLarge, ToolResult, Turn,
+    ExitCode, ExitSignal, Failed, Fault, FieldProblem, Found, Hit, Interrupted, Invalid, JobEnd, JobExit, JobRead,
+    JobsFullProblem, Kind, LineNumber, Listed, Message, Mismatch, Next, NotRun, NotRunWhy, Opaque, Opening, OtherPath,
+    Outcome, OutsideChoice, OutsidePath, OversizeProblem, OwnedOutcome, Problem, Program, Read, ReadCut, Record,
+    Replay, Resolved, ResolvedFailure, Returned, Role, Said, SizePart, Text, TimeoutClamp, TooLarge, ToolResult, Turn,
     TurnKind, UnknownJobProblem, Usage, WorkingPath, Written, paths,
 };
 
@@ -58,7 +58,7 @@ pub mod patches;
 
 /// Decode an archived version-6 or current turn; version 6 has no supplied system context.
 /// Resuming readers use the current codec directly.
-pub fn decode_archived(limits: &v7::Limits, bytes: &[u8]) -> Result<Turn, Problem> {
+pub fn decode_archived(limits: &v8::Limits, bytes: &[u8]) -> Result<Turn, Problem> {
     if bytes.get(..2) != Some(&[0, 6][..]) {
         return Turn::decode(limits, &mut skein_lib::Reader::new(bytes));
     }
@@ -76,7 +76,7 @@ pub mod wire {
     pub const FAMILY: &str = "smith-transcript";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = crate::v7::VERSION;
+    pub const VERSION: u16 = crate::v8::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_transcript::FLOOR;
@@ -103,7 +103,7 @@ pub mod wire {
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
             assert_eq!(FLOOR, crate::patches::kept::smith_transcript::FLOOR);
-            assert_eq!(FLOOR, VERSION);
+            assert_eq!(FLOOR, 7);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("input: option u64", "input: option u32", 1);

@@ -276,6 +276,24 @@ pub struct CallRecord {
     pub settled: Option<crate::SettledCall>,
 }
 
+/// A kept part of a turn in flight (domain/engine/executors-transcripts.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct PartKey {
+    pub task: u64,
+    pub attempt: u64,
+    pub number: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct PartRecord {
+    pub key: PartKey,
+    pub turn: u32,
+    pub thread: u32,
+    pub call: u32,
+    pub kind: jig_domain_link::PartKind,
+    pub body: Box<[u8]>,
+}
+
 /// Core-owned durable rows before the application's store wrapper assigns
 /// its own child-family variant (domain/engine/decisions.md, 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -288,6 +306,8 @@ pub enum CoreRecord {
     Deployment(Deployment),
     /// One live named call's core answer.
     Call(CallRecord),
+    /// A part kept until a turn or the task's end retires it.
+    Part(PartRecord),
     /// Current claim evidence.
     RunProof(RunProof),
     /// One immutable transcript turn.
@@ -309,6 +329,7 @@ impl CoreRecord {
             Self::Deployment(_) => CoreKey::Deployment,
             Self::Projection(row) => CoreKey::Projection(row.key()),
             Self::Call(row) => CoreKey::Call(row.key),
+            Self::Part(row) => CoreKey::Part(row.key),
             Self::RunProof(row) => CoreKey::RunProof(row.task),
             Self::Turn(row) => CoreKey::Turn { task: row.task, attempt: row.attempt, turn: row.turn },
             Self::Terminal(row) => CoreKey::Terminal { task: row.task, attempt: row.attempt },
@@ -339,6 +360,8 @@ pub enum CoreKey {
     EscalationDecision { task: u64, revision: u64 },
     /// The settings live family and its on-demand history.
     Settings(crate::settings::Key),
+    /// A kept part of a turn in flight.
+    Part(PartKey),
 }
 
 impl CoreKey {
@@ -346,7 +369,7 @@ impl CoreKey {
     #[must_use]
     pub const fn live(&self) -> bool {
         match self {
-            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) => true,
+            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) | Self::Part(_) => true,
             Self::Settings(_)
             | Self::Deployment
             | Self::Turn { .. }
@@ -516,6 +539,8 @@ pub struct RunProof {
     pub terminal: Option<TerminalRecord>,
     /// Setting number of the worker selected at preparation, none on an engine host.
     pub worker: Option<u32>,
+    /// Highest part acknowledged for this attempt, including parts a turn retired.
+    pub kept_part: u32,
 }
 
 /// Durable current-window position (protocol/store/transcripts.md 6).
@@ -592,6 +617,7 @@ impl RunProof {
             turn: None,
             terminal: None,
             worker: None,
+            kept_part: 0,
         }
     }
 }

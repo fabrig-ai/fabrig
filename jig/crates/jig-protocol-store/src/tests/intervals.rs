@@ -15,7 +15,7 @@ fn key_bytes(key: &Key) -> Box<[u8]> {
 
 // Generated samples and explicit late-interval keys.
 const SAMPLES: u32 = 500;
-const BOUNDARY_KEYS: u32 = 18;
+const BOUNDARY_KEYS: u32 = 19;
 // A census and the combined core/tasks request, beside LIVE's single ranges.
 const EXTRA_REQUESTS: u32 = 2;
 fn samples() -> core::ops::Range<u32> {
@@ -54,6 +54,7 @@ fn cursor_keys() -> Box<[Key]> {
         Key::Core(CoreKey::Settings(SettingKey::Changed(Setting::ProjectPolicy { project: 1 }))),
         Key::Core(CoreKey::Settings(SettingKey::Default(Setting::Model(1)))),
         Key::Core(CoreKey::Settings(SettingKey::Changed(Setting::Model(1)))),
+        Key::Core(CoreKey::Part(jig_domain_core_vocabulary::PartKey { task: TASK, attempt: 1, number: 1 })),
         Key::Accounts(jig_domain_accounts::Key::Facts { account: 0 }),
         Key::Accounts(jig_domain_accounts::Key::Facts { account: 7 }),
         Key::Accounts(jig_domain_accounts::Key::Facts { account: u32::MAX }),

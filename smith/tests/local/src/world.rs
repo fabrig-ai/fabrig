@@ -430,6 +430,7 @@ impl World {
             );
             let root = if restored { 1 } else { disk.root(b"work") };
             let first = run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: checkout_io::token(root),
@@ -449,6 +450,7 @@ impl World {
                 Box::new([
                     first,
                     run::Directory {
+                        results: None,
                         host: Box::from(b"/host".as_slice()),
                         name: b"work2".as_slice().into(),
                         root: checkout_io::token(second_root),
@@ -1419,6 +1421,10 @@ impl World {
     )]
     fn agent_request(&mut self, request: Lower) {
         match request {
+            Lower::Classify { owner, content, tools, served, asker, .. } => {
+                let completion = translate::classify(content, tools, &served, asker);
+                self.events.push_back(self.below(Below::Classified { owner, completion }));
+            }
             Lower::Complete { owner, prompt, .. } => {
                 self.observe(Seen::Complete { owner });
                 self.completions += 1;
@@ -1570,7 +1576,7 @@ impl World {
                     self.disk.load(at.root.raw(), &at.path, 4096).is_ok_and(|(text, _)| text.starts_with(b"#!"));
                 self.events.push_back(self.below(Below::Probed { owner, executable }));
             }
-            Lower::Check { owner, program, bound: _, cap: _, tail } => {
+            Lower::Check { owner, program, results: _, bound: _, cap: _, tail } => {
                 let passed = self
                     .disk
                     .load(program.root.raw(), b"src/lib.rs", 4096)

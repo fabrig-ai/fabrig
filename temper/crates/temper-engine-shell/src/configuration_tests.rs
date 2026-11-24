@@ -104,6 +104,7 @@ fn toml_engine_forge_prepare_reads_the_document() {
     let relative = |path: &Path| path.strip_prefix(fixture).unwrap().as_os_str().as_bytes().to_vec();
     let inputs = Inputs {
         reader: crate::setup::check,
+        listener_at: |_| panic!("prepare needs no listener"),
         setup: &|_, number, verb, _| {
             assert_eq!((number, verb), (7, "prepare"));
             setup_file::chosen(BoxKind::Fake, 3007, b"sam", false, &jig).map_err(|why| format!("{why:?}"))
@@ -149,6 +150,69 @@ fn toml_engine_forge_prepare_reads_the_document() {
     let prepared = machine.open(root, b"playground-7/admin_token", How::PathNoFollow).unwrap();
     assert_eq!(machine.stat(prepared).is, Is::File);
     machine.close(prepared);
+}
+
+#[test]
+fn forge_prepare_and_run_refuse_moved_limits_before_preparing() {
+    use crate::forge::{Inputs, Preparation, report_exit, start_with_preparation};
+    use std::{cell::Cell, path::Path};
+    use temper_config_shell::Shape;
+    use temper_forge_setup::setup_file;
+
+    let directories = crate::test_configuration::directories(Path::new("/fixture"));
+    let jig = temper_service_shell::jig_directories(&directories);
+    let owned = setup_file::decode(
+        br#"{"version":1,"kind":"owned","listen":{"socket":"127.0.0.1:3000"},
+          "remote":"http://127.0.0.1:3000","forgejo":"/opt/forgejo","runner":null,
+          "person":{"login":"ada","email":"ada@example.invalid"}}"#,
+        &jig,
+    )
+    .expect("owned setup without a runner");
+    let preparation = Preparation {
+        directory: &|_, _| panic!("configuration refusal must precede directory preparation and launch"),
+        fake: &|_| panic!("configuration refusal must precede token preparation"),
+    };
+    for words in [&["prepare", "1"][..], &["run", "1", "forgejo"][..], &["run", "1", "runner"][..]] {
+        let arguments: Vec<_> = words.iter().map(std::ffi::OsString::from).collect();
+        let setup_read = Cell::new(false);
+        let inputs = Inputs {
+            reader: |_, _| panic!("no deployment document from a refused configuration"),
+            listener_at: |_| panic!("LISTEN_FDS is absent"),
+            setup: &|given, number, verb, flags| {
+                assert_eq!(given.config, directories.config);
+                assert_eq!((number, verb, flags), (1, words[0], &[][..]));
+                assert!(!setup_read.replace(true), "the forge setup is read once");
+                Ok(owned.clone())
+            },
+            configuration: &|given, shape| {
+                assert!(setup_read.get(), "the forge setup is read before the configuration");
+                assert_eq!(given.config, directories.config);
+                assert_eq!(shape, Shape::Standalone);
+                read_scripted(b"limits = {}\n", shape)
+            },
+            sign_in: &|_, _, _, _, _| panic!("prepare and run do not sign in"),
+        };
+        let result = start_with_preparation(
+            "temper-box",
+            Shape::Standalone,
+            &directories,
+            &arguments,
+            None,
+            &[],
+            (&inputs, &preparation),
+        );
+        let mut stderr = String::new();
+        let code = report_exit("temper-box", &arguments, result, |_| panic!("no stdout"), |line| stderr = line);
+        assert_eq!(code, 1, "{words:?}");
+        assert_eq!(
+            stderr,
+            format!(
+                "temper-box forge {}: forge 1: {FILE}:1: limits: moved: limits are settings; ask temper, or use temper ctl settings apply\n",
+                words[0]
+            ),
+            "{words:?}"
+        );
+    }
 }
 
 #[test]

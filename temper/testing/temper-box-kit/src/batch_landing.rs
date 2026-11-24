@@ -40,7 +40,8 @@ fn scripts(root: &Path, forge: &Throwaway) -> Box<[Script]> {
     scripted_batch(landing_scripts(super::ANSWER, forge).into_vec(), stock.rules.maximum_run_spend)
 }
 
-fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
+#[must_use]
+pub fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
     // Three changes and their latch fit the chat's stock 24-run budget.
     let mut owner = shared.remove(0);
     let Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
@@ -171,25 +172,18 @@ exit "$status"
 /// producer and funding setup. The batch stories also hold concurrent model turns.
 #[expect(clippy::must_use_candidate, reason = "subprocess worlds use the files; in-process checks retain the figures")]
 pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::Configuration {
-    let mut value = turn_restart::configure_batch(root, repository, 3);
-    super::limit_settings::local_places(root, 8);
-    turn_restart::selected_gate(root);
-    value["workers"][0]["slots"] = 8.into();
-    value.derive_places();
-    // Three readiness gathers run beside repository polls and the held latch.
-    value.temper_over("forge.client.pending", 16);
-    value.temper_over("forge.client.calls", 8);
-    value.temper_over("forge_component.connections", 8);
-    message_room(root, &mut value);
-    turn_restart::staging_limits(&mut value);
-    super::limit_settings::remember(root, &value);
-    value
+    turn_restart::configure_at(root, repository, turn_restart::Profile::NarrowedBatch)
 }
 
 /// Hold the prepare job and the batch call under the standard engine profile.
-pub fn message_room(root: &Path, value: &mut temper_playground::documents::Configuration) {
+/// The caller applies the prospective agent's bounds after preparing it with the returned setting.
+#[must_use]
+pub fn compose_message_room(
+    value: &mut temper_playground::documents::Configuration,
+    mut agent: Value,
+    providers: &[jig_protocol_config::ProviderSetting],
+) -> temper_agent_fixtures::Setting {
     // The one model call carries three independent change authorities and a latch.
-    let mut agent = temper_agent_fixtures::read(root);
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
         endpoint["limits"]["output"] = 48_000.into();
@@ -233,8 +227,7 @@ pub fn message_room(root: &Path, value: &mut temper_playground::documents::Confi
     }
     value.temper_over("root.loads.read_bytes", 16_777_216);
     value.temper_over("root.journal.transcript_bytes", 8_388_608);
-    temper_agent_fixtures::apply(value, root, &agent);
-    value.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
+    temper_agent_fixtures::compose_setting(value, &agent, providers)
 }
 
 fn get(forge: &Throwaway, route: &str) -> Value {
@@ -287,58 +280,6 @@ pub mod tests {
             Ok(true)
         );
         assert!(super::narrowed::gate_status(&json!({"statuses":"malformed"}), "failure").is_err());
-    }
-
-    pub fn the_scripted_batch_fits_its_budget_and_call() {
-        let scratch = super::super::Scratch::new("batch-admission");
-        let api = "127.0.0.1:3000".parse().expect("fixture forge");
-        let forge = super::super::Forge::Throwaway {
-            forgejo: std::path::Path::new("/fixture/forgejo"),
-            api,
-            git: format!("http://{api}/"),
-        };
-        super::super::configuration(scratch.path(), &forge);
-        super::configure(scratch.path(), 1);
-        let value = super::super::limit_settings::configuration(scratch.path());
-        let engine = temper_real_loop_world::settings::configuration(&value);
-        let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-        let scripts = super::scripted_batch(
-            super::super::forgejo::native_scripts(b"hello", api, 1, b"README").into_vec(),
-            stock.rules.maximum_run_spend,
-        );
-        let owner = scripts.iter().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
-        let super::Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
-        let delegate: serde_json::Value = serde_json::from_slice(arguments).expect("delegate JSON");
-        let tracked =
-            delegate["batch"].as_array().expect("batch").iter().filter(|task| !task["tracked"].is_null()).count();
-        assert!(
-            u32::try_from(tracked).expect("tracked changes") <= engine.limits.core.tasks.project_goals,
-            "the independent changes fit the project's goal limit"
-        );
-        let result_credits = u32::try_from(delegate["batch"].as_array().expect("batch").len())
-            .expect("batch members")
-            .checked_mul(engine.limits.core.tasks.result_bytes)
-            .expect("batch result credits");
-        assert!(result_credits <= engine.limits.core.tasks.inbox_bytes, "the batch's result credits fit its inbox");
-        let spend: u64 = delegate["batch"]
-            .as_array()
-            .expect("batch")
-            .iter()
-            .map(|change| change["authority"]["budget"]["spend"].as_u64().expect("spend"))
-            .sum();
-        let policy = &stock.policies.get(&1).expect("stock policy").policy;
-        let owner = policy.roles.iter().find(|role| role.number == 0).expect("owner role");
-        assert!(
-            spend + stock.rules.maximum_run_spend <= owner.authority.budget.spend,
-            "the chat funds every delegate and retains one run for itself"
-        );
-        let agent = temper_agent_fixtures::read(scratch.path());
-        assert!(
-            u64::try_from(arguments.len()).expect("call length")
-                <= agent["profile"]["declared"]["tool_payload"].as_u64().expect("payload"),
-            "one admitted model call carries the whole batch"
-        );
-        scratch.remove();
     }
 }
 

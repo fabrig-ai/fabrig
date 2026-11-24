@@ -51,6 +51,7 @@ fn next(store: &mut Store, below: &mut Below) -> Result<bool, ()> {
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::Projection(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Turn(_)
             | CoreRecord::Terminal(_)

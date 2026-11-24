@@ -28,6 +28,7 @@ impl Referee {
             }
             Event::Agent(
                 FromAgent::Decoded { .. }
+                | FromAgent::Part { .. }
                 | FromAgent::Turn { .. }
                 | FromAgent::Called { .. }
                 | FromAgent::Withdrawn { .. }
@@ -96,6 +97,7 @@ impl Referee {
             | Request::Agent(
                 ToAgent::Answer { .. }
                 | ToAgent::Start { .. }
+                | ToAgent::AcknowledgePart { .. }
                 | ToAgent::Acknowledge { .. }
                 | ToAgent::Drain { .. }
                 | ToAgent::Cancel { .. }

@@ -42,7 +42,8 @@ pub fn turn(request: smith::Request, transcript: Box<[u8]>) -> Result<host::Turn
             read,
             body: transcript,
         }),
-        smith::Request::Waiting { .. }
+        smith::Request::Part { .. }
+        | smith::Request::Waiting { .. }
         | smith::Request::HostCall { .. }
         | smith::Request::WithdrawHost { .. }
         | smith::Request::Admitted { .. }

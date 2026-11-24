@@ -115,6 +115,7 @@ pub(crate) fn ended(
     for key in core.retire_calls(task, u64::MAX, u32::MAX, env.limits.call_records) {
         out.push(Request::Write(Write::Erase(Key::Core(CoreKey::Call(key)))));
     }
+    core.retire_parts(task, None, out);
     drop(core.proofs.remove(&task));
     out.push(Request::Write(Write::Erase(Key::Core(CoreKey::RunProof(task)))));
     match requester {

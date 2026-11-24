@@ -215,7 +215,7 @@ fn an_answer_about_admitted_turns_passes_a_held_assignment() {
     let mut stand = fixtures::started_worker();
     let settings = fixtures::worker_agent();
     let mut agent = AgentPeer::assigned(&mut stand.worker, &settings);
-    let body = cancellation_turn(&settings);
+    let body = cancellation_turn();
     let turn = smith_protocol_channel::decode_turn(&body, SENT_TURNS, &settings.limits.transcript, &settings.endpoints)
         .unwrap();
     agent
@@ -374,7 +374,7 @@ fn a_full_held_entrance_lets_a_passing_answer_pass() {
     let mut stand = fixtures::started_worker();
     let settings = fixtures::worker_agent();
     let mut agent = AgentPeer::assigned(&mut stand.worker, &settings);
-    let body = cancellation_turn(&settings);
+    let body = cancellation_turn();
     let turn = smith_protocol_channel::decode_turn(&body, SENT_TURNS, &settings.limits.transcript, &settings.endpoints)
         .unwrap();
     agent

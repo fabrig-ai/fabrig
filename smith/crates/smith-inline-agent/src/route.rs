@@ -28,6 +28,7 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                     out.push(Output::Parent(parent::Request::MessageRefused { client, name, reason }));
                 }
             }
+            smith::Request::Part { .. } => unreachable!("inline starts ask for no parts"),
             smith::Request::Turn { host_run, number, spent, read, turn, opens_window, position: _ } => {
                 assert_eq!(slot.logical_run, host_run, "root output preserves its scoped identity and single right");
                 slot.inbox.fence(read);
@@ -58,6 +59,9 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                     out.push(Output::Parent(parent::Request::Unread { client, names }));
                 }
                 stop::finish(agent, env.now, id, out);
+            }
+            smith::Request::Lower(request @ Lower::Classify { .. }) => {
+                out.push(Output::Lower { agent: id.token(), request });
             }
             smith::Request::Lower(request @ Lower::Complete { owner, .. }) => {
                 assert!(
@@ -192,8 +196,8 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
             smith::Request::Lower(Lower::Probe { owner, at, deadline }) => {
                 crate::workspace::probe(slot, id.token(), owner, at, deadline, out);
             }
-            smith::Request::Lower(Lower::Check { owner, program, bound, cap, tail }) => {
-                crate::workspace::check(slot, id.token(), owner, program, bound, cap, tail, out);
+            smith::Request::Lower(Lower::Check { owner, program, results, bound, cap, tail }) => {
+                crate::workspace::check(slot, id.token(), owner, program, results, bound, cap, tail, out);
             }
             smith::Request::Lower(Lower::Abort { owner }) => crate::workspace::abort(slot, id.token(), owner, out),
         }

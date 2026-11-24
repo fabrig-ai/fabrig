@@ -1088,6 +1088,7 @@ impl World {
             Delivery::Providers(..)
             | Delivery::WorkerFigures { .. }
             | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::PartBusy { .. } => unreachable!("this caller sends no parts"),
             Delivery::TurnBusy { turn, .. } => self.turn(turn),
             Delivery::Result { person, task, words } => {
                 if let Err(why) = self.referee.result(&self.store.rows, person, task, &words) {

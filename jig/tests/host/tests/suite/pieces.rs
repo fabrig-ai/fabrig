@@ -36,7 +36,8 @@ fn pieces(world: &World) -> Vec<(Token, Token, Piece)> {
             | LinkUp::Usage { .. }
             | LinkUp::Limited { .. }
             | LinkUp::AccountRefused { .. }
-            | LinkUp::Turn { .. }
+            | LinkUp::Part { .. }
+             | LinkUp::Turn { .. }
             | LinkUp::Call { .. }
             | LinkUp::JobAnswer { .. }
             | LinkUp::Ask { .. }

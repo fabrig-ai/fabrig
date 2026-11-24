@@ -11,7 +11,7 @@ fn the_largest_turn_kept_body_is_twenty_bytes() {
 
 #[test]
 fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
-    // Assignment342, message65, relayed58, kept20, ack16, cancel16, grants2*73;
+    // Assignment362, message65, relayed58, kept20, ack16, cancel16, grants2*73;
     // eight frame headers add64:350+73+66+28+24+24+162=727.
     // Sources84 + two checks44 + two sign-outs44 add260 and five frames.
     // One read list (read8 + endpoint4 + grant57 + header8) adds77 and one frame.
@@ -19,7 +19,8 @@ fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
     // Figures adds its fixed schema bound 10,062,736 + header8 and one frame.
     // Two application answers: 2 * (24 + tag1 + length4 + bytes16 + header8) =106.
     // ReadUsage (read8 + source36 + header8) adds52 and one frame.
-    assert_eq!(engine_cap(&SIZES_ONE_SLOT), Some(Cap { bytes: 10_064_586, frames: 19 }));
+    // A part acknowledgement adds28 and one frame.
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT, u32::MAX), Some(Cap { bytes: 10_064_634, frames: 20 }));
 }
 
 #[test]
@@ -55,9 +56,9 @@ fn the_largest_turn_body_matches_a_measured_fullest_turn() {
 fn the_largest_assignment_body_matches_a_measured_fullest_assignment() {
     let assignment = fixtures::fullest_assignment();
     // Fixed32 + workspace29 + save1 + live3 + charter20 + transcript20 + calls66
-    // + messages53 + grants118 =342 (two full program names).
-    assert_eq!(assignment.measure(&crate::CEILINGS).expect("record within limits"), 342);
-    assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(342));
+    // + messages53 + grants118 + parts20 =362 (two full program names).
+    assert_eq!(assignment.measure(&crate::CEILINGS).expect("record within limits"), 362);
+    assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(362));
 }
 
 #[test]
@@ -121,7 +122,7 @@ fn a_refused_accounts_code_and_reason_take_the_details_bound_within_their_ceilin
 #[test]
 fn a_cap_past_a_u32_is_none() {
     assert!(limits(&SIZES_LARGE).is_some());
-    assert_eq!(engine_cap(&SIZES_LARGE), None);
+    assert_eq!(engine_cap(&SIZES_LARGE, u32::MAX), None);
     assert_eq!(worker_cap(&SIZES_LARGE), None);
 }
 
@@ -166,9 +167,20 @@ fn application_asks_and_answers_have_their_own_limits_and_output_room() {
         worker_cap(&sizes).expect("cap").cap.bytes.checked_add(2).expect("small cap")
     );
     assert_eq!(
-        engine_cap(&larger).expect("cap").bytes,
-        engine_cap(&sizes).expect("cap").bytes.checked_add(2).expect("small cap")
+        engine_cap(&larger, u32::MAX).expect("cap").bytes,
+        engine_cap(&sizes, u32::MAX).expect("cap").bytes.checked_add(2).expect("small cap")
     );
     assert!(crate::sizes::limits(&Sizes { application_ask: 1_048_577, ..sizes }).is_none());
     assert!(crate::sizes::limits(&Sizes { application_answer: 1_048_577, ..sizes }).is_none());
+}
+
+#[test]
+fn the_engine_cap_prices_fitted_assignments_and_part_notices_without_shrinking_terms() {
+    // The complete assignment frame is 370 bytes; 70 bytes go at a 300-byte room.
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT, 300), Some(Cap { bytes: 10_064_564, frames: 20 }));
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT, 400), Some(Cap { bytes: 10_064_634, frames: 20 }));
+    assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(362));
+    let large_window = Sizes { transcript: 64 * 1024 * 1024, ..SIZES_ONE_SLOT };
+    let declared = largest_body(&large_window, Kind::Assignment).unwrap() + 8;
+    assert_eq!(engine_cap(&large_window, 300).unwrap().bytes, declared, "the channel admits its declared frame");
 }

@@ -24,6 +24,7 @@ pub mod faults;
 pub mod jobs;
 pub mod merge;
 pub mod orders;
+pub mod parts;
 pub mod pause;
 pub mod prepare;
 pub mod restarts;
@@ -61,6 +62,7 @@ pub struct Report {
     pub drops: u32,
     pub io_cuts: u32,
     pub saves: u32,
+    pub kept: Vec<temper_worker_domain::checkout::git::Kept>,
     pub stop_bound: Duration,
     pub pauses: Vec<jig_domain_link::PauseState>,
 }
@@ -101,6 +103,10 @@ struct World {
     shutdown_notices: u32,
     busy: Vec<(Token, Token)>,
     report: Report,
+    opening: Option<Box<agent::Start>>,
+    parts: Vec<jig_domain_link::Part>,
+    part_acks: Vec<u32>,
+    turns: Vec<host::Turn>,
 }
 
 impl World {
@@ -153,6 +159,10 @@ impl World {
             root_pauses: Vec::new(),
             shutdown_notices: 0,
             busy: Vec::new(),
+            opening: None,
+            parts: Vec::new(),
+            part_acks: Vec::new(),
+            turns: Vec::new(),
             report: Report {
                 tree: Tree::new(),
                 trace: Vec::new(),
@@ -162,6 +172,7 @@ impl World {
                 drops: 0,
                 io_cuts: 0,
                 saves: 0,
+                kept: Vec::new(),
                 stop_bound: Duration::ZERO,
                 pauses: Vec::new(),
             },
@@ -300,6 +311,7 @@ impl World {
                 } else {
                     assert_eq!(turn.turn, 1);
                 }
+                self.turns.push(turn);
             }
             host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (self.run, self.attempt)),
             host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
@@ -318,6 +330,10 @@ impl World {
                     number,
                     answer: host::AskAnswer::Refused,
                 }));
+            }
+            host::LinkUp::Part { run, attempt, part } => {
+                assert_eq!((run, attempt), (self.run, self.attempt));
+                self.parts.push(part);
             }
             host::LinkUp::UsageRead { .. }
             | host::LinkUp::ListRead { .. }
@@ -356,6 +372,9 @@ impl World {
                 }),
                 "the note precedes every fetch and check out"
             );
+        }
+        if let Op::Keep { mark: Some(mark), .. } = &op {
+            self.report.kept.push(mark.clone());
         }
         if let Op::Make { workspace, .. } = &op {
             self.workspace = Some(*workspace);
@@ -428,6 +447,8 @@ impl World {
                 assert_eq!(start.directories.len(), 1);
                 assert_eq!(start.directories[0].name.as_ref(), b"app");
                 assert_eq!(start.workspace, Some(start.directories[0].root));
+                self.workspace = start.workspace;
+                self.opening = Some(Box::new(start));
             }
             agent::Down::Answer { call, reply } => {
                 assert_eq!(call, CALL);
@@ -462,7 +483,14 @@ impl World {
                 self.deliveries += 1;
             }
             agent::Down::Cancel => self.report.cancellations += 1,
-            agent::Down::Drain => self.report.drains += 1,
+            agent::Down::Drain { grace } => {
+                assert_eq!(
+                    grace,
+                    self.opening.as_ref().expect("started").tell_parts.then_some(self.env.limits.drain_grace)
+                );
+                self.report.drains += 1;
+            }
+            agent::Down::PartKept { number } => self.part_acks.push(number),
             agent::Down::Renewals { .. } => {}
             agent::Down::Acknowledge { turn } => {
                 assert!(
@@ -507,11 +535,23 @@ impl World {
     }
 
     fn assign_with(&mut self, start: wire::Start, save: bool) -> Result<(), String> {
+        self.assign_parts(start, save, false, Box::new([]))
+    }
+
+    fn assign_parts(
+        &mut self,
+        start: wire::Start,
+        save: bool,
+        tell_parts: bool,
+        parts: Box<[jig_domain_link::KeptPart]>,
+    ) -> Result<(), String> {
         let Event::Assign { mut assignment, items } = assignment(self.first, self.run, self.run.raw(), start) else {
             panic!("workspace assignment")
         };
         assignment.assignment.attempt = self.attempt;
         assignment.assignment.save = save;
+        assignment.tell_parts = tell_parts;
+        assignment.parts = parts;
         self.event(Event::Assign { assignment, items })?;
         Ok(())
     }
@@ -667,12 +707,17 @@ impl World {
 
     fn run(mut self, case: Case) -> Result<Report, String> {
         self.start()?;
-        self.story(case)?;
-        self.completed(case)?;
+        self.play_and_complete(case)?;
         Ok(self.report)
     }
 
-    fn completed(&mut self, case: Case) -> Result<(), String> {
+    fn play_and_complete(&mut self, case: Case) -> Result<(), String> {
+        let kept_before = self.report.kept.len();
+        self.story(case)?;
+        self.completed(case, kept_before)
+    }
+
+    fn completed(&mut self, case: Case, kept_before: usize) -> Result<(), String> {
         assert_eq!(self.domain.agent().agents(), 0);
         assert_eq!(self.domain.workspaces(), 0);
         let (answer, work, preparation) = self.answer.take().expect("a terminal answer");
@@ -712,6 +757,15 @@ impl World {
                 panic!("one saved head");
             };
             assert_eq!(*saved, translate::commit(commit).raw());
+            let new_marks = &self.report.kept[kept_before..];
+            if matches!(case, Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired) {
+                let [mark] = new_marks else {
+                    panic!("cut run keeps one workspace");
+                };
+                assert_eq!(mark.repositories[0].commit.raw(), *saved);
+            } else {
+                assert!(new_marks.is_empty(), "contact loss must not keep a workspace for this attempt");
+            }
         } else {
             assert_eq!(
                 work.landed.as_ref(),
@@ -892,6 +946,8 @@ fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Ev
         },
     };
     let assignment = host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         messages: Box::new([]),
         turns: Box::new([]),
         answered: Box::new([]),

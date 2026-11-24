@@ -102,7 +102,7 @@ impl Component {
                 }
             };
             if sign_in == 0 {
-                self.respond(name, routes::unauthenticated(route, &env.limits.wire));
+                self.respond(name, routes::unauthenticated(route));
             } else {
                 match route {
                     routes::Route::Read => self.read(env, name, sign_in, expires, &body, out),

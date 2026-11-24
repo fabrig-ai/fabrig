@@ -17,6 +17,7 @@ fn registered_value_type_numbers_are_pinned() {
                 (5, "Row", Some("terminal"), &[1, 0, 5]),
                 (6, "Row", Some("proposal_decision"), &[1, 0, 6]),
                 (7, "Row", Some("escalation_decision"), &[1, 0, 7]),
+                (8, "Row", Some("part"), &[1, 0, 10]),
             ],
         ),
         (

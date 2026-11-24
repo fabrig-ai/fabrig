@@ -48,6 +48,8 @@ pub(crate) struct JobRead {
     deadline: Time,
     stop: bool,
     hastened: bool,
+    started: Option<Time>,
+    interrupted: Option<skein_lib::Duration>,
 }
 
 impl Jobs {
@@ -86,6 +88,16 @@ impl Jobs {
         number
     }
 
+    pub(crate) fn cut(&mut self, now: Time) {
+        for index in 0..self.reads.len() {
+            let key = *self.reads.iter().nth(usize::try_from(index).expect("bounded read")).expect("retained read").0;
+            let read = self.reads.get_mut(&key).expect("retained read");
+            if let Some(started) = read.started {
+                read.interrupted = Some(now.saturating_since(started));
+            }
+        }
+    }
+
     pub(crate) fn close(
         &mut self,
         session: Token,
@@ -116,7 +128,7 @@ impl Jobs {
 }
 
 /// Enqueue a read; another read of this number must consume its answer first.
-pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: JobRead, out: &mut Queue<Request>) {
+pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, mut read: JobRead, out: &mut Queue<Request>) {
     let kit = domain.kits.get_mut(id).expect("the session owns its kit");
     let job = read.job;
     let problem = if kit.jobs.held.contains_key(&job.0) { None } else { Some(JobProblem::Unknown { job }) };
@@ -154,6 +166,7 @@ pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: Jo
     }
     kit.jobs.next_read = kit.jobs.next_read.checked_add(1).expect("bounded activation calls fit u64");
     let key = kit.jobs.next_read;
+    read.started = Some(env.now);
     kit.jobs.reads.insert(key, read).expect("the common call admission reserves a read cell");
     advance(&mut kit.jobs, job, env.now, &env.limits, out);
 }
@@ -167,7 +180,18 @@ pub(crate) fn read(
     deadline: Time,
     stop: bool,
 ) -> JobRead {
-    JobRead { job, reply_to, observation, timed, kept, deadline, stop, hastened: false }
+    JobRead {
+        job,
+        reply_to,
+        observation,
+        timed,
+        kept,
+        deadline,
+        stop,
+        hastened: false,
+        started: None,
+        interrupted: None,
+    }
 }
 
 /// The session names a pending reply; a queued read keeps its shortened wait.
@@ -237,6 +261,7 @@ pub(crate) fn done(
         | Done::Stored { .. }
         | Done::Conflict { .. }
         | Done::Exited { .. }
+        | Done::CommandCancelled { .. }
         | Done::Held { .. }
         | Done::Found { .. }
         | Done::Missing
@@ -249,6 +274,7 @@ pub(crate) fn done(
         | Done::TimedOut
         | Done::Cancelled => unreachable!("a held command answers a job act"),
     };
+    let session = kit::session(kit);
     let job = kit.jobs.held.get_mut(&number.0).expect("the original owner has its job cell");
     let ended = match end {
         JobEnd::Running => false,
@@ -264,6 +290,16 @@ pub(crate) fn done(
     }
     if let Some(reader) = job.reader.take() {
         let read = kit.jobs.reads.remove(&reader).expect("an active read owns its reply right");
+        if read.interrupted.is_some() {
+            domain.facts.push(FactKind::JobEnded {
+                session,
+                job: number,
+                owner: job.call,
+                end,
+                unread_bytes: 0,
+                started: job.started,
+            });
+        }
         answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
     } else {
         assert!(ended, "only cancellation answers an unpolled job");
@@ -414,14 +450,13 @@ fn answer(
             .expect("bounded capture"),
         )
         .expect("bounded total");
-    let outcome = Outcome::Job {
-        job: read.job,
-        head: leading.into_boxed(),
-        tail: trailing.into_boxed(),
-        dropped,
-        end,
-        wait: read.timed.clamp,
-        output: read.kept.clamp,
+    let head = leading.into_boxed();
+    let tail = trailing.into_boxed();
+    let outcome = match read.interrupted {
+        Some(ran) => Outcome::Interrupted { ran: Some(ran), head, last: tail, dropped },
+        None => {
+            Outcome::Job { job: read.job, head, tail, dropped, end, wait: read.timed.clamp, output: read.kept.clamp }
+        }
     };
     facts.push_call(
         facts::answered(session, crate::Tool::Job, &outcome, facts::Observation { omitted_bytes: 0, clamped: false }),

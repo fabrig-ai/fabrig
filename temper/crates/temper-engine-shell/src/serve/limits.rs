@@ -220,15 +220,21 @@ fn resolved(
     let state = match store.resolve_settings(inputs, over) {
         Ok(state) => state,
         Err(why) => {
-            let why = text(&why);
             closed(store, io);
-            return Err(held.map_or_else(|| why.clone(), |held| held_failure(&why, held)));
+            return Err(limit_failure(&why, held));
         }
     };
     for left in &state.in_force.left_out {
         writeln!(diagnostics, "{}", left_out_line(left)).expect("printing to stderr failed");
     }
     Ok(state)
+}
+fn limit_failure(why: &service::startup::Problems, held: Option<&Held>) -> String {
+    let why = text(why);
+    match held {
+        Some(held) => held_failure(&why, held),
+        None => why,
+    }
 }
 fn left_out_line(left: &service::startup::LeftOut) -> String {
     format!(
@@ -368,6 +374,7 @@ fn closed(store: &mut Store, io: &mut impl LimitsIo) {
 
 #[cfg(test)]
 mod tests {
+    mod startup;
     use super::*;
     #[test]
     fn limits_held_is_presence_based_and_remembers_line_numbers() {

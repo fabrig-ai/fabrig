@@ -21,8 +21,23 @@ pub fn start(file: &File, shape: Shape) -> serde_json::Value {
 
 #[must_use]
 pub fn parse(text: &[u8], shape: Shape) -> temper_config_shell::Read {
-    let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+    parse_with_key(text, shape, false)
+}
+
+pub(crate) fn parse_with_key(text: &[u8], shape: Shape, provider_key: bool) -> temper_config_shell::Read {
+    let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key };
     temper_config_shell::parse(text, shape, &facts).expect("fixture file")
+}
+
+/// Render an engine template for admission with explicitly bound facts.
+#[must_use]
+pub fn engine_template(path: &Path, escaped: bool, bindings: &[(&str, &str)]) -> serde_json::Value {
+    let text = std::fs::read_to_string(path).expect("engine template");
+    let mut text = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
+    for (name, value) in bindings {
+        text = text.replace(&format!("{{{name}}}"), value);
+    }
+    serde_json::from_slice(&parse(text.as_bytes(), Shape::EngineAlone).document).expect("template start")
 }
 
 /// Turn measurements retain model declarations with inert direct endpoints.

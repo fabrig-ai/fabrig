@@ -196,7 +196,7 @@ impl Worker {
             events: Queue::uncapped(),
             engine: Queue::uncapped(),
             held: Queue::with_capacity(
-                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes)
+                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes, prepared.link.room)
                     .ok_or(problem(b"limits", What::Bound))?
                     .frames
                     .checked_add(3)
@@ -664,6 +664,9 @@ impl Worker {
                     self.io.push(io::Request::Abort { entity });
                 }
             }
+            link::Request::ResendPart { run, attempt, part } => {
+                self.engine.push(root::Event::ResendPart { run, attempt, part });
+            }
             link::Request::Closed => self.closed = true,
             link::Request::Refused { reason, text } => {
                 self.notes.push(crate::worker_alone::Note::OpeningRefused { reason, text });
@@ -1109,16 +1112,17 @@ impl Worker {
         }
         self.io.push(request);
     }
-    fn process_send(&mut self, owner: Token, message: smith::Down) {
-        let values = match &message {
+    fn process_send(&mut self, owner: Token, mut message: smith::Down) {
+        let values = match &mut message {
             smith::Down::Start { start, .. } => start_values(&self.values, start, &self.path, self.env.now),
             smith::Down::Grant { grant } => grant_value(&self.values, *grant, self.env.now),
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
+            | smith::Down::PartKept { .. }
             | smith::Down::Acknowledge { .. }
             | smith::Down::Cancel
             | smith::Down::Renewals { .. }
-            | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
+            | smith::Down::Drain { .. } => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
         let Some(values) = values else {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -1147,6 +1151,9 @@ impl Worker {
             smith::Down::Answer { call, reply } => {
                 process.send_reply(call, reply, token, &mut self.process_events, &mut self.io)
             }
+            smith::Down::PartKept { number } => {
+                process.send_part_kept(number, token, &mut self.process_events, &mut self.io)
+            }
             smith::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
             }
@@ -1154,7 +1161,7 @@ impl Worker {
                 process.send_renewals(held, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
-            smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
+            smith::Down::Drain { grace } => process.send_drain(grace, token, &mut self.process_events, &mut self.io),
         };
         if sent.is_err() {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -1451,9 +1458,10 @@ fn sending(message: smith::Down, values: &host::Values, agent: &Agent) -> smith:
         | smith::Down::Grant { .. }
         | smith::Down::Message { .. }
         | smith::Down::Answer { .. }
+        | smith::Down::PartKept { .. }
         | smith::Down::Acknowledge { .. }
         | smith::Down::Cancel
-        | smith::Down::Drain) => other,
+        | smith::Down::Drain { .. }) => other,
     }
 }
 
@@ -1461,13 +1469,13 @@ pub(crate) fn fit_start(start: smith::Start, agent: &Agent) -> smith::Start {
     worker_route::fit_start(start, &agent.run_limits, agent.host_limits.charter_bytes)
 }
 
-pub(crate) fn start_values(table: &Table, start: &smith::Start, root: &[u8], now: Time) -> Option<host::Values> {
+pub(crate) fn start_values(table: &Table, start: &mut smith::Start, root: &[u8], now: Time) -> Option<host::Values> {
     let mut values = List::with_capacity(u32::try_from(start.grants.len()).ok()?);
     for grant in &start.grants {
         values.push(account(table, *grant, now)?).ok()?;
     }
     let mut paths = List::with_capacity(u32::try_from(start.directories.len()).ok()?);
-    for directory in &start.directories {
+    for directory in &mut start.directories {
         let token = Decimal::of(directory.root.raw());
         let capacity = root
             .len()
@@ -1481,7 +1489,16 @@ pub(crate) fn start_values(table: &Table, start: &smith::Start, root: &[u8], now
         path.put(token.as_bytes()).ok()?;
         path.put(b"/").ok()?;
         path.put(&directory.name).ok()?;
-        paths.push(path.finish()).ok()?;
+        let path = path.finish();
+        directory.results = if directory.writable {
+            let mut results = Writer::new(path.len().checked_add(b"/.git/smith-check".len())?);
+            results.put(&path).ok()?;
+            results.put(b"/.git/smith-check").ok()?;
+            Some(results.finish())
+        } else {
+            None
+        };
+        paths.push(path).ok()?;
     }
     Some(host::Values { paths: paths.into_boxed(), credentials: values.into_boxed() })
 }
@@ -1670,7 +1687,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v21::CEILINGS,
+                            &jig_protocol_worker_wire::v22::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),

@@ -127,7 +127,7 @@ fn read(
     let value = w::ReadValue::Me(translate::owner::frame_named(frame, expires, models, names, limits)?);
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
     value.write(limits, &mut out).expect("measured me");
-    translate::reads::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
+    Ok(translate::reads::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish()))
 }
 fn delivery(
     frame: &Frame,

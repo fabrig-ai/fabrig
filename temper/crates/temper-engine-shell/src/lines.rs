@@ -728,6 +728,9 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             let record = match unsent.kind {
                 Kind::Hello => "hello",
                 Kind::Turn => "turn",
+                Kind::Part => "part",
+                Kind::PartKept => "part-kept",
+                Kind::PartBusy => "part-busy",
                 Kind::Call => "call",
                 Kind::Answer => "answer",
                 Kind::Fact => "fact",

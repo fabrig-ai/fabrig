@@ -711,8 +711,7 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
         let bounds = crate::limits::form();
         let wire = jig_client_protocol_wire::SettingDocument {
             overlay: None,
-            setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
-                .expect("wire selector"),
+            setting: jig_client_protocol_link::translate::settings::wire_setting(&setting),
             revision: 5,
             value: Some(
                 jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)

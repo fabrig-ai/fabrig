@@ -69,7 +69,7 @@ pub use crate::{
     start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
-        Made, ProposalDecisionRecord, Record, RunProof, TerminalRecord, TurnProof, TurnRecord,
+        Made, PartKey, PartRecord, ProposalDecisionRecord, Record, RunProof, TerminalRecord, TurnProof, TurnRecord,
     },
     translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
     vocabulary::{

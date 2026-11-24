@@ -62,6 +62,7 @@ pub fn provider_fault_world(
         disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 42 }\n");
         smith_domain::run::Workspace {
             directories: Box::new([smith_domain::run::Directory {
+                results: None,
                 root: skein_lib::Token::new(disk.root(b"work")),
                 host: b"/host".as_slice().into(),
                 name: b"work".as_slice().into(),

@@ -21,21 +21,21 @@ pub(super) fn decode_names(resources: List<w::Name>, bounds: &Bounds) -> Result<
 }
 
 pub(super) fn encode_ci(value: api::Ci) -> w::Ci {
-    crate::generated::store::ci_to_record(&value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::ci_to_record(&value)
 }
 pub(super) fn decode_ci(value: w::Ci) -> api::Ci {
-    crate::generated::store::ci_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::ci_to_domain(value)
 }
 
 pub(super) fn encode_state(value: api::State) -> w::ItemState {
-    crate::generated::store::item_state_to_record(&value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::item_state_to_record(&value)
 }
 pub(super) fn decode_state(value: w::ItemState) -> api::State {
-    crate::generated::store::item_state_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::item_state_to_domain(value)
 }
 
 pub(super) fn encode_branch_head(value: &d::BranchHead) -> w::BranchHead {
-    crate::generated::store::branch_head_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::branch_head_to_record(value)
 }
 pub(super) fn decode_branch_head(value: w::BranchHead, bounds: &Bounds) -> Result<d::BranchHead, Undecodable> {
     crate::generated::store::branch_head_to_domain(value, &super::Context::bounded(bounds))
@@ -43,7 +43,7 @@ pub(super) fn decode_branch_head(value: w::BranchHead, bounds: &Bounds) -> Resul
 }
 
 pub(super) fn encode_pull_state(value: &d::PullState) -> w::PullState {
-    crate::generated::store::pull_state_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::pull_state_to_record(value)
 }
 pub(super) fn decode_pull_state(value: w::PullState, bounds: &Bounds) -> Result<d::PullState, Undecodable> {
     crate::generated::store::pull_state_to_domain(value, &super::Context::bounded(bounds))
@@ -51,24 +51,24 @@ pub(super) fn decode_pull_state(value: w::PullState, bounds: &Bounds) -> Result<
 }
 
 pub(super) fn encode_ci_state(value: &d::CiState) -> w::CiState {
-    crate::generated::store::ci_state_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::ci_state_to_record(value)
 }
 pub(super) fn decode_ci_state(value: w::CiState) -> d::CiState {
-    crate::generated::store::ci_state_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::ci_state_to_domain(value)
 }
 
 pub(super) fn encode_subscriber(value: &d::Subscriber) -> w::Subscriber {
-    crate::generated::store::subscriber_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::subscriber_to_record(value).expect(super::FITS)
 }
 pub(super) fn decode_subscriber(value: w::Subscriber) -> d::Subscriber {
-    crate::generated::store::subscriber_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::subscriber_to_domain(value)
 }
 
 pub(super) fn encode_landed(commit: api::Commit, task: u64) -> w::Landed {
     w::Landed { commit, task }
 }
 pub(super) fn encode_release(value: &d::ReleaseRow) -> w::ReleaseRow {
-    crate::generated::store::release_row_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::release_row_to_record(value)
 }
 pub(super) fn decode_release(value: w::ReleaseRow, bounds: &Bounds) -> Result<d::ReleaseRow, Undecodable> {
     crate::generated::store::release_row_to_domain(value, &super::Context::bounded(bounds))
@@ -76,17 +76,15 @@ pub(super) fn decode_release(value: w::ReleaseRow, bounds: &Bounds) -> Result<d:
 }
 
 /// Owner-shaped `PendingRelease` (skein/docs/design/data/codec/maps.md, 3.3).
-pub fn pending_release_to_record(
-    value: &(u64, Option<d::Name>),
-    _context: &super::Context,
-) -> Result<w::PendingRelease, w::Problem> {
-    Ok(w::PendingRelease {
+#[must_use]
+pub fn pending_release_to_record(value: &(u64, Option<d::Name>)) -> w::PendingRelease {
+    w::PendingRelease {
         entry: value.0,
         name: match &value.1 {
             Some(name) => Some(encode_name(name)),
             None => None,
         },
-    })
+    }
 }
 pub fn pending_release_to_domain(
     value: w::PendingRelease,

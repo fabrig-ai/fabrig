@@ -92,6 +92,21 @@
   failure and is closed; its retry continues fresh without that tail. A
   failed load, rather than an unread window, remains a preparation
   failure and closes nothing.
+- **Parts kept between turns** (`../../protocol/channel/records.md`, 5;
+  smith's `domain/turn-parts.md`): the core keeps each part a run sends
+  as it keeps a settled call, under its task, attempt and number, with
+  its turn, thread, call, kind and bytes, then acknowledges it, a copy
+  already kept acknowledged again and dropped. A committed turn retires
+  every part of its task from an earlier attempt and those of its own
+  attempt whose turn is at most its number; the task's end retires the
+  rest. A resumed run is given those kept, by attempt, then number,
+  when its window resumes and the window's bytes and theirs fit the
+  resume limit: main's parts first, then each sub-agent's all or none in
+  call order while they fit, none where main's do not. A run that
+  starts fresh is given none. The core family keeps them as a value
+  type of its own, an added part with its version unmoved
+  (`../../protocol/store/layouts.md`, 1), its body held as a turn's,
+  `holds smith-transcript Turn`.
 - **Resumed only where it ran.** A window is resumed only on the
   endpoint it ran on, program to direct or back alike. The endpoint
   names the backend too: a program source runs on its model's program

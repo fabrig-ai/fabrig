@@ -36,7 +36,7 @@ pub(super) fn sub_agent(
     env: &Env<Limits>,
     out: &mut Queue<Request>,
 ) {
-    let Asking { call, deadline, name: _ } = made;
+    let Asking { call, deadline, name } = made;
     if skein_lib::len_u64(wanted.brief.len()) > env.limits.host_part {
         out.push(Request::Return {
             spent: 0,
@@ -111,6 +111,7 @@ pub(super) fn sub_agent(
         kind: crate::facts::Kind::Child { parent: asker.token(), call, asked: wanted.share, granted: plan.granted },
         opened_at: env.now,
         asker: Some(id),
+        position: name.position,
         families: plan.families,
         spent: Spend::ZERO,
         subtree_spent: 0,
@@ -144,6 +145,7 @@ fn plan_writing(conversations: &Slab<Conversation>, child: Id<Conversation>) -> 
 /// Render an admitted child's immutable opening from its effective grant.
 fn child_opening(run: &Run, brief: &[u8], plan: agent::Plan, ordinal: u32, limits: &Limits) -> Opening {
     Opening {
+        tell_parts: run.tell_parts,
         final_turn: Some(crate::FinalTurn {
             note: prompt::child_final_note(),
             allowance: agent::final_allowance(plan.budget.time, limits.wrap_up),

@@ -1139,6 +1139,7 @@ fn tools_start(charter: &[u8], value: &smith_channel::GrantValue) -> skein_chann
         ] {
             directories
                 .push(smith_channel::Directory {
+                    results: None,
                     name: name.into(),
                     path: path.into(),
                     writable,

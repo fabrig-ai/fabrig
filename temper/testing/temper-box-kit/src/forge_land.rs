@@ -652,12 +652,16 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
         configure_live_model(&paths[0], model, &executable);
     }
     let mut value = super::limit_settings::configuration(&paths[0]);
-    value.jig_over("accounts.sign_in_deadline_ms", 600_000);
+    live_limits(&mut value);
     if let LiveModel::AnthropicKey { .. } = model {
         super::limit_settings::remember_figures(&paths[0], &value);
     } else {
         super::limit_settings::remember(&paths[0], &value);
     }
+}
+
+fn live_limits(value: &mut temper_playground::documents::Configuration) {
+    value.jig_over("accounts.sign_in_deadline_ms", 600_000);
 }
 
 /// Select the launcher's store and admit it before starting any process; a

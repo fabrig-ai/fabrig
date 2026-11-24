@@ -1,5 +1,6 @@
 records crate::openings_v1
 use s = skein_codec::convert
+refuses s::text_to_domain
 
 record OpenedWire = crate::OpenedWire { name via s::text, layouts slice }
 record OpenedTerm = crate::OpenedTerm

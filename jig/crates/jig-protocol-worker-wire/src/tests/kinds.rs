@@ -30,6 +30,9 @@ fn terms_use_the_agreed_versions_own_table() {
 
 fn record(kind: Kind) -> &'static [u8] {
     match kind {
+        Kind::Part => b"Part",
+        Kind::PartKept => b"PartKept",
+        Kind::PartBusy => b"PartBusy",
         Kind::Pause => b"Pause",
         Kind::Paused => b"Paused",
         Kind::Ask => b"Ask",

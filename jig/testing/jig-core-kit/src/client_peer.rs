@@ -118,6 +118,9 @@ impl ClientPeer {
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
+                | core::Held::TaskPartKept { .. }
+                | core::Held::AcknowledgePart { .. }
+                | core::Held::PartBusy { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained
@@ -194,6 +197,7 @@ impl ClientPeer {
             | core::Now::BriefFailed { .. }
             | core::Now::RunPrepared { .. }
             | core::Now::EndedEscalation { .. }
+            | core::Now::PartBusy { .. }
             | core::Now::RestoreRefused => false,
         }
     }

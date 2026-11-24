@@ -109,7 +109,11 @@ A versioned record. Every turn starts with its version.
       a directory refused as not empty, a command's exit and output, a
       command answered `running` with its job's number and its output so
       far, a job's output since its last answer with its end or
-      `running`);
+      `running`, and, from version 8, a command or a `job` wait a
+      drain cut midway, `interrupted`: how long it ran, in
+      milliseconds, absent when not known, and its output read before
+      the cut as `running` keeps it, its head, its last bytes and the
+      bytes dropped between (domain/turn-parts.md, section 4));
     - text the domain wrote, as a result or an error: a served tool's, or a
       host tool's answer;
     - invalid, with the problem found in the call (domain/tools.md,
@@ -128,6 +132,11 @@ A versioned record. Every turn starts with its version.
 
 A call's typed form is not kept. The agent decodes the input again when it
 resumes, as it did when the call was made.
+
+A turn's part, an answer or a result told as it comes to a host that
+asks (domain/turn-parts.md, section 2), is this record too, holding the
+messages that part holds, and never enters a transcript: what it is,
+its thread and its call ride beside its bytes (channel.md, section 4).
 
 A window turn's messages are one user message holding text blocks, in
 this order: the conversation's task, the summary preamble and the
@@ -232,9 +241,12 @@ jobs of every earlier window and activation.
 
 ## 6. Versions
 
-- **Version 7 is current** (`transcript-v7.schema`). The local host
-  records its layout in each chat's `format` (host.md, 5.3), so
-  a local chat whose layout differs is refused as an older store.
+- **Version 8 is current** (`transcript-v8.schema`), adding the
+  `interrupted` outcome (section 2) by smith's first patch of the turn
+  (section 12), its reverse declaring that outcome the one value version
+  7 cannot hold. The local host records its layout in each chat's
+  `format` (host.md, 5.3), so a local chat whose layout differs is
+  refused as an older store.
 - **A resuming reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
   version*, and nothing is translated: its host starts the run afresh
@@ -427,8 +439,10 @@ other.
   command writes and a version move, from the first release on (skein's
   `data/codec/command.md`, 2, step 3; temper's `draft/upgrades.md`, 4.3). Before the
   baseline there is no kept text and no patch. Version 6 remains available
-  to archival readers without system context; version 7 adds that context
-  and is the only resumable version (`transcript.md`, section 6).
+  to archival readers without system context; version 7 adds that
+  context, and version 8, by the patch that moves it from 7 and is
+  carried with no `fresh-windows` mark, the `interrupted` outcome
+  (section 6). The current version is the only resumable one.
 - **The tests** sit low, in the codec's world (`tests/codecs`), over a
   fixture family of their own (`tests/transcript-patches`): a fixture turn
   at version 1 and 2, made by skein's command, its first patch marked

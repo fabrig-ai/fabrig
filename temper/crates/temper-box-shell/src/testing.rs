@@ -53,7 +53,9 @@ pub mod scripted {
 
 #[cfg(target_os = "linux")]
 pub mod serve {
-    pub use crate::serve::{configured_agent, prepare_with_limits};
+    pub use crate::serve::{
+        agents_setting_over, configured_agent, local_setting_over, operations_with_copies, prepare_with_limits,
+    };
 }
 
 pub mod upgrade {

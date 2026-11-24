@@ -40,6 +40,8 @@ pub(crate) struct Peer {
     /// The session's token for itself, once it has opened.
     pub(crate) session: Option<Token>,
     offered: Offered,
+    pub(crate) opening: Option<Box<session::record::Opening>>,
+    pub(crate) fallback_prompt: Option<Box<[u8]>>,
     /// The asks of the last completion's calls to the tools the run serves,
     /// by ticket, until the session dispatches them; and what they hold.
     asks: Map<u64, Ask>,
@@ -68,6 +70,8 @@ impl Peer {
             model,
             session: None,
             offered,
+            opening: None,
+            fallback_prompt: None,
             asks: Map::with_capacity(asks(limits)),
             held: 0,
             assistant_text: false,
@@ -269,6 +273,64 @@ impl Peer {
         assert!(fresh.is_none(), "tickets are not reused");
         self.held = held;
         sllm::Decoded::Delegated { source, ticket: Token::new(ticket), descriptor, effect }
+    }
+
+    pub(crate) fn resumed(
+        &mut self,
+        completion: llm::Completion,
+        results: &[sllm::Block],
+        limit: u64,
+    ) -> sllm::Completion {
+        let completion = self.completion(completion, limit);
+        for block in &completion.content {
+            let Some(call) = block.tool_call() else { continue };
+            for result in results {
+                match result {
+                    sllm::Block::ToolResult { id, .. } if *id == call.id => match call.call {
+                        sllm::Decoded::Delegated { ticket, .. } => {
+                            self.asks.remove(&ticket.raw());
+                        }
+                        sllm::Decoded::Owned { .. }
+                        | sllm::Decoded::Builtin { .. }
+                        | sllm::Decoded::Invalid { .. }
+                        | sllm::Decoded::Historical => {}
+                    },
+                    sllm::Block::ToolResult { .. }
+                    | sllm::Block::ToolCall(_)
+                    | sllm::Block::Text { .. }
+                    | sllm::Block::Refusal { .. }
+                    | sllm::Block::Opaque { .. } => {}
+                }
+            }
+        }
+        completion
+    }
+
+    pub(crate) fn served(&self) -> Box<[Served]> {
+        let mut served = List::with_capacity(self.offered.host_tools.len().try_into().expect("bounded host tools"));
+        for tool in &self.offered.host_tools {
+            served.push(Served::Host(tool.clone())).expect("bounded");
+        }
+        let mut result = List::with_capacity(served.len().saturating_add(5));
+        for tool in served.into_boxed() {
+            result.push(tool).expect("bounded");
+        }
+        if self.offered.finish {
+            result.push(Served::Finish).expect("bounded");
+        }
+        if self.offered.deliver {
+            result.push(Served::Deliver).expect("bounded");
+        }
+        if self.offered.save {
+            result.push(Served::Save).expect("bounded");
+        }
+        if self.offered.wait {
+            result.push(Served::Wait).expect("bounded");
+        }
+        if self.offered.agents {
+            result.push(Served::SubAgent).expect("bounded");
+        }
+        result.into_boxed()
     }
 
     /// The ask the session dispatches as `ticket`.

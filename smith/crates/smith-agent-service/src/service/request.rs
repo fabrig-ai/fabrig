@@ -11,6 +11,26 @@ use smith_protocol_machine as machine;
 #[expect(clippy::too_many_lines, reason = "one exhaustive root-domain request translation")]
 pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>, request: domain::Request) {
     match request {
+        domain::Request::Lower(domain::Lower::Classify {
+            owner,
+            content,
+            tools,
+            served,
+            asker,
+            decoded_call_bytes,
+        }) => {
+            let completion = llm::classify(
+                content,
+                tools,
+                served,
+                asker,
+                service.opening.outcome().clone(),
+                service.opening.deliver().cloned(),
+                service.llm_env.limits.translation,
+                decoded_call_bytes,
+            );
+            super::up::lower_event(service, frame.is_some(), domain::Below::Classified { owner, completion });
+        }
         domain::Request::Lower(smith_domain::Lower::Complete {
             owner,
             name,
@@ -100,10 +120,10 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 &mut service.machine_below,
             );
         }
-        domain::Request::Lower(smith_domain::Lower::Check { owner, program, bound, cap, tail }) => {
+        domain::Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
             service.machine.from_domain(
                 &service.machine_env,
-                machine::FromDomain::Check { owner, program, bound, cap, tail },
+                machine::FromDomain::Check { owner, program, results, bound, cap, tail },
                 &mut service.machine_events,
                 &mut service.machine_below,
             );
@@ -117,6 +137,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
             );
         }
         request @ (domain::Request::Waiting { .. }
+        | domain::Request::Part { .. }
         | domain::Request::Turn { .. }
         | domain::Request::HostCall { .. }
         | domain::Request::WithdrawHost { .. }

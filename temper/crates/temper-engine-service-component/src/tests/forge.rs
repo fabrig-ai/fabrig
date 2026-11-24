@@ -743,7 +743,7 @@ fn a_seeded_github_apps_records_start_one_connected_forge_as_its_bot_and_serve_a
     fixtures::turn(&mut service);
     let link = service.links().pop().expect("started service's sign-in link");
     let engine = service.engine.as_mut().expect("engine");
-    let body = fixtures::http::link_body(engine, &link);
+    let body = fixtures::http::link_body(&link);
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(engine, true);
     let SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("started service answers") };

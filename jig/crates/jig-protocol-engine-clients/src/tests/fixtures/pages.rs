@@ -129,7 +129,7 @@ pub fn notes_page() -> reads::Page {
 
 /// A private section and call, with independent before/after literals.
 pub fn private_transcript(projected: bool) -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     let system: &[u8] = if projected {
         b"## Preferences\n\nWithheld: shown to its person alone.\n\n## Shared\nPublic.\n"
     } else {
