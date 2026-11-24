@@ -136,21 +136,7 @@ impl<S> skein_shell::Host for Host<S> {
         (self.served.operations)(&self.service)
     }
     fn exit(&self) -> Option<Exit> {
-        if !(self.served.is_empty)(&self.service) {
-            return None;
-        }
-        if let Some((lines, code)) =
-            self.upgrade.and_then(|report| report(&self.service, &self.binary, &self.directories, &self.store))
-        {
-            print!("{lines}");
-            return Some(Exit::Code(code));
-        }
-        if let Some(long) = self.watch.held() {
-            eprint!("{}", long_pass_line(&self.binary, long));
-        }
-        let (lines, code) = self.ending();
-        eprint!("{lines}");
-        Some(Exit::Code(code))
+        self.exit_with(|lines| print!("{lines}"), |lines| eprint!("{lines}"))
     }
     fn drain(&mut self) {
         self.drain_with(&mut io::stderr());
@@ -158,6 +144,24 @@ impl<S> skein_shell::Host for Host<S> {
 }
 
 impl<S> Host<S> {
+    fn exit_with(&self, stdout: impl FnOnce(&str), mut stderr: impl FnMut(&str)) -> Option<Exit> {
+        if !(self.served.is_empty)(&self.service) {
+            return None;
+        }
+        if let Some((lines, code)) =
+            self.upgrade.and_then(|report| report(&self.service, &self.binary, &self.directories, &self.store))
+        {
+            stdout(&lines);
+            return Some(Exit::Code(code));
+        }
+        if let Some(long) = self.watch.held() {
+            stderr(&long_pass_line(&self.binary, long));
+        }
+        let (lines, code) = self.ending();
+        stderr(&lines);
+        Some(Exit::Code(code))
+    }
+
     fn drain_with(&mut self, diagnostics: &mut dyn Write) {
         (self.served.handover)(&mut self.service);
         while let Some((lines, clients)) = (self.served.listening)(&mut self.service, &self.binary) {
@@ -302,10 +306,31 @@ pub(super) mod adapter_tests {
         adopt_listener: |_, _, _| Ok(()),
         adopt_signals: |_, _| Ok(()),
     };
-    fn host() -> Host<OneStage> {
+    fn directories() -> Directories {
         let arguments = ["--config", "/c", "--data", "/d", "--cache", "/k"].map(|word| Box::from(word.as_bytes()));
-        let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
-        Host::with_binary("own-service", OneStage::new(), SERVED, directories, &[])
+        temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories").0
+    }
+    fn host() -> Host<OneStage> {
+        Host::with_binary("own-service", OneStage::new(), SERVED, directories(), &[])
+    }
+
+    #[test]
+    fn an_upgrade_report_exits_with_only_stdout() {
+        const REPORT: &str = "temper-box upgrade: the deployment could not be read\n";
+        let service = OneStage { stages: 1, ..OneStage::new() };
+        let host = Host::for_upgrade(
+            "temper-box",
+            service,
+            SERVED,
+            directories(),
+            b"/state".as_slice().into(),
+            |_, _, _, _| Some((REPORT.into(), 1)),
+        );
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        assert_eq!(host.exit_with(|lines| stdout.push_str(lines), |lines| stderr.push_str(lines)), Some(Exit::Code(1)));
+        assert_eq!(stdout, REPORT);
+        assert!(stderr.is_empty(), "unexpected stderr: {stderr:?}");
     }
     #[test]
     fn supplied_service_stage_and_ending_drive_the_host() {

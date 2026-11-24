@@ -98,3 +98,16 @@ fn a_failed_reread_closes_the_listeners_held_by_init() {
     assert_eq!(result.err().as_deref(), Some(why));
     assert_eq!(closed, [11, 12].map(Fd::new));
 }
+
+#[test]
+fn front_refuses_a_fixed_link_member_before_starting_steps() {
+    let dirs = directories(Path::new("/fixture"));
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init's start document");
+    document["engine"]["clients"]["link"] = false.into();
+    let bytes = serde_json::to_vec(&document).expect("start JSON");
+    assert_eq!(
+        configuration_steps(&dirs, &bytes, Box::new([])).expect_err("no steps built"),
+        "engine.clients.link: moved: temper fixes the clients' heartbeat, printed link and approval\n"
+    );
+}
