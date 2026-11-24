@@ -12,7 +12,7 @@ Eighteen goals, started on 2026-11-23 on the user's approval, each on its own ra
 | D2, temper's real Forgejo paths and repeated command paths shortened to their boundary, in `temper-box::process` and `proof_live` | 5.1 | temper | none | started, task 13858 |
 | D3, temper's public board, history, reading, workers and journeys stories: their data to the client and domain worlds, their geometry left in Chromium | 5.1 | temper | none | landed, task 13859 |
 | D4, skein's browser kit's bookkeeping, patch shapes and refused writes below the browser | 5.1 | skein | D1 | started, task 13870 |
-| D5, jig's browser duplicates, provider lifetimes and process controls | 5.1, 5.3 | jig | none | started, task 13860 |
+| D5, jig's browser duplicates, provider lifetimes and process controls | 5.1, 5.3 | jig | none | landed, goal 13860: its design in jig's `protocol/browser/testing.md`, `protocol/client/openid.md` and `protocol/service-testing.md`, 1, with smith's `shell/README.md`, 2.6 for the seam it adds; each moved test's holder in `jig/docs/development/slow-tests-holders-2026-11-23.md` |
 | D6, hearth's conformance duplicates and its builder world's render, diff, outcome and store matrix | 5.1, 5.2 | hearth | none | started, task 13861 |
 | D7, `temper-box::suite`'s admission, configuration, startup and support checks | 5.2 | temper | none | started, task 13862 |
 | D8, `temper-box::suite`'s fake backends, relay, forge setup, landing launcher and listeners | 5.2 | temper | D7 | started, task 13871 |

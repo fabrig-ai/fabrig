@@ -74,7 +74,6 @@ real-smith = [
 
 real-jig = [
     "jig-core-kit",
-    "jig-engine-clients-world",
     "jig-test",
     "jig-test-store-files",
 ]
