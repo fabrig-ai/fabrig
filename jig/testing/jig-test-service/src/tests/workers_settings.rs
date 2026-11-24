@@ -183,6 +183,7 @@ fn opening(driven: &mut Driven, connection: Token, secret: &[u8]) -> (Option<u16
                 | engine::Request::Ended { .. }
                 | engine::Request::Up { .. }
                 | engine::Request::Unsent { .. }
+                | engine::Request::Unread { .. }
                 | engine::Request::Closed
                 | engine::Request::Lower { .. } => {}
             }
