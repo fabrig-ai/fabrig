@@ -793,7 +793,7 @@ all and the fewest seeds make each fall:
 | worker | `temper_worker_inspect::faults::DISK_FULL` | `Faults`, `worker` |
 | people and parties | `HOLDS_A_MEMBER` and `RELEASES_A_MEMBER`, on the train | `Parties` |
 | runs that park, resume and move | `DELIVERED_THEN_PARKED` | `Faults`, `worker` |
-| the engine's own bounds | `FORGE_WRITE_ENTRIES` | observed (2.4) |
+| the engine's own bounds | `FORGE_READ_ADMISSIONS` | observed (2.4) |
 | restarts | `ENGINE_CRASH_MID_TURN` | `Faults`, `restarts` |
 
 - **Each seed** draws every family's kind, its moment a drawn step of the
@@ -805,11 +805,15 @@ all and the fewest seeds make each fall:
   disk, say), the sweep takes the family's next kind the world reaches,
   named in its comment with why: `PLACEMENT_BUSY` for the worker; another
   table the workload fills for the bounds. Every family keeps one kind.
-  Two of the table's kinds are such replacements already: `JOB_LOG`
-  stands for `PULL_FILES`, since the composed workload's repairs read
-  their gate's evidence and never a pull's files; `MOVED_BASE` stands for
-  `SQUASHED`, since a dependent goal starts once its predecessor has
-  landed, so no checkout taken early is left with a squashed parent.
+  Three of the table's kinds are such replacements: `JOB_LOG` stands for
+  `PULL_FILES`, since the composed workload's repairs read their gate's
+  evidence and never a pull's files; `MOVED_BASE` stands for `SQUASHED`,
+  since a dependent goal starts once its predecessor has landed, so no
+  checkout taken early is left with a squashed parent;
+  `FORGE_READ_ADMISSIONS` stands for `FORGE_WRITE_ENTRIES`, since the
+  composed workload makes too few concurrent writes to fill the stock
+  write table, and its faulted world bounds the read admissions to two,
+  recorded at its quiet points (2.4).
 - **The kinds are a list the caller gives,** and each family's draw keeps
   a fixed place in its part, so that leaving one kind out moves no other
   kind's draw.
