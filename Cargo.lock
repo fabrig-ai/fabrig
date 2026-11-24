@@ -3211,7 +3211,6 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-fail-stop",
- "skein-lib",
  "skein-scratch",
 ]
 

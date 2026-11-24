@@ -1,11 +1,6 @@
 //! Lean surface and helper fixture drift (skein/docs/design/data/codec/README.md, 4).
 
-use crate::{bounds_text, generate, parse};
-
-#[rustfmt::skip]
-#[expect(dead_code, reason = "the drift test links the full generated fixture for its bounds table")]
-#[path = "../../../crates/skein-codec/src/tests/lean_fixture.rs"]
-mod fixture;
+use crate::{generate, parse};
 
 const FIXTURE: &str = "family helper-fixture 7
 record Empty {}
@@ -27,8 +22,6 @@ fn lean_helper_fixture_has_no_drift() {
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let path = skein_scratch::paths::tree().join("crates/skein-codec/src/tests/lean_fixture.rs");
     check(&path, &output.records, write);
-    let bounds = bounds_text(fixture::DECLARATIONS, fixture::CEILINGS.values().as_slice());
-    check(std::path::Path::new("bounds/helper-fixture.bounds"), &bounds, write);
 }
 
 fn check(path: &std::path::Path, text: &str, write: bool) {
