@@ -40,7 +40,7 @@ and have no kind: a length and a map, bounded by `tree-helper.md`, 6 (`tree-help
   for every kind: nesting 8 deep, a field's name of 64 bytes, a list or
   a map of 8,256 items. A tree file's decoder takes map keys of 255
   bytes, since an entry's attributes are a map keyed by their names
-  (`README.md`, 3.4).
+  (`digests.md`, 1.4).
 - **Field shapes,** for every kind: a count is a `u64`, a cost in time a
   `u64` of nanoseconds, a uuid 16 bytes.
 - **A record that is not its version's** is one the builder cannot read
@@ -202,19 +202,19 @@ record.
   range's. So does a builder of another uid, which would write files the
   recorded one cannot replace (`sudo hearth render --store` on a
   developer's store): the store is not opened, and the client's startup
-  error (`README.md`, 6.1) names both uids.
+  error (`state.md`, 1.1) names both uids.
 - **`targets/<H("target", name)>.record`:** the name and the last N
   builds (`README.md`, 5.1), newest first, each `[revision, output key, at]`,
   rewritten when a build for the target completes. Target records are
   never collected in M2 (`README.md`, section 10).
-- **`state/`:** the steward's records and rings (`README.md`, 6.3).
+- **`state/`:** the steward's records and rings (`state.md`, 1.3).
 
 ## 7. An artifact's record [M6]
 
 `artifacts/<key>.record`, beside the artifact's subvolume and its tree
 file, in the same frame (kind 9): its tree digest, environment, sources,
 inputs, command, outputs, cache, how it was made and its costs, as
-hearth/docs/design/domain/build/artifacts.md (`README.md`, 4.3) lists them. Its key is hearth/docs/design/domain/build/artifacts.md's (`README.md`, 3.1).
+hearth/docs/design/domain/build/artifacts.md (`README.md`, 4.3) lists them. Its key is hearth/docs/design/domain/build/artifacts.md's (`digests.md`, 1.1).
 
 ## 8. Written by rename; versioned
 
@@ -241,7 +241,7 @@ hearth/docs/design/domain/build/artifacts.md (`README.md`, 4.3) lists them. Its 
   synced, before its record (hearth/docs/design/domain/render/spec.md, 2.3). A cut anywhere leaves a
   temporary, or a file with no record, which the startup scan deletes
   (`README.md`, 4.4).
-- **Versioned per kind, across releases** (hearth/docs/design/domain/activator/README.md, 6.2's rule): a
+- **Versioned per kind, across releases** (hearth/docs/design/domain/activator/state.md, 1.2's rule): a
   release reads its own version of each kind and the previous one, and
   writes only versions the previous release can read. After a fall back,
   the blessed slot's older builder and steward read what the newer ones
@@ -254,4 +254,4 @@ hearth/docs/design/domain/build/artifacts.md (`README.md`, 4.3) lists them. Its 
   holds is treated as unrecorded; so is one whose `layout` is not 1.
   A resolution it cannot read stays in place, unindexed, until a
   resolution of its key is made again over it. `state/` records follow
-  `README.md`, 6.3's table.
+  `state.md`, 1.3's table.

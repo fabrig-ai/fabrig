@@ -18,8 +18,8 @@ results its wake policy wakes it for (jig's `domain/tasks/messages.md`, 3 and
 6): under the stock's `last_or_failure`, a change failing or
 cancelled, and the result of its last live change, a closer-ended goal's
 included, since a live run makes no closer. smith offers what arrives
-while the run works between two completions (smith's `domain/run.md`,
-section 6, *Messages mid-work*),
+while the run works between two completions (smith's `domain/run-messages.md`,
+section 1, *Messages mid-work*),
 so a design written beside its changes fits what landed or failed. A
 result its run leaves unread is judged again when the run ends.
 
@@ -49,7 +49,7 @@ archive-read room pressure remains busy, retried by the host; observing it
 changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
-message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
+message in the recorded tool result (smith's `protocol/programs-claude-code.md`, 1.4).
 Forge file, directory, pull-file and compare replies fit the effective
 core and receiving-agent body allowance (`tools.md`), retaining prefixes
 or actionable size feedback. A forge read still exceeding the core settled
@@ -77,7 +77,7 @@ how a person says they work into one proposal of settings: what temper's
 engine must do becomes settings an owner accepts, and what only its agents
 must do stays text its runs read. The proposal is a card in the chat and
 waits in the Needs you of each project it belongs to (jig's
-`domain/engine/settings.md`, 6; `../../client/pages/README.md`). Its instructions,
+`domain/engine/settings-proposals.md`, 1; `../../client/pages/README.md`). Its instructions,
 `ask.txt`'s *temper, as you explain it* and *Configuring*
 (`../../draft/ask-temper.md`, section 8), say how it asks and proposes; it
 reads by `see` (`ask-temper.md`, 1) and proposes by `propose_settings`' asking form
@@ -198,14 +198,14 @@ otherwise teach.
   whole, against the newest revision: the new card stands below, and the
   old one reads as replaced (`../../client/pages/settings.md`, 2). Refused, the
   one that waits stands. The outcome is heard in its inbox (jig's
-  `domain/engine/settings.md`, 6): accepted, it says so in one line naming the
+  `domain/engine/settings-proposals.md`, 1): accepted, it says so in one line naming the
   revision; rejected, it revises from the person's reason; withdrawn as
   stale, it reads again, proposes afresh and says what changed.
 - **It changes nothing itself.** Its tools are the reads and the proposal
   a person may make, through the same role and proposal checks: its
   task's authority, policy 1's for its role, holds the asking and settings
   families (`ask-temper.md`), and only an owner's decision changes settings (jig's
-  `domain/engine/settings.md`, 6). A member's Ask temper proposes as an owner's
+  `domain/engine/settings-proposals.md`, 1). A member's Ask temper proposes as an owner's
   does, and its proposal waits for an owner.
 - **It writes down how it understood the person** as the chat's
   document, "How this project works", with `document` (`ask-temper.md`, 3), once it
@@ -388,7 +388,7 @@ of `../../draft/v0.1.0.md`, 2.1.
   answered, with the person's answer words cut at 256 bytes on a UTF-8
   boundary and marked when cut, and says so. The goal is kept while its
   question waits, including when its ordinary turns expire after asking
-  (jig's `domain/tasks/lifecycle.md`, 8): a run of it that finishes before the
+  (jig's `domain/tasks/lifecycle-endings.md`, 1): a run of it that finishes before the
   answer parks, and the answer wakes it. It then calls `change` with
   what was agreed, waits for its result and reports; the chat says what
   landed.
@@ -397,8 +397,8 @@ of `../../draft/v0.1.0.md`, 2.1.
 - **The asking is the root's rail, not the goal's choice.** The chat
   marks such work once, as it delegates it: `goal` with `agree` set, at
   the moment its person asks to agree it first, and the root makes the
-  goal's task owing its requester a question (jig's `domain/tasks/lifecycle.md`,
-  8, its spec's `asks`), the typed mark everything below reads, never
+  goal's task owing its requester a question (jig's `domain/tasks/lifecycle-endings.md`,
+  1, its spec's `asks`), the typed mark everything below reads, never
   the brief's text. `finish` is the run's own, so an agreed goal that
   finishes before it has asked is not refused but parks, kept by what it
   owes, and wakes at once to the notice "this work is to be agreed: ask

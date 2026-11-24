@@ -1,4 +1,4 @@
-//! One domain completion and its retained prompt (protocol/programs.md, 5.5–5.9).
+//! One domain completion and its retained prompt (protocol/programs-claude-code.md, 1.5–1.9).
 //! Admission claims the callback before startup validation. An answered request
 //! keeps its context for correlated program calls, but owes no second terminal.
 //! This machine knows neither process resources nor the program's stream grammar.

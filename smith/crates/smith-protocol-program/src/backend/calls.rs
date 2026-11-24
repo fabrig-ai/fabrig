@@ -1,4 +1,4 @@
-//! Stream/MCP correlation and replies (protocol/programs.md, section 5.5).
+//! Stream/MCP correlation and replies (protocol/programs-claude-code.md, section 1.5).
 //! Keeps the open/last message's unanswered calls, never guesses by RPC order.
 
 use crate::mcp::{self, json};

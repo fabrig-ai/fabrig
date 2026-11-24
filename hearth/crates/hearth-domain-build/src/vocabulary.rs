@@ -53,7 +53,7 @@ pub enum Request {
         key: Digest,
     },
 }
-/// The parts a layer's key is made of, which name its kind (hearth/docs/design/domain/store/README.md, 3.3).
+/// The parts a layer's key is made of, which name its kind (hearth/docs/design/domain/store/digests.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Inputs {
     Packages { part: Digest, resolution: Digest },

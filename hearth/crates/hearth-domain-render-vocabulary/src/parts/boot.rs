@@ -1,6 +1,6 @@
 //! Boot parameters and mutability (hearth/docs/design/domain/render/spec.md, 1.3).
 use alloc::boxed::Box;
-/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
+/// Before and after (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
     pub before: Boot,

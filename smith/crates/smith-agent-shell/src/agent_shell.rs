@@ -21,7 +21,7 @@ use smith_agent_service as service;
 
 use crate::config;
 
-/// Program resources supplied by the binary or a hosted process world (smith/docs/design/protocol/programs.md, 5.1).
+/// Program resources supplied by the binary or a hosted process world (smith/docs/design/protocol/programs-claude-code.md, 1.1).
 pub struct ProgramResources {
     pub relay: std::path::PathBuf,
     pub entropy: Secret,

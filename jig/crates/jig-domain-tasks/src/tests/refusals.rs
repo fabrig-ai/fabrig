@@ -364,7 +364,7 @@ fn a_job_result_is_bounded_bytes_or_a_failure() {
     );
 }
 
-/// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks/lifecycle.md, 3.1 and 6).
+/// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks/lifecycle.md, 3.1, and jig/docs/design/domain/tasks/lifecycle-holds.md, 1).
 #[test]
 fn a_job_refusal_pauses_without_a_try() {
     let mut h = running_job();
@@ -407,7 +407,7 @@ fn a_job_refuses_an_llm_choice_and_recurrence() {
     assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Spec));
 }
 
-/// jig/docs/design/domain/tasks/lifecycle.md, 6: a job's cause survives retry exhaustion and storage.
+/// jig/docs/design/domain/tasks/lifecycle-holds.md, 1: a job's cause survives retry exhaustion and storage.
 #[test]
 fn a_jobs_failure_reason_reaches_its_retry_notice_and_hold() {
     let mut h = running_job();
@@ -630,7 +630,7 @@ fn consecutive_restarted_ends_spend_a_lost_try_but_other_ends_clear_the_mark() {
     }
 }
 
-/// Infrastructure owns its allowance, delay and reason (domain/tasks/lifecycle.md, 6).
+/// Infrastructure owns its allowance, delay and reason (domain/tasks/lifecycle-holds.md, 1).
 #[test]
 fn infrastructure_backs_off_twelve_times_then_holds_with_its_reason() {
     let mut h = running_job();

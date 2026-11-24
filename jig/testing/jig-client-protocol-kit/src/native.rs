@@ -272,7 +272,9 @@ impl NativeClient {
                     self.gathered.push(request);
                 }
                 Request::Unlinked { .. } => {
-                    unreachable!("a linked root asks no unlinked request (jig's client/domain/client/README.md, 4.4)")
+                    unreachable!(
+                        "a linked root asks no unlinked request (jig's client/domain/client/vocabulary.md, 1.4)"
+                    )
                 }
                 Request::First(_) | Request::Fact { .. } => {}
             }

@@ -184,7 +184,7 @@ impl Core {
     }
 
     /// Deployment procedures with no task budget spend only at the effect,
-    /// from the current period (jig/docs/design/domain/authority.md, 6–7).
+    /// from the current period (jig/docs/design/domain/authority.md, 6, and jig/docs/design/domain/authority-budgets.md, 1).
     /// These durable facts distinguish them from procedures funded by a task
     /// or a person's pool.
     pub(crate) fn procedure_effect_funder(&self, task: u64) -> Option<tasks::Funder> {

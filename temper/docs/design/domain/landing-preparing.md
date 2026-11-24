@@ -163,7 +163,7 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
 ## 6. A stop and a release
 
 - **A stop** of a landing at preparing places a hold on its subtree
-  (jig's `domain/tasks/lifecycle.md`, 10): neither the landing nor its
+  (jig's `domain/tasks/lifecycle-holds.md`, 2): neither the landing nor its
   prepare child steps, and the child's live attempt is cancelled.
 - **A release** of that hold, the landing's own policy phase not held,
   is a step like any other: jig offers it with the landing's context,

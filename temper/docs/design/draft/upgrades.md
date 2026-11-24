@@ -128,7 +128,7 @@ acknowledged is in the engine or on the forge.
   decoded; the jobs and their counts and time, the whole time, a
   refusal or the restores whole, and whether the workers may stay
   (section 9). What follows the switch is not rehearsed (jig's
-  `protocol/store/opening.md`, 5). Its measurements tell the operator
+  `protocol/store/opening-rehearsal.md`, 1). Its measurements tell the operator
   whether the service manager's start timeout covers the upgrade.
 
 ### 3.2 Going back
@@ -412,7 +412,7 @@ start, naming the record and what it links to; no effect leaves before
 the switch. Nothing judges a writer's domain rules again.
 
 The cross-record rules are oracles over every writer, a cold restart
-closing every world story (jig's `domain/engine/README.md`, section 9).
+closing every world story (jig's `domain/engine/world.md`, section 1).
 Registry changes and jobs are proved over sample stores (13); the
 counts per family, before and after, stay in the manifest.
 
@@ -468,14 +468,14 @@ outcomes; the deployment's and installation's ids.
   served, and holds its requests unsent until it reloads (jig's
   `client/domain/client/watches.md`, 2).
 - **A kept request of another version is dropped,** and the person told
-  (jig's `protocol/client/README.md`, section 7). Its outcome may have been
+  (jig's `protocol/client/small-store.md`, section 1). Its outcome may have been
   committed before the stop, so the notice says it may have been made.
-  Patching them too is open (section 15).
+  Patching them too is open (`upgrades.md`, section 15).
 
 ### 7.5 What is lost
 
-- What retention erased before the upgrade (jig's `protocol/store/README.md`,
-  6.1; temper's bounded `Landed`, `../protocol/store.md`, section 7). A
+- What retention erased before the upgrade (jig's `protocol/store/growth.md`,
+  1.1; temper's bounded `Landed`, `../protocol/store.md`, section 7). A
   deployment that keeps history long sets its retention first.
 - A run's unsaved state on its worker, in a full upgrade, as at any
   stop.

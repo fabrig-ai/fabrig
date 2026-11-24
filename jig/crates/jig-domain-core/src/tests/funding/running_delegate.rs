@@ -1,4 +1,4 @@
-//! A claimed run leaves a delegate funded while it runs (domain/authority.md, 7).
+//! A claimed run leaves a delegate funded while it runs (domain/authority-budgets.md, 1).
 use crate::tests::runs::spend::{claim, funded};
 use crate::tests::*;
 

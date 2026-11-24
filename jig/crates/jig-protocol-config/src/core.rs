@@ -1,4 +1,4 @@
-//! Core startup values from the checked engine part (configuration.md, 3 and 7).
+//! Core startup values from the checked engine part (protocol/configuration-engine.md, 1, and protocol/configuration.md, 7).
 use crate::{Address, Engine, ProviderKind};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;

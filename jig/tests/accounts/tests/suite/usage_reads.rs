@@ -1,4 +1,4 @@
-//! Usage reads are process clocks, not stored work (domain/accounts.md, 3.7).
+//! Usage reads are process clocks, not stored work (domain/accounts-lists.md, 1).
 use jig_accounts_world::{ALICE, LIMITS, PROVIDER, World, account, issued, program, provider, providers, source};
 use jig_domain_accounts::{self as accounts, AccountFact, Change, Event, FactValue, Kind, Request, Stored};
 use jig_domain_link::{SourceName, UsageOutcome, UsageWindow};
@@ -7,7 +7,7 @@ use skein_lib::{Duration, Time, Token, Wall};
 const ACCOUNT: u32 = 10;
 const SOURCE: u32 = 11;
 const SECOND: u32 = 12;
-const QUIET: u64 = 30 * 60; // accounts.md, 3.7.
+const QUIET: u64 = 30 * 60; // domain/accounts-lists.md, 1.
 const RESET: u64 = 5 * 60;
 fn wall(seconds: u64) -> Wall {
     Wall::from_nanos(Duration::from_secs(seconds).as_nanos())

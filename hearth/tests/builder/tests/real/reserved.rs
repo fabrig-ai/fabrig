@@ -10,7 +10,7 @@ fn a_reserved_command_line_key_exits_2() {
 }
 #[test]
 fn a_password_preseed_prints_reserved_and_not_an_unlisted_type() {
-    assert_eq!(f::rendered(&f::PASSWORD).stdout, b"tasks/motd/task.json:1:23: x1-prod: motd: \"password\" is reserved: a password preseed leaves its value in /var/cache/debconf/passwords.dat (protocol/format/tasks.md, 11)\n");
+    assert_eq!(f::rendered(&f::PASSWORD).stdout, b"tasks/motd/task.json:1:23: x1-prod: motd: \"password\" is reserved: a password preseed leaves its value in /var/cache/debconf/passwords.dat (protocol/format/tasks-reserved.md, 1)\n");
 }
 #[test]
 fn a_password_preseed_exits_2() {
@@ -32,7 +32,7 @@ fn hearth_render_refuses_a_secrets_path_in_the_tree() {
 }
 #[test]
 fn a_file_only_the_tree_gives_is_refused_at_its_path() {
-    assert_eq!(f::rendered(&f::FSTAB).stdout, b"tasks/motd/tree/etc/fstab: x1-prod: motd: \"/etc/fstab\" is reserved: the activator writes this path at prepare (protocol/format/tasks.md, 11)\n");
+    assert_eq!(f::rendered(&f::FSTAB).stdout, b"tasks/motd/tree/etc/fstab: x1-prod: motd: \"/etc/fstab\" is reserved: the activator writes this path at prepare (protocol/format/tasks-reserved.md, 1)\n");
 }
 #[test]
 fn a_data_path_beside_its_class_mount_is_refused_at_its_path() {
@@ -55,11 +55,11 @@ fn a_secret_owned_by_hearth_is_refused_at_its_owner() {
 }
 #[test]
 fn a_never_live_unit_is_refused_at_its_unit() {
-    assert_eq!(f::rendered(&f::LIVE_NEVER).stdout, b"tasks/motd/task.json:1:19: x1-prod: motd: \"systemd-networkd.service\" is reserved: this core service must not restart live (protocol/format/tasks.md, 14)\n");
+    assert_eq!(f::rendered(&f::LIVE_NEVER).stdout, b"tasks/motd/task.json:1:19: x1-prod: motd: \"systemd-networkd.service\" is reserved: this core service must not restart live (protocol/format/tasks-live.md, 1)\n");
 }
 #[test]
 fn a_unit_with_none_is_refused_at_its_unit() {
-    assert_eq!(f::rendered(&f::LIVE_NONE).stdout, b"tasks/motd/task.json:1:18: x1-prod: motd: \"x.service\" is reserved: action none names no unit (protocol/format/tasks.md, 14)\n");
+    assert_eq!(f::rendered(&f::LIVE_NONE).stdout, b"tasks/motd/task.json:1:18: x1-prod: motd: \"x.service\" is reserved: action none names no unit (protocol/format/tasks-live.md, 1)\n");
 }
 const SECRET_LIVE_EXITS: &[(&hearth_builder_world::fixtures::File, Exit)] = &[
     (&f::SECRET_HEARTH, f::CONFIGURATION_EXIT),

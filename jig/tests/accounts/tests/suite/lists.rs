@@ -1,4 +1,4 @@
-//! The accounts child's list reads (jig/docs/design/domain/accounts.md, 3.7).
+//! The accounts child's list reads (jig/docs/design/domain/accounts-lists.md, 1).
 use jig_accounts_world::{
     ALICE, ALICE_PARTY, BOB, LIMITS, PROVIDER, World, account, issued, program, provider, providers, source,
 };
@@ -18,7 +18,7 @@ const DEPLOYMENT_ACCOUNT: u32 = 30;
 const DEPLOYMENT_SOURCE: u32 = 31;
 const OTHER_PROVIDER: u32 = 2;
 const REQUEST: Token = Token::new(50);
-// accounts.md, 3.7: a day between attempts, including across starts.
+// domain/accounts-lists.md, 1: a day between attempts, including across starts.
 const DAY: u64 = 86_400;
 const HOUR: u64 = 3_600;
 const VALID: Duration = Duration::from_secs(DAY * 3);

@@ -10,7 +10,7 @@ pub struct Model {
     pub provider: u32,
     pub dialect: u32,
     pub endpoint: u32,
-    /// The endpoint's backend, when it takes program sources (configuration.md, 3).
+    /// The endpoint's backend, when it takes program sources (protocol/configuration-engine.md, 1).
     pub program: Option<Box<[u8]>>,
     pub name: Box<[u8]>,
     /// The input tokens a conversation's window may hold on this model.
@@ -29,14 +29,14 @@ pub struct Model {
     /// index, and none for a model that declares none (domain/tasks/README.md, 3).
     pub efforts: Box<[Box<[u8]>]>,
     /// On a configured model and a charter's, the default a task given no LLM choice takes,
-    /// one of `efforts` by name, or `None` for its first (configuration.md, 3).
+    /// one of `efforts` by name, or `None` for its first (protocol/configuration-engine.md, 1).
     /// On a run's charter, its task's choice's (domain/engine/executors.md, 1), or `None` for the LLM
     /// provider's default when the model declares no efforts.
     pub effort: Option<Box<[u8]>>,
 }
 
 impl Model {
-    /// An unoccupied catalogue position (domain/engine/settings.md, 11).
+    /// An unoccupied catalogue position (domain/engine/settings-catalogue.md, 1).
     #[must_use]
     pub fn hole() -> Self {
         Self {
@@ -75,7 +75,7 @@ impl Model {
     }
 }
 
-/// The most efforts a configured model declares (configuration.md, 3).
+/// The most efforts a configured model declares (protocol/configuration-engine.md, 1).
 pub const EFFORTS: u32 = 16;
 /// The most bytes in an effort's name: the bound smith's charter holds an effort to
 /// (smith's protocol/charter.md, sections 2 and 6).
@@ -133,7 +133,7 @@ pub struct RunCharter {
     pub budget: u64,
 }
 
-/// A completion's maximum price, rounded up once (domain/authority.md, 7).
+/// A completion's maximum price, rounded up once (domain/authority-budgets.md, 1).
 #[must_use]
 pub fn most_costly(model: &Model) -> Option<u64> {
     let rate = model.input_price.max(model.cached_price).max(model.cache_write_price.unwrap_or(model.input_price));
@@ -145,7 +145,7 @@ pub fn most_costly(model: &Model) -> Option<u64> {
     u64::try_from(rounded).ok()
 }
 
-/// Reserve turns and one completion more (domain/authority.md, 7).
+/// Reserve turns and one completion more (domain/authority-budgets.md, 1).
 #[must_use]
 pub fn reserve_floor(policy: &RunPolicy) -> Option<u64> {
     most_costly(&policy.model)?.checked_mul(u64::from(policy.reserve_turns).checked_add(1)?)

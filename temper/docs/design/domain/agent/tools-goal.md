@@ -34,7 +34,7 @@ it as any `delegate`:
   the deployment's largest result, jig's `tasks.result_bytes` (the box's
   agent's message, `../../protocol/configuration/stock.md`), whatever the run's own contract's
   bound (a chat's bound reaches neither its brief nor its replies,
-  since its requester ends it, jig's `domain/tasks/lifecycle.md`, 9), since jig
+  since its requester ends it, jig's `domain/tasks/lifecycle-endings.md`, 2), since jig
   refuses a batch whose contract is above it (`charter.md`, 3): the work a person
   asked for, which plans, asks its requester with `message` where its
   words say to (`agents.md`, 2), calls `change`

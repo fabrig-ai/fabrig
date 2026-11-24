@@ -13,7 +13,7 @@ pub(super) fn adopt(world: &mut World, mode: Adoption) {
     let source = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 2);
-    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.store = Store::on_directory(&world.store.checked(), fixtures::APPLICATION, &[], world.host.seeded());
     world.host.adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, mode).unwrap();
     world.settle();
 }

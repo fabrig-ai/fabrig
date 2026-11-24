@@ -1,5 +1,5 @@
 //! What a task may do, as an owned value with a preorder, its carved funding,
-//! and the rules each action passes (domain/authority.md, sections 3–10;
+//! and the rules each action passes (domain/authority.md, sections 3–6, and domain/authority-budgets.md, section 1, and domain/authority-checks.md, section 1, and domain/authority.md, sections 9–10;
 //! programming-model.md, 4.5).
 //!
 //! Pure policy over values supplied by the engine's root: resource coverage,
@@ -15,8 +15,8 @@
 //!
 //! Entry contracts: `check_*` borrow admitted snapshots, return one answer
 //! and append findings to uncapped queues; the root supplies connector verdicts
-//! and commits allowed numbers with actions exactly once (domain/authority.md,
-//! sections 7–9). `at_most`, coverage and accounting functions are pure value queries,
+//! and commits allowed numbers with actions exactly once (domain/authority-budgets.md, section 1, and domain/authority-checks.md, section 1, and domain/authority.md, section 9
+//! ). `at_most`, coverage and accounting functions are pure value queries,
 //! not child event protocols. Callers bound owned inputs before these queries;
 //! `needs` copies bounded data and its output is counted by the caller.
 //! `step` alone updates the policy table and emits one terminal `PolicyFact`

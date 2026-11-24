@@ -232,7 +232,7 @@ the person to check existence and grant the repository to the App.
   a field or leaves the page. Adopted, the fields go back to their
   defaults (written by the domain, so the view writes them).
 - **Out of date:** when the engine does not serve this client's version
-  of the forge's records (jig's `protocol/client/README.md`, section 6), the
+  of the forge's records (jig's `protocol/client/versions.md`, section 1), the
   page says so in its shell's words: the terminal's "This temper is out
   of date for adopting repositories: run the temper the engine runs.",
   the browser's "This page is out of date for adopting repositories:
@@ -329,14 +329,14 @@ client removes no account and closes no chat of its own.
   as leaving the same way, until the read answers none.
 - **The scripted model, the playground's alone.** Only the playground's
   project allows it, and no other project does (`../../protocol/setup/playground.md`
-  ; jig's `domain/accounts.md`, 4.2). The client names its LLM
+  ; jig's `domain/accounts-uses.md`, 1.2). The client names its LLM
   provider from the read and leaves its account out of the accounts'
   lists and counts and its provider out of the ways to connect a model
   (`../pages/README.md`, `../pages/accounts-words.md`, 1). A model is usable for the welcome, Ready and the
   composer's line by an account of another provider: the person's own,
   from the `accounts` document, or, for a person whose deployment role
   is owner, the deployment's, from the `deployment` document (jig's
-  `client/domain/contract/README.md`, 5.1), an account held by the deployment,
+  `client/domain/contract/watches.md`, 1.1), an account held by the deployment,
   uncut, with a usable source; that document counts only by such an
   account, and while it is not delivered, or is cut, it adds none. An
   account of the person's own added while the playground runs, or

@@ -598,7 +598,7 @@ fn a_hosts_template_lists_the_containers_placed_on_it() {
             "  /etc/containers          file 0644 root:root 81d31332747e\n",
             "  /etc/containers          file 0644 root:root 2e41c4778818\n",
         ),
-        "hearth/docs/design/protocol/format/README.md, 3.5: chat none, lab mail, prod chat and mail"
+        "hearth/docs/design/protocol/format/targets.md, 1.5: chat none, lab mail, prod chat and mail"
     );
 }
 #[test]

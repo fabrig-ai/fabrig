@@ -1,4 +1,4 @@
-//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/README.md`, section 9).
+//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/world.md`, section 1).
 use crate::{reads, world::World};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
@@ -7,6 +7,15 @@ use jig_domain_tasks as tasks;
 use jig_protocol_store::keys;
 use jig_test_domain as root;
 use std::collections::{BTreeMap, BTreeSet};
+
+type Answers = BTreeMap<(u64, Option<u64>), core::reads::Answer>;
+
+/// The documents compared by the closing oracle, keyed by sign-in and optional task.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Documents {
+    pub before: Answers,
+    pub after: Answers,
+}
 
 pub(crate) fn configuration(source: &root::Config) -> root::Config {
     let core = &source.core;
@@ -78,7 +87,7 @@ impl World {
         self.broken = true;
     }
 
-    /// The restart oracle (domain/engine/README.md 9): settle, snapshot what the parties were last
+    /// The restart oracle (domain/engine/world.md 1): settle, snapshot what the parties were last
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {
@@ -199,6 +208,7 @@ impl World {
                 ));
             }
         }
+        self.closed_documents = Some(Documents { before, after });
         Ok(())
     }
 
@@ -305,11 +315,7 @@ impl World {
         Err("restart oracle: held delivery at store readback boundary".into())
     }
 
-    fn oracle_documents(
-        &mut self,
-        parties: &BTreeSet<u64>,
-        tasks: &BTreeSet<u64>,
-    ) -> BTreeMap<(u64, Option<u64>), core::reads::Answer> {
+    fn oracle_documents(&mut self, parties: &BTreeSet<u64>, tasks: &BTreeSet<u64>) -> Answers {
         let reads = self.reads.take();
         let client = self.client_peer.take();
         let sign_in = self.sign_in;

@@ -24,7 +24,7 @@ impl Engine {
     }
     /// The directory component's checked bounds before runtime settings.
     #[must_use]
-    pub fn checked_opening_limits(&self) -> &jig_protocol_store::CheckedLimits {
+    pub fn checked_opening_limits(&self) -> &jig_protocol_store::Checked {
         self.store.host.opening_limits()
     }
     pub fn input(&mut self, event: root::Event) {

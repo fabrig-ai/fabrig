@@ -2,7 +2,7 @@
 //! Whole live documents replace their source; bounded pages carry opaque
 //! cursors. Needs sort oldest first and updates newest first. Reading results
 //! asks the keyed table to mark the newest displayed position once per opening.
-//! See client/domain/pages.md, 3, and client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 4–5.
+//! See client/domain/pages.md, 3, and client/domain/contract/requests.md, 2, and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1.
 use crate::state::address::{Address, ProjectSection};
 use alloc::boxed::Box;
 use jig_client::contract::{

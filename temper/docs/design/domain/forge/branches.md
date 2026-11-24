@@ -50,7 +50,7 @@
 - **Landing branches are never made by a push.** A landing branch must
   exist when it is adopted or named; a goal's own branch (1) is made
   at its base's tip as its goal's hold is taken, as the taking's effect
-  (jig's `domain/connectors.md`, 4.7), and a change into it reads it
+  (jig's `domain/connectors-effects.md`, 1.7), and a change into it reads it
   once it is made.
 - **Deleted as their tasks close,** as the release of their holds (jig's
   `domain/tasks/holds.md`, 5): a landed change's branch, a cancelled one's,
@@ -223,7 +223,7 @@ own, never a change's:
 ## 2. A goal's closer
 
 A goal from a template that names it is ended by temper's goal closer
-(jig's `domain/tasks/lifecycle.md`, 11): when nothing is left for its agent to
+(jig's `domain/tasks/lifecycle-endings.md`, 3): when nothing is left for its agent to
 judge, jig makes the closer as the goal's own delegate, and the closer
 does with no model what a goal's run did once its plan's changes had
 ended: it settles the goal's branch, lands it, and reports. The goal's
@@ -270,7 +270,7 @@ section 6).
      (`../after-landing.md`, section 6). A goal with no goal branch, or whose base
      already holds its tip, skips it.
   3. **Report:** the closer's result, below, and its end: done, which
-     ends the goal (jig's `domain/tasks/lifecycle.md`, 11).
+     ends the goal (jig's `domain/tasks/lifecycle-endings.md`, 3).
 - **What wakes the goal meanwhile** is what wakes it for any delegate:
   a step's change held past its bounds, its resolution or repair
   failing, escalates past the closer, a procedure, to the goal (jig's
@@ -390,15 +390,15 @@ section 6).
     project's bound L`. So `the landing T41 ended cancelled; attempts
     ended without landing: 3, the project's bound 3`.
 - **Its authority across attempts.** The closer's budget and task
-  count (jig's `domain/tasks/lifecycle.md`, 11) fund each attempt up to
+  count (jig's `domain/tasks/lifecycle-endings.md`, 3) fund each attempt up to
   the bound:
   - *Spend:* each step's change is given half of what the closer has
     left, its budget less what it spent, what its ended delegates spent
     and what it holds reserved. An ended change's unspent share goes
-    back to the closer as it ends (jig's `domain/authority.md`, section
-    7), so an attempt costs the closer what it spent, never its share.
+    back to the closer as it ends (jig's `domain/authority-budgets.md`, section
+    1), so an attempt costs the closer what it spent, never its share.
   - *Lent to its goal's run:* while a run of its goal holds the
-    closer's funds (jig's `domain/tasks/lifecycle.md`, 11), a step the
+    closer's funds (jig's `domain/tasks/lifecycle-endings.md`, 3), a step the
     closer cannot fund waits, with no hold, keeping the step to make;
     that run's answer gives the funds back and makes the closer due,
     and the step is made then. So a release the goal's run makes takes
@@ -426,7 +426,7 @@ section 6).
     now fits.
 - **New work waits for, and reopens, the steps.** A change the goal
   makes while its closer lives is the closer's dependency (jig's
-  `domain/tasks/lifecycle.md`, 11). The closer, kept, makes no new step while it
+  `domain/tasks/lifecycle-endings.md`, 3). The closer, kept, makes no new step while it
   is pending, and a step's change already made goes on: a landing into
   whose branch the new work lands takes it as its new head (`change/drift.md`, 1). Once
   the work has ended, the closer reads afresh: a change of the goal that
@@ -519,7 +519,7 @@ fast-forward never forced. Its repository's other writes are as before.
 
 - **Its first run among them.** A goal's run prepared while its goal
   branch is still being made (the taking's effect in flight, jig's
-  `domain/connectors.md`, 4.7) or not yet confirmed (its head not yet
+  `domain/connectors-effects.md`, 1.7) or not yet confirmed (its head not yet
   recorded as temper's own) waits, as a write into a branch still being
   made does, and starts once g is made and confirmed, at g's tip, a
   design writer like any later run. A modifying goal holding g never

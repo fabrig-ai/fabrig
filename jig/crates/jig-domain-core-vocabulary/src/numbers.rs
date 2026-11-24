@@ -1,10 +1,10 @@
-//! Deployment numbers owned by the core (domain/engine/README.md, 3 and 5.4; domain/model.md, 6.1).
+//! Deployment numbers owned by the core (domain/engine/README.md, 3, and domain/engine/decisions.md, 1.4; domain/model.md, 6.1).
 
 use crate::{CoreRecord, Record, Write};
 
 /// Core to store, then store to core at startup: one fixed-size deployment
 /// header with allocated high-water marks. Every writing decision saves it
-/// atomically with its other rows (domain/engine/README.md, 5.1 and 5.4).
+/// atomically with its other rows (domain/engine/decisions.md, 1.1 and 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Deployment {
     /// Shell-supplied identity committed on the deployment's first start and restored thereafter;
@@ -40,7 +40,7 @@ pub struct Deployment {
 }
 
 /// Core-selected counter for `fresh`; each is a separate checked `u64` high-water
-/// mark, not a channel token or child-owned handle (domain/engine/README.md, 5.4).
+/// mark, not a channel token or child-owned handle (domain/engine/decisions.md, 1.4).
 /// Selecting a family is pure; allocating it dirties the journal header.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Family {
@@ -193,7 +193,7 @@ pub fn fresh(counters: &mut Counters, family: Family) -> Option<u64> {
 }
 
 impl Counters {
-    /// Number a writing decision and construct its deployment row (domain/engine/README.md, 5.4).
+    /// Number a writing decision and construct its deployment row (domain/engine/decisions.md, 1.4).
     #[must_use]
     pub fn commit_header(&mut self) -> Write {
         Write::Save(self.commit_record())

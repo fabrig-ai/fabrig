@@ -87,11 +87,21 @@ beside this one.
 1. **hearth/docs/design/README.md:** this overview.
 2. **hearth/docs/design/protocol/format/README.md:** the IaC format: the repository, targets, merging,
    tasks and their schemas, templates, exports, and secrets and data as
-   the format names them.
+   the format names them. The format's companion pages are:
+   - [`targets.md`](protocol/format/targets.md): composition and placement.
+   - [`schema.md`](protocol/format/schema.md): settings and their validation.
+   - [`exports.md`](protocol/format/exports.md): shared data between targets.
+   - [`tasks-reserved.md`](protocol/format/tasks-reserved.md): reserved names and paths.
+   - [`tasks-hearth.md`](protocol/format/tasks-hearth.md): the built-in `hearth` task.
+   - [`tasks-live.md`](protocol/format/tasks-live.md): live changes and their consumers.
 3. **hearth/docs/design/domain/render/README.md:** from a revision and a target to a spec: the pipeline,
    parts and digests, package resolution, the rendered diff.
+   - [`diff.md`](domain/render/diff.md): how the rendered diff is made and printed.
+   - [`crates.md`](domain/render/crates.md): the layers and their crates.
 4. **hearth/docs/design/domain/store/README.md:** the store on btrfs: digests and keys, layers, the tree
    helper, records, pins and collection, hearth's own state.
+   - [`digests.md`](domain/store/digests.md): canonical encoding, hashes and keys.
+   - [`state.md`](domain/store/state.md): in-memory state, startup and recovery.
 5. **hearth/docs/design/domain/build/README.md:** how an output is made: the plan, the three layers,
    sandboxes, the tools as protocols, caches, and what an output must not
    hold.
@@ -102,6 +112,8 @@ beside this one.
    changes included), bless, fall back, roll back, drift, containers.
 8. **hearth/docs/design/domain/activator/README.md:** the privilege boundary: the activator and its
    steward, the link, the activator's operations and what it verifies.
+   - [`state.md`](domain/activator/state.md): on-disk state, the journal and recovery.
+   - [`tools.md`](domain/activator/tools.md): protocol machines and system tools.
 9. **hearth/docs/design/domain/steward.md:** the unprivileged side: the steward and the builder it
    spawns for work, the jobs between them, failures, the bless's render.
 10. **hearth/docs/design/protocol/wire.md:** hearth's faces: standalone mode, the wire to an
@@ -204,10 +216,10 @@ graph.
 
 ```
 lib                           no_std, skein-lib only
-hearth-lib                    the canonical encoding and H (domain/store/README.md, 3.1 and 3.2)  M1
+hearth-lib                    the canonical encoding and H (domain/store/digests.md, 1.1 and 1.2)  M1
 
 vocabulary                    no_std, skein-lib, hearth-lib and other vocabularies only
-hearth-domain-render-vocabulary  render's values: the spec's parts, the diff's changes, the errors (domain/render/README.md, 5.1)  M1
+hearth-domain-render-vocabulary  render's values: the spec's parts, the diff's changes, the errors (domain/render/crates.md, 1.1)  M1
 
 domain                        no_std, skein-lib, hearth-lib, their vocabularies and their own children only
 hearth-domain-builder         the builder's root: routes between its children; jobs (domain/steward.md)
@@ -281,10 +293,10 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
   holds resolutions and cache files' records, over a store without layers
   (hearth/docs/design/domain/store/README.md, 2.4); `hearth-protocol-tree` decodes the frame and records of
   kinds 1, 4 and 5 (hearth/docs/design/domain/store/records.md, 1); `hearth-client-protocol-records`
-  prints the answers of `render` and `diff` (hearth/docs/design/domain/render/README.md,
-  5.1; hearth/docs/design/client/README.md, 3.2).
+  prints the answers of `render` and `diff` (hearth/docs/design/domain/render/crates.md,
+  1.1; hearth/docs/design/client/README.md, 3.2).
 - **Client crates live under one prefix,** as jig's do (
-  `jig/docs/design/README.md`, section 15). A crate that exists for the client is
+  `jig/docs/design/crate-names.md`, section 1). A crate that exists for the client is
   `hearth-client-{domain,protocol,<kind>}-<name>`: after the prefix
   comes its layer, as for the daemon's crates, or its kind (a test kit's
   `-fake-`, a world's name ending in `-world`), so that everything the
@@ -307,7 +319,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
   (`skein/docs/foundation/programming-model.md`, 4.5).
 - **Render's values have one owner,** `hearth-domain-render-vocabulary`
   (`skein/docs/foundation/programming-model.md`, 4.6;
-  hearth/docs/design/domain/render/README.md, 5.1): the client's printer
+  hearth/docs/design/domain/render/crates.md, 1.1): the client's printer
   prints them, and a machine that decodes them names them, so no layer
   holds a copy of them. A layer keeps a type of its own only where it
   adds a meaning, a check or a projection: the client's own records,
@@ -316,9 +328,9 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
 - **Every format is its own machine crate,** depending on lib and on
   the vocabularies of the values it decodes, and fuzzed alone;
   a process's protocol layer only routes between its machines
-  (`skein/docs/foundation/programming-model.md`, section 4; hearth/docs/design/domain/activator/README.md, 7.1). JSON's machine
+  (`skein/docs/foundation/programming-model.md`, section 4; hearth/docs/design/domain/activator/tools.md, 1.1). JSON's machine
   is skein's tokenizer, which `hearth-protocol-config` composes
-  (hearth/docs/design/domain/render/README.md, 5.1).
+  (hearth/docs/design/domain/render/crates.md, 1.1).
 - **The activator's domain never depends on the steward's, nor the
   steward's on the builder's.** The link's records are the only
   vocabulary the first two share, through `hearth-protocol-link`; the
@@ -416,7 +428,7 @@ user (`skein/docs/foundation/testing-strategy.md`, section 9). From the earliest
 | Need | For | Milestone |
 |---|---|---|
 | a public, streaming SHA-256 in lib, usable by the domain | digests | M1 |
-| JSON: each of the tokenizer's tokens and errors with its position in the document, its byte offset, line and column (the column in bytes, both from 1). `hearth-protocol-config` reads every document through skein-json's tokenizer, and refuses duplicate keys itself, at every depth, as it decodes each object's keys | strict configuration (hearth/docs/design/protocol/format/README.md, 2.2); the file, line and column of every render error (hearth/docs/design/domain/render/README.md, 3.1 and hearth/docs/design/domain/render/errors.md; hearth/docs/design/protocol/format/README.md, 5.5) | M1 |
+| JSON: each of the tokenizer's tokens and errors with its position in the document, its byte offset, line and column (the column in bytes, both from 1). `hearth-protocol-config` reads every document through skein-json's tokenizer, and refuses duplicate keys itself, at every depth, as it decodes each object's keys | strict configuration (hearth/docs/design/protocol/format/README.md, 2.2); the file, line and column of every render error (hearth/docs/design/domain/render/README.md, 3.1 and hearth/docs/design/domain/render/errors.md; hearth/docs/design/protocol/format/schema.md, 1.5) | M1 |
 | a full stat by name, without following links; readlink; extended attributes (`skein/docs/design/runtime/kernel-files.md`, 1 and 2; `skein/docs/design/runtime/io/files.md`) | the tree helper's walk | M2 |
 | writing a tree's metadata: symlink, link, chmod, chown, extended attributes, mkdir, truncate (`skein/docs/design/runtime/kernel-files.md`, 2) | change sets | M2 |
 | setting an entry's times, without following links (`utimensat`) | a slot's `/var`, copied (hearth/docs/design/domain/slots/prepare.md, 3); later, the walk's clamp (hearth/docs/design/domain/build/reproducible.md, 5.1) | M3 |
@@ -424,9 +436,9 @@ user (`skein/docs/foundation/testing-strategy.md`, section 9). From the earliest
 | contained process trees, with id maps through `newuidmap`, a composed root and `pivot_root`, network and uts namespaces, fresh `/proc`, `/sys` and `/dev`, `no_new_privs` and limits (hearth/docs/design/domain/build/sandboxes.md, 8) | sandboxes | M2 |
 | a closed list of synchronous ioctls in the ring adapter: `GET_SUBVOL_INFO`, `GET_SUBVOL_ROOTREF`, `INO_LOOKUP_USER`, `SUBVOL_CREATE`, `SNAP_CREATE_V2`, `SNAP_DESTROY_V2`, `SUBVOL_SETFLAGS` (hearth/docs/design/domain/store/tree-helper.md, 8; `skein/docs/design/runtime/kernel-files.md`, 3) | the store and the slots, unprivileged where they can be | M2 |
 | a digest of a world's state, for replay (hearth/docs/design/testing/worlds.md, 4) | replay checks in hearth's worlds | M1 |
-| an exclusive lock on a directory, taken without waiting, which the owner asks for again on its own timer (`skein/docs/design/runtime/kernel-files.md`, 1; `skein/docs/design/runtime/io/files.md`) | the store's lock (hearth/docs/design/domain/store/README.md, 6.2, step 1) | M1 |
+| an exclusive lock on a directory, taken without waiting, which the owner asks for again on its own timer (`skein/docs/design/runtime/kernel-files.md`, 1; `skein/docs/design/runtime/io/files.md`) | the store's lock (hearth/docs/design/domain/store/state.md, 1.2, step 1) | M1 |
 | a rename from one directory to another (`skein/docs/design/runtime/io/files.md`) | a resolution's indices moved from its scratch directory into the cache (hearth/docs/design/domain/render/spec.md, 2.3; hearth/docs/design/domain/store/records.md, 4) | M1 |
-| a directory listed page by page (`skein/docs/design/runtime/io/files.md`) | the startup scan of `cache/` and `resolutions/`, whatever their size (hearth/docs/design/domain/store/README.md, 6.2) | M1 |
+| a directory listed page by page (`skein/docs/design/runtime/io/files.md`) | the startup scan of `cache/` and `resolutions/`, whatever their size (hearth/docs/design/domain/store/state.md, 1.2) | M1 |
 | `statfs`'s filesystem type (`skein/docs/design/runtime/kernel-files.md`, 3) | the scan's subvolume steps, on btrfs alone (hearth/docs/design/domain/store/README.md, 2.4) | M2 |
 | Unix sockets with peer credentials | the client | M3 |
 | redialling and identity on the channel's TLS client | the wire | M4 |

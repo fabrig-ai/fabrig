@@ -864,6 +864,195 @@ fn payload_memory_reads_cut_and_drop_with_the_commit() {
     assert!(below.is_empty());
 }
 
+mod kept_reads {
+    use super::env;
+    use crate::{Direction, Event, Limits, LogRecord, LogRule, Op, Request, Store, down};
+    use alloc::boxed::Box;
+    use skein_io::kernel::Fd;
+    use skein_lib::{Env, Queue, Token};
+
+    const PAYLOAD_OWNER: Token = Token::new(1);
+    const PAYLOAD_LOG: u64 = 7;
+    const PAYLOAD_BYTES: u32 = 128; // Maximum record, the longest repeated-byte fixture.
+    const PAYLOAD_PAGE: u32 = 4 * PAYLOAD_BYTES;
+    const ALL_PAYLOAD_ROWS: u32 = u32::MAX;
+    const SINGLE_PAYLOAD_ROW: u32 = 1;
+
+    struct PayloadMemory {
+        env: Env<Limits>,
+        store: Store,
+    }
+    impl PayloadMemory {
+        fn new() -> Self {
+            let mut env = env();
+            env.limits.record = PAYLOAD_BYTES;
+            let mut store = Store::memory(&env.limits);
+            store.logs(LogRule { prefix: Box::from(&b"extent/"[..]) });
+            Self { env, store }
+        }
+
+        fn request(&mut self, request: Request) -> Event {
+            let mut above = Queue::uncapped();
+            let mut below = Queue::uncapped();
+            down(&mut self.store, &self.env, request, &mut above, &mut below);
+            above.pop().expect("memory answers inline")
+        }
+
+        fn commit(&mut self, op: Op) {
+            let event = self.request(Request::Commit { owner: PAYLOAD_OWNER, ops: Box::new([op]) });
+            let Event::Committed { .. } = event else { panic!("fixture commit: {event:?}") };
+        }
+
+        fn append(&mut self, log: u64, record: &[u8]) -> u64 {
+            let frame = self.store.frame(record).expect("fixture frame fits");
+            self.commit(Op::Append { log, frame });
+            self.store.log_end(log)
+        }
+
+        fn read(&mut self, log: u64, direction: Direction, at: u64, max: u32, rows: u32) -> Event {
+            self.request(Request::ReadLog { owner: PAYLOAD_OWNER, log, at, direction, max, rows })
+        }
+
+        fn first(&mut self, log: u64) -> Event {
+            self.read(log, Direction::Forward, 0, PAYLOAD_PAGE, SINGLE_PAYLOAD_ROW)
+        }
+
+        fn with_record(keep: bool) -> Self {
+            let mut memory = Self::new();
+            memory.store.keep_reads(keep);
+            memory.append(PAYLOAD_LOG, b"a");
+            memory
+        }
+
+        fn damage_record(&mut self) -> Event {
+            const BODY: usize = 9; // The length, kind and record length precede the body (data/kv.md, 6.1).
+            let before = self.first(PAYLOAD_LOG);
+            let bytes = self.store.memory_log_bytes(PAYLOAD_LOG).expect("committed log");
+            *bytes.get_mut(BODY).expect("nonempty frame body") ^= 1;
+            before
+        }
+    }
+
+    #[test]
+    fn kept_and_uncached_reads_agree_on_pages_and_cuts() {
+        const REPEATED: &[u8] = &[b'a'; 64];
+        const RAW: &[u8] = b"raw";
+        const LARGE: &[u8] = &[b'b'; 128];
+        const SMALL_MAX: u32 = 1; // Less than any of the fixture records.
+        const RAW_MAX: u32 = 3; // The raw record fills the answer before the next record.
+        let mut on = PayloadMemory::new();
+        let mut off = PayloadMemory::new();
+        off.store.keep_reads(false);
+        let [first_end, raw_end, end] = [REPEATED, RAW, LARGE].map(|record| {
+            off.append(PAYLOAD_LOG, record);
+            on.append(PAYLOAD_LOG, record)
+        });
+        for _ in 0..2_u32 {
+            let expected = Event::LogRead {
+                owner: PAYLOAD_OWNER,
+                records: Box::new([LogRecord {
+                    at: 0,
+                    end: first_end,
+                    length: u32::try_from(REPEATED.len()).expect("fixture length"),
+                    record: Some(Box::from(REPEATED)),
+                }]),
+                next: Some(first_end),
+            };
+            assert_eq!(on.first(PAYLOAD_LOG), expected);
+            assert_eq!(off.first(PAYLOAD_LOG), expected);
+            assert!(on.store.kept_reads() > 0);
+            assert_eq!(off.store.kept_reads(), 0);
+        }
+        for (direction, at, max, rows) in [
+            (Direction::Backward, end, PAYLOAD_PAGE, SINGLE_PAYLOAD_ROW),
+            (Direction::Forward, first_end, PAYLOAD_PAGE, ALL_PAYLOAD_ROWS),
+            (Direction::Backward, raw_end, PAYLOAD_PAGE, ALL_PAYLOAD_ROWS),
+            (Direction::Forward, 0, SMALL_MAX, ALL_PAYLOAD_ROWS),
+            (Direction::Backward, end, SMALL_MAX, ALL_PAYLOAD_ROWS),
+            (Direction::Forward, first_end, RAW_MAX, ALL_PAYLOAD_ROWS),
+            (Direction::Backward, end, PAYLOAD_BYTES, ALL_PAYLOAD_ROWS),
+        ] {
+            for _ in 0..2_u32 {
+                assert_eq!(
+                    on.read(PAYLOAD_LOG, direction, at, max, rows),
+                    off.read(PAYLOAD_LOG, direction, at, max, rows)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_kept_frame_is_reused_until_forgotten() {
+        let mut memory = PayloadMemory::with_record(true);
+        let before = memory.damage_record();
+        assert_eq!(memory.first(PAYLOAD_LOG), before);
+        memory.store.forget_reads();
+        assert_eq!(memory.first(PAYLOAD_LOG), Event::LogUnread { owner: PAYLOAD_OWNER, at: 0 });
+        assert_eq!(memory.store.kept_reads(), 0);
+    }
+
+    #[test]
+    fn disabling_kept_reads_discards_the_kept_frame() {
+        let mut memory = PayloadMemory::with_record(true);
+        let before = memory.damage_record();
+        assert_eq!(memory.first(PAYLOAD_LOG), before);
+        memory.store.keep_reads(false);
+        assert_eq!(memory.first(PAYLOAD_LOG), Event::LogUnread { owner: PAYLOAD_OWNER, at: 0 });
+        assert_eq!(memory.store.kept_reads(), 0);
+    }
+
+    #[test]
+    fn dropping_a_log_forgets_its_records_before_reuse() {
+        const OTHER_LOG: u64 = 8;
+        const AFTER_DROP: u64 = 1; // Only the other log's record is kept.
+        let mut memory = PayloadMemory::with_record(true);
+        memory.append(OTHER_LOG, b"c");
+        memory.first(OTHER_LOG);
+        memory.first(PAYLOAD_LOG);
+        memory.commit(Op::Drop { log: PAYLOAD_LOG });
+        let end = memory.append(PAYLOAD_LOG, b"b");
+        let kept_after_drop = memory.store.kept_reads();
+        assert_eq!(
+            memory.first(PAYLOAD_LOG),
+            Event::LogRead {
+                owner: PAYLOAD_OWNER,
+                records: Box::new([LogRecord { at: 0, end, length: 1, record: Some(Box::from(&b"b"[..])) }]),
+                next: None,
+            }
+        );
+        assert_eq!(kept_after_drop, AFTER_DROP);
+    }
+
+    #[test]
+    fn a_memory_fork_copies_the_switch_but_starts_cold() {
+        const COLD: u64 = 0;
+        const WARM: u64 = 1; // The fixture's one checked record.
+        for (keep, expected) in [(true, WARM), (false, COLD)] {
+            let mut source = PayloadMemory::with_record(keep);
+            let read = source.first(PAYLOAD_LOG);
+            let store = source.store.fork_memory(&source.env.limits).expect("memory store forks");
+            let mut fork = PayloadMemory { env: source.env, store };
+            assert_eq!(fork.store.kept_reads(), COLD);
+            assert_eq!(fork.first(PAYLOAD_LOG), read);
+            assert_eq!(fork.store.kept_reads(), expected);
+        }
+    }
+
+    #[test]
+    fn opening_a_directory_forgets_kept_memory_reads() {
+        let mut memory = PayloadMemory::with_record(true);
+        memory.first(PAYLOAD_LOG);
+        down(
+            &mut memory.store,
+            &memory.env,
+            Request::Open { owner: PAYLOAD_OWNER, root: Fd::new(5) },
+            &mut Queue::uncapped(),
+            &mut Queue::uncapped(),
+        );
+        assert_eq!(memory.store.kept_reads(), 0);
+    }
+}
+
 #[test]
 fn payload_admission_refusals_and_queued_ends_are_atomic() {
     use crate::LogRule;

@@ -68,7 +68,7 @@ It covers:
 - **jig's approval is designed for loopback:** it is enabled only where
   the clients' listener is on loopback, and approval between hosts, over
   TLS, is later (jig's `protocol/client/sign-in.md`, *A sign-in approved
-  by a browser*; jig's `protocol/configuration.md`, 3 and 8). `tui.md`, 7
+  by a browser*; jig's `protocol/configuration-engine.md`, 1, and `protocol/configuration.md`, 8). `tui.md`, 7
   sketched it: Google's sign-in on the web, then the same approval over
   HTTPS, the code typed on the page, which says where the ask came from
   and how long ago. On loopback, a code in the page's address approves
@@ -84,7 +84,7 @@ It covers:
   public name as it admits the listener's own address. Enabled, it would
   be asked from the internet with none of section 5's guards.
 - **jig's native shell speaks plain HTTP** to a socket address (jig's
-  `protocol/client/README.md`, 9). skein's TLS client, `skein-tls`, and
+  `protocol/client/shells.md`, 1). skein's TLS client, `skein-tls`, and
   the machine's roots, found by skein-shell's startup, are in the tree
   already, used by the engine's own calls out.
 - **A client of another build is refused** (`redeploys.md`, 8;
@@ -262,7 +262,7 @@ code typed from the person's own terminal (5.2).
 ### 5.4 The engine
 
 - **Approval by the public name is what `approval` enables,** in jig's
-  clients' configuration (jig's `protocol/configuration.md`, 3), where
+  clients' configuration (jig's `protocol/configuration-engine.md`, 1), where
   the application gives a public name. There is no second switch, and
   the startup's check stays the listener on loopback, as a deployment
   behind its proxy has it. That section's and jig's

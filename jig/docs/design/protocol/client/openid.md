@@ -10,7 +10,7 @@ and writes the documents and tokens; the component holds what lives,
 its codes and access tokens, and decides who is signed in. The routes
 and their addresses are the application's (`default-http.md`, 1: no provider route).
 
-- **Configured** by `clients.provider` (`../configuration.md`, section 3):
+- **Configured** by `clients.provider` (`../configuration-engine.md`, section 1):
   its signing key (a 3072-bit RSA key, PKCS#8, a file of the
   service's own user, mode 0600, made on its host and never copied,
   printed or logged; any other form, size, mode or owner refuses the

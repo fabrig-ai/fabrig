@@ -1,5 +1,5 @@
 //! Record-size bounds derived from content lengths and list cardinalities.
-//! Contract: protocol/limits.md, section 3.7; protocol/events.md, section 5.3.
+//! Contract: protocol/limits-derivation.md, section 1.7; protocol/events.md, section 5.3.
 
 use crate::records::{Block, Capture, Clamp, Count, EffectiveLimit, Event, Family, Field, Form, Message};
 use alloc::boxed::Box;

@@ -652,7 +652,7 @@ pub enum Party {
     Deployment { project: u32 },
 }
 
-/// A dependency added to a live procedure's task (domain/connectors.md, 6.1).
+/// A dependency added to a live procedure's task (domain/connectors-procedures.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Added {
     pub task: u64,

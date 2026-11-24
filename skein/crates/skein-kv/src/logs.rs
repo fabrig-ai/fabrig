@@ -2,7 +2,7 @@
 
 #![expect(
     clippy::disallowed_types,
-    reason = "frames and admitted appends are bounded by record and queued_bytes; memory logs keep committed frames"
+    reason = "frames and admitted appends are bounded by record and queued_bytes; memory logs keep committed frames and their checked records"
 )]
 
 use crate::{Direction, Event, Large, Limits, LogRecord, LogRule, Op, Refusal};
@@ -108,21 +108,63 @@ pub(crate) struct Prepared {
     pub(crate) drops: Box<[u64]>,
     pub(crate) bytes: u64,
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct End {
     at: u64,
     number: u64,
 }
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+struct Kept {
+    end: u64,
+    record: Box<[u8]>,
+}
+#[derive(Debug)]
 pub(crate) struct Logs {
     pub(crate) rule: Option<LogRule>,
     record: u32,
     ends: Map<u64, End>,
     memory: Map<u64, Vec<u8>>,
+    kept: Option<Map<u64, Map<u64, Kept>>>,
 }
 impl Logs {
     pub(crate) fn new(limits: &Limits) -> Self {
-        Self { rule: None, record: limits.record, ends: Map::uncapped(), memory: Map::uncapped() }
+        Self { rule: None, record: limits.record, ends: Map::uncapped(), memory: Map::uncapped(), kept: None }
+    }
+    pub(crate) fn fork_memory(&self) -> Self {
+        let mut copy = Self {
+            rule: self.rule.clone(),
+            record: self.record,
+            ends: Map::uncapped(),
+            memory: self.memory.clone(),
+            kept: None,
+        };
+        copy.keep_reads(self.kept.is_some());
+        copy
+    }
+    pub(crate) fn keep_reads(&mut self, keep: bool) {
+        if !keep {
+            self.kept = None;
+        } else if self.kept.is_none() {
+            self.kept = Some(Map::uncapped());
+        }
+    }
+    pub(crate) fn forget_reads(&mut self) {
+        if self.kept.is_some() {
+            self.kept = Some(Map::uncapped());
+        }
+    }
+    pub(crate) fn kept_reads(&self) -> u64 {
+        let mut count = 0_u64;
+        if let Some(logs) = &self.kept {
+            for (_, records) in logs {
+                count = count.checked_add(u64::from(records.len())).expect("record counts fit u64");
+            }
+        }
+        count
+    }
+    #[cfg(test)]
+    pub(crate) fn memory_bytes(&mut self, log: u64) -> Option<&mut [u8]> {
+        Some(self.memory.get_mut(&log)?.as_mut_slice())
     }
     pub(crate) fn frame(&self, record: &[u8]) -> Result<LogFrame, Refusal> {
         frame(record, self.record)
@@ -260,6 +302,7 @@ impl Logs {
     pub(crate) fn clear(&mut self) {
         self.ends = Map::uncapped();
         self.memory = Map::uncapped();
+        self.keep_reads(false);
     }
     pub(crate) fn apply_memory(&mut self, appends: &[Append], drops: &[u64]) {
         for append in appends {
@@ -272,32 +315,32 @@ impl Logs {
         }
         for log in drops {
             let _old = self.memory.remove(log);
+            if let Some(kept) = &mut self.kept {
+                let _old = kept.remove(log);
+            }
         }
     }
-    pub(crate) fn read_memory(&self, mut read: Read, above: &mut skein_lib::Queue<Event>) {
-        let bytes = self.memory.get(&read.log);
+    pub(crate) fn read_memory(&mut self, mut read: Read, above: &mut skein_lib::Queue<Event>) {
+        let Some(bytes) = self.memory.get(&read.log) else {
+            above.push(read.unread());
+            return;
+        };
+        let mut kept = match &mut self.kept {
+            Some(logs) => {
+                if !logs.contains_key(&read.log) {
+                    assert!(logs.insert(read.log, Map::uncapped()).is_ok(), "kept reads follow the memory logs");
+                }
+                logs.get_mut(&read.log)
+            }
+            None => None,
+        };
         for _ in 0..read.extent.saturating_add(1) {
             if read.finished() {
                 above.push(read.answer());
                 return;
             }
-            let frame = match bytes {
-                Some(bytes) => match read.bounds(bytes) {
-                    Some((at, end)) => bytes.get(at..end),
-                    None => None,
-                },
-                None => None,
-            };
-            let Some(frame) = frame else {
-                above.push(read.unread());
-                return;
-            };
-            let start = match read.direction {
-                Direction::Forward => read.at,
-                Direction::Backward => read.at.saturating_sub(skein_lib::len_u64(frame.len())),
-            };
-            if !read.accept(frame, self.record) {
-                above.push(Event::LogUnread { owner: read.owner, at: start });
+            if let Err(at) = read.memory_frame(bytes, kept.as_deref_mut(), self.record) {
+                above.push(Event::LogUnread { owner: read.owner, at });
                 return;
             }
         }
@@ -373,35 +416,76 @@ impl Read {
         };
         if end > self.extent { None } else { Some((at, end)) }
     }
-    pub(crate) fn accept(&mut self, bytes: &[u8], limit: u32) -> bool {
-        let Some(length) = u32_at(bytes, 0) else {
-            return false;
+    fn memory_frame(&mut self, bytes: &[u8], kept: Option<&mut Map<u64, Kept>>, limit: u32) -> Result<(), u64> {
+        // A backward cursor names the end. Its tail length gives the cache key.
+        let bounds = match self.direction {
+            Direction::Forward => None,
+            Direction::Backward => Some(self.bounds(bytes).ok_or(self.at)?),
         };
-        let Some((at, end)) = self.span(length) else {
-            return false;
+        let at = match bounds {
+            Some((at, _)) => skein_lib::len_u64(at),
+            None => self.at,
         };
-        let Some(record) = decode(bytes, limit) else {
-            return false;
-        };
-        let length = u32::try_from(record.len()).expect("decoded record within limit");
-        if length > self.max && !self.records.is_empty() {
-            self.stopped = true;
-            return true;
+        if let Some(kept) = kept.as_deref()
+            && let Some(found) = kept.get(&at)
+        {
+            let at_cursor = match self.direction {
+                Direction::Forward => true,
+                Direction::Backward => found.end == self.at,
+            };
+            if at_cursor && found.end <= self.extent {
+                if let Some(slot) = self.place(at, found.end, found.record.len()) {
+                    *slot = Some(found.record.clone());
+                }
+                return Ok(());
+            }
         }
-        let record = if length > self.max {
-            self.stopped = true;
-            None
-        } else {
-            Some(record)
+        let (start, end) = match bounds {
+            Some(bounds) => bounds,
+            None => self.bounds(bytes).ok_or(self.at)?,
         };
+        let frame = bytes.get(start..end).ok_or(self.at)?;
+        let (at, end, record) = self.checked(frame, limit).ok_or(at)?;
+        let slot = self.place(at, end, record.len());
+        if let Some(kept) = kept {
+            if let Some(slot) = slot {
+                *slot = Some(record.clone());
+            }
+            assert!(kept.insert(at, Kept { end, record }).is_ok(), "kept frames follow the memory log");
+        } else if let Some(slot) = slot {
+            *slot = Some(record);
+        }
+        Ok(())
+    }
+    fn checked(&self, bytes: &[u8], limit: u32) -> Option<(u64, u64, Box<[u8]>)> {
+        let (at, end) = self.span(u32_at(bytes, 0)?)?;
+        let record = decode(bytes, limit)?;
+        Some((at, end, record))
+    }
+    pub(crate) fn accept(&mut self, bytes: &[u8], limit: u32) -> bool {
+        let Some((at, end, record)) = self.checked(bytes, limit) else {
+            return false;
+        };
+        if let Some(slot) = self.place(at, end, record.len()) {
+            *slot = Some(record);
+        }
+        true
+    }
+    /// Place the whole or cut row, or stop before it. Only a whole row has a payload slot.
+    fn place(&mut self, at: u64, end: u64, length: usize) -> Option<&mut Option<Box<[u8]>>> {
+        let length = u32::try_from(length).expect("decoded record within limit");
+        self.stopped = length > self.max;
+        if self.stopped && !self.records.is_empty() {
+            return None;
+        }
         self.max = self.max.saturating_sub(length);
-        self.records.push(LogRecord { at, end, length, record });
+        self.records.push(LogRecord { at, end, length, record: None });
         self.rows = self.rows.checked_sub(1).expect("unfinished read has record room");
         self.at = match self.direction {
             Direction::Forward => end,
             Direction::Backward => at,
         };
-        true
+        if self.stopped { None } else { Some(&mut self.records.last_mut().expect("row just placed").record) }
     }
     pub(crate) fn answer(self) -> Event {
         let next = match self.direction {

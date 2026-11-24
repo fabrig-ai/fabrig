@@ -1,6 +1,6 @@
 //! The component behind the domain worlds' durable store face.
 use crate::Files;
-use jig_protocol_store::{self as protocol, Below, CheckedLimits, Event, Io, Limits, Request, Stores};
+use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
 use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -19,7 +19,7 @@ mod tests;
 /// and a reopened one answers the one it kept (configuration.md, 7).
 const INSTALLATION: [u8; 16] = [0; 16];
 
-/// Store transport and disk faults (jig/docs/design/protocol/store/README.md, 9).
+/// Store transport and disk faults (jig/docs/design/protocol/store/testing.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
     Hold { commits: u32 },
@@ -67,14 +67,14 @@ pub struct Store {
     pub pending: VecDeque<Pending>,
     pub held: VecDeque<u64>,
     component: Option<protocol::Store>,
+    keep_reads: bool,
     sets: protocol::OwnerSets,
     turn_text: Option<TurnText>,
     files: Files,
     disk: Option<crate::disk::Disk>,
     routes: route::Routes,
     limits: root::Limits,
-    component_limits: Limits,
-    checked_limits: CheckedLimits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
     models: Rc<[jig_domain_core::Model]>,
@@ -112,7 +112,7 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::starting_with_read_reuse(limits, models, sets, true)
     }
     /// Open the real store with typed start pages (protocol/store/loads.md, 1).
     #[must_use]
@@ -126,18 +126,29 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::with_owner_sets(limits, models, sets)
     }
     /// Use the directory-backed component even without patch sets.
     #[must_use]
     pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::build(limits, models, protocol::OwnerSets::NONE, true)
+        Self::build(limits, models, protocol::OwnerSets::NONE, true, true)
+    }
+    /// Select whether memory stores reuse checked payload records. Directory stores never keep reads.
+    #[must_use]
+    pub fn starting_with_read_reuse(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::OwnerSets,
+        keep_reads: bool,
+    ) -> Store {
+        Self::build(limits, models, sets, false, keep_reads)
     }
     fn build(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
         on_disk: bool,
+        keep_reads: bool,
     ) -> Store {
         Self::prepared(
             limits,
@@ -146,9 +157,10 @@ impl Store {
             on_disk,
             &component_limits(limits),
             jig_test_store::application(&limits.connector),
+            keep_reads,
         )
     }
-    // Forks keep these checked sizes: the source's configuration is immutable.
+    // A fresh store checks its bounds; forks keep the checked result.
     fn prepared(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
@@ -156,17 +168,18 @@ impl Store {
         on_disk: bool,
         component_limits: &Limits,
         application: protocol::sizes::Application,
+        keep_reads: bool,
     ) -> Store {
-        let checked_limits = CheckedLimits::new(component_limits).expect("the store's limits are valid");
+        let checked = protocol::check(component_limits).expect("world store limits");
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
         let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory_checked(&checked_limits, application, models, disk.seeded())
+            protocol::Store::on_directory(&checked, application, models, disk.seeded())
         } else {
             let stores = Stores {
-                store: skein_kv::Store::memory(&component_limits.store),
-                secrets: skein_kv::Store::memory(&component_limits.secrets),
+                store: Self::memory_store(&component_limits.store, keep_reads),
+                secrets: Self::memory_store(&component_limits.secrets, keep_reads),
             };
-            protocol::Store::over_checked(&checked_limits, application, models, stores)
+            protocol::Store::over(&checked, application, models, stores)
         };
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
@@ -178,12 +191,17 @@ impl Store {
             component,
             Files::new(),
             disk,
-            &checked_limits,
             application,
             routes,
+            keep_reads,
         );
         store.prefixes.insert(0, BTreeMap::new());
         store.open();
+        store
+    }
+    fn memory_store(limits: &skein_kv::Limits, keep_reads: bool) -> skein_kv::Store {
+        let mut store = skein_kv::Store::memory(limits);
+        store.keep_reads(keep_reads);
         store
     }
     #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
@@ -194,10 +212,11 @@ impl Store {
         mut component: protocol::Store,
         files: Files,
         disk: Option<crate::disk::Disk>,
-        checked_limits: &CheckedLimits,
         application: protocol::sizes::Application,
         routes: route::Routes,
+        keep_reads: bool,
     ) -> Store {
+        let checked = component.checked();
         component.owner_sets(component_sets(sets));
         Store {
             applied: 0,
@@ -212,15 +231,15 @@ impl Store {
             rows: BTreeMap::new(),
             pending: VecDeque::new(),
             held: VecDeque::new(),
+            checked,
             component: Some(component),
+            keep_reads,
             sets,
             turn_text: None,
             files,
             disk,
             routes,
             limits: *limits,
-            component_limits: *checked_limits.limits(),
-            checked_limits: *checked_limits,
             application,
             models,
             mirror_writes: true,
@@ -251,7 +270,7 @@ impl Store {
     #[must_use]
     pub fn into_wires(mut self) -> Box<[u8]> {
         let mut stores = self.component.take().expect("component").into_stores();
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits.store };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.checked.limits().store };
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
         let key = protocol::keys::encode_own(&protocol::keys::Own::Wires, env.limits.key).expect("wires key");
@@ -394,12 +413,12 @@ impl Store {
         let application = self.application;
         self.component = Some(if let Some(disk) = &mut self.disk {
             drop(component);
-            disk.crash(&self.component_limits, seed);
-            protocol::Store::on_directory_checked(&self.checked_limits, application, &self.models, disk.seeded())
+            disk.crash(self.checked.limits(), seed);
+            protocol::Store::on_directory(&self.checked, application, &self.models, disk.seeded())
         } else {
             let stores = component.into_stores();
             self.files.crash(seed);
-            protocol::Store::over_checked(&self.checked_limits, application, &self.models, stores)
+            protocol::Store::over(&self.checked, application, &self.models, stores)
         });
         self.component.as_mut().expect("rebuilt component").owner_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
@@ -610,7 +629,7 @@ impl Store {
         assert!(!self.failed, "patched mirror rows read back through the component");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.checked.limits() }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {
@@ -665,7 +684,7 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
-            // This world does not consume the census (protocol/store/README.md, 6.3).
+            // This world does not consume the census (protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
@@ -804,27 +823,9 @@ const HISTORY_SETS: protocol::OwnerSets = protocol::OwnerSets {
 };
 // Only immutable schemas from the fixture's constant texts outlive a test.
 fn binary_schemas() -> &'static [skein_codec::schema::Schema] {
-    static SCHEMAS: std::sync::OnceLock<Vec<skein_codec::schema::Schema>> = std::sync::OnceLock::new();
+    static SCHEMAS: std::sync::OnceLock<Box<[skein_codec::schema::Schema]>> = std::sync::OnceLock::new();
     SCHEMAS.get_or_init(|| {
-        let mut schemas = Vec::new();
-        for set in [protocol::SKEIN_SET, protocol::SMITH_SET, protocol::JIG_STORE_SET] {
-            for family in set.families {
-                if !schemas
-                    .iter()
-                    .any(|schema: &skein_codec::schema::Schema| schema.text() == family.current.as_bytes())
-                {
-                    schemas.push(skein_codec::schema::parse(family.current.as_bytes()).expect("fixture schema"));
-                }
-                if let Some(frames) = &family.frames {
-                    for text in frames.texts {
-                        if !schemas.iter().any(|schema| schema.text() == text.as_bytes()) {
-                            schemas.push(skein_codec::schema::parse(text.as_bytes()).expect("fixture frame schema"));
-                        }
-                    }
-                }
-            }
-        }
-        schemas
+        protocol::OwnerSets { sets: &[protocol::SKEIN_SET, protocol::SMITH_SET, protocol::JIG_STORE_SET] }.prepare()
     })
 }
 

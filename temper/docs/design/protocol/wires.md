@@ -365,7 +365,7 @@ them.
   out of date again shows the column (`../client/view.md`, section 1)
   and reloads no more. `temper-client` and the TUI say to upgrade, as
   they do. A kept request of another version is dropped with a notice
-  (jig's `protocol/client/README.md`, section 7).
+  (jig's `protocol/client/small-store.md`, section 1).
 
 ## 10. `versions`, the stored wires and the workers' openings
 

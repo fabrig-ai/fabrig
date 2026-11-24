@@ -1,5 +1,5 @@
 //! Optional-workspace admission and host effects belong to the domain world.
-//! Contract: smith/docs/design/domain/run.md, sections 3 and 5.2.
+//! Contract: smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run.md, section 5.2.
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::Duration;

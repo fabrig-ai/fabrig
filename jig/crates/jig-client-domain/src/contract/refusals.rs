@@ -1,4 +1,4 @@
-//! Durable refusals with facts, never phrases; client/domain/contract/README.md, 3.
+//! Durable refusals with facts, never phrases; client/domain/contract/answers.md, 1.
 //! These are final answers; busy and signed out are envelopes below this vocabulary.
 use super::{AdmissionLimit, ChipExecutor, Ending, HoldReason, Revision};
 use alloc::boxed::Box;
@@ -209,7 +209,7 @@ pub enum Refusal {
         oldest: u32,
     },
     Full(super::RefusalFull),
-    /// An account move refused (client/domain/contract/README.md, 3).
+    /// An account move refused (client/domain/contract/answers.md, 1).
     AccountMove {
         why: AccountMoveWhy,
     },
@@ -270,7 +270,7 @@ pub enum Refusal {
     },
     /// No visible object with that name.
     Unknown,
-    /// Another project holds this name, or a program source's name a declaration gives is taken (domain/accounts.md, 3.4).
+    /// Another project holds this name, or a program source's name a declaration gives is taken (domain/accounts-sources.md, 1).
     NameTaken,
     /// The deployment does not offer this act.
     NotOffered,
@@ -337,7 +337,7 @@ pub enum Bound {
     Output,
 }
 
-/// Why an account move was refused (client/domain/contract/README.md, 3).
+/// Why an account move was refused (client/domain/contract/answers.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AccountMoveWhy {
     NotSignedIn,
@@ -347,7 +347,7 @@ pub enum AccountMoveWhy {
     Moving,
 }
 
-/// Why a finish was refused (client/domain/contract/README.md, section 3).
+/// Why a finish was refused (client/domain/contract/answers.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SignInRedirectWhy {
     /// No sign-in of this party's waits for its redirect under that number.

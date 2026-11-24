@@ -34,7 +34,7 @@ explanation agree. Moving either section leaves two different rules.
 
 ### H2. Overlap: who constructs a resolution's closure
 
-`hearth/docs/design/domain/render/README.md`, 5.2 has the protocol layer
+`hearth/docs/design/domain/render/crates.md`, 1.2 has the protocol layer
 return `Resolved` with a closure. In
 `hearth/docs/design/domain/render/spec.md`, 2.3 the protocol supplies Inst
 triples and Packages stanzas and the domain matches them into the closure.

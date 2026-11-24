@@ -1,5 +1,5 @@
 //! Positive-first mutations of child and landing observations.
-//! Contract: smith/docs/design/domain/run.md, sections 5.3, 8.1 and 12.
+//! Contract: smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/run-delivery.md, section 1.1, and smith/docs/design/domain/run.md, section 12.
 
 use skein_world::domain::Verdict;
 use smith_run_world::{

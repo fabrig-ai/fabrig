@@ -79,7 +79,7 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
 
 - **Opus,** the model the welcome's mockup names, by its dated id
   `claude-opus-5-5`, through Claude Code's `--model` (smith's
-  `protocol/programs.md`, 5.1). Its window, output and prices are those
+  `protocol/programs-claude-code.md`, 1.1). Its window, output and prices are those
   `temper-fake`'s program model declares, window 1,048,576, output
   8,192 and 1 per 1,000,000: figures that matter little here, since a
   subscription bills them to nobody (the user, through `claude-always`'s

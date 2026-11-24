@@ -65,7 +65,7 @@ fn start_at(
     drop(core.settings_input.take());
     result
 }
-/// Build the one item from current state before keyed owner admission (domain/engine/settings.md, 11).
+/// Build the one item from current state before keyed owner admission (domain/engine/settings-catalogue.md, 1).
 pub(crate) fn model_start(
     core: &mut Core,
     env: &Env<Limits>,
@@ -944,7 +944,7 @@ pub(crate) fn propose_run(
     Queue::uncapped()
 }
 
-/// The same change commits a party's or a task's owner-approved set (domain/engine/settings.md, 6).
+/// The same change commits a party's or a task's owner-approved set (domain/engine/settings-proposals.md, 1).
 pub(crate) fn accept(
     core: &mut Core,
     env: &Env<Limits>,

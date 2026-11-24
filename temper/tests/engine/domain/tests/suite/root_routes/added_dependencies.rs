@@ -1,4 +1,4 @@
-//! Batch dependencies and kept delegates (jig/docs/design/domain/tasks/lifecycle.md, 8 and jig/docs/design/domain/tasks/changes.md).
+//! Batch dependencies and kept delegates (jig/docs/design/domain/tasks/lifecycle-endings.md, 1 and jig/docs/design/domain/tasks/changes.md).
 use super::*;
 
 fn finish_report(driver: &mut Driver, run: &engine::Assignment, words: &[u8]) {

@@ -1,4 +1,4 @@
-//! A layer's tree file, kind 3 at version 1 (hearth/docs/design/domain/store/README.md, 3.4 and 3.5, and hearth/docs/design/domain/store/records.md, 3):
+//! A layer's tree file, kind 3 at version 1 (hearth/docs/design/domain/store/digests.md, 1.4 and 1.5, and hearth/docs/design/domain/store/records.md, 3):
 //! the frame's header, then items. The walk writes the header last, with the
 //! body's length, at offset 0 of the placeholder it began with.
 
@@ -36,14 +36,14 @@ pub const VALUE: u32 = 65_536;
 pub const TARGET: u32 = 4_096;
 /// The most bytes in a kernel's version: a path component.
 pub const VERSION: u32 = 255;
-/// The largest owner id (hearth/docs/design/domain/store/README.md, 3.4).
+/// The largest owner id (hearth/docs/design/domain/store/digests.md, 1.4).
 pub const OWNER: u32 = 65_535;
 /// The largest mode, with setuid, setgid and sticky.
 pub const MODE: u32 = 0o7777;
 /// The nested containers an entry's or the end item's value opens at most.
 const DEPTH: u32 = 3;
 
-/// One path's entry as the tree helper read it (hearth/docs/design/domain/store/README.md, 3.4).
+/// One path's entry as the tree helper read it (hearth/docs/design/domain/store/digests.md, 1.4).
 /// `xattrs` are in strictly increasing order of their names.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Entry {
@@ -87,7 +87,7 @@ pub enum Payload {
     Socket,
 }
 impl Payload {
-    /// The kind's number in the digest (hearth/docs/design/domain/store/README.md, 3.4).
+    /// The kind's number in the digest (hearth/docs/design/domain/store/digests.md, 1.4).
     #[must_use]
     pub const fn kind(&self) -> u8 {
         match self {
@@ -110,7 +110,7 @@ pub struct Local {
     pub ctime: (u64, u32),
     pub mtime: (u64, u32),
 }
-/// What a change does at its path (hearth/docs/design/domain/store/README.md, 3.5).
+/// What a change does at its path (hearth/docs/design/domain/store/digests.md, 1.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Op {
     Put,
@@ -320,7 +320,7 @@ fn encode(item: &Item, out: &mut Encoder) {
         }
     }
 }
-/// An entry as the tree digest takes it (hearth/docs/design/domain/store/README.md, 3.4).
+/// An entry as the tree digest takes it (hearth/docs/design/domain/store/digests.md, 1.4).
 pub(crate) fn encode_entry(entry: &Entry, out: &mut Encoder) {
     out.list(7);
     out.bytes(&entry.path);

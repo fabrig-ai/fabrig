@@ -40,7 +40,7 @@
   reasons, or refused by the forge with the connector's. The
   connector keeps it under the people child's token, to give again when
   the request is sent again, until its retention ends or it makes room
-  for a newer request (section 9; jig's `domain/connectors.md`, 5.5;
+  for a newer request (section 9; jig's `domain/connectors-facts.md`, 1.5;
   `../../protocol/store.md`, section 2).
 - **The forge's host** in a repository's resource path, and in what a
   person reads of it, is the forge's as its record has it: the host of
@@ -506,7 +506,7 @@ apart.
 
 The answers to the forge's keyed requests, each kept under the people
 child's token and given again when its request is sent again (jig's
-`domain/connectors.md`, 5.5): an adoption's (the opening's bullets), an
+`domain/connectors-facts.md`, 1.5): an adoption's (the opening's bullets), an
 opening's (`change/opened.md`, 2), a repository's making and its
 dismissal (5), and a follow's act (`follows.md`). One table holds them
 all.
@@ -537,7 +537,7 @@ all.
   answered unknown, as one past its retention is. An opening sent again
   so opens nothing new.
 - **Seen where the store's tables are read:** the store's census
-  (jig's `protocol/store/README.md`, 6.3), in `temper ctl deployment
+  (jig's `protocol/store/growth.md`, 1.3), in `temper ctl deployment
   census` and the Limits page (`../../client/ctl/results.md`;
   `../../client/pages/settings.md`, 1). Its `temper.applications` row,
   the store's family 15, counts the kept answers as its rows. The

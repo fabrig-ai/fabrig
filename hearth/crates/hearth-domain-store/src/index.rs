@@ -1,4 +1,4 @@
-//! Recorded cache files, without reading their records (hearth/docs/design/domain/store/README.md, 6.1).
+//! Recorded cache files, without reading their records (hearth/docs/design/domain/store/state.md, 1.1).
 use hearth_lib::encode::Digest;
 use skein_lib::Map;
 pub(super) type Index = Map<Digest, bool>;

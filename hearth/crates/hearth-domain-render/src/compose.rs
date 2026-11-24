@@ -1,4 +1,4 @@
-//! Target discovery and whole-placement replacement (hearth/docs/design/protocol/format/README.md, 3.1, 3.4).
+//! Target discovery and whole-placement replacement (hearth/docs/design/protocol/format/targets.md, 1.1, 1.4).
 use crate::{
     limits::Limits,
     revision::{self, Class, Entry},
@@ -19,7 +19,7 @@ pub(crate) struct Target {
     pub environment_document: u32,
     pub base_env: u32,
 }
-/// A target placed on a host of the same environment (hearth/docs/design/protocol/format/README.md, 3.5).
+/// A target placed on a host of the same environment (hearth/docs/design/protocol/format/targets.md, 1.5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Container {
     pub name: Box<[u8]>,
@@ -228,7 +228,7 @@ enum Frame {
         out: List<Composed>,
     },
 }
-/// RFC 7386 on a stack bounded by JSON nesting (hearth/docs/design/domain/render/README.md, 5.3).
+/// RFC 7386 on a stack bounded by JSON nesting (hearth/docs/design/domain/render/crates.md, 1.3).
 #[derive(Debug, Hash)]
 pub struct Merge {
     stack: skein_lib::Stack<Frame>,
@@ -678,7 +678,7 @@ fn error_at(
     }
 }
 
-/// The host's containers, in target name order (hearth/docs/design/protocol/format/README.md, 3.5).
+/// The host's containers, in target name order (hearth/docs/design/protocol/format/targets.md, 1.5).
 pub(crate) fn containers(
     host: &Target,
     targets: &[Target],

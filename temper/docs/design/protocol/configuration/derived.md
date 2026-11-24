@@ -28,7 +28,7 @@ from the stock (`limits.md`, one stock).
 
 | Source | What it is | Where a process takes it |
 |---|---|---|
-| T | the agent's largest turn, which smith derives from the agent's profile and endpoints (smith's `protocol/limits.md`, 3.6) | a box and a worker take it from their agent's configuration, as today's checks do; an engine without an agent takes the stock agent's at the engine's P (section 3) |
+| T | the agent's largest turn, which smith derives from the agent's profile and endpoints (smith's `protocol/limits-derivation.md`, 1.6) | a box and a worker take it from their agent's configuration, as today's checks do; an engine without an agent takes the stock agent's at the engine's P (`derived.md`, section 3) |
 | P | the larger of the limit `tool_payload` (`limit-settings.md`, 2.3) and the agent's own `declared.tool_payload` from the `agents` setting (`figures.md`, 5), each taking its stock value when absent | fixed at the engine's start; an `agents` edit above P is refused by name, naming the `tool_payload` limit to raise and restart with first |
 | `live_goals` | the most goals live at once, the limit `live_goals` (`limit-settings.md`, 2.3), 40 in the stock, at most 100, the live goals the store is sized for (`limit-settings.md`, 3) | the engine and the box |
 | a worker's slots | the worker document's `slots` | the worker |

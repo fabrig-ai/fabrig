@@ -1,4 +1,4 @@
-//! The listing and typed documents (hearth/docs/design/protocol/format/README.md, 2.1 and 3.4).
+//! The listing and typed documents (hearth/docs/design/protocol/format/README.md, 2.1, and hearth/docs/design/protocol/format/targets.md, 1.4).
 use alloc::boxed::Box;
 pub mod declaration;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

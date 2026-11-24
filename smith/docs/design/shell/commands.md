@@ -31,7 +31,7 @@ The interactive chat, the local host of ../domain/host.md, section 8:
   (`default`, or `--chat NAME`) under the state directory, and resumes
   its transcript. A chat whose window ran on another endpoint, account or
   backend is carried over to this invocation's, which the status line
-  says once (../domain/session.md, 8.2); a chat kept by an earlier version
+  says once (../domain/session-context.md, 1.2); a chat kept by an earlier version
   is refused (`settings.md`, 1.3).
 - **Lines are messages.** A line entered is one message, and a line
   ending in a backslash continues it (../protocol/host.md, section 5.1).
@@ -75,7 +75,7 @@ The interactive chat, the local host of ../domain/host.md, section 8:
     when it declares any (`settings.md`, 2.1), from the next activation, since
     a conversation's model and effort are fixed for its life. A window
     opened with another model is compacted first, with that model
-    (../domain/session.md, 8.2); another effort takes no compaction. A model
+    (../domain/session-context.md, 1.2); another effort takes no compaction. A model
     on another endpoint is refused, and the chat kept: an endpoint is
     resolved, derived and signed in to at startup (`settings.md`, 1.2), so another
     endpoint is another invocation, and the refusal names it: `smith
@@ -126,17 +126,17 @@ smith exec [FLAGS] [PROMPT | -]
 One run, then exit:
 
 - **The prompt travels in the start,** as its one message, labelled
-  `person` (../domain/run.md, section 3.2), so the run opens on it
-  (../domain/run.md, section 3.4). `-` reads it from standard input to its
+  `person` (../domain/run-start.md, section 1.2), so the run opens on it
+  (../domain/run-start.md, section 1.4). `-` reads it from standard input to its
   end, as a harness gives it. A prompt past a message's bound
-  (../protocol/limits.md, 3.9), an empty one, or both an argument and `-`
+  (../protocol/limits-derivation.md, 1.9), an empty one, or both an argument and `-`
   is a usage error.
 - **The shared flags apply:** `-m` and `--effort` choose the main model
   and its effort, `-c` sets any key a layer may, and `-C` the workspace.
   A harness pins a run with them alone, beside its user layer.
 - **No wait authority by default.** Nobody is there to answer: `wait` is
   offered with a waiting time of zero, so a run that would wait parks at
-  once (../domain/run.md, section 6) and ends as "needs input". Its last
+  once (../domain/run-messages.md, section 1) and ends as "needs input". Its last
   text is shown, the chat is kept, and `smith exec --chat NAME` answers
   it.
 - **Edits in place.** The tools write the workspace, and nothing is
@@ -176,7 +176,7 @@ One run, then exit:
   builds fill. The credentials directory is kept as
   usual. A run on a program leaves the program's own session in the
   source's configuration directory, where no later run looks for it
-  (../protocol/programs.md, 5.8).
+  (../protocol/programs-claude-code.md, 1.8).
   - **Removed by the names it wrote.** At exit, after the run has
     answered and before the process ends, the chat store removes through
     io each file it wrote there, by the names it knows (its state, its

@@ -28,7 +28,7 @@ stored setting naming it is refused, not read, naming the setting
   question in the line form (`../../agent/agents.md`, 2) reaches a person's client
   as its choices where it is relayed whole, and any other as words. An
   agent that asked is kept by its own question (jig's
-  `domain/tasks/lifecycle.md`, 8): its run parks, no try spent, until the
+  `domain/tasks/lifecycle-endings.md`, 1): its run parks, no try spent, until the
   change answers, a `finish` before then parking it too, whatever its
   form, and the change's wait for it is no stall (`stalls.md`, 1). Its
   reviews are delegated without the Message family, as under `none`.
@@ -45,7 +45,7 @@ stored setting naming it is refused, not read, naming the setting
   and the question form is its one use of `message` to its change. Its
   words settle nothing, and in a run that may wait, what reaches it
   before its `finish` refuses that `finish` until read (smith's
-  `domain/run.md`, section 6), so feedback meant for a requester would
+  `domain/run-messages.md`, section 1), so feedback meant for a requester would
   cost it a turn. The `message` call itself refuses them, nothing sent:
   a call in the words form to the change from its producing task, or
   the repair or the resolution it has live, answers with an error
@@ -82,8 +82,8 @@ stored setting naming it is refused, not read, naming the setting
   the question form, its words the asker's question whole, as its
   record kept them when it was taken, cut from its end to the message
   bound and marked. The change is
-  kept by its own question while it waits (jig's `domain/tasks/lifecycle.md`,
-  8): it steps as ever, and merges nothing, its merge waiting as for
+  kept by its own question while it waits (jig's `domain/tasks/lifecycle-endings.md`,
+  1): it steps as ever, and merges nothing, its merge waiting as for
   a pending dependency (`README.md`, 2, step 7). A repair's or a resolution's
   question passed up takes it out of its queue until answered, as a
   kept change's place is (`../queues.md`). Its requester, a goal among
@@ -129,7 +129,7 @@ stored setting naming it is refused, not read, naming the setting
   into another repository orders the landings alone (`../../landing.md`,
   4.1) and holds no answer. Whatever holds or relays an answer, the
   dependencies order the merge: nothing merges before they land
-  (`README.md`, 2, step 7; jig's `domain/connectors.md`, 4.1).
+  (`README.md`, 2, step 7; jig's `domain/connectors-effects.md`, 1.1).
 - **Held for message room.** Apart from that rule, an answer is held
   on its record while the step that takes it has no message room left
   for it (below), and relayed at the next step that has room and no
@@ -256,7 +256,7 @@ What follows holds under either question route.
 - **Words never answer.** Passing words settles and clears no
   question: a question asked of the requester stays asked, an answer
   held stays held, and a producer kept by its own open question stays
-  kept (jig's `domain/tasks/lifecycle.md`, 8), the words waiting in its
+  kept (jig's `domain/tasks/lifecycle-endings.md`, 1), the words waiting in its
   inbox until that question's answer lets it go on. An answer from the
   requester that the relay does not take, to no question asked of it
   or a second answer to one answered, receives the fallback feedback as
@@ -291,7 +291,7 @@ What follows holds under either question route.
   are not those the change would give a new producer now (`README.md`,
   2, step 1: its words, then its scope, with *Early starts*' lines
   after their first line), amends that producer in the
-  same step (jig's `domain/connectors.md`, 6.3): its spec as it stands
+  same step (jig's `domain/connectors-procedures.md`, 1.3): its spec as it stands
   with those words and the context as it stands after the amendment,
   naming its spec's revision as the core last told
   the change, and with the reason `Task C, your change, was amended to
@@ -405,7 +405,7 @@ What follows holds under either question route.
 
 ### Early starts
 
-The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
+The change procedure starts kept (jig's `domain/connectors-procedures.md`, 1.1): a
 change made with a pending dependency is active and kept rather than
 waiting, so its producer may work beside its dependencies while its
 merge waits for them (`README.md`, 2, step 7; `../queues.md`). Its producer starts
@@ -428,7 +428,7 @@ early, by these rules:
   checks passed, as that delegate's answer reports it (the worker's
   `Landed.checked`, heard by the forge as `Pushed.checked`). A
   producer's result is such a push, since a change contract's finish
-  checks and delivers (smith's `domain/run.md`, 8.5). An unchecked save
+  checks and delivers (smith's `domain/run-delivery.md`, 1.5). An unchecked save
   (`../../agent/README.md`, section 5) never sets it, and a push made
   after the last checked one leaves it where it was, so a branch whose
   tip is a save keeps the checked head below it. A head found only by
@@ -470,7 +470,7 @@ early, by these rules:
   in the order of the change's dependencies (`../../worker/checkouts.md`).
   The change keeps each head it started from, with its dependency
   (`StartedFrom`), and marks those dependencies started from (jig's
-  `domain/connectors.md`, 6.1). The checkout's selection names those
+  `domain/connectors-procedures.md`, 1.1). The checkout's selection names those
   recorded commits, never a branch's tip read afresh.
 - **It is told.** The early producer's words carry one line per
   dependency it started from, in the order of its record:
@@ -558,7 +558,7 @@ early, by these rules:
   refused, naming it (jig's `domain/tasks/changes.md`): its requester
   cancels the change and makes it again instead. One that fails or is
   cancelled holds the change, as any failed dependency does (jig's
-  `domain/tasks/lifecycle.md`, 6).
+  `domain/tasks/lifecycle-holds.md`, 1).
 
 ## 2. Waiting on a person's approval
 
@@ -580,7 +580,7 @@ rest of the branch lands while a sign-off waits a night
   roles and eligibility live with the people and the forge holds none: the
   core's ask names the watcher's party, and the root answers that party's
   rows. The party's own scope skips jig's project check (jig's
-  `client/domain/contract/README.md`, 5.5), so the root filters every row by the
+  `client/domain/contract/watches.md`, 1.5), so the root filters every row by the
   watcher's role itself. One subject serves the deployment, as `dismissed`
   does (`../attention.md`, 1). It stores nothing.
 - **The forge's part:** each live change, in a project that lands by queue or

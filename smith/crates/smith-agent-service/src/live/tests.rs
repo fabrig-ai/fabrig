@@ -11,7 +11,7 @@ const AT_ZERO: Time = Time::ZERO;
 const PIECE_BOUND: usize = 4096;
 const OWNER: Token = Token::new(7);
 const RETRY_OWNER: Token = Token::new(8);
-// smith/docs/design/protocol/limits.md 3.6: 16 KiB held, cut into four 4096-byte pieces.
+// smith/docs/design/protocol/limits-derivation.md 1.6: 16 KiB held, cut into four 4096-byte pieces.
 const HELD: usize = 16_384;
 const LARGE_DELTA: usize = 10_000;
 static AT_BOUND: [u8; HELD] = [b'a'; HELD];

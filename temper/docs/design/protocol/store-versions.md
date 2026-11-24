@@ -248,7 +248,7 @@ This document holds the store's records and version changes, split from [`store.
 - **Every other failed commit says why.** The engine stops with
   `Stop::CommitFailed { number, why }`, `why` a `CommitStop`: either
   `Store(CommitFailure)`, the store's cause as jig's
-  `protocol/store/README.md`, 5 gives it, or `Route(RouteStop)`, the
+  `protocol/store/commits.md`, 1 gives it, or `Route(RouteStop)`, the
   engine's store routing stopping on its own with `number` the last
   commit it routed. The routing hands up `Up::Failed { number, why }`
   for both, and the engine feeds `number` through the root's

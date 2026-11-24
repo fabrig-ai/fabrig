@@ -1,5 +1,5 @@
 //! The records that cross the boundary with the protocol layer (skein/docs/foundation/programming-model.md, section 4.4;
-//! smith/docs/design/domain/run.md, sections 2, 3, 5, 6 and 8 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, sections 9 and 12;
+//! smith/docs/design/domain/run.md, section 2, and smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run.md, section 5, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run-delivery.md, section 1 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, sections 9 and 12;
 //! smith/docs/design/domain/session.md, sections 3–6). The
 //! domain defines them; the protocol crate depends on it.
 //!
@@ -11,7 +11,7 @@
 //!   [`Event::Cancel`] can name it. A run's host call, [`Request::Deliver`], is
 //!   ended by exactly one [`Event::Delivered`]. After submission the
 //!   host operation is never abandoned; its deadline bounds the host terminal.
-//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 9).
+//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run-delivery.md, section 1, and smith/docs/design/domain/run.md, section 9).
 //!   [`Request::Long`] and [`Request::LongDone`] bracket checks,
 //!   provider completions and commands, from issuance to their terminal.
 //! - LLM providers, for the sessions: a [`Lower::Complete`] is ended by one
@@ -328,7 +328,7 @@ pub enum Below {
     Usage { owner: Token, window: crate::UsageWindow },
     /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
     ReadVersion { owner: Token, place: tools::Place, version: tools::Version },
-    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs-claude-code.md, 1.5).
     BuiltinResult { owner: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
     Completed {
@@ -417,7 +417,7 @@ pub enum Lower {
     /// an owner with no outstanding completion is ignored.
     Yield { owner: Token },
     /// The child conversation `owner` has ended and asks nothing more: a backend
-    /// that keeps a process for it ends it (protocol/programs.md, 5.10). Sent once,
+    /// that keeps a process for it ends it (protocol/programs-claude-code.md, 1.10). Sent once,
     /// after the terminal of the conversation's last `Complete`; nothing answers it.
     Close { owner: Token },
     /// Ask io for `op` for a session's tools, giving up at `deadline`.

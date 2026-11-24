@@ -1,4 +1,4 @@
-//! Immutable task activity in commit order (domain/engine/README.md, sections 5.4 and 5.5, and domain/engine/executors.md, section 2).
+//! Immutable task activity in commit order (domain/engine/decisions.md, sections 1.4 and 1.5, and domain/engine/executors-transcripts.md, section 1).
 //! Only the last position is live. Messages retain their original admission,
 //! before unread hints merge; history and lifecycle rows are named for demand loads.
 use crate::{MessageFamily, MessageKind, Party, Request, Stored, TaskRecord, Word};
@@ -74,7 +74,7 @@ pub enum Line {
     },
     /// The run finished done while its task was kept, and parked: the
     /// dependencies it waits for, at most `Limits.dependencies`
-    /// (domain/tasks/lifecycle.md, 8; domain/engine/executors.md).
+    /// (domain/tasks/lifecycle-endings.md, 1; domain/engine/executors.md).
     Kept {
         attempt: u64,
         pending: Box<[u64]>,
@@ -82,7 +82,7 @@ pub enum Line {
     },
 }
 
-/// Why a resumable charter began fresh with an earlier window (domain/engine/executors.md, 2).
+/// Why a resumable charter began fresh with an earlier window (domain/engine/executors-transcripts.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fresh {
     Moved,

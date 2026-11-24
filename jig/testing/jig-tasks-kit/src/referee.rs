@@ -1,5 +1,5 @@
 //! Independent judgements from committed records and world inputs
-//! (domain/tasks/lifecycle.md, 8, domain/tasks/holds.md, 7, sections 7 and 12).
+//! (domain/tasks/lifecycle-endings.md, 1, domain/tasks/holds.md, 7, sections 7 and 12).
 use jig_domain_tasks::{
     Contract, Ending, HoldKind, Holding, Kind, Last, Limits, Name as ResourceName, Parameter, Party, Phase, PoolSlots,
     SettingsRevision, Status, TaskRecord, TaskResult, Was, WriterSlot,

@@ -35,7 +35,7 @@ place (jig's `domain/engine/overlays.md`).
     which says what a run does with a shell (`stock.md`);
   - *template 4, the goal template for drafts:* charter 5; ended by
     temper's goal closer, `ended_by` `{"closer": {"connector": 1,
-    "code": 6}}` (jig's `protocol/configuration.md`, 3.2;
+    "code": 6}}` (jig's `protocol/configuration-templates.md`, 2;
     `../../domain/forge/branches.md`, 2);
     `../../draft/reference-code-production.md`, section 4's LLM choice,
     Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, and a later
@@ -44,8 +44,8 @@ place (jig's `domain/engine/overlays.md`).
     activation takes, so that nobody amends the goal after its cut
     (`../../draft/goal-as-designer.md`, section 8);
     tracked at priority 1; a report; the creator's budget; *its own
-    goal branch* among its resources (jig's `protocol/configuration.md`,
-    3.3; `../../client/ctl/tools-acts.md`, 1).
+    goal branch* among its resources (jig's `protocol/configuration-templates.md`,
+    3; `../../client/ctl/tools-acts.md`, 1).
 
   It sets no template 4's work, kind 11: the stock's, no design and no
   close-out (`stock.md`), holds, since the stock's charter 5 delivers
@@ -197,7 +197,7 @@ place (jig's `domain/engine/overlays.md`).
   on its forge, the repository's default on Forgejo
   (`../../domain/forge/adoption.md`), set where the repository is made;
   the project's checks are its `.temper/pre-pr` (smith's
-  `domain/run.md`, 8.1; `tools/pre-pr/design.md`): the format check and
+  `domain/run-delivery.md`, 1.1; `tools/pre-pr/design.md`): the format check and
   the counted baselines on everything, then, against the base the worker
   pins (`../../domain/worker/checkouts.md`), the lints of the packages the
   delivery changed and the focused tests of those packages and their
@@ -214,7 +214,7 @@ place (jig's `domain/engine/overlays.md`).
   the only checks a change meets before it lands there; the landing's CI
   into main, the project's full gate, is the guard. An agent can change
   what a check runs: it is no security boundary (smith's
-  `domain/run.md`, 8.1). Its tiers' workflows are
+  `domain/run-delivery.md`, 1.1). Its tiers' workflows are
   `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
   ids in its `temper_tests` input alone when given them
   (`../../domain/after-landing-runs.md`, section 1). Its merge command is its

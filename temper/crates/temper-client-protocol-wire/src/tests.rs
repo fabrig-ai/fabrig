@@ -13,7 +13,7 @@ use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 
-/// A version is its schema's family line (jig/docs/design/protocol/client/README.md, section 6).
+/// A version is its schema's family line (jig/docs/design/protocol/client/versions.md, section 1).
 #[test]
 fn version_constants_match_their_schemas() {
     let client = &skein_codegen::values(crate::CLIENT_SCHEMA).schema;

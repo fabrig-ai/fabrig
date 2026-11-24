@@ -11,8 +11,8 @@ owned-forge landing story and the ladder's rungs take when given one
 the key landing story hands to `temper ctl account add-key`, never read,
 printed or copied by the story (below).
 
-`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service.md`,
-section 8; skein/docs/foundation/testing-strategy.md, 2.9).
+`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service-testing.md`,
+section 1; skein/docs/foundation/testing-strategy.md, 2.9).
 
 - **What runs:** the process tier's binary, owned Forgejo, real git and
   person, with a real model: the live configuration, a configuration
@@ -68,7 +68,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   waits out the run's 30 minutes after its task has ended. An account
   limited, refused or needing sign-in fails the test the same way,
   naming the account's state and its reset, since its task would wait
-  for it (jig's `domain/authority.md`, 8.3).
+  for it (jig's `domain/authority-checks.md`, 1.3).
 - **The owned-forge landing story,**
   `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge`, run by
   `scripts/proof-live.sh forge-land`: a fresh ChatGPT sign-in, init's
@@ -147,7 +147,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   (../protocol/credentials-llm-accounts.md, 1). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
   subscription's model on Settings' Models and then chooses it (jig's
-  `domain/engine/settings.md`, 11), in two `settings apply`s. The first sets a
+  `domain/engine/settings-catalogue.md`, 1), in two `settings apply`s. The first sets a
   model at the highest number its catalogue leaves free, with the figures
   of the provider's dearest stock model, `claude-fable-5-1`, marked
   estimated and the person's, its efforts with `low` its default; the
@@ -193,7 +193,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its configuration:** init's owned example as init writes it, both
     Anthropic endpoints and Claude Code's program included, but the
     `anthropic` provider without `keep` and `drop`, so that its accounts
-    read no list (jig's `domain/accounts.md`, 3.7). A key's first read
+    read no list (jig's `domain/accounts-lists.md`, 1). A key's first read
     would add Anthropic's models at the catalogue's highest free numbers
     while the sitting adds Haiku there by name, and the two racing would
     stale the apply's revision or double the name. Its catalogue is the
@@ -210,13 +210,13 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   completions, counted from the engine's transcripts. Each completion is
   a turn of main's conversation on either backend: on the program
   backend, each assistant message the program writes (smith's
-  `protocol/programs.md`, 5.5), so the count holds for Claude Code's
+  `protocol/programs-claude-code.md`, 1.5), so the count holds for Claude Code's
   runs as for direct ones.
 - **Budget:** at most 25 completions and 30 minutes in all. The live
   configuration's charters bound each run's turns so the two stories
   together make at most 25 completions, which smith's agent holds on
   either backend (on the program backend with `--max-turns` behind its
-  own count; smith's `protocol/programs.md`, 5.7), the script stops the
+  own count; smith's `protocol/programs-claude-code.md`, 1.7), the script stops the
   run at 30 minutes, and the test fails when the transcripts count more
   than 25. Each run's summary, a failed run's included, records its
   completions and its wall time. Nothing in the test catches a panic for

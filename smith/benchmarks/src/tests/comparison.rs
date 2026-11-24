@@ -1,4 +1,4 @@
-//! Cross-agent summary basis (../../../docs/design/benchmarks/README.md, section 9).
+//! Cross-agent summary basis (../../../docs/design/benchmarks/results.md, section 2).
 
 use super::recorded_result;
 

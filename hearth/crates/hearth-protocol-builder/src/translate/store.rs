@@ -159,7 +159,7 @@ pub fn tree_resolution(record: crate::builder::store::vocabulary::Resolution) ->
     }
 }
 
-/// A layer's record, as far as the store's index reads it (hearth/docs/design/domain/store/records.md, 2, and hearth/docs/design/domain/store/README.md, 6.1).
+/// A layer's record, as far as the store's index reads it (hearth/docs/design/domain/store/records.md, 2, and hearth/docs/design/domain/store/state.md, 1.1).
 #[must_use]
 pub fn layer(record: tree::layer::Layer) -> crate::builder::store::vocabulary::Layer {
     use crate::builder::store::vocabulary::{Layer, LayerInputs};

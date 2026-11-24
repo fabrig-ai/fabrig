@@ -1,4 +1,4 @@
-//! Prepared fixtures equal fresh builds (protocol/channel/README.md, 11).
+//! Prepared fixtures equal fresh builds (protocol/channel/testing.md, 1).
 use jig_engine_workers_world::fixtures::{self, APPLICATION_VERSION, OTHER_VERSION};
 use jig_protocol_worker_wire as wire;
 use jig_protocol_worker_wire::Record;

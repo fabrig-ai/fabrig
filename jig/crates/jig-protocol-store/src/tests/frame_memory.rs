@@ -35,7 +35,7 @@ fn frame_capacities_cover_real_and_kept_turns() {
     let limits = super::fixtures::store_limits();
     let sets = super::frame_patches::SETS;
     for nodes in CANDIDATES {
-        let mut capacity = patches::capacity(&sets.sets[1], 0, &limits).expect("turn capacity");
+        let mut capacity = patches::capacity(&sets.sets[1], 0, &limits, &[]).expect("turn capacity");
         capacity.nodes = nodes;
         eprintln!(
             "smith nodes {nodes}: {} bytes (versions {}, patches {}, text {}, bytes {})",
@@ -49,7 +49,7 @@ fn frame_capacities_cover_real_and_kept_turns() {
     let schema = schema::parse(REAL.as_bytes()).expect("smith's pinned schema");
     let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn");
     kept_turns_fit(&sets, &limits);
-    let real = patches::capacity(&REAL_SETS.sets[0], 0, &limits).expect("real turn capacity");
+    let real = patches::capacity(&REAL_SETS.sets[0], 0, &limits, &[]).expect("real turn capacity");
     let maximum = maximum_decl(&schema, root);
     assert_eq!(real.nodes, maximum.0, "smith's machine reads every turn its kept schema allows");
     assert!(u64::from(maximum.1) <= u64::from(real.bytes), "the maximum-node turn fits the transcript's bytes");
@@ -71,8 +71,8 @@ fn kept_turns_fit(sets: &crate::OwnerSets, limits: &crate::Limits) {
         for (ix, family) in set.families.iter().enumerate() {
             let Some(frames) = &family.frames else { continue };
             let root = frames.root;
-            let capacity = patches::capacity(set, ix, limits).expect("kept capacity");
-            let meta = patches::kept_patcher(frames, capacity).expect("kept metadata");
+            let capacity = patches::capacity(set, ix, limits, &[]).expect("kept capacity");
+            let meta = patches::kept_patcher(frames, capacity, &[]).expect("kept metadata");
             let last = schema::parse(frames.texts.last().expect("kept last").as_bytes()).expect("last text").version();
             let mut most = 0;
             for text in frames.texts {

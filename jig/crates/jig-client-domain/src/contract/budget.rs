@@ -1,6 +1,6 @@
 //! Exact owner budget and pool ledger facts (client/domain/contract/documents.md, 1).
 //! The owner keeps all four numbers, availability and funding identity
-//! (domain/authority.md, section 7). The client never recomputes them.
+//! (domain/authority-budgets.md, section 1). The client never recomputes them.
 use super::Funder;
 use skein_lib::Wall;
 

@@ -5,8 +5,8 @@ This document holds lLM accounts' words, split from [`accounts.md`](accounts.md)
 ## 1. LLM accounts' words
 
 temper's phrasebook words what jig's accounts document holds (jig's
-`client/domain/contract/README.md`, 5.1; jig's `domain/accounts.md`, 3.5 and
-section 5); the providers' names and their plans' are the
+`client/domain/contract/watches.md`, 1.1; jig's `domain/accounts-sources.md`, 2, and `domain/accounts.md`, 5
+); the providers' names and their plans' are the
 configuration's. The owned example and the default document offer
 OpenAI's ChatGPT sign-in and API keys (`../../protocol/setup/init.md`, 1),
 and the default document Anthropic's Claude Code and API keys beside
@@ -18,7 +18,7 @@ The words for each offered source are:
   words as their makers do: `openai` reads "OpenAI", its signed-in plan
   "ChatGPT"; `anthropic` reads "Anthropic", its program's plan "Claude".
   Any other provider's plan reads as its name. jig configures no plan's
-  display name yet (jig's `protocol/configuration.md`, section 3), so
+  display name yet (jig's `protocol/configuration-engine.md`, section 1), so
   the plan is branded by its provider until it does.
 - **The welcome's model sentence** names the plans v0.1.0 supports,
   "ChatGPT or Claude", in fixed words rather than the offered ways
@@ -76,7 +76,7 @@ The words for each offered source are:
 - **An account** is its provider and who it is, "ChatGPT ·
   alice@example.com"; a key-only account, "OpenAI API key" or "Anthropic API key"; a program's,
   "Claude subscription · claude-alice". Who it is is the email its LLM
-  provider gave (jig's `domain/accounts.md`, 3.7) where it gave one, and
+  provider gave (jig's `domain/accounts-lists.md`, 1) where it gave one, and
   otherwise its display name, or for a program's the source's name. Its card's heading follows with
   its provider and holder: "ChatGPT · alice@example.com · OpenAI · held
   by Alice", the holder the person's name from `me` for their own, and
@@ -98,7 +98,7 @@ The words for each offered source are:
     project"; "none" for an empty list;
   - *with none given,* a plan's, "Your own work, and projects where
     you’re the only member"; a key's or a program's login's, "Your own
-    work" (jig's `domain/accounts.md`, 4.2).
+    work" (jig's `domain/accounts-uses.md`, 1.2).
 
   Opened, under its check line, an account with uses given names them in
   their order, in a line of its own: "Pays for Ana, Ben, Chen and Kai.",
@@ -111,7 +111,7 @@ The words for each offered source are:
   uses name a party, and again when `me`'s projects change; a person no
   read names stays "Person N", and nothing waits for a read.
 - **Usage,** under a folded row's line, folded or opened: the account's
-  usage windows, jig's fact kind 7 (jig's `domain/accounts.md`, 3.7),
+  usage windows, jig's fact kind 7 (jig's `domain/accounts-lists.md`, 1),
   wherever one is held, on the person's accounts and the deployment's
   alike (the look request `accounts-usage`). Where none is held, nothing is
   drawn and nothing is guessed. Nothing writes one yet: Claude Code's
@@ -272,7 +272,7 @@ The words for each offered source are:
     same words. A closed chat says what it ran on instead (`chat/composer.md`, 1, *The work's
     account and model*). The preview is an observation, not a
     reservation: the draft keeps configured intent, and each run's check
-    takes the models of a task given none (jig's `domain/accounts.md`, 4.3).
+    takes the models of a task given none (jig's `domain/accounts-uses.md`, 1.3).
   - *The account* is named only when the payer is you: your new chat,
     or a task funded by your pool. The accounts document lists only
     your own accounts, in `(place, number)` order. In this slice the
@@ -338,13 +338,13 @@ The words for each offered source are:
   subject, or the program's command and its check, so that Only you's
   link (`needs-you.md`, 1, **Only you**) lands where the act is. When it
   ends, read from its provider, is jig's `ends` fact, which no source
-  reports yet (jig's `domain/accounts.md`, 3.7).
+  reports yet (jig's `domain/accounts-lists.md`, 1).
 
   Never a reset the provider did not give, and never "your plan is
   empty" (jig's `domain/providers.md`, 2.5). A limit may be the
   person's own cap for temper, which "Manage usage" reaches. A limited
   account's tasks wait for it, and temper never moves them to another
-  account (jig's `domain/accounts.md`, 4.3). "Use the API key first" is
+  account (jig's `domain/accounts-uses.md`, 1.3). "Use the API key first" is
   offered where the account holds a key after the limited source: it
   moves the key up, so that the account's waiting tasks go on on it,
   and moves no task. A ChatGPT plan's row shows its limit's state and
@@ -353,7 +353,7 @@ The words for each offered source are:
   windows. A Claude subscription's row draws its windows where they are
   held (*Usage*, above).
 - **A Claude subscription's usage:** its windows are the account's kind 7
-  facts (jig's `domain/accounts.md`, 3.7), drawn as the look request
+  facts (jig's `domain/accounts-lists.md`, 1), drawn as the look request
   `accounts-usage` draws them. A window's pace is its rate as the
   document serves it ("2.0%/h", jig's `client/domain/contract/documents.md`,
   1), and "full in" is the share left at that rate, drawn where it comes
@@ -379,7 +379,7 @@ The words for each offered source are:
   or why it was refused, in Each state's words. Each ending offers
   "Continue with ChatGPT" again, and a refusal Each state's acts.
   Each reads jig's ending on the `accounts` document (jig's
-  `client/domain/contract/README.md`, 5.1): signed in, `Made`; the same
+  `client/domain/contract/watches.md`, 1.1): signed in, `Made`; the same
   account again, `Renewed`, named by who it is (*An account*, above) where
   that says anything, and "your ChatGPT account" otherwise ("That's your ChatGPT account
   again. To add another account, …"); signed in without
@@ -436,7 +436,7 @@ The words for each offered source are:
     there's nothing to resume. Its state above is current."
 
   A forgotten program login's name is declared again by the person who
-  held it (jig's `domain/accounts.md`, 3.4), and the panel goes on as
+  held it (jig's `domain/accounts-sources.md`, 1), and the panel goes on as
   after a first declaration.
 
 ## 2. Open questions
@@ -453,7 +453,7 @@ The words for each offered source are:
   ChatGPT account not eligible for plan usage; plan usage declined at
   the provider, apart from its consent's `declined`; and a missing
   scope said in its own words, where jig gives its number. Each waits
-  for a fact of jig's ending (jig's `client/domain/contract/README.md`, 5.1;
+  for a fact of jig's ending (jig's `client/domain/contract/watches.md`, 1.1;
   the providers' facts, jig's `domain/providers.md`, 2.5); until then,
   each reads as the ending jig gives, in its words. Default: none drawn
   before jig's fact.

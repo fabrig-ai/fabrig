@@ -30,27 +30,27 @@ in `accounts.md`, section 7.
   host, such as Claude Code's (`claude_code`); or *none*, for a local
   model. A new LLM provider is configuration, and a dialect or a
   program's adapter where it needs one, never a change to the domain
-  (3.4).
+  (`accounts-sources.md`, 1).
 - **A person may hold several accounts with one LLM provider,** each its
   own account, told apart by the provider's subject, never by an email;
   a subject has one holder in a deployment (3.3).
 - **Each source has a state:** usable, limited, refused, needs sign-in,
   misconfigured or unloaded. The accounts child keeps them, from what
   the accounts' component and the runs' agents tell it, and starts no
-  run on a source that is not usable (3.5).
+  run on a source that is not usable (`accounts-sources.md`, 2).
 - **One person, no friction.** A plan pays, by default, for its holder's
   own work and for the automatic work of each project in which its
   holder is the only party, so a person alone on a deployment signs in
-  once and every run uses their subscription (section 4).
+  once and every run uses their subscription (`accounts-uses.md`, section 1).
 - **Who pays is decided with the run's check** and recorded in its
   claim: the account that serves the work's payer, and its first source
   usable on a host with room. A task keeps its account from run to run,
   chooses again when its payer changes, and waits for it at a limit,
-  never moving to another (4.3).
+  never moving to another (`accounts-uses.md`, 1.3).
 - **A host that keeps a person's program logins takes only runs that
   person's accounts pay for,** until a run's process tree is contained
   from them, since a run there can read a login and a subscription
-  serves one person. A deployment of one person is unaffected (3.4).
+  serves one person. A deployment of one person is unaffected (`accounts-sources.md`, 1).
 - **Values are never committed.** Records and keys are in the secrets'
   store, kept before they are lent; a request carrying a key names it by
   number once the protocol layer has kept it. The engine alone
@@ -76,7 +76,7 @@ in `accounts.md`, section 7.
   serialized by construction (providers.md, 2.3).
 - **No borrowed login.** No application reads another program's login
   file, a Codex login or another application's records. A program the
-  agent runs (3.4, *program*) keeps its own login in a configuration
+  agent runs (`accounts-sources.md`, 1, *program*) keeps its own login in a configuration
   directory of the application's own, one per source and per host
   (smith's `protocol/programs.md`, section 4), never the person's: a
   person's own Claude Code settings, hooks and plugins never load into a
@@ -103,18 +103,18 @@ Account
 ```
 
 What its LLM provider says of it, its email among them, is kept beside it,
-in a record of its own (3.7).
+in a record of its own (`accounts-lists.md`, 1).
 
 - **An LLM provider** is configuration: its number, its name for
   showing, its endpoints and models, the sources it offers and what each
   needs (a sign-in's registration, a program), and the facts its terms
   ask an application to show, such as a manage-usage address
-  (providers.md, 2.6; `../protocol/configuration.md`, section 3). jig's
+  (providers.md, 2.6; `../protocol/configuration-engine.md`, section 1). jig's
   code names no LLM provider. It is not an identity provider
   (people/README.md, section 3), and the two are numbered apart.
 - **Accounts are made at runtime,** by a person's sign-in, a key added
   or a program's source declared (section 5), and kept in the store
-  (engine/README.md, 5.4). An LLM provider whose source is *none* has one
+  (engine/decisions.md, 1.4). An LLM provider whose source is *none* has one
   account, the deployment's, made at the first start that configures
   it. An application's configuration names LLM providers, never
   accounts, and an endpoint names no account. On restart the accounts
@@ -125,7 +125,7 @@ in a record of its own (3.7).
 - **The domain sees names and states,** never a value: an account by
   number, a source by its account and its place, a program's also by
   its name, and a credential by its source and a generation, with how
-  long it is valid (3.5).
+  long it is valid (`accounts-sources.md`, 2).
 - **The subject** is the LLM provider's validated identifier (an ID
   token's `sub`), never an email. It is the account's own, and no
   person's subject in people/README.md, section 3: an LLM provider is no
@@ -135,7 +135,7 @@ in a record of its own (3.7).
   by its number and the display name its holder gives it. jig checks no
   subject for a program's source, since the program names no account it
   is signed in to (smith's `protocol/programs.md`, section 4); an email
-  its status names is a fact to show (3.7), never a subject.
+  its status names is a fact to show (`accounts-lists.md`, 1), never a subject.
 
 ### 3.2 Holders
 
@@ -147,13 +147,13 @@ in a record of its own (3.7).
 - **A person or the deployment holds a key:** a person's own, or the
   deployment's, billed to the organization that owns it (providers.md,
   2.7 and 3.1). The deployment holds a *none* provider's account.
-- **A service holds no account.** A plan's uses may name one (4.2), and
+- **A service holds no account.** A plan's uses may name one (`accounts-uses.md`, 1.2), and
   a key's may.
 - **A holder decides about their account:** the order of its sources
   and its place among their accounts, its uses, signing it out,
   removing it, and moving it (section 6). For the deployment's
   accounts, its owners decide: the first owners its configuration names (people/README.md,
-  section 3; `../protocol/configuration.md`, section 3), and, in their
+  section 3; `../protocol/configuration-engine.md`, section 1), and, in their
   name, a connector the configuration grants the deployment's `AddKey`
   or `RemoveAccount` (people/acts.md, 3), where no client is there to ask.
 
@@ -171,236 +171,17 @@ in a record of its own (3.7).
   revoked: two holders would share one subscription, and race one
   rotating token.
 - **A program's logins** are one configuration directory per source on
-  each host, named by the source's name (3.4), each signed in on its
+  each host, named by the source's name (`accounts-sources.md`, 1), each signed in on its
   own, with its own email, so one host may carry several Claude Code
   logins of one person.
 
 ### 3.4 Sources
 
-| Kind | What the application holds | Who runs the agent's loop | Usable where | Renewed by |
-|---|---|---|---|---|
-| *signed in* (`sign_in`) | a record from its own OAuth registration, in the secrets' store | smith, over skein's LLM client: the direct backend | on any host: its access token goes with the run as a grant | the accounts' component, before it lapses |
-| *key* (`key`) | a key, in the secrets' store | smith, the direct backend | on any host, the same way | nobody: its holder replaces it |
-| *program* (`program`) | nothing: a program's own login, in the application's configuration directory for the source on each host | the program, adapted by smith's agent: the program backend (smith's `protocol/programs.md`, section 2) | on a worker whose host's half reports its login usable, and that the host rule (below) allows | the program |
-| *none* (`none`) | nothing | smith, the direct backend | where its endpoint is reachable, such as a local model on loopback | — |
-
-- **Later kinds fit the same table,** such as an exchange of a cloud
-  provider's credentials for short-lived tokens.
-- **The holder orders an account's sources.** A run takes the first
-  that is usable on the host it is placed on, and passes to the next
-  only when the earlier one is unusable there alone: a program's login
-  needing sign-in on that host, or kept on another, or, for one task,
-  a login its program started there without its tools
-  (engine/fleet.md). A source unusable on
-  every host (limited, refused, needs sign-in, misconfigured, unloaded:
-  3.5) holds the account's runs until its holder acts on it, resumes it
-  or reorders the sources, since the order decides who pays
-  (providers.md, 2.5 and 3.4). An Anthropic account lists Claude Code,
-  then a key, by default.
-- **The source picks the endpoint.** A model whose endpoint names a
-  program takes its provider's program sources on that endpoint, and its
-  sign-ins, keys and *none* on its provider's `direct` endpoint where the
-  provider names one (`../protocol/configuration.md`, section 3),
-  passing them over where it names none. A model whose endpoint names no
-  program takes sign-ins, keys and *none* on that endpoint, and no
-  program source. So one model is reached either way, and the order
-  above decides which: an Anthropic account of Claude Code then a key
-  runs a Claude model on Claude Code on a host where the login is
-  usable, and on the key, directly, on a host where the login is
-  unusable there alone; a login held on every host, limited among them,
-  holds the account's runs, and nothing of the key is spent.
-- **A grant names its source.** A value's grant carries its value and
-  how it is sent, a bearer or a key (`../protocol/llm.md`, section 6). A
-  program's grant carries none: it names the source, by whose name the
-  host's half finds the program's configuration directory, and the agent
-  checks the login again as the run starts (smith's
-  `protocol/programs.md`, section 3).
-- **A program is named** in the LLM provider's configuration, and in the
-  agent's `programs`: `claude_code`, Claude Code, whose executable is
-  `claude` (smith's `protocol/agent.md`, section 4).
-- **A program's source on each host.** A worker's logins follow its
-  hello: the engine sends it the program sources it may be given, by
-  name, after the hello (`../protocol/channel/README.md`, 4.3), and places no
-  run on it until the first `logins` that answers them. The host's half
-  then checks each login when told of a new source, on its holder's
-  check (section 5) and at a configured interval
-  (`../protocol/configuration.md`, section 4), and reports what changed.
-  A check answers usable, not signed in, signed in otherwise (another
-  way of paying than the holder's plan) or failed (smith's
-  `protocol/programs.md`, section 3), and the deployment's document
-  shows each host's answer. A holder's check withdraws the source's grant;
-  a source held Refused is not granted again while so held (Resume clears
-  only Limited holds). Withdrawal records no fact: facts are expendable. Every notice names the worker's whole current
-  source list, without login contents; the fleet places a run on a
-  program's source only where its login is usable (engine/fleet.md). The engine's
-  own slots run `smith-inline-agent`, which has no program backend, so
-  they never take a program's source.
-- **A program source's name** is 1 to 32 characters of `a-z`, `0-9` and
-  `-`, given by its holder as they declare it, unique in the deployment,
-  never changed, and never another holder's once given. A durable
-  reservation keeps its source number, name and original holder after
-  removal. Its original holder may declare the name again once its
-  source is removed, as a person who signed out signs back in: the
-  declaration makes its account, or joins one, as any declaration does,
-  and moves the reservation to its new source, whose number it takes,
-  so that the name is wanted signed in again and counts no further
-  lifetime name; the old reservation's row is erased in the same
-  decision, and each host checks the login at once, as on its holder's
-  check (section 5). While the old source's sign-out is still under way,
-  the declaration is refused as a check is while another is out. A
-  name a live source holds, or another holder's reservation, is refused
-  *name taken* (section 5). Both shipped profiles admit 12 lifetime
-  names. Restoring an existing live source reserves
-  its name before admitting changes; a conflicting reservation is a
-  writer's bug, a link that cannot be made, and refuses the start,
-  naming the record and what it links to (engine/restart.md).
-  Exhaustion refuses a declaration before
-  reserving its numbers or writing any row. It, not the account's
-  number, names the configuration directory, so that a directory a
-  person signed in on a host keeps meaning that source, and a
-  developer's own fixed directory serves each fresh deployment a live
-  layer's test makes.
-- **The host rule.** A host keeps a person's program logins when its
-  half reports a login for a program source of theirs, in any state but
-  needs sign-in. Runs, and a program's own tools, run as the host's
-  user, so a run can read every login kept on its host until a run's
-  process tree is contained from the programs directory (hosts/README.md, 5.1;
-  smith's `domain/tools.md`, sections 1 and 5), and a subscription
-  serves one person. So a host that keeps a person's program logins
-  takes only runs that person's accounts pay for, until a run's tree is
-  contained from them: the fleet places no other run there (engine/fleet.md
-  ), and the deployment's document says why. One person's
-  several logins on one host change nothing, and a deployment of one
-  person is unaffected. Deployment-held logins restrict no run; only runs
-  bound to their account can use their source.
-- **Signing out or removing a program's source** has each worker run the
-  program's own sign-out in the source's configuration directory (smith's
-  `protocol/host.md`, section 2); the answer names any host that did
-  not. The answer covers the configured workers, named by their configured
-  names: one already offline is not signed out (not in contact), and a channel
-  lost during the operation is lost. A worker removed from configuration is
-  not reportable and cannot reconnect or run work; its operator clears its
-  machine's logins. When removing an account with several program sources,
-  its one row per worker keeps the most severe result, independent of arrival
-  order: not in contact, then failed, then lost. Lost means the admitted
-  operation ended without a worker terminal.
-  The issued-name record keeps desired sign-out, independently of observed
-  login state. A reconnect or engine restart checks all issued names, including
-  retired names; a retained login requiring cleanup is signed out before that
-  worker becomes ready for its holder's runs. Cleanup has its own result and
-  never changes or retries the original answer. A failed cleanup keeps the host
-  restriction until absence is established; a holder's explicit check of a
-  live declaration permits a fresh sign-in.
-- **Concurrency is the host's slots:** a run on a program is a smith
-  run, and counts as one run, as any other does.
-- **A host also reads an account's list** of models with the account's grant
-  (3.7), which holds a value, never a program's source.
+Moved to [`accounts-sources.md`](accounts-sources.md), section 1.
 
 ### 3.5 States
 
-A source's state is one of:
-
-- **usable:** a signed-in source while the accounts child holds a
-  granted generation still valid; a key while it is kept; a program's on
-  each host whose half reports its login usable; a *none* source
-  always; each unless one of the states below holds;
-- **limited:** the LLM provider says it is spent, with when it resets
-  where the provider says, and never a guess (providers.md, 2.5). No new
-  run starts on it until then, or, with no time given, until its holder
-  resumes it, replaces its LLM key or signs in again. An absent reset remains
-  absent across new grants and restarts; it is never converted to zero or
-  a guessed retry deadline. An explicit zero is a supplied reset. Text a person reads
-  says "limited";
-- **refused:** the LLM provider refuses the account for what is asked:
-  not eligible, a scope not granted, plan usage declined at sign-in, a
-  key it does not take. It stays so until its holder acts: signs in
-  again, with the scope, replaces the key, or chooses another source;
-- **needs sign-in:** no record, or one revoked or past refreshing; for
-  a program, on which host;
-- **misconfigured:** the LLM provider rejected the application's client;
-- **unloaded:** its record could not be read, saying where and why;
-- **moving:** a signed-in source whose record is out with a move, or
-  back from one and not yet refreshed (section 6). No run takes it, and
-  nothing of the record's generation is lent.
-
-Each source's mechanism maps its LLM provider's failures onto these,
-skein for what a provider's API answers (skein's `llm/vocabulary.md`, section 1.5)
-and smith for what a program reports (smith's `protocol/programs.md`,
-section 5). A failure a run meets is the run's: unavailable is retried
-by smith's session; unsupported, a field the LLM provider will not
-take, is the request's error, never sent again unchanged (providers.md,
-2.5).
-
-How the accounts child keeps them, from what the accounts' component
-says (`../protocol/llm.md`, section 5) and what runs' agents notice
-(hosts/README.md, section 2):
-
-- **Every signed-in source is wanted,** once the restart has restored
-  the core's records, its accounts' among them (engine/restart.md,
-  item 1), to the close, so the component refreshes each before its
-  access token lapses whether or not a run holds it, and answers each
-  new generation, granted; an idle account keeps its
-  refresh token (providers.md, 2.3; skein's `oauth/accounts.md`, section 3). A
-  key is granted once it is kept, a replaced key as its next generation.
-- **Every live attempt hears each new generation** of its source, on
-  whatever host, the engine's own included; and the fleet sends each
-  attempt it keeps its current grant when its worker says hello, and
-  when it adopts the attempt (engine/fleet.md).
-- **Unauthorized:** a run's LLM provider refused a generation. For a
-  signed-in source the child passes it to the component, which refreshes
-  once; a second unauthorized of the same generation fails it, and the
-  source needs sign-in. A key refused so is refused. For a program the
-  host's half checks the login again, and the source needs sign-in on
-  that host when it fails.
-- **Limited:** a run's agent says its source is spent (skein's
-  `exhausted`, the program's usage limit, or a rate limit whose wait
-  outlasts its session: smith's `domain/session.md`, section 4), with
-  how long until it resets where it gives that; the core makes it a time on its clock as
-  it hears the notice. The child marks the source limited until then,
-  or until its holder resumes it, and asks nothing of the component.
-- **Refused:** a run's agent says the LLM provider refused the account
-  for what it asked, or a sign-in's answer does (section 5). The child
-  marks the source refused, and asks nothing of the component.
-- **Failed,** in one of five classes the component gives:
-  - **later,** with how long: not a state. The source keeps its state,
-    the child asks again after it, while the source is still wanted, and
-    a run that needs a valid generation waits for the next one, never
-    passing to the next source;
-  - **sign in again:** its grant was revoked, or it has no record. The
-    source needs sign-in, the deployment's document says its holder must
-    sign it in, and a new sign-in (section 5) makes it usable again;
-  - **misconfigured:** the LLM provider rejected the application's
-    client. The source is misconfigured until a restart with its
-    configuration fixed, and the document says so;
-  - **unloaded:** its record could not be read. The source is unloaded,
-    the document says where and why, and the child asks again at its
-    retry interval;
-  - **cancelled,** at the close.
-- **Close** releases every source, and ends once the component has
-  closed.
-- **Deadlines belong to their source.** At creation of a limit or a
-  retry, the accounts child retains `Deadline { at: Time, wall: Wall }`
-  from that step's injected `env.now` and `env.wall`. Its `Limited` and
-  `Later` state and spent-until facts expose that pair to the core.
-  Timers use `at`; every task wait, account and deployment document,
-  and stored reset uses the retained `wall`, exactly. Later clock
-  samples and wall corrections do not change an existing deadline.
-- **Limit merging keeps the same precedence.** A later reset replaces
-  both `at` and `wall`; an earlier reset keeps the old pair, and a tie
-  keeps the old pair too. A limit with no reset overrides a timed
-  limit to `None`; an indefinite limit stays indefinite until resumed.
-  No wall from a losing reset replaces the winner's wall.
-- **What the store keeps** of each source is its kind, its name, its
-  hold (limited, refused or moving), and a limit's reset as a wall
-  time (engine/README.md, 5.4): a restart preserves that saved wall exactly,
-  maps it once to a fresh monotonic
-  `at`, lifts a limit whose reset passed while the engine was down,
-  and holds a later one until it. The optional wall reset
-  represents both timed and indefinite limits. A source held moving is stored so, and a restart brings it
-  back as a cancelled move does (section 6). A program's login on a
-  worker is not stored: its
-  half reports it as `logins`, which follow the worker's hello
-  (`../protocol/channel/README.md`, 4.3).
+Moved to [`accounts-sources.md`](accounts-sources.md), section 2.
 
 ### 3.6 Bounds
 
@@ -434,362 +215,11 @@ uncapped and grow with the admitted work.
 
 ### 3.7 An account's list and what a provider says
 
-Each LLM provider says what it lists, and an account's list says what it serves
-(providers.md, 2.4). The accounts child says when an account's is read and keeps
-what its last read gave; what a read does to the catalogue is `engine/settings.md`, 12.
-
-- **Which accounts have one:** an account of a provider whose configuration gives
-  `keep` (`../protocol/configuration.md`, section 3), whose first source in its
-  holder's order is a sign-in or a key. A program's source has none: Anthropic
-  allows no other use of a subscription's credentials (providers.md, 3.1), and the
-  order decides who pays, so an account that lists Claude Code first and a key
-  after has none. Nor has a source of none.
-- **When it is due:**
-  - as the account becomes usable: its first source turning usable, from any
-    state but a restored one, so that a restart is no reason to read;
-  - a day after its last attempt, kept as a wall time across restarts; a day past
-    while the engine was down is due at the start;
-  - when a holder, or an owner for a deployment's account, asks: **read again**,
-    which names a provider and reads every account of it they may act on
-    (section 5), the answer saying how many.
-
-  An account being read isn't read a second time. A source not usable holds what
-  is due until it is: nothing is asked of a limited or a refused source.
-- **How it is read:** the child asks with the account's source's grant, by its
-  number and generation as a run's, and hears one answer. The core gives it to the
-  fleet (`engine/settings.md`, 12), and a worker reads it (`hosts/README.md`, 5.1). It is no
-  run, and spends no budget and no slot. It goes to the provider's `direct`
-  endpoint where the provider names one, else to its `endpoint`
-  (`../protocol/configuration.md`, section 3): a key's read is the direct way's,
-  never through a program's endpoint, so that an Anthropic key reads Anthropic's
-  list directly.
-- **What the store keeps** on the account's record (`../protocol/store/README.md`, 4.4):
-  - `names`: which of the catalogue's models its last good read gave, a bit per
-    setting, as a task's choice holds a number (`engine/settings.md`, 11);
-  - `read`: when that read was, or none;
-  - `tried`: when its last attempt ended, or none;
-  - `failure`: why its last attempt failed, or none: refused with a status, the
-    provider unreachable, its list unreadable, a deadline, a worker's fault, or
-    the catalogue's room;
-  - `left_out`: how many names of its last good read no number was free for.
-
-  A failed read changes `tried` and `failure` alone. No credential, body or
-  provider's words are kept, and a failure's words are the client's.
-- **What it decides:** whether this account can run a model, for the offer (`engine/views.md`,
-  1) and for a task given no choice (4.3). An account **allows** a model of
-  its provider when:
-  - a person added the model, whatever any list says (`engine/settings.md`, 11); or
-  - it has a good read, and `names` holds the model; or
-  - it has no good read: no list, none read yet or only failures, and the model
-    is the stock's.
-
-  So a failure keeps the names of the last good read, and an account whose first
-  read fails takes the stock.
-
-What an LLM provider says of an account is kept apart from what jig
-decides about it (3.1): the account's holder and uses change at people's acts,
-its facts as often as a provider reports.
-
-```
-AccountFacts
-  account     the account's number
-  facts       at most 24
-
-Fact
-  kind        u16, the registry's
-  label       at most 32 bytes: which one, where a kind has several (a
-              usage window's name); empty otherwise
-  value       Value
-  seen        the wall time the provider first said this value through
-              this source with this origin
-  source      option: the account's source it came through
-  origin      u16, the registry's
-
-Value, one of
-  text        at most 255 bytes
-  count       u64
-  instant     a wall time
-  span        a duration
-  share       u16, in basis points, 0 to 10000
-  window      length: option span; used: option share;
-              resets: option instant; state: u16, the registry's
-```
-
-- **The registry** is this section's. A new kind, origin or window state
-  is a line here, and no change of the format; a new shape is the one change
-  the format still needs.
-
-  | Kind | Name | Shape | Audience | Said by |
-  |---|---|---|---|---|
-  | 1 | email | text | holder | a signed-in source's ID token, its `email` with `email_verified` true; a program's status, its `email`, on a usable answer |
-  | 2 | name | text | holder | a signed-in source's ID token, its `name` |
-  | 3 | plan | text | account | nothing yet |
-  | 4 | workspace | text | account | nothing yet |
-  | 5 | renews | instant | holder | nothing yet |
-  | 6 | ends | instant | holder | nothing yet |
-  | 7 | usage | window | account | a program's `rate_limit_event`, origin 5 (smith's `protocol/programs.md`, 5.6); a program's usage read, origin 6 (*A usage read*, below) |
-
-  Origins: 1 a sign-in, 2 a refresh, 3 a call's answer, 4 a limit error, 5 a
-  program's status or event, 6 a provider's usage read. A window's states:
-  1 open, 2 warned, 3 limited.
-- **A fact is its kind and label.** A new report replaces the fact of the
-  same kind and label. A sign-in first drops every fact a sign-in or refresh
-  gave, so that one it no longer reports is gone; a refresh or a program's
-  report replaces only what it says. A report that says what the fact already
-  holds, in value, source and origin, writes nothing, so that `seen` is when
-  the provider first said it and an hourly refresh rewrites no record and marks
-  no document.
-- **A fact no source reports is absent,** never guessed. A claim that is
-  empty, past its bound or holds a control byte is not reported (skein's
-  `oauth/README.md`, 2.2; smith's `protocol/programs.md`, section 3). A report that
-  would pass 24 facts keeps those already held and drops the new one.
-- **A program's report:** a host's `logins` naming an email for a usable
-  login (`../protocol/channel/records.md`, 1) reports kind 1, origin 5, through
-  that program source. A login that lapses or a status that stops naming one
-  removes nothing, and a later report replaces it, from whichever host. A
-  source's facts are the account's: when two hosts' logins of one source name
-  two emails, the latest report stands (3.3).
-- **A program's usage window:** a window a run's program reports
-  (`../protocol/channel/records.md`, 1, `usage`) is kept through the run's
-  source as kind 7, labelled with the window's name, origin 5; a usage read's,
-  through the source read, origin 6. A report replaces only the window it
-  names, and a field it leaves absent, its share, length or reset, keeps the
-  one held for that label, so that a report equal to what is held writes
-  nothing.
-- **A usage read,** when no run speaks: the program's own usage command, run on
-  a host that keeps the login (smith's `protocol/programs.md`, 5.11):
-  - *Which accounts:* one with a program source; its first program source in
-    its holder's order that is usable is read.
-  - *When it is due:* 30 minutes after the latest of a kind 7 report for the
-    account, a run's or a read's, equal or not; the end of its last read; and
-    the moment its program source turned usable in this process, the engine's
-    start counting as one. And once at the reset of each window held limited,
-    the held facts read at the start too. A source not usable holds what is due
-    until it is, and an account being read isn't read again.
-  - *How:* the core gives the fleet the account's read number and the source's
-    name. The fleet holds it until a ready worker whose last `logins` names the
-    source usable speaks a version with `read usage`, sends it there, one usage
-    read in flight per worker, and holds it again if that worker's channel is
-    lost before it answers. The host's half runs it (`hosts/README.md`, 5.1).
-    No budget, no slot, no turn and no model call.
-  - *Its answer:* each window a report, as above. A failure keeps the facts
-    held, the next read due 30 minutes after it. A read *spent*, whose program
-    used the model, isn't asked of that account again until the engine
-    restarts.
-  - *Nothing is stored:* due times and reads in flight are memory, and a
-    restart starts them again.
-- **A window's rate,** its pace, is the core's memory beside the fact, never
-  stored, and a restart starts it again:
-  - *Readings:* for each kind 7 fact with a share, at most 13, each a wall time
-    and a share. A report keeps the fact's share after it as a reading when the
-    newest is at least 5 minutes older, or none is kept, and those more than 60
-    minutes older than the newest go. A share lower than the newest reading's,
-    a reset, clears them first. A fact gone takes its readings.
-  - *The rate,* a share per hour in basis points, saturating: from the oldest
-    reading to the newest when the oldest is at least 30 minutes older;
-    otherwise the window's average since it opened, its share over the time
-    from its reset less its length to the newest reading, where both are held
-    and that time is above zero; otherwise none. It is computed as the readings
-    change, and served beside the fact (`../client/domain/contract/documents.md`, 1).
-  - *Marks:* a rate that changes marks the accounts documents that show the
-    account, as a fact's change does; one that doesn't marks nothing. So an
-    equal report may move a window's rate at most once every 5 minutes.
-- **A source gone** takes the facts that came through it, sign-in and refresh
-  or program's alike, with the record rewritten in the decision that removes
-  it.
-- **Unknown kinds:** a fact whose kind, origin or window state this build does
-  not register is kept as it is and sent to no client.
-- **Who reads a fact:** a kind's audience is its holder alone, or whoever
-  sees the account; `../client/domain/contract/documents.md`, 1 applies it to each
-  document's reader. For the deployment's accounts the holder's readers are
-  its owners (3.2).
-- **Gone with the account.** An account moved to another deployment moves
-  without its facts (section 6): the refresh that follows a move in, or its
-  next sign-in, reports them again.
-- **Not a secret, and no identity.** An email never tells accounts apart
-  (3.3), never opens a session, and is never checked against a subject. The ID
-  token stays in the secrets' store (`../protocol/store/secrets.md`).
-- **Kept as:** `../protocol/store/README.md`, 4.4 and 10.9.
+Moved to [`accounts-lists.md`](accounts-lists.md), section 1.
 
 ## 4. Uses: whose work an account pays for
 
-### 4.1 The payer
-
-A run's task has one funder, and the chain of funders ends at a party's
-pool or a project's period (authority.md, section 7). That end is the
-run's **payer**: that pool's party, or that period's project. A recurring
-allotment pays as its project. Financial links decide it, independently of
-the requester and delegation tree; a Move or refunding changes it for every
-descendant funded through the changed task. Prospective checks follow
-staged financial links before live ones, within the tasks child's bounds,
-and refuse unknown or cyclic task chains without writing anything.
-
-### 4.2 Uses
-
-- **A plan's account, by default,** pays for its holder's own work and
-  for the automatic work of each project in which its holder is the only
-  party with a role. A person alone on a deployment is the only party of
-  every project, so everything runs on their subscription, with nothing
-  to set.
-- **A plan's account's uses may name more,** in its holder's word: a
-  service, as an agent of theirs that connects with its own identity
-  does (people/README.md, section 3), whose work then runs on its holder's
-  subscription; or less than the default. A person other than its
-  holder, and a project with another party, are refused in a plan's
-  account's uses, naming the LLM provider's rule (providers.md, 2.6 and
-  3.4).
-- **A key's account's uses** are its holder's own work by default, a
-  person's; the deployment's key pays for every payer. A key's holder
-  may name any party or project in its uses: a key is the customer's to
-  provision for its own authorized users, billed to the key's owner
-  (providers.md, 3.1). A key that should pay for more than a plan's
-  account may is an account of its own.
-- **A project in a key's uses** pays for all the work inside that
-  project: the project's own automatic work, and every party's work
-  there, whoever the payer. It pays for nothing outside it, the same
-  party's work in another project included. The payer stays the payer:
-  spend and budgets are counted to it as for any account (authority.md,
-  section 7). A key whose uses name one project alone thus serves that
-  project and no other. A plan account's uses are unchanged: a project
-  named there covers only the project's own work, since a plan may not
-  name a project with another party (above). Tested by
-  `a_key_naming_a_project_pays_for_a_persons_work_in_it_and_nowhere_else`
-  and `a_plan_naming_a_project_still_does_not_cover_another_persons_work_in_it`
-  (`jig/crates/jig-domain-core/src/tests/runs/coverage.rs`).
-- **A shared project's automatic work** is so paid by a key: the
-  deployment's, or a person's whose uses name the project. No plan pays
-  for it (above).
-- **A person's automatic work in a project** (authority.md, 6.2), funded
-  from their pool there, is not the project's: its payer is the person,
-  so it is their own work, and a plan of theirs pays for it as for their
-  chats, whoever else the project holds. temper's brief is such work,
-  written for each person who looks (temper's
-  `domain/forge/attention.md`, 3). Tested by
-  `a_pool_seeds_work_is_its_persons_and_their_plan_pays_in_a_shared_project`
-  (`jig/crates/jig-domain-core/src/tests/runs/coverage.rs`).
-- **An agent that brings its own LLM** pays for its own completions;
-  jig's accounts are not involved.
-
-### 4.3 Choosing the account
-
-Selection uses runtime accounts and their kept source identities (3.1).
-Configuration supplies provider membership and model choices; it gives no
-account a preferred number or an endpoint default.
-
-- **A task given no LLM choice takes the first model it can use.** Each
-  check of its run (tasks/README.md, section 3) takes, among its charter's
-  models, main then alternatives, within its authority:
-  1. the first of the LLM provider of the account it keeps, while that
-     account still serves its payer (or, for a key, its project), usable
-     or not: **a task keeps what it's using,** so an account added later
-     moves nothing, and a limited one is waited for, below;
-  2. else the first whose LLM provider has an account usable now for its
-     payer that allows the model (3.7), its source usable on a connected host
-     where the host rule allows it (3.4), the readiness the accounts document
-     shows (`../client/domain/contract/documents.md`, 1);
-  3. else the first whose LLM provider has an account serving its payer,
-     so that its wait names that account;
-  4. else the charter's first, its run waiting with no account to name,
-     and its document naming no model (`../client/domain/contract/documents.md`, 1).
-
-  The others stay its sub-agents' models, in their order. Nobody chooses:
-  a deployment with one provider's account runs that provider's model. A
-  task given a choice is never moved: it waits for what it was given,
-  saying why.
-- **With the run's check.** As the core checks that a task's run may
-  start (authority.md, 8.3; engine/executors.md, 1, step 1), it takes, for its
-  main model's LLM provider, the accounts whose uses cover the payer,
-  or, for a key, the task's project (4.2):
-  the account its task keeps, or its creator named, if it has one; else
-  the payer's own, in their order, then those that name it, then the
-  deployment's. It takes the first with a source usable (3.4) on a host
-  with a free slot of a kind the charter allows, and that the host rule
-  allows: a host that keeps a person's program logins takes only runs
-  that person's accounts pay for (3.4). The claim's commit records the
-  account and the source (engine/executors.md, 1, step 3), and the run is placed
-  there.
-- **Account, source, host and endpoint, together.** The endpoint a run
-  takes is its chosen source's (3.4), never its model's stored one. The
-  run's check, the readiness the accounts document shows, the offer,
-  `Core::account_llm` and a claim's check again each take a model's
-  source by 3.4's rule and check a host for that source's endpoint, its
-  presence and its bounds, so that they agree. The claim's charter names
-  that endpoint for each of its models, the program's for a program
-  source and the provider's `direct` one for a sign-in, a key or *none*,
-  and smith runs the grant it is given there (smith's
-  `protocol/programs.md`, section 3). A stored model keeps its endpoint.
-- **The task keeps it,** from run to run, so a conversation stays on one
-  account's cache and replay. Its creator names an account when it is
-  created or amended (tasks/README.md, section 3) only to want one in
-  particular, within the account's uses.
-- **Holding a new task to one account.** `Core::account_llm(charter,
-  models, payer, project, account)` is the choice that wants one account
-  in particular for a creator who names no model: the charter's first
-  model, in its order within `models`, that the offer (engine/views.md, 1)
-  holds with that account; else the first whose LLM provider is the
-  account's and whose candidates for the payer hold it, so that its wait
-  names that account; each model at its default effort, as a task given
-  no choice takes it, and the account its creator's preference. `None`
-  where the account serves none of them. It is an observation, as the
-  offer is: a task's own checks decide, and a task made with it waits for
-  that account rather than moving.
-- **A change of payer chooses again.** When a commit changes a task's
-  payer (a move to another requester, a widening or an acceptance
-  funded by another party: tasks/changes.md; authority.md, section
-  7) or its main model's LLM provider, its next run's check takes the
-  kept account only if its uses still cover the payer (or, for a key,
-  the task's project) and its LLM
-  provider is still the main model's, and chooses again otherwise.
-- **A task whose account is unusable waits** for it, saying why
-  (authority.md, 8.3). An account whose program login no host with room
-  holds usable, none busy holding one either, waits as that account's,
-  naming the source, not as a host's. A limited task never moves to another of its
-  holder's accounts: it waits for its own, as its LLM provider's limit
-  asks, and a choice made again takes no other account of that holder
-  and LLM provider while the kept one is limited. An amendment naming
-  another account of that LLM provider is refused while its account is
-  limited (providers.md, 2.5 and 3.4).
-- **Its sub-agents,** on the direct backend, use the run's account for
-  its main model's LLM provider, and for each other LLM provider a
-  sub-agent's model uses, one account taken the same way at the run's
-  check, which the claim records too. A sub-agent's model whose LLM
-  provider has no usable account serving the payer is left out of that
-  run's models (smith's `domain/run.md`, 5.3). A run on a program
-  backend has smith's sub-agents, inspect only, each a program session
-  of its own on main's account, and the program's own are withheld
-  (smith's `protocol/programs.md`, 5.10). A charter's models of main's
-  provider share its grant, so each takes main's way, on the endpoint
-  main's source takes for it; a model of another provider takes a
-  sign-in, a key or *none* of its own, on its provider's `direct`
-  endpoint where its own endpoint names a program, and is left out where
-  that provider names no `direct`.
-- **Replay stays with its account.** A provider's opaque replay
-  (reasoning, signatures and item ids) is kept only for the account that
-  made it: a task whose account changes resumes its conversation carried
-  over as for another LLM provider (smith's `protocol/transcript.md`,
-  section 4).
-
-The task's creator preference and the account kept by a successful claim are
-separate. Clearing the former retains the latter. Current payer, membership,
-uses and provider facts are joined at every check; a context retained during
-preparation is not authority for a later claim. Account/source waits retain the
-source's typed reason and optional reset, separately from host and application
-credential waits. With no reset, no polling deadline is invented.
-
-Recurring templates check explicit hints against the project's payer at start,
-regardless of their members' declared funders, and again before each occurrence.
-If an account has disappeared, changed provider or ceased to serve the project,
-the occurrence is created and its next run waits, naming the account and its
-typed admission reason in the Task document. This exceptional wait is rechecked
-from current facts; it does not silently choose a different account.
-
-The grant number passed as smith's account is the selected **source** number.
-Changing sources within one billing account therefore conservatively causes
-smith's carry-over too: it preserves plain history, discards opaque replay and
-compacts on the new LLM before opening its new window (smith's
-`protocol/transcript.md`, section 4). Jig keeps the committed conversation and
-passes the actual new grant. A separate stable billing-account replay identity
-is a later decision for smith.
+Moved to [`accounts-uses.md`](accounts-uses.md), section 1.
 
 ## 5. What people do
 
@@ -799,7 +229,7 @@ or, for the deployment's key added and account removed, the
 deployment's act a connector makes in its owners' name (people/acts.md, 3);
 each answer and each state is a fact the application's pages show
 (`../client/domain/contract/documents.md`), which a party watches
-among their own (`../client/domain/contract/README.md`, 5.1).
+among their own (`../client/domain/contract/watches.md`, 1.1).
 
 | Request | What it does |
 |---|---|
@@ -807,11 +237,11 @@ among their own (`../client/domain/contract/README.md`, 5.1).
 | finish a sign-in | the address the sign-in's browser was sent to, which its person pasted, for a browser on another machine than the engine's: carried as a key is, and handed to the sign-in as its redirect (`../protocol/llm.md`, 5.4); only from the party who started that sign-in, while it waits; answered *finishing* once the sign-in takes it, the sign-in then ending as any does; refused, the sign-in still waiting, as another address, another sign-in's state, or *too many* once it has refused a few for their state; refused *not waiting* when no sign-in of the party's under that number waits, whoever's it is, once it has taken a redirect, ended, or the engine restarted, and while another finish of it is out; a sign-in that ends with a finish out answers it *not waiting* before its end |
 | sign out | revokes the record at the LLM provider, or has each worker sign a program's login out, and removes the source; when revocation is not confirmed, the answer says to disconnect the application in the provider's settings (providers.md, 2.3) |
 | add a key, replace it, remove it | adding names the account it joins, a new key's account by default; a person's, or the deployment's by its owners, or added by the deployment's `AddKey` (people/acts.md, 3) |
-| declare a program's login | makes the account, or adds the source to one, under the name its holder gives (3.4); each host then reports whether its login is usable, and the answer names the application's command to run there, which hands the terminal to the program's own sign-in (smith's `protocol/programs.md`, section 4); the name of the holder's own removed source is declared again (3.4); refused *name taken* for a name a live source holds or another holder's reservation, and *not offered* where the LLM provider offers the holder no program's login |
-| check a program's login | has each host's half check the source's login now (3.4) |
+| declare a program's login | makes the account, or adds the source to one, under the name its holder gives (`accounts-sources.md`, 1); each host then reports whether its login is usable, and the answer names the application's command to run there, which hands the terminal to the program's own sign-in (smith's `protocol/programs.md`, section 4); the name of the holder's own removed source is declared again (`accounts-sources.md`, 1); refused *name taken* for a name a live source holds or another holder's reservation, and *not offered* where the LLM provider offers the holder no program's login |
+| check a program's login | has each host's half check the source's login now (`accounts-sources.md`, 1) |
 | log a program in through a lent terminal | asks a terminal the person's client lends to run the application's command for a name, and at its exit 0 declares that name, or checks the person's source of it, as the two rows above; cancelled by the person; ended by the client's report or its terminal's going (`terminal-login.md`) |
 | order, uses, resume | the holder's: an account's place among theirs and its sources' order, its uses, a limited source resumed; resuming a source that is not limited is refused *not offered* |
-| remove an account | signs each of its sources out, as sign out does, and erases its keys; its number is never reused, and a task that kept it chooses again (4.3); the deployment's also by the deployment's `RemoveAccount` (people/acts.md, 3) |
+| remove an account | signs each of its sources out, as sign out does, and erases its keys; its number is never reused, and a task that kept it chooses again (`accounts-uses.md`, 1.3); the deployment's also by the deployment's `RemoveAccount` (people/acts.md, 3) |
 | move out | withdraws the account's signed-in source and hands its record to the client that asked, once, never in a committed answer, naming the move; sent once, never kept by the client (`../client/domain/contract/requests.md`, 1); refused "not signed in" without a signed-in source holding a record (`accounts.md`, section 6) |
 | written | the client wrote the moved record: erases the source, and the account with it when no source is left; refused "cancelled" for a move not under way |
 | move in | takes a moved record carried as a key is: refused "unreadable" for a file that does not decode, "not ours" for another application's, "held" for a subject another holder holds; makes the account or renews the holder's of its subject, refreshing the record once before it is usable (section 6) |
@@ -821,10 +251,10 @@ among their own (`../client/domain/contract/README.md`, 5.1).
   kept in the secrets' store first, and handed to the core by a drawn
   number and its digest. An LLM key, or a moved record, is then adopted
   into its source's secret row before it is granted (`../protocol/store/secrets.md`).
-  Requests and their answers are committed and kept (engine/README.md, 5.4);
+  Requests and their answers are committed and kept (engine/decisions.md, 1.4);
   a value is not. A client sends a request carrying a value once, and
   never keeps nor resends it
-  (`../protocol/client/README.md`, sections 3 and 7). A moved-out record goes
+  (`../protocol/client/README.md`, section 3, and `../protocol/client/small-store.md`, section 1). A moved-out record goes
   the other way once, with the answer to the client that asked, and is
   never in the answer kept (`accounts.md`, section 6): the request is sent once, and a
   second answer under its key, without the record, is *lost* to the
@@ -918,7 +348,7 @@ construction, never by a person deleting a copy.
   machine; and unattended tests of the live layer on a signed-in
   subscription, which move one account in and out of each run's fresh
   deployment. A test on a program's login finds it signed in on its
-  host (3.4).
+  host (`accounts-sources.md`, 1).
 
 ## 7. Open questions
 
@@ -930,7 +360,7 @@ construction, never by a person deleting a copy.
   the existing refusal; a declaration's not offered and a resume's have
   the single meanings in section 5.
 
-- **An account's other facts:** kinds 3 to 6 (3.7) wait for each provider's
+- **An account's other facts:** kinds 3 to 6 (`accounts-lists.md`, 1) wait for each provider's
   adapter to learn them (`../draft/account-facts.md`, section 6); kind 7 is
   said (temper's `draft/usage-windows.md`). The user is still deciding on
   them; the format holds them. Default: nothing says them.
@@ -942,10 +372,10 @@ construction, never by a person deleting a copy.
 - **Pinning the model a task took:** a person who picks the model a task
   given no choice already shows sends no change, since the client's draft
   equals what it shows, so the task stays free to take another when it
-  next chooses (4.3). Default: as it stands; picking another names it.
+  next chooses (`accounts-uses.md`, 1.3). Default: as it stands; picking another names it.
 - **Replay across accounts:** whether a provider's opaque replay
   (encrypted reasoning, thinking signatures) is accepted from another
-  account of the same LLM provider. Default: dropped (4.3), until a
+  account of the same LLM provider. Default: dropped (`accounts-uses.md`, 1.3), until a
   capture shows it is accepted.
 - **A redirect relayed by a client,** for an engine on another machine:
   the native client binds the loopback listener and hands the code to
@@ -957,11 +387,11 @@ construction, never by a person deleting a copy.
   owners (3.2).
 - **An occurrence whose account no longer serves:** whether a recurring
   template's occurrence is refused, rather than made to wait for its
-  account. Default: made, its run waiting (4.3).
-- **`Domain::select`'s arguments** (4.3): a public seam kept whole, past
+  account. Default: made, its run waiting (`accounts-uses.md`, 1.3).
+- **`Domain::select`'s arguments** (`accounts-uses.md`, 1.3): a public seam kept whole, past
   clippy's count, since other crates read it and three of its arguments are
   borrowed slices, which no owned struct may hold (programming-model.md, 10.3).
   Default: as it stands, until its signature changes for another reason.
 - **Program logins on a shared host,** once a run's process tree is
-  contained from the programs directory: whether the rule of 3.4 then
+  contained from the programs directory: whether the rule of `accounts-sources.md`, 1 then
   goes, or stays for a program's own tools. Default: the rule holds.

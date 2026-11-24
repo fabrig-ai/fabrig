@@ -1,4 +1,4 @@
-//! A run leaves funds for delegates (jig/docs/design/domain/authority.md, 7).
+//! A run leaves funds for delegates (jig/docs/design/domain/authority-budgets.md, 1).
 use super::run_choice::{account, granted, host};
 use crate::tests::*;
 

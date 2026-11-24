@@ -1,0 +1,47 @@
+# Jig's second split pass: the rest of the protocol layer (temper/docs/design/draft/design-upkeep.md, 4.3), at 16e755d0b57118b0f4541ed348381e57c9e50dc8.
+# jig/docs/design/protocol/browser/README.md: 61,505 bytes. Application parts, the loop with tree, patches and scenes, sign-in and serving get their own pages; the overview, placement, toolchain, addresses, transport, stylesheets, limits and promises stay.
+title jig/docs/design/protocol/browser/application.md: The browser's layer: what an application writes
+title jig/docs/design/protocol/browser/loop.md: The browser's layer: the loop and what it renders
+title jig/docs/design/protocol/browser/sign-in.md: The browser's layer: signing in and out
+title jig/docs/design/protocol/browser/serving.md: The browser's layer: the application's server
+jig/docs/design/protocol/browser/README.md 3 -> jig/docs/design/protocol/browser/application.md 1
+jig/docs/design/protocol/browser/README.md 5 -> jig/docs/design/protocol/browser/loop.md 1
+jig/docs/design/protocol/browser/README.md 6 -> jig/docs/design/protocol/browser/loop.md 2
+jig/docs/design/protocol/browser/README.md 7 -> jig/docs/design/protocol/browser/loop.md 3
+jig/docs/design/protocol/browser/README.md 8 -> jig/docs/design/protocol/browser/loop.md 4
+jig/docs/design/protocol/browser/README.md 11 -> jig/docs/design/protocol/browser/sign-in.md 1
+jig/docs/design/protocol/browser/README.md 12 -> jig/docs/design/protocol/browser/serving.md 1
+
+# jig/docs/design/protocol/configuration.md: 57,224 bytes. The engine's configuration and its templates get their own pages; the overview, worker, periods, secrets, startup and operator formats stay.
+title jig/docs/design/protocol/configuration-engine.md: Configuration: jig's part for an engine
+title jig/docs/design/protocol/configuration-templates.md: Configuration: templates
+jig/docs/design/protocol/configuration.md 3 -> jig/docs/design/protocol/configuration-engine.md 1
+jig/docs/design/protocol/configuration.md 3.1 -> jig/docs/design/protocol/configuration-templates.md 1
+jig/docs/design/protocol/configuration.md 3.2 -> jig/docs/design/protocol/configuration-templates.md 2
+jig/docs/design/protocol/configuration.md 3.3 -> jig/docs/design/protocol/configuration-templates.md 3
+jig/docs/design/protocol/configuration.md 3.4 -> jig/docs/design/protocol/configuration-templates.md 4
+
+# jig/docs/design/protocol/service.md: 55,380 bytes. Testing and the service parts get their own pages; the overview, engine's layer, lifecycle, worker, reference binary and service, and one process stay.
+title jig/docs/design/protocol/service-testing.md: The engine's and the worker's services: testing
+title jig/docs/design/protocol/service-parts.md: The engine's and the worker's service parts
+jig/docs/design/protocol/service.md 8 -> jig/docs/design/protocol/service-testing.md 1
+jig/docs/design/protocol/service.md 11 -> jig/docs/design/protocol/service-parts.md 1
+
+# jig/docs/design/protocol/client/README.md: 54,296 bytes. Versions, the small store, shells and testing get their own pages; the overview, placement, keyed requests, reads, watches, application documents and requests, limits and obligations stay.
+title jig/docs/design/protocol/client/versions.md: The client's protocol: versions
+title jig/docs/design/protocol/client/small-store.md: The client's protocol: the small store
+title jig/docs/design/protocol/client/shells.md: The client's protocol: shells
+title jig/docs/design/protocol/client/testing.md: The client's protocol: testing
+jig/docs/design/protocol/client/README.md 6 -> jig/docs/design/protocol/client/versions.md 1
+jig/docs/design/protocol/client/README.md 7 -> jig/docs/design/protocol/client/small-store.md 1
+jig/docs/design/protocol/client/README.md 9 -> jig/docs/design/protocol/client/shells.md 1
+jig/docs/design/protocol/client/README.md 11 -> jig/docs/design/protocol/client/testing.md 1
+
+# jig/docs/design/protocol/README.md: 54,193 bytes. Components, what jig needs from skein and smith, and decisions get their own pages; the overview, reading order, names, processes, application parts, versions, secrets, store and obligations stay.
+title jig/docs/design/protocol/components.md: jig's protocol layer: components
+title jig/docs/design/protocol/needs.md: jig's protocol layer: what jig needs from skein and smith
+title jig/docs/design/protocol/decisions.md: jig's protocol layer: decisions
+jig/docs/design/protocol/README.md 5 -> jig/docs/design/protocol/components.md 1
+jig/docs/design/protocol/README.md 10 -> jig/docs/design/protocol/needs.md 1
+jig/docs/design/protocol/README.md 11 -> jig/docs/design/protocol/needs.md 2
+jig/docs/design/protocol/README.md 13 -> jig/docs/design/protocol/decisions.md 1

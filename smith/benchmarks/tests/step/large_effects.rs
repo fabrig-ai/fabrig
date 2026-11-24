@@ -1,4 +1,4 @@
-//! Repository range claims preserve measurement gaps (../../../docs/design/benchmarks/README.md, 3.1 and 9).
+//! Repository range claims preserve measurement gaps (../../../docs/design/benchmarks/README.md, 3.1, and ../../../docs/design/benchmarks/results.md, 2).
 
 use smith_bench::{Agent, Design, LargeEffect, Measure, RunSummary, large_effect, summarise};
 

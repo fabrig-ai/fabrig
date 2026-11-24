@@ -1,4 +1,4 @@
-//! Shared generation files, never shared writes (protocol/store/opening.md, 2, 4 and 5).
+//! Shared generation files, never shared writes (protocol/store/opening.md, 2 and 4, and protocol/store/opening-rehearsal.md, 1).
 use jig_protocol_store::{Event, OwnerSets, Write};
 use jig_store_world::{
     World,

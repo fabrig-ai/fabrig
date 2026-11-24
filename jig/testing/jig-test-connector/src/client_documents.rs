@@ -1,4 +1,4 @@
-//! Connector-owned subjects and parts (`domain/connectors.md`, 5.5;
+//! Connector-owned subjects and parts (`domain/connectors-facts.md`, 1.5;
 //! `client/domain/root.md`, section 6). Reads do not mutate their source state.
 use crate::{ApplicationObject, Domain, Limits, Request};
 use skein_lib::{List, Queue, Token};

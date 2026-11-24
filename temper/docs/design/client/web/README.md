@@ -17,7 +17,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   WebAssembly under a browser shell of temper's,
   `temper-client-shell-web`, on skein's browser parts (`skein-ui-web`;
   skein's `ui/web/README.md`) and jig's client adapter and sign-in part
-  (`jig-client-shell-web`; jig's `protocol/browser/README.md`, 5.1), with
+  (`jig-client-shell-web`; jig's `protocol/browser/loop.md`, 1.1), with
   neither jig's look nor its reference UI. The adapter carries jig's
   default HTTP mapping over fetch (`jig-client-protocol-http`). temper
   writes no web wire and no web protocol of its own: the client's
@@ -39,7 +39,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   ), from the bundle the binary holds or a directory its
   configuration names, with jig's example guards and the page's policy,
   which is temper's: a strict content security policy, no frames, no
-  CORS (jig's `protocol/browser/README.md`, 12.1 and 12.2). A binary built
+  CORS (jig's `protocol/browser/serving.md`, 1.1 and 1.2). A binary built
   without its browser serves the page for no bundle, and the terminal
   works as before (`serving.md`, 1).
 - **The bundle is in the binary.** A plain `cargo build` (or `cargo

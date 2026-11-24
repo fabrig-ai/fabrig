@@ -1,4 +1,4 @@
-//! Agent task read values (jig/docs/design/domain/engine/executors.md, 3).
+//! Agent task read values (jig/docs/design/domain/engine/executors-tools.md, 1).
 use super::{TaskText, TaskTextField};
 use crate::Limits;
 use alloc::boxed::Box;
@@ -6,7 +6,7 @@ use core::mem::{size_of, size_of_val};
 use jig_domain_tasks as tasks;
 use skein_lib::length::len_u64;
 
-/// The application-named task text and answer room (domain/engine/executors.md, 3).
+/// The application-named task text and answer room (domain/engine/executors-tools.md, 1).
 #[derive(Clone, Copy, Hash, Debug)]
 pub struct Read {
     pub task: u64,
@@ -49,7 +49,7 @@ pub struct TaskRead {
     pub words: TaskText,
     /// Verdict selected by a result read; offsets still count only reason bytes.
     pub verdict_code: Option<u32>,
-    /// A result read of a live task, answered with its specification (domain/engine/executors.md, 3).
+    /// A result read of a live task, answered with its specification (domain/engine/executors-tools.md, 1).
     pub result_pending: bool,
     pub hold: Option<TaskHold>,
 }

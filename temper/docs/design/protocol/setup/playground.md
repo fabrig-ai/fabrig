@@ -69,7 +69,7 @@ them as it does any Forgejo.
      an ordinary project, which the client shows by the name its record
      holds (`../../client/pages/welcome.md`, 2);
   3. the scripted account's uses, naming the playground's project
-     alone (jig's `domain/accounts.md`, 4.2);
+     alone (jig's `domain/accounts-uses.md`, 1.2);
   4. `playground/widget` adopted into the project by `Adopt`, from its
      fake forge, owned, landing on `main`, the project's home, with CI.
 
@@ -248,8 +248,8 @@ them as it does any Forgejo.
     its text line, answering what it would change and why, finishing
     `stop`. The chat is ended by its requester (`../../domain/agent/charter.md`,
     5), so its run is smith's Open mode, which offers no `finish`: a
-    turn that ends with text is its reply (smith's `domain/run.md`,
-    section 6), committed with the turn, and the chat waits for the
+    turn that ends with text is its reply (smith's `domain/run-messages.md`,
+    section 1), committed with the turn, and the chat waits for the
     person's next words, its composer with it, as the CSV's does with
     `wait`.
 
@@ -275,7 +275,7 @@ them as it does any Forgejo.
   scripts, `cued` as its system-cued scripts, and `otherwise` as its
   fallback, no menu. A fresh Open chat's opening user message holds
   its person's brief, whole; its system text holds its instructions
-  (smith's `domain/run.md`, 3.4). The chat's suggested requests are
+  (smith's `domain/run-start.md`, 1.4). The chat's suggested requests are
   therefore `asked`; the coding agent's and reviewer's briefs stay in
   system text and are `cued`. Skein chooses a system cue first, then
   a cue in the last user message holding text, then the fallback

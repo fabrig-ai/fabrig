@@ -59,7 +59,7 @@ the triager first, are charters 14 to 16
   change it started ending is its business, and on news paced to 30
   minutes; its runs park as soon as they wait.
 - **Template 7, a standing role,** run by the charter its creator names:
-  `ended_by` `standing` (jig's `protocol/configuration.md`, 3.2), not a
+  `ended_by` `standing` (jig's `protocol/configuration-templates.md`, 2), not a
   conversation, listed, kept, untracked, labelled 3, its contract a
   report as template 1's, its budget the creator's, a period's amount,
   and no deadline. Its spec's words say how it works; what it owns is
@@ -117,7 +117,7 @@ the triager first, are charters 14 to 16
 - **Its Now** is the note described `now` in its own scope, which its
   project's people read: Team's card and `role show` read it with jig's
   notes read of the role's scope (jig's
-  `client/domain/contract/README.md`, section 4).
+  `client/domain/contract/reads.md`, section 1).
 
 ## 5. What it may do
 
@@ -132,7 +132,7 @@ the triager first, are charters 14 to 16
   call `decided` where its project's classes let it
   (`../forge/attention.md`, 5); write its Now; propose changes to its
   own rules, its wakes or its budget, as a proposal of settings (jig's
-  `domain/engine/settings.md`, 6); and own a follow (`../forge/follows.md`,
+  `domain/engine/settings-proposals.md`, 1); and own a follow (`../forge/follows.md`,
   sections 2 and 4): its follow task is its delegate, funded by it, its
   producers' questions and its changes' holds reach it, it acts with
   its `follow` tool, and a red after landing of a follow change reaches

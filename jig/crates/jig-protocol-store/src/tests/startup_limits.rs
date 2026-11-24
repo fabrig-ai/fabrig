@@ -7,7 +7,12 @@ use skein_lib::Token;
 fn opened() -> crate::Store {
     let mut limits = fixtures::store_limits();
     limits.commits.writes = 3;
-    let mut store = crate::Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
+    let mut store = crate::Store::over(
+        &crate::check(&limits).expect("fixture store limits"),
+        fixtures::APPLICATION,
+        &[],
+        fixtures::stores(),
+    );
     let events = fixtures::run(
         &mut store,
         Request::Open {
@@ -22,6 +27,49 @@ fn opened() -> crate::Store {
     };
     store
 }
+#[test]
+fn the_runtime_check_is_the_installed_and_reopened_view() {
+    let stock = opened().checked();
+    let mut custom = stock.limits().core;
+    custom.notes.body_bytes = 8;
+    for core in [stock.limits().core, custom] {
+        let mut store = opened();
+        let expected = crate::runtime_limits(stock.limits(), &core, fixtures::APPLICATION, 64).unwrap();
+        assert_eq!(expected.codec().core.turn_record_transcript, 64);
+        store.install_limits(&core, fixtures::APPLICATION, 64).unwrap();
+        assert_eq!(store.checked(), expected);
+        let reopened = fixtures::reopen(store);
+        assert_eq!(reopened.checked(), expected);
+    }
+}
+
+// The fixture starts with a narrowed turn bound, then opens with one more byte.
+const NARROW_TRANSCRIPT: u32 = 64;
+const WIDER_TRANSCRIPT: u32 = NARROW_TRANSCRIPT + 1;
+
+fn narrowed(stock: &crate::Checked) -> crate::Checked {
+    let limits = stock.limits();
+    crate::runtime_limits(limits, &limits.core, fixtures::APPLICATION, NARROW_TRANSCRIPT).unwrap()
+}
+
+#[test]
+fn a_runtime_reopen_checks_a_changed_transcript_bound() {
+    let stock = opened().checked();
+    let cached = narrowed(&stock);
+    let limits = stock.limits();
+    let reopened =
+        crate::runtime_limits_reusing(limits, &limits.core, fixtures::APPLICATION, WIDER_TRANSCRIPT, Some(&cached))
+            .unwrap();
+    assert_eq!(reopened.codec().core.turn_record_transcript, WIDER_TRANSCRIPT);
+}
+
+#[test]
+fn a_stock_reopen_does_not_use_a_narrowed_bound() {
+    let cached = narrowed(&opened().checked());
+    let reopened = crate::check_reusing(cached.limits(), Some(&cached)).unwrap();
+    assert_eq!(reopened.codec().core.turn_record_transcript, crate::core_v6::CEILINGS.turn_record_transcript);
+}
+
 #[test]
 fn installed_codecs_encode_only_records_within_the_resolved_ceiling() {
     let mut store = opened();

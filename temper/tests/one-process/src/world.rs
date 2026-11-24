@@ -178,7 +178,7 @@ impl Harness for OneProcess {
     fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
         Some(crate::schemas::binary_schemas())
     }
-    fn checked_opening_limits(limits: &jig_protocol_store::CheckedLimits) {
+    fn checked_opening_limits(limits: &jig_protocol_store::Checked) {
         crate::store_check::opening_limits(limits);
     }
     fn github() -> bool {

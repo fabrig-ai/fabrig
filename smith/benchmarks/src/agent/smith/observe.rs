@@ -1,6 +1,6 @@
 //! Native observations retain the event codec's scopes, terminals and usage.
 //! Receiving bounds follow the selected product writer;
-//! no running domain state is known (../../../../docs/design/benchmarks/README.md, sections 6 and 8).
+//! no running domain state is known (../../../../docs/design/benchmarks/agents.md, section 1, and ../../../../docs/design/benchmarks/results.md, section 1).
 
 use crate::agent::Seen;
 use crate::{Counts, Fault, Spend, TokenRecord};

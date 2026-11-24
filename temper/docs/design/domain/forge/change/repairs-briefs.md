@@ -103,7 +103,7 @@ This document holds the gathering of a change's forge brief, split from [`repair
     section's read fails, and the connector wakes the change. A review's
     or a repair's read fails counting as capacity (the table below), so
     the task pauses with no try spent, as for a writer slot taken (jig's
-    `domain/tasks/lifecycle.md`, 6). Its next step reads its branch
+    `domain/tasks/lifecycle-holds.md`, 1). Its next step reads its branch
     afresh: a head it takes becomes the pin of the task's next try, and a
     drift holds the change for its cause, on its panel. While it is held,
     each try of the task pauses the same way, until a release takes the

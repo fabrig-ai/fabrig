@@ -142,7 +142,7 @@ fn passed_agent_needs_name_their_bytes_and_limit() {
     }
 }
 
-// jig/docs/design/protocol/configuration.md, 3: the copied policy is checked whole.
+// jig/docs/design/protocol/configuration-engine.md, 1: the copied policy is checked whole.
 #[test]
 fn a_copied_seed_names_its_executor_count_and_limit() {
     let document = document(br#""projects": [{"number":1,"policy":1}]"#);

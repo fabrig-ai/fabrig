@@ -6,7 +6,7 @@
 - **Not yet:** area 2: a budget or tasks raised by `task amend` is not
   funded by the party who gives it: the engine resizes the task's
   existing funder's reservation, whoever amends, as jig's
-  `jig/docs/design/domain/authority.md`, 7 ("Whoever widens a task
+  `jig/docs/design/domain/authority-budgets.md`, 1 ("Whoever widens a task
   funds it") records as not yet built. The admission ctl compares
   against is the giver's, so a raise within the giver's bounds is sent
   and charged to the existing funder.

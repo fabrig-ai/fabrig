@@ -1,4 +1,4 @@
-//! Account-use acceptance for the open provider failures (domain/testing.md, 7.3).
+//! Account-use acceptance for the open provider failures (domain/testing-fakes.md, 1.3).
 use jig_core_world::fixtures::{PROJECT, ask};
 use jig_core_world::world::{Setup, World};
 use jig_domain_accounts as accounts;
@@ -42,7 +42,7 @@ fn serves(world: &World, account: u32, party: u64) -> bool {
 /// so B loses coverage. The fixing work may give the grant step another request,
 /// keeping the two coverage assertions.
 #[test]
-#[ignore = "P76, open: provider failures (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "P76, open: provider failures (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_new_party_gets_account_uses() {
     let (config, mut limits) = jig_core_world::world::fixture(SEED, false);
     limits.core.people.people = 4;

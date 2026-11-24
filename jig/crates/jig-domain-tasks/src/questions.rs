@@ -1,4 +1,4 @@
-//! Question credits, requester moves and unanswered exits (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
+//! Question credits, requester moves and unanswered exits (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
 use crate::domain::{Domain, publish, record, refused, task_mut};
 use crate::{Limits, MessageKind, Party, Refusal, Request, Word};
 use alloc::boxed::Box;
@@ -8,7 +8,7 @@ use skein_lib::{Decimal, Env, List, Map, Queue, ReplyTo, Writer};
 pub(crate) const ANSWER_NOTICE_BYTES: usize = 256;
 
 /// An unanswered received question whose asker still reserves an answer from this task.
-/// Words stay on the asker's activity line (domain/tasks/lifecycle.md, 8).
+/// Words stay on the asker's activity line (domain/tasks/lifecycle-endings.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct OpenQuestion {
     pub asker: u64,

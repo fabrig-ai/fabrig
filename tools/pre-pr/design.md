@@ -1,8 +1,8 @@
 # The delivery check
 
 Provisional, 2026-11-15. What fabrig's `.temper/pre-pr` runs when a run
-delivers: the project's checks (smith's `smith/docs/design/domain/run.md`,
-8.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
+delivers: the project's checks (smith's `smith/docs/design/domain/run-delivery.md`,
+1.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`, for the goal's reds,
 its flakes and its results, `temper/docs/design/draft/branch-reds.md`,
 for where its tests sit, `temper/docs/design/draft/archive/focused-pyramid.md`,
@@ -161,7 +161,7 @@ receipts, this section takes precedence.
 - **A goal's design delivery too.** A goal run's `deliver` of Markdown
   straight to its goal branch runs the project's checks before the worker
   pushes, and a failure refuses the push with the check's output
-  (`temper/docs/design/domain/forge/branches.md`, 3; smith's run.md, 8.1).
+  (`temper/docs/design/domain/forge/branches.md`, 3; smith's domain/run-delivery.md, 1.1).
   The worker pins its checkout's `refs/temper/landing` at g's tip as for a
   change, so a design delivery runs this check's docs set and the boundary
   packages' tests, with no check of its own; one of status files and other
@@ -173,7 +173,7 @@ receipts, this section takes precedence.
   of its waits for a place again (section 4; `tools/tiers/design.md`, 3).
   A hold that says it waits for a place has the check tell smith, so that
   the wait does not count against the checks' bound (smith's
-  `smith/docs/design/domain/run.md`, 8.1). A prose-only delivery builds
+  `smith/docs/design/domain/run-delivery.md`, 1.1). A prose-only delivery builds
   nothing and takes none.
 - **The goal's reds, and inherited counts.** Nothing is built or tested
   at the base. A lint or test failure is inherited only when the goal's
@@ -211,7 +211,7 @@ receipts, this section takes precedence.
 - **With the pin.** `git rev-parse --verify --quiet refs/temper/landing^{commit}`
   names a commit: the base is `git merge-base refs/temper/landing HEAD`,
   or, where `git rev-parse --verify --quiet MERGE_HEAD` names one (a merge
-  in progress: smith's run.md, 8.3), `git merge-base refs/temper/landing
+  in progress: smith's domain/run-delivery.md, 1.3), `git merge-base refs/temper/landing
   HEAD MERGE_HEAD`, git's merge base of the reference with a hypothetical
   merge of `HEAD` and `MERGE_HEAD`. Where git gives several, the first it
   prints.
@@ -692,10 +692,10 @@ waits for them before it holds them has the check tell smith so on its
 stderr, `smith-check: waiting` at the first such line and `smith-check:
 admitted` once held or gone, so that the checks' bound counts only the
 time the check holds its places (smith's
-`smith/docs/design/domain/run.md`, 8.1, *A wait for what a check
+`smith/docs/design/domain/run-delivery.md`, 1.1, *A wait for what a check
 needs*); the 1,800-second figure a deployment sets stays as it is. A cache hit
 takes none, nor does a prose-only delivery, whose selection reads git
-alone and which runs no cargo command (section 3). A hold that fails prints its warning, `pre-pr: hold: <why>;
+alone and which runs no cargo command (`design.md`, section 3). A hold that fails prints its warning, `pre-pr: hold: <why>;
 going on unheld`, and refuses nothing; the summary does not repeat it, since
 it is the deployment's, not the delivery's. Killed, the check releases the
 hold by its death (`tools/tiers/design.md`, 3).
@@ -710,6 +710,10 @@ target flags paid a build, a listing and a serial pass each. Each DIR is fresh u
 directory. Helper builds and `cargo check` keep their commands. The final
 128 bytes preserve the compiler diagnostic or the first failed or crashed
 case and its panic site and message from `results.json` where available.
+Then the same selection's fuzzy tests run in a second run, `… --fail-fast fuzzy …`,
+with the same filterset (each profile's `default()` is its own filter), and
+each profile's layers are judged against main's published counts for that
+profile and its `gate.<profile>` table.
 
 After the focused steps pass, read `refs/temper/counts` locally in the
 goal's checkout and find its base (`tools/tiers/budgets.md`, 7.1). A missing
@@ -729,6 +733,14 @@ warning and the landing gate judges. Close and the gate count some binaries
 differently (cargo-spawning boundary tests about 7% lower, client worlds up
 to 22% higher, 2026-11-23), so a layer's sum can swing about 2% between
 them, and a red at close is one the gate would also give.
+
+Temper retries a close that refused as it would one that failed, and each
+attempt gets a fresh checkout. So close saves a refusal made of its own
+verdicts alone (budgets, formatting, old forms, citations, outward names) in
+the worker user's `~/.cache/fabrig-pre-pr/close/`, keyed by the checked tree,
+the base and main's published counts, for a day. An attempt with the same
+key prints that refusal again, with its figures, and checks nothing; a test
+failure, a build or listing fault, or any other input runs afresh.
 
 ## 5. Inherited failures
 
@@ -849,7 +861,7 @@ cause.
 
 - **As it goes:** section 3's selection lines, each selected check's
   announcement, then what its tools print,
-  so a stopped check's tail shows where it was (smith's run.md, 8.1).
+  so a stopped check's tail shows where it was (smith's domain/run-delivery.md, 1.1).
 - **The summary, last,** at most 8,192 bytes. The cap is pre-pr's own,
   apart from what the host keeps: smith keeps a longer tail of a check's
   output (smith's `protocol/limits.md`, `shell_tail`, 48 KiB by default),
@@ -1048,11 +1060,11 @@ tree that passed here.
   base's worktree is made only for an exceeded count, holds no build, and
   is kept for the next.
 - What a check took is the run's: smith tells its host when checks start,
-  with their deadline, and when they end (run.md, 8.1), and the check
+  with their deadline, and when they end (smith/docs/design/domain/run-delivery.md, 1.1), and the check
   prints each check's seconds. The checks' deadline is the deployment's
   `check_timeout`, which the owner sets separately. It counts the time the
   check holds its build places alone: a wait its hold says it makes for
-  them is told to smith and left out (section 4, *The hold*), so a check
+  them is told to smith and left out (`design.md`, section 4, *The hold*), so a check
   queued behind other workspaces' builds is not refused for their time.
 
 ## 9. Testing

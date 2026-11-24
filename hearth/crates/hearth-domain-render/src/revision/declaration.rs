@@ -133,7 +133,7 @@ pub enum Literal {
     Range { at: Position, fields: Box<[Field]> },
 }
 
-/// One typed public value (hearth/docs/design/protocol/format/README.md, 6.1).
+/// One typed public value (hearth/docs/design/protocol/format/exports.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Export {
     pub name: Text,

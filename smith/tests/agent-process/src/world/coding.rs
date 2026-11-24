@@ -1,6 +1,6 @@
 //! A native coding fixture with shipped standard limits and a fake check
 //! program. It observes files at the check's spawn, never domain state.
-//! Contract: smith/docs/design/domain/run.md, section 8.
+//! Contract: smith/docs/design/domain/run-delivery.md, section 1.
 
 use super::{Machine, Parent, World};
 use skein_fake_machine::{How, Item, Opened};

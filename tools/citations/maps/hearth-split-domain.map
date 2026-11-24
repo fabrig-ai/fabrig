@@ -1,0 +1,18 @@
+# Hearth's domain split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at df5e49f31c2217764b0b789669bf1f307cbbc299.
+# hearth/docs/design/domain/store/README.md: 57,351 bytes. Digests and keys and hearth's own state get their own pages; the opening, the one page, on disk, layers, pins and collection, prerequisites, peers, its world and open questions stay.
+title hearth/docs/design/domain/store/digests.md: The store: digests and keys
+title hearth/docs/design/domain/store/state.md: The store: hearth's own state
+hearth/docs/design/domain/store/README.md 3 -> hearth/docs/design/domain/store/digests.md 1
+hearth/docs/design/domain/store/README.md 6 -> hearth/docs/design/domain/store/state.md 1
+
+# hearth/docs/design/domain/activator/README.md: 50,970 bytes. Its state and the tools it drives get their own pages; the opening, the one page, the trust boundary, the process pair, the link, verification, its world and open questions stay.
+title hearth/docs/design/domain/activator/state.md: The activator: its state
+title hearth/docs/design/domain/activator/tools.md: The activator: the tools it drives
+hearth/docs/design/domain/activator/README.md 6 -> hearth/docs/design/domain/activator/state.md 1
+hearth/docs/design/domain/activator/README.md 7 -> hearth/docs/design/domain/activator/tools.md 1
+
+# hearth/docs/design/domain/render/README.md: 49,917 bytes. The rendered diff and layers and crates get their own pages; the opening, the one page, inputs, the pipeline, its world and open questions stay.
+title hearth/docs/design/domain/render/diff.md: Render: the rendered diff
+title hearth/docs/design/domain/render/crates.md: Render: layers and crates
+hearth/docs/design/domain/render/README.md 4 -> hearth/docs/design/domain/render/diff.md 1
+hearth/docs/design/domain/render/README.md 5 -> hearth/docs/design/domain/render/crates.md 1

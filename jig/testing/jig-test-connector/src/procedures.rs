@@ -1,4 +1,4 @@
-//! Durable, level-triggered connector procedures (domain/connectors.md, section 6).
+//! Durable, level-triggered connector procedures (domain/connectors-procedures.md, section 1).
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Wall};
 

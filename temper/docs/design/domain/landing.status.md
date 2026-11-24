@@ -11,7 +11,7 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
 - **Not yet:** 4.2 (*Drained*): a landing in a draining hold’s scope
   going on through the turn once proving, idle and held while preparing.
   It waits on jig’s drain and project-scoped placed holds
-  (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
+  (`jig/docs/design/domain/tasks/lifecycle-holds.status.md`, 2).
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`).

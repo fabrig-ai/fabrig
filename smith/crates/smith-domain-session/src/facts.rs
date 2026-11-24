@@ -116,7 +116,7 @@ pub enum FactKind {
         /// Content-free child observation, preserved in reserved output room.
         fact: tools::FactKind,
     },
-    /// A program starts its built-in call at `block` (smith/docs/design/protocol/programs.md, 5.4–5.5).
+    /// A program starts its built-in call at `block` (smith/docs/design/protocol/programs-claude-code.md, 1.4–1.5).
     BuiltinStarted { opener: Token, block: u32 },
     /// A program's result, or its retained stand-in, settles that call once.
     BuiltinAnswered { opener: Token, bytes: u64, error: bool },

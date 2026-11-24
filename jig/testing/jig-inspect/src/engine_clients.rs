@@ -1,4 +1,4 @@
-//! Clients' exchanges and armed deadlines (jig/docs/design/domain/testing.md, 7.1).
+//! Clients' exchanges and armed deadlines (jig/docs/design/domain/testing-fakes.md, 1.1).
 use jig_protocol_engine_clients::Component;
 use skein_lib::{Time, Token};
 use skein_world::inspect::{Entry, Inspection, Release, Table, Wait, Wake};

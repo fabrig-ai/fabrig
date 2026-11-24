@@ -9,7 +9,7 @@ The client root's state, routing and requests are split from [the client's overv
 `next_deadline` and `take`, and `shown`, a count of what is shown,
 which the view builds from. It holds `jig_client::Client` as a
 component and calls it; the client never calls it back, and the root
-routes nothing of jig's (jig's `client/domain/client/README.md`, section 4).
+routes nothing of jig's (jig's `client/domain/client/vocabulary.md`, section 1).
 
 ### 1.1 What it holds
 
@@ -90,7 +90,7 @@ The shell starts the domain with the small store's records and the
 inbox's address, then signs in (`sign-in.md`, section 1), holding back neither. The
 domain's children ask their watches from their start, `me` among them,
 and `jig-client` opens none on the engine until it is signed in (jig's
-`client/domain/client/README.md`, section 9), so no stream leaves without the
+`client/domain/client/sign-in.md`, section 1), so no stream leaves without the
 credential.
 
 - **`me` comes with the stream** (jig's `client/domain/client/watches.md`,
@@ -100,7 +100,7 @@ credential.
   hears the hello.
 - **What names no party waits for no `me`.** The party's own and the
   deployment's watches and reads (jig's
-  `client/domain/contract/README.md`, 5.5): the forge side's
+  `client/domain/contract/watches.md`, 1.5): the forge side's
   `dismissed`, `away`, `trials`, `approvals`, `devices` and `forges`,
   jig's `settings`, and the `deployment`, `playground` and program
   environment's reads, are asked once the link is live, never after a
@@ -116,20 +116,20 @@ credential.
   asked before the hello would leave as its own exchange ahead of a
   reload's kept keyed requests, which `jig-client` releases only once
   `me` confirms their party, and the link keeps the order exchanges
-  were asked in (jig's `client/domain/client/README.md`, 4.1, *The
+  were asked in (jig's `client/domain/client/vocabulary.md`, 1.1, *The
   settling*), so the kept requests would part it from the batch and it
   would cost a request of its own. So a cold
   open sends the stream alone first, and everything else after the
   hello: one batch, and on a reload the kept keyed requests on their
   own routes beside it, once the hello's `me` confirms their party
-  (jig's `client/domain/client/README.md`, section 8; `pages/work.md`,
+  (jig's `client/domain/client/small-store.md`, section 1; `pages/work.md`,
   1, *Its budget*).
 - **Another party's kept work** stays parked and is not shown (jig's
-  `client/domain/client/README.md`, section 8); the terminal says so in a line
+  `client/domain/client/small-store.md`, section 1); the terminal says so in a line
   of its own (`line.md`, 6).
 - **Pending reads at sign-in** end visibly in jig's existing forms,
   on successful installation even before the first `me`, and on
-  sign-out (jig's `client/domain/client/README.md`, sections 6 and 9).
+  sign-out (jig's `client/domain/client/README.md`, section 6, and `client/domain/client/sign-in.md`, section 1).
   Whoever asked must ask again; no read is replayed automatically.
 - **Kept work dropped:** the domain hands `jig-client`'s `Dropped {
   count }` to the shell (jig's `client/domain/root.md`, section 8), and
@@ -200,8 +200,8 @@ credential.
     and no count at zero:
     the run, while one of this task's is live: "The run under way gets N seconds
     to finish, then stops.", the template's grace, or "The run under way stops
-    now." with none (a chat at rest closes at once, jig's `domain/tasks/lifecycle.md`,
-    9); each live delegate, by its number and title and its fate, "T4 Fix the
+    now." with none (a chat at rest closes at once, jig's `domain/tasks/lifecycle-endings.md`,
+    2); each live delegate, by its number and title and its fate, "T4 Fix the
     parser is cancelled." or "T5 Review the parser moves to you.", with the other
     fate as "Take it instead" or "Cancel it instead"; the tasks below it that are
     not delegates, "N tasks below it are cancelled.", the document's waiting,
@@ -240,7 +240,7 @@ credential.
 - **A key is pasted once, never kept.** Its field is a secret (skein's
   `ui/tree.md`, 1.2 and 1.4), and adding or replacing a key is a request
   carrying a value (jig's `client/domain/client/requests.md`; jig's
-  `protocol/client/README.md`, section 7): sent once under a name, never in
+  `protocol/client/small-store.md`, section 1): sent once under a name, never in
   the small store, never parked, never sent again by the client. The
   field is emptied as the request leaves, and the key is shown nowhere,
   then or after. Answered unsent or lost, the card says so and asks for
@@ -335,5 +335,5 @@ amendment`), and sends it, as `Amend` or `Propose`, as 1.6 says.
 - **What a page keeps across a restart:** where the client was, the
   composers' words and the form's values, as records of temper's own,
   which the terminal keeps beside `jig-client`'s small store, never in
-  it (jig's `protocol/client/README.md`, section 7). Default: none; the client
+  it (jig's `protocol/client/small-store.md`, section 1). Default: none; the client
   opens at the inbox.

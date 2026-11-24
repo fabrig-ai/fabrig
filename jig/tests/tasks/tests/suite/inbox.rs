@@ -286,7 +286,7 @@ fn a_deadline_wake_does_not_reuse_a_handled_message_reason() {
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
     assert!(world.record(1).inbox.is_empty());
     // The core's deadline admission holds before preparation or claim
-    // (jig/docs/design/domain/authority.md, 7 and 8.3).
+    // (jig/docs/design/domain/authority-budgets.md, 1, and jig/docs/design/domain/authority-checks.md, 1.3).
     world.send(Event::Hold { task: 1, why: jig_domain_tasks::Hold::Deadline });
     assert!(matches!(world.record(1).phase, Phase::Held { why: jig_domain_tasks::Hold::Deadline, .. }));
     assert_eq!(world.record(1).attempt, 2);

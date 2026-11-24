@@ -308,7 +308,7 @@ and changes no code above io:
   whether a consumer that would start every program through it takes it
   before a macOS run has shown it. Default: no; smith's agent still
   starts its programs directly on macOS
-  (`smith/docs/design/protocol/programs.md`, 5.1), and jig-test's
+  (`smith/docs/design/protocol/programs-claude-code.md`, 1.1), and jig-test's
   program-child test (`jig/testing/jig-test/tests/process.rs`) is the
   watcher's first proof there.
 - **The remaining identical helpers** (`readiness.md`, 5): `linux` and `darwin` each

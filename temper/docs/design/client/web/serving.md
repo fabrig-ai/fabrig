@@ -5,13 +5,13 @@ Serving the browser's page and bundle is split from [the browser overview](READM
 ## 1. Serving
 
 - **The routes of the clients' listener,** temper's, in this order,
-  over jig's mapping (jig's `protocol/browser/README.md`, section 12) and
+  over jig's mapping (jig's `protocol/browser/serving.md`, section 1) and
   skein's serving of a bundle (skein's `ui/web/bundle.md`, 4):
   1. what jig's default mapping claims, under `/jig`, to jig's clients'
      component: every request there but a `GET` of the printed link's
      route, which the mapping leaves to the page, answered with the
      page's policy and `Referrer-Policy: no-referrer` (jig's
-     `protocol/browser/README.md`, 12.1 and 12.2);
+     `protocol/browser/serving.md`, 1.1 and 1.2);
   2. with no bundle, the configuration naming none (`null`) and the
      binary built without its own (`bundle.md`, 1), a `GET` of any other path but
      under `/bundle/` and `/robots.txt`, the printed link's route and
@@ -29,7 +29,7 @@ Serving the browser's page and bundle is split from [the browser overview](READM
      form the request takes (skein's `ui/web/bundle.md`, 4); any other path
      under `/bundle/`: not found;
   5. `/robots.txt`, the bundle's one root file (skein's `ui/web/README.md`,
-     3.3, step 5; jig's `protocol/browser/README.md`, section 12), disallowing
+     3.3, step 5; jig's `protocol/browser/serving.md`, section 1), disallowing
      every path;
   6. `/sw.js` and `/manifest.webmanifest`, temper's two root files,
      fixed in its binary, `no-cache` (`push.md`, 1): the service worker,
@@ -51,7 +51,7 @@ Serving the browser's page and bundle is split from [the browser overview](READM
   has no `temper-record` meta. Nothing of a recording reaches the
   deployment.
 - **The page's policy,** on every answer temper gives: jig's reference
-  policy as it stands (jig's `protocol/browser/README.md`, 12.1): `default-src 'none';
+  policy as it stands (jig's `protocol/browser/serving.md`, 1.1): `default-src 'none';
   script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src
   'self'; font-src 'self'; connect-src 'self'; base-uri 'none';
   form-action 'none'; frame-ancestors 'none'`, and temper's two

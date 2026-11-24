@@ -1,4 +1,4 @@
-//! Owned questions and answers (domain/authority.md, sections 8 and 9).
+//! Owned questions and answers (domain/authority-checks.md, section 1, and domain/authority.md, section 9).
 
 use alloc::boxed::Box;
 
@@ -8,7 +8,7 @@ use crate::{Authority, Executor, Judge, Name, Numbers, ProposalKind, ResourceSco
 
 /// Ordered from least to most strict: deciding never clears a fact failure.
 /// Terminal result of one pure check, ordered by severity; it neither executes the action nor
-/// commits a durable decision. (domain/authority.md, section 8).
+/// commits a durable decision. (domain/authority-checks.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Answer {
     /// Checks permit the action; the caller still owns execution and atomic commitment.
@@ -22,8 +22,8 @@ pub enum Answer {
     Refuse,
 }
 
-/// Authority layer that supplied a ceiling or permission for a finding. (domain/authority.md,
-/// sections 6 and 8).
+/// Authority layer that supplied a ceiling or permission for a finding. (domain/authority.md, section 6, and domain/authority-checks.md, section 1
+/// ).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Source {
     /// The acting or creating task's authority.
@@ -37,7 +37,7 @@ pub enum Source {
 }
 
 /// Fixed-size reason emitted by a pure check into caller-reserved bounded room; multiple
-/// independent reasons may accompany one answer. (domain/authority.md, sections 8–10).
+/// independent reasons may accompany one answer. (domain/authority-checks.md, section 1, and domain/authority.md, sections 9–10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Finding {
     /// Input shape or payload exceeds admission limits.
@@ -115,7 +115,7 @@ pub enum Finding {
 }
 
 /// Pure check result and optional replacement funding snapshot; the root commits allowed numbers
-/// together with the action once. (domain/authority.md, sections 7–8).
+/// together with the action once. (domain/authority-budgets.md, section 1, and domain/authority-checks.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Checked {
     /// Strictest answer after all applicable checks.
@@ -126,7 +126,7 @@ pub struct Checked {
 }
 
 /// Root-translated directly created task's executor and complete authority, admitted under batch
-/// and authority limits. (domain/authority.md, section 8.1).
+/// and authority limits. (domain/authority-checks.md, section 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Delegate {
     /// Executor permission that the creator must have.
@@ -138,7 +138,7 @@ pub struct Delegate {
 }
 
 /// Root-gathered creation question over one coherent creator and funding snapshot; no tasks or
-/// reservations are retained here. (domain/authority.md, section 8.1).
+/// reservations are retained here. (domain/authority-checks.md, section 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BatchAsk {
     pub project: u32,
@@ -156,7 +156,7 @@ pub struct BatchAsk {
 
 /// A read or effect of one connector, pinned to the state it names.
 /// Root-translated connector read or effect with a literal resource and exact state pin, bounded on
-/// admission. (domain/authority.md, section 8.2).
+/// admission. (domain/authority-checks.md, section 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Effect {
     pub connector: u16,
@@ -192,7 +192,7 @@ pub enum EffectAccess {
 }
 
 /// Root-gathered permission and authentic-fact question for one pinned effect; this value makes no
-/// connector call. (domain/authority.md, section 8.2).
+/// connector call. (domain/authority-checks.md, section 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EffectAsk {
     pub project: u32,
@@ -228,7 +228,7 @@ pub struct Given {
 }
 
 /// Root-verified writer-hold relationship for a run's written resource; authority performs no
-/// ownership discovery. (domain/authority.md, section 8.3).
+/// ownership discovery. (domain/authority-checks.md, section 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Writer {
     /// Hold belongs to the running task.
@@ -242,7 +242,7 @@ pub enum Writer {
 }
 
 /// One workspace resource and its root-verified writer relationship, admitted under run write/name
-/// limits. (domain/authority.md, section 8.3).
+/// limits. (domain/authority-checks.md, section 1.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Write {
     /// Written resource and required connector kind, including saved workspace writes.
@@ -252,7 +252,7 @@ pub struct Write {
 }
 
 /// Root-gathered run admission snapshot; no claim, worker, clock or account state is held by this
-/// question. (domain/authority.md, section 8.3).
+/// question. (domain/authority-checks.md, section 1.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunAsk {
     pub project: u32,
@@ -278,7 +278,7 @@ pub struct RunAsk {
 }
 
 /// Root-translated person action after membership verification; authority returns a decision over
-/// values, not task mutations. (domain/authority.md, section 8.4).
+/// values, not task mutations. (domain/authority-checks.md, section 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PersonRequest {
     /// Check role permission and all-or-nothing batch funding.
@@ -287,7 +287,7 @@ pub enum PersonRequest {
         Box<[Delegate]>,
     ),
     /// A party's batch beneath a task, checked within the role without its pool,
-    /// then within the task's remaining (jig/docs/design/domain/authority.md, 8.4).
+    /// then within the task's remaining (jig/docs/design/domain/authority-checks.md, 1.4).
     Delegate { creator: Authority, tasks: Box<[Delegate]> },
     /// The complete future authority/allotment to fund, not an unchecked delta. Check role
     /// permission and the complete future allotment.
@@ -314,7 +314,7 @@ pub enum PersonRequest {
 }
 
 impl PersonRequest {
-    /// Funding already covered for a widening (domain/authority.md, sections 7 and 8.4).
+    /// Funding already covered for a widening (domain/authority-budgets.md, section 1, and domain/authority-checks.md, section 1.4).
     #[must_use]
     pub fn funding_credit(&self) -> u64 {
         match self {
@@ -333,7 +333,7 @@ impl PersonRequest {
 }
 
 /// Root-gathered person-role question with the funding snapshot and separate available
-/// lifetime capacity. (domain/authority.md, section 8.4).
+/// lifetime capacity. (domain/authority-checks.md, section 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PersonAsk {
     pub project: u32,
@@ -348,7 +348,7 @@ pub struct PersonAsk {
 }
 
 /// Root-translated tool-call requirements beyond its configured family bit; serving the call
-/// remains with the root. (domain/authority.md, section 8.5).
+/// remains with the root. (domain/authority-checks.md, section 1.5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Call {
     /// Family permission alone is checked here.
@@ -378,7 +378,7 @@ pub enum NoteScope {
 }
 
 /// Root-gathered call permission question over one configured family and admitted
-/// authority/resource values. (domain/authority.md, section 8.5).
+/// authority/resource values. (domain/authority-checks.md, section 1.5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CallAsk {
     pub project: u32,

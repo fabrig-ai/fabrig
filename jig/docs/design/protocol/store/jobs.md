@@ -16,7 +16,7 @@ designs what runs them.
   once.
 - **Its pages** (3): the store reads its ranges at the binary's layouts,
   as any read, and hands each page to its owner through the shell, as a
-  written site is handed (`opening.md`, 3); the owner answers the writes
+  written site is handed (`opening-owners.md`, 1); the owner answers the writes
   for the rows it consumed; the store commits them and goes on after
   them. Its end is a commit of the owner's last writes and the job's row.
 - **Written jobs** (4) convert a registered value type's values from
@@ -29,7 +29,7 @@ Each owner set names its jobs, in the order they run:
 
 ```rust
 pub struct OwnerSet {
-    // ... as `opening.md`, 3
+    // ... as `opening-owners.md`, 1
     pub jobs: &'static [Job],           // in the order they run
 }
 pub struct Job {
@@ -53,7 +53,7 @@ pub enum Layouts {
   job done, `00 08 <owner> <name>` (`layouts.md`, 3), so a binary that
   still declares a job a store has run does not run it again, and a
   name once used is never given to another job.
-- **Checked where the set is admitted,** beside `opening.md`, 3's
+- **Checked where the set is admitted,** beside `opening-owners.md`, 1's
   checks, a failure refused `Set { owner }`: names given once in a
   set and within their bound; ranges non-empty, ordered and within the
   owner's tag (the application's relative to it), a job's ranges in
@@ -79,7 +79,7 @@ pub enum Layouts {
     derived change (`layouts.md`, 6), so no version moves: a value at an
     older layout reads as a person's until the job types it.
   - *Its keys:* the live tasks' hot rows, `01 01 00` up to `01 01 01`
-    (`README.md`, 4.4), in task order; it converts nothing (`converts`
+    (`keys.md`, 1.4), in task order; it converts nothing (`converts`
     none) and counts `tasks`, the rejections it types a task's.
   - *Its rule* (temper's `draft/store-starts.md`, section 2): a
     rejection whose number names a live ancestor of its held task is
@@ -128,7 +128,7 @@ pub enum Layouts {
   of that commit. A job is done once per store, whatever binaries come
   after.
 - **An empty store** has nothing to convert: its first commit
-  (`README.md`, section 5) writes a row for every job its binary
+  (`commits.md`, section 1) writes a row for every job its binary
   declares, so none ever runs over it.
 - **Within one start:** a job's progress is the open's, in memory, never
   a row. A start that fails or is refused before its switch leaves the
@@ -137,7 +137,7 @@ pub enum Layouts {
   their first page. A job's owner therefore makes no effect beyond the
   store, and reads what it needs through the store alone.
 - **A rehearsal** runs the pending jobs as a start does, over its
-  scratch (`opening.md`, 5).
+  scratch (`opening-rehearsal.md`, 1).
 
 ## 3. Pages
 
@@ -152,7 +152,7 @@ pub enum Layouts {
   name and the page; the shell routes it to that owner's jobs
   (`jig_protocol_store::jobs::page` for jig's, the application's own
   dispatch for its), and answers `Request::Job`. Frame reads have
-  their own written sites and routing (`opening.md`, 3). While a page
+  their own written sites and routing (`opening-owners.md`, 1). While a page
   is out, the owner may read other ranges of the map through
   `Store::patch_page`, its ranges named as the running job's keys
   are: relative to the application's tag for the application's job,
@@ -276,7 +276,7 @@ as `layouts.md`, 5.4 says.
 ## 6. Tests
 
 - **Step tests,** in `jig-protocol-store`, the tests the shell: the
-  test owners' sets (`opening.md`, 3) each declare a job over their
+  test owners' sets (`opening-owners.md`, 1) each declare a job over their
   fixture ranges, answered by the test with puts and erases: a job runs
   in pages within the commit edge and marks itself done; a later start
   runs it no more; jobs run in the sets' order; an empty store's first

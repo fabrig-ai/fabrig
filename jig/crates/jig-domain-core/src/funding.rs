@@ -1,5 +1,5 @@
 //! Project periods from the root and person allotments from policy
-//! (protocol/configuration.md, 3; domain/authority.md, 7).
+//! (protocol/configuration-engine.md, 1; domain/authority-budgets.md, 1).
 
 pub(crate) mod pools;
 
@@ -9,14 +9,14 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 
-/// A changed spend keeps everything already spent or reserved (domain/authority.md, 7).
+/// A changed spend keeps everything already spent or reserved (domain/authority-budgets.md, 1).
 pub(crate) fn resized(spend: u64, numbers: tasks::Numbers) -> Option<u64> {
     let used = numbers.spent.checked_add(numbers.spent_below)?.checked_add(numbers.reserved)?;
     Some(spend.max(used))
 }
 
 /// What one policy edit resizes in its project's open period
-/// (domain/authority.md, 7): the period's new budget, if its spend changed,
+/// (domain/authority-budgets.md, 1): the period's new budget, if its spend changed,
 /// and each open pool of a party whose role's spend changed.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Resize {

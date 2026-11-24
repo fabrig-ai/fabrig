@@ -53,7 +53,7 @@
     - *What holds it.* Nothing leaves before the hello but the stream
       (`../root.md`, 1.4); a reload's kept keyed requests leave once
       the hello's `me` confirms their party (jig's
-      `client/domain/client/README.md`, 8), beside the batch. Nothing waits for
+      `client/domain/client/small-store.md`, 1), beside the batch. Nothing waits for
       another answer: no read per row (`../forge/parts.md`, 5); no ended
       group, needs or setting read again on opening (`../forge/parts.md`,
       6; *Goals*, below; `settings.md`, 1); and nothing the page doesn't
@@ -401,7 +401,7 @@
   `needs_total` moving, or the inbox's mark, the rail's standing watch of
   `inbox` (`needs-you.md`) delivering again, which the engine does only
   once it has marked the party's inbox changed (jig's
-  `client/domain/contract/README.md`, 5.2). That watch's first delivery
+  `client/domain/contract/watches.md`, 1.2). That watch's first delivery
   is no move; each after it is, the first once it opens again after a
   drop among them; and no delivery of the goals' is one. A read of them
   that answers without its value keeps the `selection` the last one gave,

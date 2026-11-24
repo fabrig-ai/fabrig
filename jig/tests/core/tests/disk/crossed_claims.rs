@@ -1,4 +1,4 @@
-//! domain/engine/executors.md, 2: a crossed live claim is settled before retrying.
+//! domain/engine/executors-transcripts.md, 1: a crossed live claim is settled before retrying.
 
 use crate::closed_proofs;
 use jig_core_world::world::Setup;

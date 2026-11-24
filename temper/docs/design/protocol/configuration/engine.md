@@ -104,8 +104,8 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   delegated for one of the project's changes, its producers', repairs' and
   resolutions', a goal's landing into the landing branch's among them, in
   place of the agent's `check_timeout`
-  (`../../domain/agent/charter.md`, section 4; smith's `domain/run.md`,
-  8.1). A project whose landings are goal-sized sets it above the agent's,
+  (`../../domain/agent/charter.md`, section 4; smith's `domain/run-delivery.md`,
+  1.1). A project whose landings are goal-sized sets it above the agent's,
   so a landing's repair has room to check. It need not fit a charter's
   reserve: a check is cut at its run's end. One past its bounds refuses the
   start at its member, `application.landing.projects[i].check_timeout_ms`.
@@ -226,7 +226,7 @@ member for member:
 
 - **The printed link and a terminal's approval** are jig's members,
   `engine.clients.link` and `engine.clients.approval` (jig's
-  `protocol/configuration.md`, section 3, clients): `temper-box init`'s
+  `protocol/configuration-engine.md`, section 1, clients): `temper-box init`'s
   documents, so a box's, and the owned example enable both
   (`../setup/init.md`, 3), the approval being how the TUI signs in from the
   person's browser (`../../client/sign-in.md`, 1.1). Neither runs off

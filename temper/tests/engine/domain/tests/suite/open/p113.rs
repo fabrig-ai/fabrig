@@ -1,5 +1,5 @@
 //! P113: wait on another goal without borrowing a question's lifetime.
-//! jig/docs/design/domain/tasks/lifecycle.md, 1 and 8.
+//! jig/docs/design/domain/tasks/lifecycle.md, 1, and jig/docs/design/domain/tasks/lifecycle-endings.md, 1.
 use crate::forge_routes::{assigned_chat, live_task, park_after_turn, questions};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

@@ -112,7 +112,12 @@ pub(crate) fn pause(domain: &mut Domain, worker: u32, mode: jig_domain_link::Pau
 
 pub(crate) fn paused(domain: &mut Domain, channel: Token, state: jig_domain_link::PauseState) {
     let Some(&id) = domain.tokens.get(&channel) else { return };
-    domain.channels.get_mut(id).expect("named channel").pause_state = state;
+    let entry = domain.channels.get_mut(id).expect("named channel");
+    // A busy refusal can cross the worker's capacity pause even on an empty worker.
+    if entry.pause_state != jig_domain_link::PauseState::Taking && state == jig_domain_link::PauseState::Taking {
+        entry.draining = false;
+    }
+    entry.pause_state = state;
     domain.placing = !domain.waiting.is_empty();
 }
 

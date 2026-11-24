@@ -1,4 +1,4 @@
-//! Native whole-file observations (domain/tools.md, 10; protocol/programs.md, 5.4).
+//! Native whole-file observations (domain/tools.md, 10; protocol/programs-claude-code.md, 1.4).
 //! Keeps one bounded load, separately owned from private startup files. Whole
 //! reads hold Allow; allowed writes and edits hold their result. Failed loads
 //! teach nothing. Closing waits for the load's terminal before private cleanup.

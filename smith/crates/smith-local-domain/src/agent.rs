@@ -154,7 +154,7 @@ impl Agent {
         }
     }
 
-    /// Child facts and unrouted output counted by the local service (protocol/limits.md 3.8).
+    /// Child facts and unrouted output counted by the local service (protocol/limits-derivation.md 1.8).
     pub(crate) fn backlog(&self) -> u32 {
         match self {
             Self::Inline { domain, out, .. } => {

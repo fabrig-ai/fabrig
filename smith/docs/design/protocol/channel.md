@@ -130,12 +130,12 @@ of domain/host.md, section 2.
 | cancel | nothing | at most once |
 | drain | nothing | at most once, and never after a cancel: the run stops at the end of its current turn (domain/run.md, section 9) |
 
-**The start** (domain/run.md, 3.2):
+**The start** (../domain/run-start.md, 1.2):
 
 - **the activation number,** new for every start of the run;
 - **the run's identity,** if the host keeps one: 16 opaque bytes, the
   same in every start of the run, resumes included. Without one, the run
-  mints its own (domain/run.md, 3.2). It reaches providers as the
+  mints its own (../domain/run-start.md, 1.2). It reaches providers as the
   conversations' affinity (llm.md);
 - **the charter,** as bytes (charter.md);
 - **the workspace,** if any: for each directory,
@@ -157,7 +157,7 @@ of domain/host.md, section 2.
   piece is bounded at the resume limit's bytes, and the agent counts its
   turns against the resume limit's turns as it splits it, so a window of
   many small turns travels as one of a few large ones does
-  (protocol/limits.md, 3.6). A piece whose lengths do not end exactly at
+  (limits-derivation.md, 1.6). A piece whose lengths do not end exactly at
   its end, or with a turn past the turn's bound, is a malformed or
   oversized transcript (domain/session.md, section 3);
 - **the calls the transcript does not hold as answered,** that the host
@@ -167,8 +167,8 @@ of domain/host.md, section 2.
   answer; or too large, when that answer is larger than the run takes.
   Busy, unavailable and withdrawn are not decisions, and never appear
   here. The run tells the LLM of them as text in its waking prompt, since
-  they have no open place in the history to go back to (domain/run.md,
-  section 6);
+  they have no open place in the history to go back to (../domain/run-messages.md,
+  section 1);
 - **the messages** that triggered the run, if any: each a message record
   (a name, the sender's label, the text, `finish_requested`), in order, at
   most as many as the run's inbox holds, each within its message bound as it
@@ -195,7 +195,7 @@ of domain/host.md, section 2.
 - **for a host tool,** its text as a result or as an error (domain/run.md,
   5.2);
 - **for a delivery or a save,** delivered, nothing, refused, failed or
-  stale, with what each carries (domain/run.md, 8.2 and 8.5), in the one
+  stale, with what each carries (../domain/run-delivery.md, 1.2 and 1.5), in the one
   delivery record, so a host that keeps a delivery's answer keeps a
   save's alike:
   - delivered names each directory and what was made of it;
@@ -226,10 +226,10 @@ of domain/host.md, section 2.
 | waiting | the last message read, if any | when the run waits for a message, or awaits its first |
 | long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, a completion waits out its provider's rate limit (as `completion`, until its retry), or a completion waits for a grant (domain/session.md, section 4) |
 | long done | nothing | when one ends |
-| unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs.md, 5.6) |
+| unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs-claude-code.md, 1.6) |
 | limited | an account, and its reset (below) | when its account reached a usage limit |
 | refused | an account, and the provider's code and reason (below) | when its provider refused the account what the run asked, such as a model its plan does not serve |
-| usage | an account, and one usage window (below) | at each `rate_limit_event` a program reports (programs.md, 5.6) |
+| usage | an account, and one usage window (below) | at each `rate_limit_event` a program reports (programs-claude-code.md, 1.6) |
 | fact | one fact (section 8) | while the run is admitted and has not answered, with room to spare; any other is not projected, and counted (section 7) |
 | live | a piece of live content (below) | while the run is admitted and has not answered, only for a kind the start asked for, with room to spare; any other is dropped, and counted (section 7) |
 | signalled | the signal, `interrupt` or `terminate`; the sender's process id, if the system names one | at most once per run: when the agent hears a termination signal while the run is live, its channel open and the host's cancel not yet heard, or at its admission for one heard before it; a request to the host, never a cancel (agent.md, section 6; domain/host.md, section 4); added in version 12 |
@@ -247,8 +247,8 @@ completion streamed, in bytes, before its turn commits:
 - **`kind`:** `text`, `reasoning` or `input`;
 - **`offset`:** the first byte's offset within that retry's stream of
   that kind, and for `input` within that call's input;
-- **`bytes`:** the content, within the piece bound (protocol/limits.md,
-  3.6);
+- **`bytes`:** the content, within the piece bound (limits-derivation.md,
+  1.6);
 - **the call,** for kind `input` only: the call's provider id and its
   tool's name, as the completion names them. Absent for the other
   kinds.
@@ -292,7 +292,7 @@ last one with `opens_window` (domain/host.md, section 6).
   reads to do what delivering means to it;
 - **a save:** nothing more: the host makes the tree durable as it would
   a delivery, with no fields, and marks it unchecked in its own terms
-  (domain/run.md, 8.5). The call's effect is a write.
+  (../domain/run-delivery.md, 1.5). The call's effect is a write.
 
 **The account notices' fields:**
 
@@ -326,15 +326,15 @@ version moves with no bridge (temper's `draft/redeploys.md`, 4.4).
 - **failed,** typed, so the host can act without reading prose:
   - the model, with its provider's failure class, its evidence, the
     charter's index of its model, its attempts and its report, the
-    status a program reported among it (programs.md, 5.6); a limited account,
+    status a program reported among it (programs-claude-code.md, 1.6); a limited account,
     with the account and its reset as the limited notice has them
     (above), the reset measured when the run answers; a refused account,
     with the account and the provider's code as the refused notice has
     it; an unauthorized account, whose program source's login was lost;
     a program that started without smith's tools, `ModelFault::Untooled`,
     carrying a `ProgramFault` whose exit is none, naming it, with its
-    detail (programs.md, 5.6), added in version 11; or a program that
-    could not run, naming it, with its detail (programs.md, 5.6);
+    detail (programs-claude-code.md, 1.6), added in version 11; or a program that
+    could not run, naming it, with its detail (programs-claude-code.md, 1.6);
   - the budget, naming what ran out, with what was used and its bound;
   - policy;
   - cancelled;
@@ -392,7 +392,7 @@ edge is independent of the channel's own flow control (section 7).
     against the run's message bound, and checks its inbox's room and the
     name against those in use. One it cannot take is refused, typed, with
     a message refused record, and is never handed further, so nothing below
-    ingress asserts on what a host sent (domain/run.md, section 6). The
+    ingress asserts on what a host sent (../domain/run-messages.md, section 1). The
     host's half and kit check with the same arithmetic first, and refuse
     at their own entrance with the same reasons (domain/host.md, section
     4), so a host that sends what its kit admits sees few refusals from
@@ -480,9 +480,9 @@ edge is independent of the channel's own flow control (section 7).
   256 bytes, tool over 64, or either not UTF-8) are also dropped.
   Every dropped byte is counted, as live bytes not
   projected, beside the facts' count. The numbers are in
-  protocol/limits.md, 3.6. When a turn's record is ready, the bytes still
+  limits-derivation.md, 1.6. When a turn's record is ready, the bytes still
   held for it are sent or dropped first, so no piece follows its turn
-  (section 5).
+  (`channel.md`, section 5).
 - **Each half's queue** is sized from its domain's limits:
   - **the agent's:** the window, the calls in flight, a refusal for each
     message in flight, the notices, the long operations open, the answer,

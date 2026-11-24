@@ -67,7 +67,7 @@ pub enum Request {
         credential: Secret,
     },
 }
-/// What an unlinked client asks of its host (client/domain/client/README.md, 4.4).
+/// What an unlinked client asks of its host (client/domain/client/vocabulary.md, 1.4).
 #[derive(Debug, PartialEq, Eq)]
 pub enum UnlinkedRequest {
     ApprovalAct(ApprovalAct),
@@ -78,7 +78,7 @@ pub enum UnlinkedRequest {
     Down { down: Down },
     SignOut,
 }
-/// Why the last sign-in installed no credential (jig/docs/design/client/domain/client/README.md, 9).
+/// Why the last sign-in installed no credential (jig/docs/design/client/domain/client/sign-in.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotSignedIn {
     Approval(Taking),
@@ -338,14 +338,14 @@ impl Client {
             self.drain(&env, out);
         }
     }
-    /// Step an unlinked client (client/domain/client/README.md, 4.4).
+    /// Step an unlinked client (client/domain/client/vocabulary.md, 1.4).
     pub fn step_unlinked(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<UnlinkedRequest>) {
         assert!(self.link.is_none(), "a linked client steps with step");
         let env = Env { now, wall, limits: self.limits.domain };
         self.unlinked_event(&env, event, out);
         self.drain_unlinked(out);
     }
-    /// Fire an unlinked client's deadlines (client/domain/client/README.md, 4.4).
+    /// Fire an unlinked client's deadlines (client/domain/client/vocabulary.md, 1.4).
     pub fn fire_unlinked(&mut self, now: Time, wall: Wall, out: &mut Queue<UnlinkedRequest>) {
         assert!(self.link.is_none(), "a linked client steps with step");
         let env = Env { now, wall, limits: self.limits.domain };
@@ -830,10 +830,10 @@ fn down_event(down: Down) -> link::Event {
     }
 }
 
-/// The interval between approval takes answered waiting (jig/docs/design/client/domain/client/README.md, 9).
+/// The interval between approval takes answered waiting (jig/docs/design/client/domain/client/sign-in.md, 1).
 pub const APPROVAL_AGAIN: Duration = Duration::from_secs(1);
 
-/// What an unlinked client's host carries for approval (jig/docs/design/client/domain/client/README.md, 4.4).
+/// What an unlinked client's host carries for approval (jig/docs/design/client/domain/client/vocabulary.md, 1.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApprovalAct {
     Ask { port: Option<u16> },

@@ -1,4 +1,4 @@
-//! Host handoffs and opaque settled answers (domain/engine/executors.md, 2–3;
+//! Host handoffs and opaque settled answers (domain/engine/executors-transcripts.md, 1, and domain/engine/executors-tools.md, 1;
 //! domain/hosts/README.md, 2). Protocol decoding and rendering remain with the root.
 
 pub use jig_domain_core_vocabulary::runs::conversation::*;

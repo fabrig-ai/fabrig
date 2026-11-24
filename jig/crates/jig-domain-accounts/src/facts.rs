@@ -1,4 +1,4 @@
-//! What a provider says of an account (jig/docs/design/domain/accounts.md, 3.7).
+//! What a provider says of an account (jig/docs/design/domain/accounts-lists.md, 1).
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
 
@@ -85,7 +85,7 @@ impl AccountFact {
     }
 }
 
-/// Keep what a report says (accounts.md, 3.7). Save or erase only a changed record.
+/// Keep what a report says (domain/accounts-lists.md, 1). Save or erase only a changed record.
 pub(crate) fn report(
     domain: &mut crate::Domain,
     env: &skein_lib::Env<crate::Limits>,

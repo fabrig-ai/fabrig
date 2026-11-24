@@ -35,7 +35,7 @@ This document holds the engine and client bounds, split from [`limits.md`](limit
 - **The engine's watch rooms follow what it admits.** A watch past the
   room the engine allows a party, a stream or the deployment is refused
   busy, and each holds its place until the engine has ended it (jig's
-  `client/domain/contract/README.md`, 5.2; jig's `protocol/client/README.md`, section
+  `client/domain/contract/watches.md`, 1.2; jig's `protocol/client/README.md`, section
   10). The deployment admits `clients.streams` clients at once, each
   holding up to its own watches, `me`'s included, and temper's shipped
   clients hold at most 31 (`../../domain/root.md`, section 9): the web's

@@ -149,7 +149,7 @@ impl Effects {
     }
 
     /// Entries in the effects' own handoffs for the colocated host's
-    /// backlog (smith/docs/design/protocol/limits.md 3.8).
+    /// backlog (smith/docs/design/protocol/limits-derivation.md 1.8).
     #[must_use]
     pub fn backlog(&self) -> u64 {
         super::stages::backlog(&self.stages)

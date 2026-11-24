@@ -1,4 +1,4 @@
-//! Funding acceptance for the open provider failures (domain/testing.md, 7.3).
+//! Funding acceptance for the open provider failures (domain/testing-fakes.md, 1.3).
 use jig_core_world::fixtures::{PARTY, PROJECT, ask, ask_as, live_row, second_party};
 use jig_core_world::world::{Setup, World};
 use jig_domain_core as core;
@@ -38,7 +38,7 @@ fn as_allowed() -> people::Member {
 /// P93: an uncapped `AsAllowed` start must leave room for another start from the
 /// same pool. Today it takes all R, and the second is refused for `Lack::Budget`.
 #[test]
-#[ignore = "P93, open: provider failures (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "P93, open: provider failures (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_start_without_a_budget_leaves_room() {
     let config = jig_test_profile::config(SEED);
     assert!(config.core.seed_projects[0].policy.policy.roles[0].authority.budget.spend >= ROOM);
@@ -101,7 +101,7 @@ fn told_its_funding(refusal: &people::Refusal) -> Result<(), String> {
 /// allocated, not that it lacks authority. Today the pool carve becomes
 /// `Refusal::Authority { lacking: Lack::Funding, .. }`, without period-room facts.
 #[test]
-#[ignore = "P98, open: provider failures (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "P98, open: provider failures (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_full_period_is_named_as_funding() {
     let config = jig_test_profile::config(SEED);
     assert!(config.core.seed_projects[0].policy.policy.roles[0].period_spend > 0);
@@ -144,7 +144,7 @@ fn a_full_period_is_named_as_funding() {
 /// delegate of at least M and claim its run. Today `run_spend` reserves all 2M
 /// when half equals the minimum, and the delegate is refused for funding.
 #[test]
-#[ignore = "P82's residual, open: provider failures (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "P82's residual, open: provider failures (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_small_delegating_task_funds_its_delegates() {
     let config = jig_test_profile::config(SEED);
     let minimum = config.core.defaults.rules.minimum_run_spend;

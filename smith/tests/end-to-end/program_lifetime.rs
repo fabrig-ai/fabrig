@@ -1,4 +1,4 @@
-//! Aborting an agent ends its program spend (smith/docs/design/protocol/programs.md, 5.1).
+//! Aborting an agent ends its program spend (smith/docs/design/protocol/programs-claude-code.md, 1.1).
 #![cfg(target_os = "linux")]
 use super::support;
 use smith_fake_claude::{STORY_FILE, Step, Story, Turn};

@@ -327,7 +327,7 @@ This document holds the forge's request records, split from [`records.md`](recor
   (`../engine.md`).
 - **The small store's record of a pending request** is `jig-client`'s
   kept request, its request encoded by this crate as the family's bytes
-  at `CLIENT_VERSION` (jig's `protocol/client/README.md`, section 7).
+  at `CLIENT_VERSION` (jig's `protocol/client/small-store.md`, section 1).
 - **The FORGE requests and their outcomes:** `Connect`, `Install`, `Accept`,
   `Replace`, `Forget`, `SetUp`, `Reachable`, `RemoveForge`, `Dismiss`,
   `StartPlayground` and `EndPlayground`, beside `Adopt` (`../engine.md`).

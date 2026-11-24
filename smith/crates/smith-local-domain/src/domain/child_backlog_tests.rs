@@ -1,4 +1,4 @@
-//! Parent drains and accounts for its agent's held entries (protocol/limits.md 3.8).
+//! Parent drains and accounts for its agent's held entries (protocol/limits-derivation.md 1.8).
 use super::*;
 use crate::tests::{drain_requests, host_limits, saved_window_turn, spawned_chat_with_saved_hello};
 use smith_host_domain::{self as host, process};

@@ -47,17 +47,16 @@ impl Store {
         transcript_bytes: u32,
     ) -> Result<(), InstallRefusal> {
         self.before_restore()?;
-        let limits = match runtime_limits(&self.limits, core, application, transcript_bytes) {
-            Ok(limits) => limits,
+        let checked = match runtime_limits(&self.limits, core, application, transcript_bytes) {
+            Ok(checked) => checked,
             Err(why) => return Err(InstallRefusal::Store(why)),
         };
-        let codec = runtime_codec(core, transcript_bytes).expect("checked runtime codecs");
         if self.stock_core.is_none() && *core != self.limits.core {
             self.stock_core = Some(Box::new(self.limits.core));
         }
-        self.transcripts.reads = skein_lib::Map::with_capacity(limits.reads);
-        self.limits = limits;
-        self.codec_limits = codec;
+        self.transcripts.reads = skein_lib::Map::with_capacity(checked.limits().reads);
+        self.limits = *checked.limits();
+        self.codec_limits = *checked.codec();
         self.application = application;
         Ok(())
     }
@@ -77,9 +76,21 @@ pub fn runtime_limits(
     core: &core::Limits,
     application: sizes::Application,
     transcript_bytes: u32,
-) -> Result<crate::Limits, sizes::SizeRefusal> {
-    let codec = runtime_codec(core, transcript_bytes)?;
-    sizes::check_commits(core, &application, &stock.commits, &stock.store, stock.orphan_erases)?;
+) -> Result<crate::Checked, sizes::SizeRefusal> {
+    runtime_limits_reusing(stock, core, application, transcript_bytes, None)
+}
+
+/// A rehearsal can start with the source store's codec view. Commit and page checks
+/// still run against the candidate envelope and application bounds.
+pub fn runtime_limits_reusing(
+    stock: &crate::Limits,
+    core: &core::Limits,
+    application: sizes::Application,
+    transcript_bytes: u32,
+    opening: Option<&crate::Checked>,
+) -> Result<crate::Checked, sizes::SizeRefusal> {
+    let codec = runtime_codec(core, transcript_bytes, opening)?;
+    sizes::check_commits_with_codec(core, &codec, &application, stock.commits, &stock.store, stock.orphan_erases)?;
     let frame = u32::try_from(crate::frame_bound(&codec).ok_or(sizes::SizeRefusal::Ceiling)?)
         .or(Err(sizes::SizeRefusal::Ceiling))?;
     if frame > stock.store.page.bytes {
@@ -91,10 +102,20 @@ pub fn runtime_limits(
     if !crate::valid_with_codec(&limits, &codec) {
         return Err(sizes::SizeRefusal::Ceiling);
     }
-    Ok(limits)
+    Ok(crate::Checked { limits, codec })
 }
 
-fn runtime_codec(core: &core::Limits, transcript_bytes: u32) -> Result<crate::codec::View, sizes::SizeRefusal> {
+fn runtime_codec(
+    core: &core::Limits,
+    transcript_bytes: u32,
+    opening: Option<&crate::Checked>,
+) -> Result<crate::codec::View, sizes::SizeRefusal> {
+    if let Some(checked) = opening
+        && checked.limits().core == *core
+        && checked.codec().core.turn_record_transcript == transcript_bytes
+    {
+        return Ok(*checked.codec());
+    }
     let mut codec = crate::codec::limits(core).ok_or(sizes::SizeRefusal::Ceiling)?;
     if transcript_bytes > codec.core.turn_record_transcript {
         return Err(sizes::SizeRefusal::Ceiling);

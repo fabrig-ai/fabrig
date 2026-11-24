@@ -1,5 +1,5 @@
 //! Independent write-holder oracle over run requests and returns.
-//! Skein owns referee plumbing. Contract: smith/docs/design/domain/run.md, sections 5.3, 8.1 and 12.
+//! Skein owns referee plumbing. Contract: smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/run-delivery.md, section 1.1, and smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::{Time, Token};
 use skein_world::domain::{Expectations, Judge, Verdict};

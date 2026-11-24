@@ -25,7 +25,7 @@ pub enum Recovery {
     Unrecoverable,
 }
 
-/// A dependency added by an amendment (domain/tasks/lifecycle.md, 8).
+/// A dependency added by an amendment (domain/tasks/lifecycle-endings.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Added {
     pub task: u64,

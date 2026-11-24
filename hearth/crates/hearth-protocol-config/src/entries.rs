@@ -1,4 +1,4 @@
-//! Uniform declaration entries and their JSON forms (hearth/docs/design/protocol/format/tasks.md, 2 to 7 and 14, and hearth/docs/design/protocol/format/README.md, 7.1 and 7.3 and 8.1
+//! Uniform declaration entries and their JSON forms (hearth/docs/design/protocol/format/tasks.md, 2 to 7, and hearth/docs/design/protocol/format/tasks-live.md, 1, and hearth/docs/design/protocol/format/README.md, 7.1 and 7.3 and 8.1
 //! ).
 use crate::{
     Declared, Error, Expected, Object, Position,

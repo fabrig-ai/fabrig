@@ -1,4 +1,4 @@
-//! Prepared fixtures retain the fresh values (jig/docs/design/protocol/channel/README.md, 11).
+//! Prepared fixtures retain the fresh values (jig/docs/design/protocol/channel/testing.md, 1).
 use jig_protocol_worker_wire as wire;
 use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::fixtures;

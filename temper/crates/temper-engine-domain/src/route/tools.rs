@@ -1,5 +1,5 @@
 //! The decoded engine tools, translated into core or connector vocabulary
-//! (domain/routing.md, 2; jig's `domain/engine/executors.md`, 3).
+//! (domain/routing.md, 2; jig's `domain/engine/executors-tools.md`, 1).
 use super::{
     Decision, Domain, Env, EscalationChoice, Limits, MessageForm, ProposalChoice, ProposedAction, ReplyTo, Tool, Work,
     call_answer, current_proof, delegate_call, forge_route, proposals, relay_call, tool_kind,
@@ -443,7 +443,7 @@ pub(crate) fn relay_payload(
 }
 
 /// The core's successful newest-revision read supplies the document and family check;
-/// the connector supplies only its own value (jig's domain/engine/settings.md, 5).
+/// the connector supplies only its own value (jig's domain/engine/settings-application.md, 1).
 pub(super) fn settings_value(
     domain: &Domain,
     answer: &core::SettingsAnswer,
