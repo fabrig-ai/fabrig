@@ -1,25 +1,7 @@
-//! Complete typed startup admission for subprocess fixtures.
-use std::path::Path;
-
+//! Checked startup and construction over composed fixture inputs.
 use skein_lib::{List, Secret};
 use temper_playground::documents::Configuration;
 use temper_service::{settings, startup, stock::Given};
-
-/// Check startup and its in-memory construction for a fixture laid by a native story.
-pub fn admission(directory: &Path, configuration: &Configuration) -> Result<(), String> {
-    let directories = temper_service_shell::jig_directories(&super::configuration::directories(directory));
-    let bytes = serde_json::to_vec(configuration).expect("fixture JSON");
-    let named =
-        startup::named_with_limits(&bytes, &directories, &Given::Stock, &configuration.jig, &configuration.limits)
-            .map_err(|why| text(&why))?;
-    let files =
-        temper_service_shell::read_files_with_asked(named.files, named.asked_files, skein_shell::effective_user())?;
-    let agent = temper_agent_fixtures::prepared(directory).agent;
-    let seeds = seeds();
-    let mut checked = checked(&bytes, &directories, configuration, &files, &agent, &Given::Stock, &seeds)?;
-    let accounts = temper_engine_shell::serve::accounts(&checked.engine_mut().jig)?;
-    construct(checked, &files, &agent, &seeds, accounts)
-}
 
 /// Admit the composed document, typed limits, named files and agent without reading any of them from disk.
 pub fn admission_over(
@@ -29,17 +11,41 @@ pub fn admission_over(
     agent: &settings::Agent,
     given: &Given,
 ) -> Result<(), String> {
+    startup_over(document, configuration, files, Some(agent), given).map(|_| ())
+}
+
+/// Construct a checked fixture with or without a local worker.
+pub fn startup_over(
+    document: &[u8],
+    configuration: &Configuration,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    given: &Given,
+) -> Result<temper_service::Service, String> {
     let seeds = seeds();
-    let checked =
-        checked(document, &jig_protocol_config::Directories::working(), configuration, files, agent, given, &seeds)?;
-    construct(checked, files, agent, &seeds, accounts(given))
+    let checked = startup::checked_start_with_limits(
+        document,
+        &jig_protocol_config::Directories::working(),
+        files,
+        agent,
+        &seeds,
+        List::with_capacity(0),
+        None,
+        given,
+        None,
+        &configuration.jig,
+        &configuration.limits,
+    )
+    .map_err(|why| text(&why))?;
+    construct_over(checked, files, agent, &seeds, given)
 }
 
 fn text(problems: &startup::Problems) -> String {
     String::from_utf8_lossy(&startup::lines(problems)).into_owned()
 }
 
-fn seeds() -> settings::Seeds {
+#[must_use]
+pub fn seeds() -> settings::Seeds {
     settings::Seeds {
         deployment: [7; 16],
         installation: [8; 16],
@@ -50,49 +56,39 @@ fn seeds() -> settings::Seeds {
     }
 }
 
-fn checked(
-    document: &[u8],
-    directories: &jig_protocol_config::Directories,
-    configuration: &Configuration,
-    files: &settings::Files,
-    agent: &settings::Agent,
-    given: &Given,
-    seeds: &settings::Seeds,
-) -> Result<startup::CheckedStart, String> {
-    startup::checked_start_with_limits(
-        document,
-        directories,
-        files,
-        Some(agent),
-        seeds,
-        List::with_capacity(0),
-        None,
-        given,
-        None,
-        &configuration.jig,
-        &configuration.limits,
-    )
-    .map_err(|why| text(&why))
-}
-
-fn construct(
-    checked: startup::CheckedStart,
-    files: &settings::Files,
-    agent: &settings::Agent,
-    seeds: &settings::Seeds,
-    accounts: temper_service::AccountsRuntime,
-) -> Result<(), String> {
-    let runtime = temper_service::WorkerRuntime {
+/// An unopened worker root and a fixed program path for checked fixture construction.
+#[must_use]
+pub fn worker_runtime() -> temper_service::WorkerRuntime {
+    temper_service::WorkerRuntime {
         wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
         agent: temper_playground::documents::pinned_agent(),
-    };
-    startup::from_checked(checked, files, Some(agent), seeds, Some(accounts), Some(runtime), None, None, Box::new([]))
-        .map_err(|why| text(&why))?;
-    Ok(())
+    }
 }
 
+pub fn construct_over(
+    checked: startup::CheckedStart,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    given: &Given,
+) -> Result<temper_service::Service, String> {
+    startup::from_checked(
+        checked,
+        files,
+        agent,
+        seeds,
+        Some(accounts(given)),
+        agent.map(|_| worker_runtime()),
+        None,
+        None,
+        Box::new([]),
+    )
+    .map_err(|why| text(&why))
+}
+
+#[must_use]
 pub(crate) fn accounts(given: &temper_service::stock::Given) -> temper_service::AccountsRuntime {
     use skein_oauth_accounts::{Endpoint, Origin, Transport};
     let mut runtime = temper_service::AccountsRuntime { providers: skein_lib::List::with_capacity(16), trust: None };

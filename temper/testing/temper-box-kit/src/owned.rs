@@ -699,6 +699,26 @@ pub fn example_file(owned: &Owned) -> temper_config_shell::File {
     temper_config_shell::File { listen: Some(owned.clients), webhooks: Some(owned.webhooks), ..Default::default() }
 }
 
+/// The machine configuration used to start the owned example, without a kept forge.
+#[must_use]
+pub fn example_read() -> temper_config_shell::Read {
+    let shape = temper_config_shell::Shape::Standalone;
+    super::configuration::parse(&temper_config_shell::render(&example_file(&Owned::example()), shape), shape)
+}
+
+/// The owned example's named-file inventory before any forge is kept.
+#[must_use]
+pub fn example_files() -> temper_service::settings::Files {
+    let mut entries = skein_lib::List::with_capacity(2);
+    for (name, bytes) in [(b"root.der".as_slice(), skein_tls_kit::pki::ROOT), (b"worker.secret", EXAMPLE_WORKER_SECRET)]
+    {
+        entries.push((name.into(), skein_lib::Secret::new(bytes.into()))).expect("owned inventory count");
+    }
+    temper_service::settings::Files { entries }
+}
+
+const EXAMPLE_WORKER_SECRET: &[u8] = b"worker-secret\n";
+
 #[must_use]
 pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
     example_start(directory, owned).0
@@ -731,7 +751,7 @@ pub fn lay(directory: &Path, owned: &Owned) {
     if let Some(bytes) = owned_landing_settings(owned) {
         write_landing_settings(directory, &bytes);
     }
-    super::write_private(&directory.join("worker.secret"), b"worker-secret\n");
+    super::write_private(&directory.join("worker.secret"), EXAMPLE_WORKER_SECRET);
 }
 
 /// The strings the service counts, at checked bounds; these paths are never opened.

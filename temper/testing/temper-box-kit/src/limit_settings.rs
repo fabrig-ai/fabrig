@@ -83,8 +83,9 @@ pub fn configuration_over(document: Value, providers: Value, figures: Option<&[u
     value
 }
 
-/// A subprocess's places are its worker setting, never its file's slots.
-pub fn local_places(root: &Path, places: u32) {
+/// Encode the worker setting copy; the document's slots do not set its places.
+#[must_use]
+pub fn local_copy(places: u32) -> Box<[u8]> {
     use jig_client_protocol_wire::WorkerSetting;
     let local = WorkerSetting { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false };
     let mut writer = skein_lib::Writer::new(
@@ -92,7 +93,12 @@ pub fn local_places(root: &Path, places: u32) {
             .expect("local bound"),
     );
     local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("local setting");
-    super::write_private(&root.join("local.setting"), &writer.finish());
+    writer.finish()
+}
+
+/// A subprocess's places are its worker setting, never its file's slots.
+pub fn local_places(root: &Path, places: u32) {
+    super::write_private(&root.join("local.setting"), &local_copy(places));
     let item = json!({"setting":{"kind":"worker","number":1},"set":{"name":"local","places":places,"digest":null}});
     super::write_private(
         &root.join("local-worker-settings.json"),
