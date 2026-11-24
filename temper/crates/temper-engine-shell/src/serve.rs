@@ -446,26 +446,7 @@ pub fn before_root(
     let asked = core::mem::take(asked);
     let files = read_files_with_asked(required, asked, user)?;
     let google = google_runtime::resolve(sign_in)?;
-    let mut bundle = match configured_bundle {
-        Some(configured) => Some(bundle::read(configured, bundle_limits)?),
-        None => bundle::own(bundle_limits)?,
-    };
-    if let Some(bundle) = &mut bundle {
-        bundle.fill_sign_in(sign_in.is_some()).ok_or_else(|| {
-            format!(
-                "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
-                configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-            )
-        })?;
-        if record {
-            bundle.fill_record().ok_or_else(|| {
-                format!(
-                    "application.clients.bundle: {}: the page has no </head> for its recording metadata",
-                    configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-                )
-            })?;
-        }
-    }
+    let bundle = bundle::prepare(configured_bundle, bundle_limits, sign_in.is_some(), record, bundle::read)?;
     Ok(Inputs { files, google, bundle })
 }
 pub fn seeds(link_secret: Option<Secret>, local_secret: Option<Secret>) -> Result<Seeds, String> {

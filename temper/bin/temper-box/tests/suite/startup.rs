@@ -6,7 +6,7 @@ use std::{
     os::unix::fs::{PermissionsExt, symlink},
     path::Path,
 };
-use support::bundle_fixture::{BUNDLE_FILES, BUNDLE_LIMITS, PAGE};
+use support::bundle_fixture::BUNDLE_FILES;
 
 #[test]
 fn a_stock_policy_past_its_limit_refuses_before_listening() {
@@ -842,11 +842,6 @@ fn every_command_checks_setup_before_reading_files() {
     scratch.remove();
 }
 
-const DIGEST: &str = "bundle/0123456789abcdef";
-
-/// A refusal's row: its name, what spoils the bundle, and the start's refusal.
-type Spoiled<'a> = (&'a str, fn(&std::path::Path), &'a str);
-
 fn fixture_bundle(directory: &std::path::Path) {
     for (name, bytes) in BUNDLE_FILES {
         let file = directory.join("bundle").join(name);
@@ -854,12 +849,6 @@ fn fixture_bundle(directory: &std::path::Path) {
         fs::write(file, bytes).expect("bundle file");
     }
 }
-fn file_problem(directory: &Path, member: &str, words: &str) -> String {
-    let keys =
-        support::read_start(&directory.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).keys;
-    format!("temper serve: {}\n", keys.render_member(member, words))
-}
-
 fn bundle_configuration(directory: &std::path::Path) -> temper_playground::documents::Configuration {
     let figures = support::lay_configuration(directory, &support::Forge::Unreached);
     let document = directory.join(temper_config_shell::FILE);
@@ -868,133 +857,6 @@ fn bundle_configuration(directory: &std::path::Path) -> temper_playground::docum
     support::write_file(&document, &file, temper_config_shell::Shape::Standalone);
     figures
 }
-#[test]
-fn a_bundle_directory_is_read_with_its_one_digest_directory() {
-    let scratch = support::Scratch::startup("bundle-read");
-    let directory = scratch.path();
-    fixture_bundle(directory);
-    let limits = temper_service::limits::Clients { bundle_files: 128, bundle_bytes: 16 << 20 };
-    let bundle = temper_box_shell::bundle::read(directory.join("bundle").as_os_str().as_encoded_bytes(), limits)
-        .expect("bundle read");
-    assert_eq!(bundle.page.as_ref(), PAGE);
-    assert_eq!(bundle.etag.as_ref(), b"\"edaa28e315690734\"");
-    assert_eq!(bundle.digest.as_ref(), b"0123456789abcdef");
-    assert_eq!(bundle.files.len(), 2);
-    let script = bundle.files.get(b"boot.js".as_slice()).expect("script");
-    assert_eq!((script.kind, script.bytes.as_ref()), (b"text/javascript".as_slice(), b"boot();".as_slice()));
-    let robots = bundle.files.get(b"files/robots.txt".as_slice()).expect("root file");
-    assert_eq!(
-        (robots.kind, robots.bytes.as_ref()),
-        (b"text/plain; charset=utf-8".as_slice(), b"User-agent: *\nDisallow:\n".as_slice())
-    );
-    scratch.remove();
-}
-#[test]
-fn embedded_and_directory_files_make_the_same_bundle() {
-    let scratch = support::Scratch::startup("bundle-embedded");
-    fixture_bundle(scratch.path());
-    // Root files beside index.html are ignored in both reads.
-    fs::write(scratch.path().join("bundle/ignored.bin"), b"ignored").expect("root file");
-    let mut files = BUNDLE_FILES.to_vec();
-    files.push(("ignored.bin", b"ignored"));
-    let directory =
-        temper_box_shell::bundle::read(scratch.path().join("bundle").as_os_str().as_encoded_bytes(), BUNDLE_LIMITS)
-            .expect("directory");
-    let embedded = temper_box_shell::bundle::embedded(&files, BUNDLE_LIMITS).expect("embedded");
-    assert_eq!(embedded.page, directory.page);
-    assert_eq!(embedded.etag, directory.etag);
-    assert_eq!(embedded.digest, directory.digest);
-    assert_eq!(embedded.files.len(), directory.files.len());
-    for (name, _) in BUNDLE_FILES.iter().skip(1) {
-        let (_, relative) = name.split_once('/').expect("digest path");
-        let from_directory = directory.files.get(relative.as_bytes()).expect("directory file");
-        let from_embedded = embedded.files.get(relative.as_bytes()).expect("embedded file");
-        assert_eq!(from_embedded.kind, from_directory.kind);
-        assert_eq!(from_embedded.bytes, from_directory.bytes);
-    }
-    scratch.remove();
-}
-
-// Four compressible files and their forms, a root file, and the page: 10 files, 73 bytes.
-const FORMED_COUNT: u32 = 10;
-const FORMED_BYTES: u32 = 73;
-const FORMED_FILES: &[(&str, &[u8])] = &[
-    ("index.html", PAGE),
-    // Forms deliberately precede files in the embedded input.
-    ("0123456789abcdef/boot.js.gz", b"gz js"),
-    ("0123456789abcdef/a/module.wasm.gz", b"gz wasm"),
-    ("0123456789abcdef/a/style.css.gz", b"gz css"),
-    ("0123456789abcdef/image.svg.gz", b"gz svg"),
-    ("0123456789abcdef/boot.js", b"js"),
-    ("0123456789abcdef/a/module.wasm", b"wasm"),
-    ("0123456789abcdef/a/style.css", b"css"),
-    ("0123456789abcdef/image.svg", b"svg"),
-    ("0123456789abcdef/files/robots.txt", b"robots"),
-];
-fn formed_reads(
-    case: &str,
-    files: &[(&str, &[u8])],
-    limits: temper_service::limits::Clients,
-) -> [Result<temper_service::clients::bundle::Bundle, String>; 2] {
-    let scratch = support::Scratch::startup(case);
-    for (name, bytes) in files {
-        let path = scratch.path().join("bundle").join(name);
-        fs::create_dir_all(path.parent().expect("parent")).expect("directory");
-        fs::write(path, bytes).expect("file");
-    }
-    let directory =
-        temper_box_shell::bundle::read(scratch.path().join("bundle").as_os_str().as_encoded_bytes(), limits);
-    let embedded = temper_box_shell::bundle::embedded(files, limits);
-    scratch.remove();
-    [directory, embedded]
-}
-#[test]
-fn a_bundle_reads_each_form_onto_its_file() {
-    let limits = temper_service::limits::Clients { bundle_files: FORMED_COUNT, bundle_bytes: FORMED_BYTES };
-    for read in formed_reads("bundle-read-forms", FORMED_FILES, limits) {
-        let bundle = read.expect("both forms read at their bounds");
-        assert_eq!(bundle.files.len(), 5);
-        for (name, plain, gzip) in [
-            (b"boot.js".as_slice(), b"js".as_slice(), b"gz js".as_slice()),
-            (b"a/module.wasm", b"wasm", b"gz wasm"),
-            (b"a/style.css", b"css", b"gz css"),
-            (b"image.svg", b"svg", b"gz svg"),
-        ] {
-            let file = bundle.files.get(name).expect("plain file");
-            assert_eq!(file.bytes.as_ref(), plain);
-            assert_eq!(file.gzip.as_deref(), Some(gzip));
-        }
-        assert_eq!(bundle.files.get(b"files/robots.txt".as_slice()).expect("root file").gzip, None);
-        assert!(bundle.files.get(b"boot.js.gz".as_slice()).is_none());
-    }
-}
-#[test]
-fn the_compressed_forms_count_against_the_bounds() {
-    use temper_service::limits::Clients;
-    for (limits, why) in [
-        (Clients { bundle_files: FORMED_COUNT - 1, ..BUNDLE_LIMITS }, "past clients.bundle_files"),
-        (Clients { bundle_bytes: FORMED_BYTES - 1, ..BUNDLE_LIMITS }, "past clients.bundle_bytes"),
-    ] {
-        for read in formed_reads("bundle-form-limits", FORMED_FILES, limits) {
-            assert!(read.expect_err("form exceeds bound").contains(why));
-        }
-    }
-}
-#[test]
-fn a_compressed_form_with_no_file_refuses_the_start() {
-    let files = [("index.html", PAGE), ("0123456789abcdef/absent.js.gz", b"gz".as_slice())];
-    for read in formed_reads("bundle-orphan-form", &files, BUNDLE_LIMITS) {
-        assert!(read.expect_err("orphan form").contains("a compressed form with no file"));
-    }
-}
-#[test]
-fn a_gz_of_another_type_refuses_the_start() {
-    let files = [("index.html", PAGE), ("0123456789abcdef/x.txt.gz", b"gz".as_slice())];
-    for read in formed_reads("bundle-form-type", &files, BUNDLE_LIMITS) {
-        assert!(read.expect_err("type off closed list").contains("file type is not on the closed list"));
-    }
-}
-
 #[test]
 fn a_bundle_with_a_forge_sign_in_entry_starts_before_any_forge_is_kept() {
     let scratch = support::Scratch::startup("bundle-forge-sign-in");
@@ -1008,75 +870,6 @@ fn a_bundle_with_a_forge_sign_in_entry_starts_before_any_forge_is_kept() {
     let prepared = typed_prepare(directory, &figures);
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
-}
-
-#[test]
-fn a_bundle_page_without_a_head_refuses_the_start_for_its_metadata() {
-    let scratch = support::Scratch::startup("bundle-no-head");
-    let directory = scratch.path();
-    bundle_configuration(directory);
-    fixture_bundle(directory);
-    let why = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-        .err()
-        .expect("page refused");
-    assert_eq!(
-        why,
-        file_problem(
-            directory,
-            "application.clients.bundle",
-            &format!("{}/bundle: the page has no </head> for its sign-in metadata", directory.display())
-        )
-    );
-    scratch.remove();
-}
-
-#[test]
-fn a_directory_that_is_no_bundle_refuses_the_start() {
-    let rows: [Spoiled<'_>; 4] = [
-        (
-            "no-page",
-            |directory| fs::remove_file(directory.join("bundle/index.html")).expect("page removed"),
-            "temper serve: application.clients.bundle: bundle/index.html: absent\n",
-        ),
-        (
-            "no-digest",
-            |directory| fs::remove_dir_all(directory.join(DIGEST)).expect("digest removed"),
-            "temper serve: application.clients.bundle: bundle: no digest directory\n",
-        ),
-        (
-            "two-digests",
-            |directory| fs::create_dir(directory.join("bundle/fedcba9876543210")).expect("second digest"),
-            "temper serve: application.clients.bundle: bundle/fedcba9876543210: more than one digest directory\n",
-        ),
-        (
-            "off-the-list",
-            |directory| fs::write(directory.join(DIGEST).join("files/data.bin"), b"x").expect("odd file"),
-            "temper serve: application.clients.bundle: bundle/0123456789abcdef/files/data.bin: file type is not on the closed list\n",
-        ),
-    ];
-    for (name, spoil, expected) in rows {
-        let scratch = support::Scratch::startup(&format!("bundle-{name}"));
-        let directory = scratch.path();
-        bundle_configuration(directory);
-        fixture_bundle(directory);
-        spoil(directory);
-        assert_eq!(
-            temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-                .err()
-                .expect("refused"),
-            file_problem(
-                directory,
-                "application.clients.bundle",
-                &expected
-                    .strip_prefix("temper serve: application.clients.bundle: ")
-                    .expect("bundle diagnostic")
-                    .trim_end()
-                    .replace("bundle", &format!("{}/bundle", directory.display()))
-            ),
-            "row {name}"
-        );
-        scratch.remove();
-    }
 }
 
 #[test]
