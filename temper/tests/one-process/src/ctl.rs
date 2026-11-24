@@ -94,7 +94,8 @@ impl Command {
         Self { words: words.iter().map(|word| (*word).into()).collect(), input: Box::default(), browse: None }
     }
 }
-pub(crate) struct Answer {
+#[derive(Debug)]
+pub struct Answer {
     pub output: Vec<u8>,
     pub error: Vec<u8>,
     pub exit: Exit,
@@ -142,6 +143,34 @@ impl Caller {
         token.raw() & TAG == TAG
     }
     pub(crate) fn new(root: Fd, link: &[u8]) -> Self {
+        let mut caller = Self::scripted(root);
+        caller.setup(link, false);
+        caller.closed = true;
+        caller.close_root = None;
+        caller.expected = Some(Exit::Code(0));
+        caller
+    }
+    pub(crate) fn setup_forge(&mut self, link: &[u8], adopt: bool) {
+        self.setup(link, !adopt);
+        if adopt {
+            self.commands.push_back(Command::new(&[
+                b"repository",
+                b"adopt",
+                b"--project",
+                b"1",
+                b"--owner",
+                b"acme",
+                b"--name",
+                b"app",
+                b"--landing",
+                b"main",
+                b"--key",
+                b"adopt-app",
+            ]));
+        }
+        self.closed = true;
+    }
+    fn setup(&mut self, link: &[u8], hooked: bool) {
         let words: &[&[u8]] = if crate::stories::held_change() && !crate::stories::first_start() {
             &[b"settings", b"show", b"--json"]
         } else if crate::stories::held_change() {
@@ -149,19 +178,20 @@ impl Caller {
         } else {
             &[b"settings", b"apply", b"/setup/settings.json", b"--against", b"1", b"--key", b"world-settings"]
         };
-        let mut caller = Self::scripted(root);
         if crate::stories::held_change() && !crate::stories::first_start() {
-            caller.commands.push_back(Command::new(&[b"sign-out"]));
+            self.commands.push_back(Command::new(&[b"sign-out"]));
         }
         let mut sign_in = Command::new(&[b"sign-in", b"-"]);
         sign_in.input = link.into();
-        caller.commands.push_back(sign_in);
+        self.commands.push_back(sign_in);
         if crate::stories::first_start() {
-            caller.commands.push_back(Command::new(&[
+            let (kind, file): (&[u8], &[u8]) =
+                if hooked { (b"forgejo", b"/setup/forge.tokens") } else { (b"forgejo-admin", b"/setup/admin.token") };
+            self.commands.push_back(Command::new(&[
                 b"forge",
                 b"connect",
-                b"forgejo-admin",
-                b"/setup/admin.token",
+                kind,
+                file,
                 b"--api",
                 b"127.0.0.1:3000",
                 b"--git",
@@ -169,15 +199,11 @@ impl Caller {
                 b"--key",
                 b"world-forge",
             ]));
-            caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1"]));
+            self.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1"]));
         }
         if crate::stories::needs_settings() || crate::stories::held_change() {
-            caller.commands.push_back(Command::new(words));
+            self.commands.push_back(Command::new(words));
         }
-        caller.closed = true;
-        caller.close_root = None;
-        caller.expected = Some(Exit::Code(0));
-        caller
     }
     pub(crate) fn oracle(root: Fd) -> Self {
         let mut caller = Self::scripted(root);

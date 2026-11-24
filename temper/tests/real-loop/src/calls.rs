@@ -61,9 +61,8 @@ pub enum Step {
     Return,
     /// A person at the hosted terminal.
     Terminal(crate::terminal::Act),
-    Advance,
-    /// Commit the person's named file on the fake forge's main. One `Advance` or
-    /// `Push` per story: the forge moves once, and a second completes with nothing pushed.
+    /// Commit the person's named file on the fake forge's main. One `Push` per
+    /// story: the forge moves once, and a second completes with nothing pushed.
     Push {
         path: &'static [u8],
         words: &'static [u8],
@@ -320,10 +319,6 @@ pub fn release_hold_after_queries(name: &'static [u8], after_queries: usize) -> 
 #[must_use]
 pub fn push(path: &'static [u8], words: &'static [u8]) -> Step {
     Step::Push { path, words }
-}
-#[must_use]
-pub fn advance() -> Step {
-    Step::Advance
 }
 #[must_use]
 pub fn probe(at: Dir) -> Step {
@@ -688,7 +683,7 @@ impl Caller {
             }
             Some(Step::TrialEnded) => out.push_str("caller waits_for=welcome trial's committed end\n"),
             Some(Step::Probe { .. } | Step::Release { .. }) => out.push_str("caller waits_for=directory lock\n"),
-            Some(Step::Advance | Step::Push { .. }) => out.push_str("caller waits_for=forge advance\n"),
+            Some(Step::Push { .. }) => out.push_str("caller waits_for=forge push\n"),
             Some(Step::FixtureReady) => out.push_str("caller waits_for=fixture provisioning\n"),
             Some(Step::EndsLeaving(_)) | None => {
                 out.push_str("caller waits_for=remaining calls and owned operations to settle\n");
@@ -780,7 +775,6 @@ impl Caller {
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
-            | Step::Advance
             | Step::Push { .. }
             | Step::SignIn { .. }
             | Step::SameParty { .. }
@@ -831,9 +825,6 @@ impl Caller {
         } else {
             None
         }
-    }
-    pub(crate) fn advancing(&self) -> bool {
-        matches!(self.steps.get(self.next), Some(Step::Advance))
     }
     pub(crate) fn pushing(&self) -> Option<(&'static [u8], &'static [u8])> {
         if let Some(Step::Push { path, words }) = self.steps.get(self.next) { Some((*path, *words)) } else { None }
@@ -998,7 +989,6 @@ impl Caller {
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
-            | Step::Advance
             | Step::Push { .. }
             | Step::Join { .. }
             | Step::Watching { .. }
@@ -1586,7 +1576,7 @@ impl Caller {
             Step::WorkerCancelled { .. } if !self.contact_cancelled.get() => return,
             Step::TrialEnded if !self.trial_ended.get() => return,
             Step::StopWorker { .. } | Step::StartWorker { .. } if !self.worker_ready.replace(false) => return,
-            Step::Advance | Step::Push { .. } if !self.advanced.get() => return,
+            Step::Push { .. } if !self.advanced.get() => return,
             Step::StopEngine
             | Step::StartEngine { .. }
             | Step::WorkerCancelled { .. }
@@ -1594,7 +1584,6 @@ impl Caller {
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
-            | Step::Advance
             | Step::Push { .. } => {}
             Step::ReleaseHold { .. } => {
                 if !self.hold_released.replace(false) {
@@ -1661,7 +1650,7 @@ impl Caller {
             Some(Step::WorkerCancelled { .. }) => self.contact_cancelled.get(),
             Some(Step::TrialEnded) => self.trial_ended.get(),
             Some(Step::StopWorker { .. } | Step::StartWorker { .. }) => self.worker_ready.get(),
-            Some(Step::Advance | Step::Push { .. }) => self.advanced.get(),
+            Some(Step::Push { .. }) => self.advanced.get(),
             Some(Step::ReleaseHold { .. }) => self.hold_released.get(),
             Some(Step::AddWorker { .. }) => self.added.get(),
             Some(Step::Held { .. }) => self.held.get(),

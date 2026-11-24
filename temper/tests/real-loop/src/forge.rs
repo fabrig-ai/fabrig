@@ -86,7 +86,6 @@ pub struct Seen {
     snapshots: Vec<Snapshot>,
     deliveries: Vec<Delivery>,
     peer_records: usize,
-    pub(crate) responses: Vec<u16>,
     observations: Vec<domain::Observation>,
     merged_green: bool,
     main: std::collections::BTreeMap<Vec<u8>, Vec<u8>>,
@@ -154,10 +153,6 @@ impl Seen {
     #[must_use]
     pub fn deliveries(&self) -> &[Delivery] {
         &self.deliveries
-    }
-    #[must_use]
-    pub fn responses(&self) -> &[u16] {
-        &self.responses
     }
     #[must_use]
     pub fn merged_green(&self) -> bool {
@@ -385,9 +380,6 @@ impl State {
             secret: Secret::new(HOOK_SECRET.into()),
         });
         self.hooked = true;
-    }
-    pub(crate) fn advance(&mut self, now: Time, wall: Wall) -> Result<(), String> {
-        self.push(now, wall, b"conflict.txt", b"other\n")
     }
     pub(crate) fn push(&mut self, now: Time, wall: Wall, path: &[u8], words: &[u8]) -> Result<(), String> {
         let mut forge = self.handle.borrow_mut();

@@ -122,3 +122,33 @@ fn an_adopted_repository_gets_its_change_pushed_through_git() {
     assert_eq!(outcome.pushed.len(), 1);
     assert!(outcome.deliveries.starts_with(&[Delivery::NoAddress, Delivery::Written]));
 }
+
+#[test]
+fn one_signed_push_gets_one_204_from_the_engine_listener() {
+    let (deliveries, receipt) = world::signed_push(fixtures::calm(fixtures::SEED));
+    // The fixture's topic was prepared before the listener had an address.
+    assert_eq!(deliveries, [Delivery::NoAddress, Delivery::Written]);
+    assert!(receipt.signed_push, "the only write is a signed push to /hooks/1");
+    assert_eq!(receipt.accepted, 1);
+    assert_eq!(receipt.responses, [(1, 204)], "one response on that accepted connection");
+}
+
+#[test]
+fn ctl_adopts_the_forgejo_home_as_owned() {
+    let (adopted, repositories) = world::ctl_adoption(fixtures::calm(fixtures::SEED));
+    assert_eq!(adopted.exit, skein_io::kernel::Exit::Code(0), "{}", String::from_utf8_lossy(&adopted.error));
+    assert!(
+        adopted.output.starts_with(b"Adopted acme/app on forge 1 as owned.\n"),
+        "{}",
+        String::from_utf8_lossy(&adopted.output)
+    );
+    let [row] = repositories.as_slice() else { panic!("one durable repository: {repositories:?}") };
+    assert_eq!(row.project, 1);
+    assert!(row.home);
+    assert_eq!(row.provider.forge, 1);
+    assert_eq!(row.provider.repository, temper_playground::documents::REPOSITORY);
+    assert_eq!(row.owner.as_ref(), b"acme");
+    assert_eq!(row.name.as_ref(), b"app");
+    assert_eq!(row.landing.as_ref(), b"main");
+    assert_eq!(row.role, temper_engine_domain_forge::Role::Owned);
+}

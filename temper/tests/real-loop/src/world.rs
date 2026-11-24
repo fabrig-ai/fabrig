@@ -973,11 +973,7 @@ impl Judge {
             }
             person_push(now, caller, state, &mut service.seen)?;
             service.seen.collect(now, forge, &state.handle, &state.repository)?;
-            caller.advanced.set(
-                state.moved
-                    && (caller.pushing().is_some()
-                        || !service.seen.deliveries().is_empty() && !service.seen.responses().is_empty()),
-            );
+            caller.advanced.set(state.moved && caller.pushing().is_some());
             if service.is_empty() {
                 forge.shutdown();
             }
@@ -1106,11 +1102,7 @@ impl Referee<Proc> for Judge {
             let Kind::Forge(forge) = &children[0].kind else { return Err("forge root".into()) };
             (forge.address().is_some() && service.forge_address.is_none())
                 || (service.hooks.is_some() && !state.hooked)
-                || (caller.advancing() && state.hooked && !state.moved)
                 || (caller.pushing().is_some() && !state.moved)
-                || (caller.advancing()
-                    && !caller.advanced.get()
-                    && (!forge.observations().is_empty() || !service.seen.responses().is_empty()))
         } else {
             false
         };
@@ -1213,9 +1205,6 @@ fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], childr
 }
 
 fn person_push(now: Time, caller: &Caller, state: &mut forge::State, seen: &mut forge::Seen) -> Result<(), String> {
-    if caller.advancing() && state.hooked && !state.moved {
-        state.advance(now, skein_shell::Clock::new().now().wall)?;
-    }
     if let Some((path, words)) = caller.pushing()
         && !state.moved
     {

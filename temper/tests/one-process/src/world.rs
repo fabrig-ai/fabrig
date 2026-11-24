@@ -4,6 +4,9 @@ use crate::{
     referee::{self, Capture, Store, Wire},
     stories,
 };
+mod hooks;
+pub use crate::ctl::Answer as CtlAnswer;
+pub use hooks::HookReceipt;
 use jig_client_protocol_link::Signing;
 use skein_fake_peers::forge::{Delivery, Observation};
 use skein_fake_person::{Doing, Face, Find, Found, Next, Step, TreeFace};
@@ -62,6 +65,8 @@ pub struct Outcome {
     pub adoption_window: Option<(u32, u32)>,
     pub playground: Option<stories::playground::Outcome>,
     pub model_list: Option<crate::model_list::Outcome>,
+    hook_receipt: Option<HookReceipt>,
+    adopt_answer: Option<CtlAnswer>,
 }
 /// The signal's run and its next start (temper/docs/design/protocol/service-process.md, 1).
 #[derive(Debug)]
@@ -95,6 +100,8 @@ pub(crate) enum Phase {
     Committed,
     Story,
     SignIn,
+    ForgeReceipt,
+    CtlAdopt,
     Drain,
     Restart,
     Refused,
@@ -276,6 +283,8 @@ pub(crate) fn parameters(machine: &Machine, forge: temper_fake_git_hosted::Typed
 pub(crate) struct ServiceObserver {
     pub(crate) hooks: Option<SocketAddr>,
     bound_hooks: Option<(Fd, SocketAddr)>,
+    hook_listener: Option<Fd>,
+    hook_wire: Option<Box<hooks::Hooks>>,
     capture: Capture,
     store: Rc<RefCell<Store>>,
     pub(crate) commits: Vec<crate::referee::durable::Commit>,
@@ -300,6 +309,8 @@ impl Observe for ServiceObserver {
         Self {
             hooks: None,
             bound_hooks: None,
+            hook_listener: None,
+            hook_wire: None,
             capture,
             store: store.clone(),
             commits: Vec::new(),
@@ -335,7 +346,12 @@ impl Observe for ServiceObserver {
             return None;
         }
         if let Some(bound) = hooks_address(&mut self.bound_hooks, &complete) {
+            let skein_io::kernel::Op::Listen { fd, .. } = complete.kind else { unreachable!("bound listener") };
             self.hooks = Some(bound);
+            self.hook_listener = Some(fd);
+        }
+        if let (Some(listener), Some(wire)) = (self.hook_listener, &mut self.hook_wire) {
+            wire.complete(listener, &complete);
         }
         self.capture.complete(&complete);
         if self.finding.is_none() {
@@ -1144,6 +1160,35 @@ pub fn sign_in_again(settings: Settings) -> [Outcome; 2] {
     [first, again]
 }
 
+/// The same hooked Forgejo fixture as the adoption-and-git story, with just an outside push.
+#[must_use]
+pub fn signed_push(settings: Settings) -> (Vec<Delivery>, HookReceipt) {
+    let (outcome, _, _) =
+        run_phase(settings, Story::Adopt, Phase::ForgeReceipt, machine::fresh(), Store::new(), Rc::default());
+    (outcome.deliveries, outcome.hook_receipt.expect("push receipt"))
+}
+
+/// Adopt the fixture through the hosted ctl and read the repository rows from committed storage.
+#[must_use]
+pub fn ctl_adoption(settings: Settings) -> (CtlAnswer, Vec<temper_engine_domain_forge::Repository>) {
+    let (outcome, _, store) =
+        run_phase(settings, Story::Adopt, Phase::CtlAdopt, machine::fresh(), Store::new(), Rc::default());
+    let repositories = store
+        .rows
+        .into_values()
+        .filter_map(|record| {
+            let temper_engine_domain::Record::Forge { row } = record else {
+                return None;
+            };
+            let temper_engine_domain_forge::Stored::Repository(repository) = *row else {
+                return None;
+            };
+            Some(repository)
+        })
+        .collect();
+    (outcome.adopt_answer.expect("adoption answer"), repositories)
+}
+
 fn sign_ins(store: &Store) -> Vec<(u64, u64, Wall)> {
     store
         .rows
@@ -1167,12 +1212,19 @@ fn token_bytes(disk: &mut skein_fake_machine::Machine) -> Vec<u8> {
     bytes
 }
 
-fn write_settings(disk: &mut skein_fake_machine::Machine) {
+fn write_settings(disk: &mut skein_fake_machine::Machine, phase: Phase) {
     if stories::needs_settings() || stories::first_start() {
-        let root = disk.lay(&[
-            skein_fake_machine::Item::file(b"settings.json", stories::settings_file()),
-            skein_fake_machine::Item::file(b"admin.token", crate::restart_control::ADMIN_TOKEN).mode(0o600),
-        ]);
+        let mut files = vec![skein_fake_machine::Item::file(b"settings.json", stories::settings_file())];
+        if matches!(phase, Phase::ForgeReceipt) {
+            // A connected Forgejo's pasted credentials include the listener's shared secret.
+            let tokens = temper_playground::documents::hosted_git::TOKEN;
+            let file =
+                [b"api ", tokens, b"\ngit ", tokens, b"\nwebhook_secret ", fixtures::HOOK_SECRET, b"\n"].concat();
+            files.push(skein_fake_machine::Item::file(b"forge.tokens", &file).mode(0o600));
+        } else {
+            files.push(skein_fake_machine::Item::file(b"admin.token", crate::restart_control::ADMIN_TOKEN).mode(0o600));
+        }
+        let root = disk.lay(&files);
         disk.close(root);
     }
 }
@@ -1270,9 +1322,10 @@ pub(crate) fn try_run_phase(
     stories::set(scenario);
     REFUSE_START.with(|refused| refused.set(matches!(phase, Phase::Refused)));
     stories::setup_settings(phase);
-    write_settings(&mut disk);
+    write_settings(&mut disk, phase);
     PROGRESS.with(|progress| *progress.borrow_mut() = Progress::default());
-    let client = matches!(phase, Phase::Story | Phase::SignIn | Phase::Drain).then(|| disk.reopen_root(2));
+    let client = matches!(phase, Phase::Story | Phase::SignIn | Phase::Drain | Phase::ForgeReceipt | Phase::CtlAdopt)
+        .then(|| disk.reopen_root(2));
     let store = Rc::new(RefCell::new(previous));
     STORE.with(|cell| {
         *cell.borrow_mut() = Some(store.clone());
@@ -1352,12 +1405,16 @@ pub(crate) fn try_run_phase(
                             )))
                         });
                     }
-                    Phase::Story | Phase::SignIn | Phase::Drain => {
+                    Phase::Story | Phase::SignIn | Phase::Drain | Phase::ForgeReceipt | Phase::CtlAdopt => {
                         world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
-                            Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
-                                Person::new(root, scenario),
-                                None,
-                            ))))
+                            if matches!(phase, Phase::ForgeReceipt | Phase::CtlAdopt) {
+                                Proc::Other(HarnessProcess::Calls(Box::new(crate::ctl::Caller::scripted(root))))
+                            } else {
+                                Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
+                                    Person::new(root, scenario),
+                                    None,
+                                ))))
+                            }
                         });
                         let (llm, forge) = peers.unwrap_or_else(|| {
                             (
@@ -1372,8 +1429,8 @@ pub(crate) fn try_run_phase(
                 world.try_run()
             })
         });
-    let outcome = outcome.inspect_err(|_| STORE.with(|cell| *cell.borrow_mut() = None))?;
-    if matches!(scenario, Story::Adopt) {
+    let mut outcome = outcome.inspect_err(|_| STORE.with(|cell| *cell.borrow_mut() = None))?;
+    if matches!(scenario, Story::Adopt) && matches!(phase, Phase::Story) {
         assert!(referee::forge::Forge::hooks_complete(&outcome.procs), "the required push-hook prefix was delivered");
     }
     let signed_in = outcome
@@ -1416,8 +1473,37 @@ pub(crate) fn try_run_phase(
         *cell.borrow_mut() = None;
     });
     let records = std::mem::take(&mut *store.borrow_mut());
+    let hook_receipt = if matches!(phase, Phase::ForgeReceipt) {
+        let signed_push = referee::forge::Forge::signed_push(&outcome.procs);
+        let Proc::Service(service) = &mut outcome.procs[0] else { unreachable!("service first") };
+        let mut receipt = service.observer.hook_wire.take().expect("recorded hook wire").receipt;
+        receipt.signed_push = signed_push;
+        Some(receipt)
+    } else {
+        None
+    };
+    let adopt_answer = if matches!(phase, Phase::CtlAdopt) {
+        let caller = outcome
+            .procs
+            .iter_mut()
+            .find_map(|proc| match proc {
+                Proc::Other(HarnessProcess::Calls(caller)) => Some(caller),
+                _ => None,
+            })
+            .expect("hosted forge caller");
+        let answer = caller.answers.pop().expect("repository adopt answer");
+        assert_eq!(caller.answers.len(), 3, "sign-in, forge connect, then forge list");
+        for setup in &caller.answers {
+            assert_eq!(setup.exit, Exit::Code(0), "forge setup: {setup:?}");
+        }
+        Some(answer)
+    } else {
+        None
+    };
     let result = Outcome {
         stopped: None,
+        hook_receipt,
+        adopt_answer,
         store_checks,
         peaks: outcome.peaks(),
         process_names: outcome.procs.iter().map(process_name).collect(),
@@ -1462,6 +1548,14 @@ pub(crate) fn lower_store(store: Option<Rc<RefCell<Store>>>) {
 }
 
 impl ServiceObserver {
+    pub(crate) fn record_hooks(&mut self) {
+        self.hook_wire.get_or_insert_with(Box::default);
+    }
+
+    pub(crate) fn hook_answered(&self) -> bool {
+        self.hook_wire.as_ref().is_some_and(|wire| !wire.receipt.responses.is_empty())
+    }
+
     /// Decode durable records under the scenario's configured record bounds.
     pub(crate) fn with_codec(
         mut self,

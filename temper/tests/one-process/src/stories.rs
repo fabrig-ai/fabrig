@@ -353,9 +353,14 @@ pub(crate) fn setup_settings(phase: crate::world::Phase) {
         slot.set(
             !playground()
                 && !STORY.with(|story| matches!(story.get(), Story::NoWelcome))
-                && (matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. })
-                    || matches!(phase, crate::world::Phase::Drain)
-                        && STORY.with(|story| matches!(story.get(), Story::CodingAtStop))),
+                && (matches!(
+                    phase,
+                    crate::world::Phase::Story
+                        | crate::world::Phase::ForgeReceipt
+                        | crate::world::Phase::CtlAdopt
+                        | crate::world::Phase::Fault { .. }
+                ) || matches!(phase, crate::world::Phase::Drain)
+                    && STORY.with(|story| matches!(story.get(), Story::CodingAtStop))),
         );
     });
     SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain) && uses_stock()));

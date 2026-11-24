@@ -40,6 +40,88 @@ fn a_page_turn_that_fits_prints_whole() {
     assert!(skein_lib::bytes::find(&printed.stdout, b"read with:").is_none());
 }
 #[test]
+fn whole_note_turns_and_activity_print_the_acknowledgments_and_replies() {
+    use jig_client::contract as c;
+    use skein_lib::{List, bytes};
+
+    let cases = [
+        (
+            1,
+            ["task", "turn", "41", "1.1"],
+            b"turn 1.1\n".as_slice(),
+            "Note 1 revision 1 written · 29 lines".as_bytes(),
+            b"I wrote an Away mode draft with its purpose, return flow and open questions.".as_slice(),
+        ),
+        (
+            2,
+            ["task", "turn", "41", "2.1"],
+            b"turn 2.1\n".as_slice(),
+            "Note 1 revision 2 written · +7 −0 · line 14 · 36 lines".as_bytes(),
+            b"I added how a running goal continues and waits for your decisions.".as_slice(),
+        ),
+    ];
+    let mut rows = List::with_capacity(4); // A tool turn and a reply for each attempt.
+    for (attempt, argv, header, acknowledgment, reply) in cases {
+        let mut blocks = List::with_capacity(fixtures::CALL_RESULT_BLOCKS);
+        blocks
+            .push(c::Block::Call(c::Call {
+                number: 1,
+                tool: note_text(b"note"),
+                input: note_text(b"{}"),
+                outcome: Some(note_text(acknowledgment)),
+                failed: false,
+                objects: List::with_capacity(0),
+                parts: List::with_capacity(0),
+            }))
+            .expect("note call");
+        blocks
+            .push(c::Block::Result { call: 1, summary: note_text(acknowledgment), failed: false })
+            .expect("note result");
+        let ReadResult::Value(ReadValue::Turn(mut turn)) = fixtures::turn_blocks(blocks) else { panic!("note turn") };
+        turn.name = c::TurnName { attempt, number: 1 };
+        let printed = fixtures::read_answer(&argv, ReadResult::Value(ReadValue::Turn(turn.clone())));
+        assert_eq!(printed.status, 0);
+        assert!(printed.stdout.starts_with(header));
+        assert!(printed.stdout.ends_with(&whole_line(acknowledgment)));
+        let position = attempt.checked_mul(2).expect("two turns per attempt");
+        rows.push(crate::tests::documents::turn(
+            position.checked_sub(1).expect("note position"),
+            turn.at,
+            turn.name,
+            turn.turn,
+        ))
+        .expect("activity's note turn");
+
+        let mut blocks = List::with_capacity(1);
+        blocks.push(c::Block::Text(note_text(reply))).expect("reply block");
+        let ReadResult::Value(ReadValue::Turn(turn)) = fixtures::turn_blocks(blocks) else { panic!("reply turn") };
+        rows.push(crate::tests::documents::turn(position, turn.at, c::TurnName { attempt, number: 2 }, turn.turn))
+            .expect("activity's reply turn");
+    }
+    let printed = fixtures::read_answer(
+        fixtures::ACTIVITY_CALL,
+        ReadResult::Value(ReadValue::Activity(Box::new(c::ActivityPage {
+            cut: false,
+            rows,
+            before: None,
+            after: None,
+        }))),
+    );
+    assert_eq!(printed.status, 0);
+    for (_, _, _, _, reply) in cases {
+        assert!(bytes::find(&printed.stdout, &whole_line(reply)).is_some());
+    }
+}
+
+fn note_text(words: &[u8]) -> jig_client::contract::Text {
+    jig_client::contract::Text::new(words.into(), crate::limits::CLIENT_TEXT).expect("note text")
+}
+
+fn whole_line(words: &[u8]) -> Box<[u8]> {
+    fixtures::appended(&fixtures::appended(b"\n", words), b"\n")
+}
+
+#[test]
 fn a_turn_part_is_cut_with_its_continuation() {
     let printed = fixtures::read_answer(fixtures::TURN_CALL, fixtures::turn_text(fixtures::LONG_PART));
     fixtures::check_golden("turn_part", &printed.stdout);

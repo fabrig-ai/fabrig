@@ -2,7 +2,6 @@
 mod cue;
 mod driven;
 pub(crate) use driven::Driven;
-mod hooks;
 mod watch;
 use crate::fixtures;
 pub use cue::Cue;
@@ -68,7 +67,6 @@ pub struct ServiceHost {
     pub(crate) address: Option<SocketAddr>,
     pub(crate) link: Vec<u8>,
     watch: watch::Watch,
-    hook_wire: hooks::Hooks,
     pub(crate) hooks: Option<SocketAddr>,
     pub(crate) forge_address: Option<SocketAddr>,
     pub(crate) blob_address: Option<SocketAddr>,
@@ -226,7 +224,6 @@ impl ServiceHost {
             address: None,
             link: Vec::new(),
             watch: watch::Watch::default(),
-            hook_wire: hooks::Hooks::default(),
             hooks: None,
             forge_address: None,
             blob_address: None,
@@ -825,9 +822,6 @@ impl Host for ServiceHost {
                 }
             }
             for complete in service.completions().iter() {
-                if self.fixture.is_some() {
-                    self.hook_wire.complete(complete, self.hooks, &mut self.seen.responses);
-                }
                 if let Some(crate::cluster::Shape::Worker { engine: Some(engine), .. }) = self.cluster {
                     self.runs.complete(complete, engine, now);
                 }
