@@ -116,7 +116,7 @@ impl Own {
     }
 
     fn push(&mut self, task: u64, kind: WaitKind, object: WaitObject, since: Wall, bound: Bound) {
-        self.records.insert(Wait { task, kind, object, since, bound, hears: None });
+        self.records.insert(Wait { task, kind, object, since, bound: not_before(bound, since), hears: None });
     }
 
     pub(super) fn finish(
@@ -404,7 +404,7 @@ fn entry(
         kind: WaitKind::Party,
         object: WaitObject::Entry { kind, at },
         since,
-        bound: clock(since, figure, deadline, then),
+        bound: not_before(clock(since, figure, deadline, then), since),
         hears,
     }
 }
@@ -412,6 +412,15 @@ fn entry(
 fn proposal_passes(core: &Core, limits: &Limits, row: &TaskRecord, holder: tasks::ProposalHolder) -> bool {
     let Some(proposal) = &row.proposal else { return false };
     core.proposal_holder(limits, row.number, &proposal.action, Some(holder), core.run_wall).is_some()
+}
+
+// A deadline already passed when the wait begins is due immediately. Keep the
+// episode's since intact, including any upgrade floor.
+fn not_before(bound: Bound, since: Wall) -> Bound {
+    match bound {
+        Bound::At { at, then } => Bound::At { at: at.max(since), then },
+        Bound::None(why) => Bound::None(why),
+    }
 }
 
 pub(super) fn clock(since: Wall, figure: Duration, deadline: Option<Wall>, then: AtBound) -> Bound {

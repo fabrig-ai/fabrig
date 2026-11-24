@@ -550,6 +550,7 @@ fn resource_wait_names_the_holder_and_counts_from_the_latest_join() {
 
 #[test]
 fn delegates_use_their_making_time_and_replace_news() {
+    const PASSED: Wall = Wall::from_nanos(SINCE.as_nanos() - 1);
     let (mut core, limits) = pair();
     let delegate = new_row(&core, 3, tasks::Funder::Task(1), None);
     fixtures::make_batch_at(&mut core, &limits, tasks::Party::Task(1), Box::new([delegate]), SINCE);
@@ -581,6 +582,12 @@ fn delegates_use_their_making_time_and_replace_news() {
     for wait in &mut expected {
         wait.bound = Bound::At { at: SOON, then: AtBound::Hold };
     }
+    assert_eq!(document_matching_line(&core, &limits, &row).waits.as_slice(), &expected);
+
+    // A delegate made after the deadline is due as soon as its wait begins.
+    row.authority.budget.deadline = Some(PASSED);
+    expected[0].bound = Bound::At { at: PASSED, then: AtBound::Hold };
+    expected[1].bound = Bound::At { at: SINCE, then: AtBound::Hold };
     assert_eq!(document_matching_line(&core, &limits, &row).waits.as_slice(), &expected);
 }
 

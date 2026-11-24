@@ -5,6 +5,7 @@ use crate::{
     documents::{self, Missing, TaskQuery},
     reads::{PageRow, Row, vocabulary::row_owner},
 };
+use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::reads::ended::*;
 use jig_domain_tasks as tasks;
 /// Apply keys beyond the prefix to the joined ended owner.
@@ -33,7 +34,8 @@ pub(super) fn line(
     {
         return Ok(None);
     }
-    Ok(Some(PageRow::Line(documents::task_line(core, limits, party, owner, row.ended_read)?)))
+    let line = documents::task_line(core, limits, party, owner, row.ended_read)?;
+    Ok(Some(PageRow::Line(Box::new(line))))
 }
 
 /// Summary-only rows keep query keys, but join no ancestry or conversation
@@ -62,5 +64,5 @@ fn summary_line(
     {
         return Ok(None);
     }
-    Ok(Some(PageRow::Line(line)))
+    Ok(Some(PageRow::Line(Box::new(line))))
 }
