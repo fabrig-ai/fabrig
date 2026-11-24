@@ -1,7 +1,8 @@
 # documents: status
 
-2026-11-21. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-24. Where the tree's code lags or departs from [documents.md](documents.md).
 
+- **Not yet:** 1: a task line's first wait and nearest bound, and a task document's waits with their count, on the contract and the client wire [in flight: change 15643].
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.
 

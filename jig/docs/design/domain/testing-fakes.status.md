@@ -1,7 +1,8 @@
 # testing-fakes: status
 
-2026-11-23. Where the tree's code lags or departs from [testing-fakes.md](testing-fakes.md).
+2026-11-24. Where the tree's code lags or departs from [testing-fakes.md](testing-fakes.md).
 
+- **Not yet:** 1.1, 1.2: jig's record check, `jig_inspect::records`, and its calls wherever the shared checks run over a core [in flight: change 15645].
 - **Not yet:**
   1: the core kit's `World` keeps one commit per run, rehearsed in
   `World::finish`, and its rehearsal pays for its store and start alone.
