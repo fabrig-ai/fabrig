@@ -1,4 +1,5 @@
 //! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/world.md`, section 1).
+//! Wait projections follow `jig/docs/design/domain/engine/waits.md`, sections 4 and 6.
 use crate::{reads, world::World};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
@@ -560,12 +561,19 @@ fn procedure_wait(kind: core::WaitKind) -> bool {
     matches!(kind, core::WaitKind::Step | core::WaitKind::Room | core::WaitKind::Turn | core::WaitKind::SignOff)
 }
 
-// Reported waits and their news fallback are the last group. If a report is
-// visible on either side, the entire durable prefix fits on that side; compare
-// that prefix without requiring the same last group after a cold start.
+// The reported waits and their news fallback come last.
+// A visible report means the durable prefix fits. Keep first and nearest only
+// where each points outside that last group.
 fn without_report(row: &core::documents::Task) -> core::documents::Task {
     let mut row = row.clone();
-    let prefix = row.waits.iter().take_while(|wait| !procedure_wait(wait.kind) && wait.kind != core::WaitKind::News);
+    let reported_group = |kind| procedure_wait(kind) || kind == core::WaitKind::News;
+    if row.wait.as_ref().is_some_and(|wait| reported_group(wait.kind)) {
+        row.wait = None;
+    }
+    if row.nearest.is_some_and(|bound| reported_group(bound.kind)) {
+        row.nearest = None;
+    }
+    let prefix = row.waits.iter().take_while(|wait| !reported_group(wait.kind));
     row.wait_count = u32::try_from(prefix.count()).expect("bounded wait lines");
     row.waits.truncate(row.wait_count);
     if row.waits_on == core::documents::WaitsOn::News {
