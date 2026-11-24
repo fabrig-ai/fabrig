@@ -111,14 +111,14 @@ pub(crate) fn ask(value: &c::Ask, bounds: &Bounds) -> Result<(), Invalid> {
 
 pub(crate) fn selector(value: &c::Read, bounds: &Bounds) -> Result<(), Invalid> {
     let limits = limits(bounds)?;
-    let record = translate::reads::read(value, limits.wire());
+    let record = translate::reads::read(value);
     record.measure(limits.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }
 
 pub(crate) fn subject(value: &c::Subject, bounds: &Bounds) -> Result<(), Invalid> {
     let limits = limits(bounds)?;
-    let record = translate::watches::subject(value, limits.wire());
+    let record = translate::watches::subject(value);
     record.measure(limits.wire()).map_err(|_| Invalid::Payload)?;
     Ok(())
 }

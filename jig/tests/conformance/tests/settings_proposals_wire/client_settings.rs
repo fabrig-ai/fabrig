@@ -55,9 +55,9 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         c::Read::Revision(c::ReadRevision { number: 6 }),
         c::Read::Revisions(c::ReadRevisions { before: Some(8) }),
     ] {
-        drop(translate::reads::read(&read, t));
+        drop(translate::reads::read(&read));
     }
-    assert_eq!(translate::watches::subject(&c::Subject::Settings, t), w::Subject::Settings);
+    assert_eq!(translate::watches::subject(&c::Subject::Settings), w::Subject::Settings);
     let changed = w::Outcome::SettingsChanged(w::OutcomeSettingsChanged { revision: 6 });
     assert_eq!(outcome(&changed, &limits), Ok(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 6 })));
     let stale = w::Refusal::Stale(w::RefusalStale { newest: 9 });

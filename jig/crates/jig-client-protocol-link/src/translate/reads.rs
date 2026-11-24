@@ -11,7 +11,7 @@ use jig_client_protocol_wire::VERSION;
 use skein_lib::{Reader, Writer, bytes, length::len_u64};
 
 #[must_use]
-pub fn read(read: &c::Read, _limits: &w::Limits) -> w::Read {
+pub fn read(read: &c::Read) -> w::Read {
     match read {
         c::Read::Settings => w::Read::Settings,
         c::Read::Setting(value) => w::Read::Setting(super::settings::wire_read_setting(value)),
@@ -107,7 +107,7 @@ fn inbox_kind(value: Option<c::InboxGroup>) -> Option<w::InboxGroup> {
 pub fn owned(value: Readable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
     let (owner, version, record) = match value {
         Readable::Jig(value) => {
-            let value = read(&value, limits);
+            let value = read(&value);
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
             value.write(limits, &mut writer).expect("measured read");
             (w::Owner::Jig, VERSION, writer.finish())

@@ -10,7 +10,7 @@ use jig_client_protocol_wire::VERSION;
 use skein_lib::{List, Reader, Writer, length::len_u64};
 
 #[must_use]
-pub fn subject(value: &c::Subject, _limits: &w::Limits) -> w::Subject {
+pub fn subject(value: &c::Subject) -> w::Subject {
     match value {
         c::Subject::Settings => w::Subject::Settings,
         c::Subject::Me => w::Subject::Me,
@@ -38,7 +38,7 @@ pub fn subject(value: &c::Subject, _limits: &w::Limits) -> w::Subject {
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
     let (owner, version, record) = match value {
         Watchable::Jig(value) => {
-            let value = subject(&value, limits);
+            let value = subject(&value);
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
             value.write(limits, &mut writer).expect("measured subject");
             (w::Owner::Jig, VERSION, writer.finish())

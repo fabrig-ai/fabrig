@@ -77,7 +77,7 @@ fn a_job_executor_filter_round_trips_the_wire() {
         tracked: None,
         order: c::QueryOrder::Number,
     };
-    let read = translate::reads::read(&c::Read::Tasks { query, live: None, ended: None }, limits.wire());
+    let read = translate::reads::read(&c::Read::Tasks { query, live: None, ended: None });
     let mut out = Writer::new(
         usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
