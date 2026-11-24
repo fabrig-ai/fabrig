@@ -26,7 +26,6 @@ mod cancel_kills;
 mod deadline;
 pub mod ending;
 mod patience;
-pub use patience::{Frozen, Judge as FrozenJudge};
 pub mod service;
 pub mod world;
 #[doc(hidden)]

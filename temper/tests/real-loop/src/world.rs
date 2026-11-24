@@ -1,5 +1,5 @@
 //! Admission order and cues on one checked real world.
-mod diagnostics;
+pub(crate) mod diagnostics;
 mod lifecycle;
 use crate::{agent, calls::Caller, fixtures, forge, llm, service::ServiceHost};
 use lifecycle::{Hosts, Lifecycle};
@@ -17,35 +17,13 @@ pub struct Proc {
     diagnostics: diagnostics::Operations,
 }
 impl Proc {
-    /// A forge root whose state the story retains separately.
-    #[must_use]
-    pub fn forge(peer: skein_fake_peers::forge::Peer) -> Self {
-        Self::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
-    }
-    /// Task terminals witnessed in the engine's latest successful journal sync.
-    #[must_use]
-    pub fn ended_tasks(&self) -> &[u64] {
-        &self.diagnostics.terminals.ended
-    }
-    /// The journal sync which most recently witnessed task terminals.
-    #[must_use]
-    pub fn terminal_sync(&self) -> Option<skein_lib::Token> {
-        self.diagnostics.terminals.last_sync
-    }
-    /// Whether a submitted operation still awaits its completion hook.
-    #[must_use]
-    pub fn operation_pending(&self, token: skein_lib::Token) -> bool {
-        self.diagnostics.pending.contains_key(&token)
-    }
-    /// Whether the prepared engine retains a dependency stub for this task.
-    pub fn has_task_stub(&self, task: u64) -> Result<bool, String> {
-        let Kind::Service(host) = &self.kind else { return Err("engine fixture".into()) };
-        let engine = host.service.as_ref().ok_or("prepared engine")?.engine_domain().ok_or("engine domain")?;
-        Ok(engine.tasks().stub(task).is_some())
-    }
-
     pub(crate) fn new(kind: Kind) -> Self {
         Self { kind, diagnostics: diagnostics::Operations::default() }
+    }
+    pub(crate) fn observed_engine(&self) -> Option<(u64, &jig_domain_tasks::Domain, &diagnostics::Operations)> {
+        let Kind::Service(host) = &self.kind else { return None };
+        let engine = host.service.as_ref()?.engine_domain()?;
+        Some((engine.revision(), engine.tasks(), &self.diagnostics))
     }
     pub(crate) fn code_exchanges(&self) -> usize {
         let Kind::Issuer(peer) = &self.kind else { panic!("issuer process") };
@@ -57,13 +35,14 @@ impl Proc {
 }
 impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
-        self.diagnostics.complete(self.kind.completions(), now);
         if let Kind::Service(host) = &mut self.kind
             && let Some(service) = &mut host.service
             && service.engine_domain().is_some()
         {
             self.diagnostics.terminals.opened_logs(service.log_descriptors());
-            self.diagnostics.terminals.observe(host.completions());
+            self.diagnostics.complete(host.completions(), now, true);
+        } else {
+            self.diagnostics.complete(self.kind.completions(), now, false);
         }
         self.kind.iterate(now, wall);
     }
@@ -273,19 +252,17 @@ fn run_with_agent(
         sign_in.then(|| std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("issuer port"));
     let issuer = reservation.as_ref().map(|listener| listener.local_addr().expect("issuer address"));
     let mut world = World::new_controlled_checked(|controls| Judge {
-        patience: crate::patience::Patience::new(patience),
+        checks: diagnostics::Judge::new(crate::patience::Patience::new(patience)),
         controls,
         workers: Vec::new(),
         lifecycle: Lifecycle::default(),
         failure: None,
-        finding: None,
         armed: false,
         wake: None,
         forge: None,
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
-        tasks: diagnostics::Tasks::default(),
     });
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
@@ -425,19 +402,17 @@ pub(crate) fn run_forge(
     let patience = crate::PATIENCE;
     let state = std::rc::Rc::new(std::cell::RefCell::new(None));
     let mut world = World::new_controlled(|controls| Judge {
-        patience: crate::patience::Patience::new(patience),
+        checks: diagnostics::Judge::new(crate::patience::Patience::new(patience)),
         controls,
         workers: Vec::new(),
         lifecycle: Lifecycle::default(),
         failure: None,
-        finding: None,
         armed: false,
         wake: None,
         forge: Some(state.clone()),
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
-        tasks: diagnostics::Tasks::default(),
     });
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
@@ -599,26 +574,17 @@ fn host_agent<R: Referee<Proc>>(
     );
 }
 pub struct Judge {
-    patience: crate::patience::Patience,
+    checks: diagnostics::Judge,
     controls: Controls,
     workers: Vec<&'static str>,
     lifecycle: Lifecycle,
     armed: bool,
     failure: Option<Failure>,
-    finding: Option<String>,
     wake: Option<Time>,
     forge: Option<std::rc::Rc<std::cell::RefCell<Option<forge::State>>>>,
     github: Option<crate::github::State>,
     llm_history: LlmHistory,
     children: Children,
-    tasks: diagnostics::Tasks,
-}
-
-impl Judge {
-    /// Exercise the failed-deadline path without waiting on the real clock.
-    pub fn force_failed(&mut self) {
-        self.patience.force_failed();
-    }
 }
 
 struct Failure {
@@ -848,46 +814,10 @@ impl Judge {
     }
 }
 impl Judge {
-    fn capture_overdue(&mut self, now: Time, procs: &mut [Proc]) {
-        let report = self.describe_pending(now, procs);
-        self.patience.capture(report);
-        self.finding = crate::patience::check_overdue::<Proc, _>(self, now).err();
-    }
-    fn describe_pending(&self, now: Time, procs: &mut [Proc]) -> String {
-        use std::fmt::Write;
-        let mut report = format!(
-            "temper judge overdue: stopping={} engine_stopping={} finished={}\n",
-            self.lifecycle.stopping, self.lifecycle.engine_stopping, self.lifecycle.finished
-        );
-        if let Some(failure) = &self.failure {
-            writeln!(report, "judge early_failure settled={} message={}", failure.settled, failure.message)
-                .expect("string writer");
-        }
-        self.tasks.describe(&mut report);
-        diagnostics::outstanding(procs, now, &mut report);
-        crate::patience::processes(procs, now, &mut report);
-        if let Some(state) = &self.forge {
-            let borrowed = state.borrow();
-            if let Some(state) = borrowed.as_ref() {
-                writeln!(report, "forge shared_pending={}", state.handle.borrow().pending.len())
-                    .expect("string writer");
-            }
-        }
-        if let Some(state) = &self.github {
-            writeln!(report, "GitHub shared_pending={}", state.handle.borrow().pending.len()).expect("string writer");
-        }
-        report
-    }
-}
-impl Judge {
     #[expect(clippy::too_many_lines, reason = "issuer admission cues join the other hosted-process story cues")]
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
-        if self.patience.due(now) {
-            self.capture_overdue(now, procs);
-            return Ok(());
-        }
         self.wake = None;
-        if self.failure.is_some() || self.finding.is_some() {
+        if self.failure.is_some() || self.checks.finding.is_some() {
             return Ok(());
         }
         let engine_index = procs.iter().position(|proc| matches!(&proc.kind, Kind::Service(_))).ok_or("engine root")?;
@@ -1014,8 +944,16 @@ impl Judge {
 }
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        if let Err(finding) = self.act_checked(now, procs) {
-            self.finding = Some(finding);
+        let context = diagnostics::Context {
+            lifecycle: self.lifecycle,
+            failure: self.failure.as_ref(),
+            forge: self.forge.as_deref(),
+            github: self.github.as_ref(),
+        };
+        if !self.checks.act(now, procs, context)
+            && let Err(finding) = self.act_checked(now, procs)
+        {
+            self.checks.finding = Some(finding);
         }
     }
     #[expect(
@@ -1023,28 +961,10 @@ impl Referee<Proc> for Judge {
         reason = "the referee observes engine and worker restart cues alongside peer and caller progress"
     )]
     fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
-        if let Some(finding) = &self.finding {
-            return Err(finding.clone());
-        }
-        for proc in procs {
-            if let Kind::Caller(caller) = &proc.kind
-                && let Some(finding) = &caller.finding
-            {
-                self.finding = Some(finding.clone());
-                return Err(finding.clone());
-            }
-        }
-        for proc in procs {
-            if let Kind::Service(host) = &proc.kind
-                && let Some(service) = &host.service
-                && let Some(engine) = service.engine_domain()
-            {
-                self.tasks.observe(engine, &proc.diagnostics.terminals)?;
-            }
-        }
+        self.checks.watch(procs, procs.iter().filter_map(Proc::observed_engine))?;
         if let Some(failure) = &mut self.failure {
             failure.settled = procs.iter().all(Host::is_empty);
-            return crate::patience::check_overdue::<Proc, _>(self, now);
+            return crate::patience::check_overdue(now, self.overdue(now));
         }
         let [
             Proc { kind: Kind::Llm(peer), .. },
@@ -1154,18 +1074,13 @@ impl Referee<Proc> for Judge {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        [self.wake, self.patience.deadline()].into_iter().flatten().min()
+        [self.wake, self.checks.patience.deadline()].into_iter().flatten().min()
     }
     fn overdue(&self, _now: Time) -> Option<String> {
-        // Preserve startup failures after io closes; a stalled drain still gets the patience snapshot.
-        self.failure
-            .as_ref()
-            .filter(|failure| failure.settled)
-            .map(|failure| failure.message.clone())
-            .or_else(|| self.patience.overdue())
+        self.checks.overdue(self.failure.as_ref())
     }
     fn passed(&self) -> bool {
-        self.lifecycle.passed(self.failure.is_some() || self.finding.is_some())
+        self.lifecycle.passed(self.failure.is_some() || self.checks.finding.is_some())
     }
 }
 
@@ -1299,19 +1214,17 @@ pub fn cluster_judge(
 ) -> Judge {
     warm_runtime();
     Judge {
-        patience: crate::patience::Patience::new(patience),
+        checks: diagnostics::Judge::new(crate::patience::Patience::new(patience)),
         controls,
         workers: workers.to_vec(),
         lifecycle: Lifecycle::default(),
         failure: None,
-        finding: None,
         armed: false,
         wake: None,
         forge,
         github: None,
         llm_history: LlmHistory::default(),
         children: Children::default(),
-        tasks: diagnostics::Tasks::default(),
     }
 }
 
@@ -1451,7 +1364,7 @@ mod tests {
         caller
     }
 
-    fn ctl(setup: bool) -> super::Proc {
+    pub(super) fn ctl(setup: bool) -> super::Proc {
         use skein_io::kernel::Fd;
         use temper_client_shell_cli::host::{Invocation, OneShot, Startup};
         super::Proc::new(super::Kind::Ctl(Box::new(crate::calls::Recorded::new(

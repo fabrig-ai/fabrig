@@ -111,10 +111,6 @@ impl ServiceHost {
         Self::with_shape(path, signals, None, false, None, None, None, Some(configure))
     }
     #[expect(clippy::too_many_arguments, reason = "independent optional peer and configuration fixtures")]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the hosted service composes the selected cluster shape and figures startup"
-    )]
     fn with_shape(
         path: PathBuf,
         signals: Fd,
@@ -191,16 +187,33 @@ impl ServiceHost {
             }
         }
         .expect("shape's operation count");
-        let restartable = cluster.is_some();
-        let queued = if restartable { operations } else { 1 };
-        let records_seeded =
+        let mut host = Self::waiting(path, signals, configuration, operations, cluster.is_some());
+        host.wait_check = temper_test_env::value(&temper_service_shell::WAIT_CHECK).is_some();
+        host.records_seeded =
             matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) || fixture.is_none() && github.is_none();
+        host.cluster = cluster;
+        host.fixture = fixture;
+        host.github = github;
+        host.clients = clients;
+        host.clients_listener = clients_listener;
+        host.forge = forge;
+        host
+    }
+
+    fn waiting(
+        path: PathBuf,
+        signals: Fd,
+        configuration: temper_playground::documents::Configuration,
+        operations: u32,
+        restartable: bool,
+    ) -> Self {
+        let queued = if restartable { operations } else { 1 };
         Self {
             pending_streak: crate::patience::PendingStreak::default(),
             restartable,
             start_failures: 0,
             failed_starts: Vec::new(),
-            wait_check: temper_test_env::value(&temper_service_shell::WAIT_CHECK).is_some(),
+            wait_check: false,
             now: Time::ZERO,
             lives: Vec::with_capacity(if restartable { LIVES } else { 0 }),
             state: LifeState::First,
@@ -209,7 +222,7 @@ impl ServiceHost {
             life_tasks: 0,
             life_links: 0,
             linked: 0,
-            cluster,
+            cluster: None,
             workers_address: None,
             notes: Vec::new(),
             runs: crate::cluster::Runs::default(),
@@ -227,11 +240,11 @@ impl ServiceHost {
             hooks: None,
             forge_address: None,
             blob_address: None,
-            fixture,
-            github,
-            records_seeded,
-            clients,
-            clients_listener,
+            fixture: None,
+            github: None,
+            records_seeded: false,
+            clients: None,
+            clients_listener: None,
             github_seen: crate::github::Seen::default(),
             seen: crate::forge::Seen::default(),
             cues: Vec::with_capacity(cue::CUES),
@@ -240,7 +253,7 @@ impl ServiceHost {
             configuration,
             signals,
             signals_adopted: false,
-            forge,
+            forge: None,
             operations,
             completions: Queue::with_capacity(queued),
             submissions: Queue::with_capacity(queued),
@@ -248,6 +261,17 @@ impl ServiceHost {
     }
 }
 impl ServiceHost {
+    /// A prepared fixture with no native admission or outstanding kernel requests.
+    #[cfg(test)]
+    pub(crate) fn held_startup(
+        configuration: temper_playground::documents::Configuration,
+        service: temper_service::Service,
+    ) -> Self {
+        let mut host = Self::waiting(PathBuf::new(), Fd::new(0), configuration, service.operations(), false);
+        host.service = Some(Driven::new(service));
+        host
+    }
+
     pub(crate) fn cluster(
         path: &std::path::Path,
         signals: Fd,

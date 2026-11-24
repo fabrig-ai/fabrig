@@ -7,7 +7,6 @@ static HEAP: Counting = Counting;
 mod account_key;
 mod case_5_3;
 mod cluster;
-mod diagnostics;
 mod github;
 mod github_land;
 mod hung_model;
