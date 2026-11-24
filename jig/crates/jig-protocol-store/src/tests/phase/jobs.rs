@@ -8,7 +8,7 @@ use skein_codec::Record as _;
 const UPSTREAM_JOB: Job = Job {
     counts: &[],
     name: "notes-to-labels",
-    keys: &[KeyRange { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO }],
+    keys: &[KeyRange { from: jig_test_layouts::keys::NOTES_FROM, to: jig_test_layouts::keys::NOTES_TO }],
     converts: None,
 };
 const APP_JOB: Job = Job {

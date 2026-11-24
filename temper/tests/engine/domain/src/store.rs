@@ -723,7 +723,6 @@ impl Store {
             | Event::Switched { .. }
             | Event::Job { .. }
             | Event::Ran { .. }
-            | Event::Site { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
             | Event::Got { .. }

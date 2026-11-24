@@ -17,6 +17,7 @@ pub struct Limits {
     pub layout_variant_some: u32,
     pub layout_held: u32,
     pub text_text: u32,
+    pub order_layouts: u32,
 }
 
 pub const CEILINGS: Limits = Limits {
@@ -24,6 +25,7 @@ pub const CEILINGS: Limits = Limits {
     layout_variant_some: 256,
     layout_held: 16,
     text_text: 262_144,
+    order_layouts: 64,
 };
 
 pub const LIMIT_NAMES: &[&str] = &[
@@ -31,6 +33,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "layout_variant_some",
     "layout_held",
     "text_text",
+    "order_layouts",
 ];
 
 impl Limits {
@@ -41,6 +44,7 @@ impl Limits {
             self.layout_variant_some,
             self.layout_held,
             self.text_text,
+            self.order_layouts,
         ].into())
     }
 
@@ -52,6 +56,7 @@ impl Limits {
             layout_variant_some: self.layout_variant_some.min(most),
             layout_held: self.layout_held.min(most),
             text_text: self.text_text.min(most),
+            order_layouts: self.order_layouts.min(most),
         }
     }
 }
@@ -61,6 +66,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LAYOUT_VARIANT,
     paths::LAYOUT_HELD,
     paths::TEXT_TEXT,
+    paths::ORDER_LAYOUTS,
 ];
 
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
@@ -88,6 +94,9 @@ pub mod paths {
     pub const JOB_ENDED: Path = Path::new("Job.ended");
     pub const JOB_VERSION: Path = Path::new("Job (version)");
     pub const JOB_TAIL: Path = Path::new("Job (tail)");
+    pub const ORDER_LAYOUTS: Path = Path::new("Order.layouts");
+    pub const ORDER_VERSION: Path = Path::new("Order (version)");
+    pub const ORDER_TAIL: Path = Path::new("Order (tail)");
 }
 
 // Type: Layout.
@@ -264,10 +273,64 @@ impl Record for Job {
     }
 }
 
+// Type: Order.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Order {
+    pub layouts: List<[u8; 32]>,
+}
+
+// Record: Order.
+impl Order {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, order_layouts), item: 0, size: size_of::<[u8; 32]>() },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
+impl Record for Order {
+    type Limits = Limits;
+    const TAIL: Path = paths::ORDER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Order")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Order")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::put(out, &VERSION.to_be_bytes(), paths::ORDER_VERSION)?;
+        field::write(field::Sequence { limit: limits.order_layouts.min(CEILINGS.order_layouts), minimum: 32, item: field::Fixed::<32> }, &self.layouts, limits, out, paths::ORDER_LAYOUTS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        field::version(reader, VERSION, paths::ORDER_VERSION)?;
+        Ok(Self {
+            layouts: field::read(field::Sequence { limit: limits.order_layouts.min(CEILINGS.order_layouts), minimum: 32, item: field::Fixed::<32> }, limits, reader, paths::ORDER_LAYOUTS)?,
+        })
+    }
+}
+
 // Bounds: one postordered shape per declaration, sorted by name.
 pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Job", nodes: Job::SHAPE },
     skein_codec::bounds::Declaration { name: "Layout", nodes: Layout::SHAPE },
+    skein_codec::bounds::Declaration { name: "Order", nodes: Order::SHAPE },
     skein_codec::bounds::Declaration { name: "Text", nodes: Text::SHAPE },
 ];
 
@@ -276,6 +339,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.layout_variant_some,
     CEILINGS.layout_held,
     CEILINGS.text_text,
+    CEILINGS.order_layouts,
 ];
 
 #[must_use]

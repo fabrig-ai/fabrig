@@ -329,8 +329,8 @@ impl Store {
     pub fn next_deadline(&self) -> Option<Time> {
         self.host.next_deadline()
     }
-    pub fn opening_site(&mut self, event: protocol::Event) -> bool {
-        route::site(&mut self.routes, &mut self.host.component, event, &mut self.routed);
+    pub fn opening_job(&mut self, event: protocol::Event) -> bool {
+        route::job(&mut self.routes, &mut self.host.component, event, &mut self.routed);
         for _ in 0..self.routed.len() {
             match self.routed.pop().expect("opening route") {
                 Up::Ask(request) => self.host.ask(request),

@@ -145,7 +145,6 @@ impl Hosted {
             | crate::Request::Back { .. }
             | crate::Request::Close { .. }
             | crate::Request::Open { .. }
-            | crate::Request::Site { .. }
             | crate::Request::Job { .. }
             | crate::Request::Commit { .. }
             | crate::Request::Restore { .. }
@@ -682,7 +681,6 @@ impl Drivers {
             | crate::Event::Secret { .. }
             | crate::Event::SecretsLoaded { .. }
             | crate::Event::Corrupt { .. }
-            | crate::Event::Site { .. }
             | crate::Event::Job { .. }
             | crate::Event::Ran { .. }) => {
                 above.push(event);

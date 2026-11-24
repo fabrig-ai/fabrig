@@ -1,4 +1,5 @@
-//! Openings belong to the last start and are reported only by rehearsal (protocol/store/records.md 3).
+//! Openings belong to the last start and are reported only by rehearsal (protocol/store/records.md, 3).
+//! The rehearsal also decodes the registry's rows (protocol/store/layouts.md, 3).
 use jig_protocol_store::{Event, OpenedTerm, OpenedWire, OwnerSet, OwnerSets, Request, WorkerOpening, Write};
 use jig_store_world::{World, root};
 use skein_lib::{Token, Wall};
@@ -30,7 +31,8 @@ fn rehearse(world: &mut World, expected: &[WorkerOpening]) {
     let metadata = world
         .retained()
         .keys()
-        .filter(|key| key.starts_with(&[0, 6]) || key.starts_with(&[0, 7]) || key.starts_with(&[0, 8]))
+        // Registry rows: Layout, Text, Job and Order.
+        .filter(|key| [[0, 6], [0, 7], [0, 8], [0, 14]].iter().any(|prefix| key.starts_with(prefix)))
         .count();
     world.crash(SEED);
     let before = world.contents();

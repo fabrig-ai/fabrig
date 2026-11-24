@@ -18,7 +18,6 @@ jig-domain-people.workspace = true
 jig-protocol-store.workspace = true
 skein-kv.workspace = true
 skein-lib.workspace = true
-skein-codec.workspace = true
 
 [dev-dependencies]
 jig-test-connector-kit.workspace = true

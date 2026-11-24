@@ -161,8 +161,8 @@
   window's length or for one turn's size: a window's load fails only for
   what could not be read (a frame unread or refused, below) or a page its
   root could not take.
-- **A closed window.** A turn is handed to a run in its current
-  version, patched as read when it was written in an older one
+- **A closed window.** A turn is handed to a run at the binary's
+  layout, converted as read when it was written at another
   (`../../protocol/store/transcripts.md`, 6), and an open window may
   resume from it. A stored run proof's `CurrentWindow` may instead be
   closed, keeping its attempt and turn. The core restores it closed, and

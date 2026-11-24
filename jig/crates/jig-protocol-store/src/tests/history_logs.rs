@@ -347,7 +347,11 @@ fn every_generated_family_routes_only_its_history_keys() {
             key_family(&mut seen, &encoded);
         }
     }
-    for key in [logs::extent_key(2), keys::installation(fixtures::KEY_LIMIT).unwrap()] {
+    for key in [
+        logs::extent_key(2),
+        keys::installation(fixtures::KEY_LIMIT).unwrap(),
+        keys::order("family", 0, fixtures::KEY_LIMIT).unwrap(),
+    ] {
         assert_eq!(keys::logged(&key), None);
         key_family(&mut seen, &key);
     }

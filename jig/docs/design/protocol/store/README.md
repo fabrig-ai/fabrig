@@ -15,8 +15,9 @@ section 9. Read it with skein's `data/kv.md`. What is still open is listed in
 - [`commits.md`](commits.md): commit ordering, durability and failure.
 - [`growth.md`](growth.md): retention, admission and the map census.
 - [`testing.md`](testing.md): the store's tests and worlds.
-- [`opening-owners.md`](opening-owners.md): owner sets and frames' sites at open.
+- [`opening-owners.md`](opening-owners.md): owner sets at open.
 - [`opening-rehearsal.md`](opening-rehearsal.md): rehearsing an upgrade and going back.
+- [`settling.md`](settling.md): values put again at the binary's layouts while the store serves.
 
 ## 1. In one page
 
@@ -359,12 +360,10 @@ Moved to [`growth.md`](growth.md), section 1.
   while it upgrades. No map patch machine or closing-window walk is
   held. Fixed scenarios check measured heap peaks
   against named ceilings (skein/docs/foundation/programming-model.md, 6.3).
-  Serving's holds the frames' machines (`transcripts.md`, 6), at most two, each its
-  `Patcher::workspace_bound`, and none for sets with no kept text: their
-  bytes the frames' bounds and their nodes the most their kept texts
-  allow (`transcripts.md`, 6). The tests price smith's real turn's machine against
-  serving's (`jig/tests/store/tests/suite/frame_memory.rs`), from a copy of smith's schema
-  checked against smith-transcript's generated bounds.
+  Serving's holds no frames' machine: a frame converts in the read
+  edge's buffer and workspace, the buffer grown to the largest frame
+  converted, at most the page's bytes (`transcripts.md`, 6;
+  `layouts.md`, 7), and settling holds one page (`settling.md`, 5).
 - **Whole files:** the manifest (section 2) is read and written whole,
   and at its bounds, 64 kept families each named in 64 bytes, it is 5464
   bytes (88, and 84 for each family). The store's file driver's
@@ -513,18 +512,6 @@ intervals, and its indexes, by the rules of section 7.
     drivers' whole read, which that ceiling sets (`host::max_read`). So
     an upgrade pays about 60 MB on standard however small its rows; a
     deployment's budgets meet this (skein's `data/kv.md`, section 12).
-- **Frames' machines** (`transcripts.md`, 6):
-  - pieces whose items' conversion stops, a site or a held field in
-    reach, are refused `Pieces` (skein's `data/codec/patches.md`, 3, and
-    `data/codec/README.md`, 10): a frame patch of smith's `Hit`
-    (`Found.hits`, `pieces Hit`) can convert its items only without a site;
-  - smith's machine is priced for the most nodes its kept turn allows,
-    about 249 MB per serving store (`Patcher::workspace_bound` at
-    1,054,764 nodes), though a typical turn takes a few hundred nodes.
-    Its tables grow in bounded steps (skein's `data/codec/patches.md`, 7),
-    so a store holds what its largest turn needed, not the price; but
-    it keeps that room until the machine goes, so one large turn keeps
-    it large (skein's `data/codec/README.md`, 10, "Shrinking").
 - **Backups:** copying the deployment's directory whole while the engine
   is stopped works; a copy that keeps hard links keeps the files two
   generations share as one, and one that does not stores them twice and

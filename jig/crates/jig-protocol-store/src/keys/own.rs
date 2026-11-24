@@ -41,8 +41,8 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Own) {
         }
         Own::Layout { family, number, id } => {
             writer.tag(6);
-            writer.bytes(family.as_bytes());
-            for byte in number.to_be_bytes().into_iter().chain(id.to_be_bytes()) {
+            write_type(writer, family, *number);
+            for byte in id.to_be_bytes() {
                 writer.tag(byte);
             }
         }
@@ -81,6 +81,17 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Own) {
         }
     }
 }
+pub(super) fn write_type(writer: &mut KeyWriter, family: &str, number: u16) {
+    writer.bytes(family.as_bytes());
+    for byte in number.to_be_bytes() {
+        writer.tag(byte);
+    }
+}
+#[expect(clippy::disallowed_methods, reason = "the protocol key codec validates family names as UTF-8")]
+pub(super) fn read_type(reader: &mut KeyReader<'_>) -> Option<(Box<str>, u16)> {
+    let family = Box::from(core::str::from_utf8(&reader.bytes()?).ok()?);
+    Some((family, u16::from_be_bytes([reader.tag()?, reader.tag()?])))
+}
 #[expect(clippy::disallowed_methods, reason = "the protocol key codec validates worker names as UTF-8")]
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Own> {
     Some(match reader.tag()? {
@@ -92,11 +103,10 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Own> {
         // Tag 3 is reserved for an older build's unread layouts row.
         4 => Own::Wires,
         5 => Own::Opening(Box::from(core::str::from_utf8(&reader.bytes()?).ok()?)),
-        6 => Own::Layout {
-            family: Box::from(core::str::from_utf8(&reader.bytes()?).ok()?),
-            number: u16::from_be_bytes([reader.tag()?, reader.tag()?]),
-            id: u16::from_be_bytes([reader.tag()?, reader.tag()?]),
-        },
+        6 => {
+            let (family, number) = read_type(reader)?;
+            Own::Layout { family, number, id: u16::from_be_bytes([reader.tag()?, reader.tag()?]) }
+        }
         7 => {
             let mut digest = [0; 32];
             for byte in &mut digest {

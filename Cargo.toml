@@ -186,8 +186,6 @@ members = [
     "smith/tests/fake-claude",
     "smith/tests/transcript-patches",
     "jig/testing/jig-test-layouts",
-    "jig/testing/jig-test-patches-jig",
-    "jig/testing/jig-test-patches-smith",
     "jig/testing/jig-client-fake-person-browser",
     "jig/testing/jig-client-test-shell-web",
     "jig/tests/client-browser",
@@ -633,8 +631,6 @@ smith-agent-document = { path = "smith/crates/smith-agent-document" }
 smith-session-world = { path = "smith/tests/session" }
 smith-tools-world = { path = "smith/tests/tools" }
 jig-test-layouts = { path = "jig/testing/jig-test-layouts" }
-jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
-jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
 base64 = { version = "0.22" }
 regex = { version = "1" }
 serde_path_to_error = { version = "0.1" }

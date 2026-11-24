@@ -317,8 +317,9 @@ fn golden_check_with(directory: &Path, configuration: temper_playground::documen
             );
             assert_eq!(code, 0, "{lines}");
             assert!(report.restored, "{lines}");
+            // The source walk counts 293 map rows and 10 committed turn frames.
             assert!(
-                report.events.iter().any(|event| matches!(event, Event::Decoded { records: 293, .. })),
+                report.events.iter().any(|event| matches!(event, Event::Decoded { records: 303, .. })),
                 "literal record count: {lines}"
             );
             assert!(lines.contains("registry commit, jobs and restores pass; opened in "), "{lines}");

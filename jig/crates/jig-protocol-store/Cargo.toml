@@ -34,9 +34,7 @@ jig-domain-link.workspace = true
 jig-protocol-store-kit.workspace = true
 skein-rows.workspace = true
 skein-codegen.workspace = true
-jig-test-patches-smith.workspace = true
 jig-test-layouts.workspace = true
-jig-test-patches-jig.workspace = true
 skein-fake-machine.workspace = true
 skein-sim.workspace = true
 
