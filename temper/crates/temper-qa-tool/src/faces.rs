@@ -362,7 +362,7 @@ pub trait Processes {
 #[derive(Default)]
 pub struct RealProcesses {
     children: BTreeMap<u64, std::sync::mpsc::Receiver<Result<Exit, Refusal>>>,
-    drive_children: BTreeMap<u64, Child>,
+    drive_children: BTreeMap<u64, (Child, &'static str)>,
     waker: Option<crate::events::Waker>,
     pub environment: Environment,
 }
@@ -370,11 +370,6 @@ impl RealProcesses {
     #[must_use]
     pub fn new(environment: Environment) -> Self {
         Self { environment, ..Self::default() }
-    }
-
-    // The holder and its clients still own their polling and waiting in this layer.
-    pub(crate) fn take_child(&mut self, process: u64) -> Child {
-        self.drive_children.remove(&process).expect("newly spawned holder or drive session")
     }
 }
 impl Processes for RealProcesses {
@@ -474,8 +469,8 @@ impl Processes for RealProcesses {
         Ok(number)
     }
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal> {
-        if let Some(child) = self.drive_children.get_mut(&process) {
-            let status = child.try_wait().map_err(|why| refused(format!("process {process}: {why}")))?;
+        if let Some((child, label)) = self.drive_children.get_mut(&process) {
+            let status = child.try_wait().map_err(|why| refused(format!("{label}: {why}")))?;
             if status.is_some() {
                 self.drive_children.remove(&process);
             }
@@ -496,6 +491,7 @@ impl Processes for RealProcesses {
     fn signal(&mut self, process: u64, signal: Signal) -> Result<(), Refusal> {
         let mut command = Command::new("kill");
         captured(&mut command, &self.environment);
+        let label = self.drive_children.get(&process).map_or("kill", |(_, label)| *label);
         // A group can already be gone; the command's spawn failure is still an error.
         command
             .args([
@@ -511,7 +507,7 @@ impl Processes for RealProcesses {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
-            .map_err(|why| refused(format!("kill: {why}")))?;
+            .map_err(|why| refused(format!("{label}: {why}")))?;
         Ok(())
     }
 
@@ -587,7 +583,7 @@ impl Processes for RealProcesses {
         environment: &[EnvironmentEntry],
         release: impl FnOnce(),
     ) -> Result<u64, Refusal> {
-        let log = crate::private::file(log, &mut RealFiles, WriteMode::Replace, false)?;
+        let log = path_io(log, RealFiles::writer(log, WriteOptions::private(WriteMode::Replace)))?;
         let program = std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?;
         let mut command = Command::new(program);
         command.args(["pass", "hold"]);
@@ -605,7 +601,7 @@ impl Processes for RealProcesses {
             .spawn()
             .map_err(|why| refused(format!("pass hold: {why}")))?;
         let process = u64::from(child.id());
-        self.drive_children.insert(process, child);
+        self.drive_children.insert(process, (child, "pass hold"));
         Ok(process)
     }
 
@@ -632,7 +628,7 @@ impl Processes for RealProcesses {
             .spawn()
             .map_err(io_refusal)?;
         let process = u64::from(child.id());
-        self.drive_children.insert(process, child);
+        self.drive_children.insert(process, (child, "drive session"));
         Ok(DriveProcess { process, input, output })
     }
 

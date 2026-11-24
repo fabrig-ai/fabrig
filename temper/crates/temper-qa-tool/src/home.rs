@@ -1,10 +1,13 @@
 //! Exclusive whole-document transactions (qa/ledger.md, 3).
 use crate::{
     Configuration, Ledger, Refusal,
-    faces::{FilesFace, LockMode, Mode, WriteMode, WriteOptions},
+    faces::{ClockFace, FilesFace, LockMode, Mode, WriteMode, WriteOptions},
     refused,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 #[derive(Clone, Debug)]
 pub struct Home {
@@ -55,8 +58,33 @@ impl Home {
         files: &mut impl FilesFace,
         operation: impl FnOnce(&Ledger) -> Result<T, Refusal>,
     ) -> Result<T, Refusal> {
-        let lock = self.lock(files)?;
-        let result = operation(&self.load(files)?);
+        let lock = self.lock(files, LockMode::Wait)?.expect("waiting lock is held on success");
+        self.read_locked(files, lock, |ledger, _| operation(ledger))
+    }
+
+    /// The holder and its clients wait for the same lock through their clock.
+    pub(crate) fn read_polling<T, F: FilesFace>(
+        &self,
+        files: &mut F,
+        clock: &mut impl ClockFace,
+        tick: Duration,
+        operation: impl FnOnce(&Ledger, &mut F) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
+        loop {
+            if let Some(lock) = self.lock(files, LockMode::Try)? {
+                return self.read_locked(files, lock, operation);
+            }
+            clock.sleep(tick);
+        }
+    }
+
+    fn read_locked<T, F: FilesFace>(
+        &self,
+        files: &mut F,
+        lock: F::Lock,
+        operation: impl FnOnce(&Ledger, &mut F) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
+        let result = operation(&self.load(files)?, files);
         drop(lock);
         result
     }
@@ -79,7 +107,7 @@ impl Home {
         files: &mut F,
         operation: impl FnOnce(&mut Ledger, &mut F) -> Result<T, Refusal>,
     ) -> Result<T, Refusal> {
-        let lock = self.lock(files)?;
+        let lock = self.lock(files, LockMode::Wait)?.expect("waiting lock is held on success");
         let mut ledger = self.load(files)?;
         let result = operation(&mut ledger, files)?;
         let bytes = ledger.encode()?;
@@ -92,11 +120,8 @@ impl Home {
         drop(lock);
         Ok(result)
     }
-    fn lock<F: FilesFace>(&self, files: &mut F) -> Result<F::Lock, Refusal> {
-        files
-            .lock(&self.ledger_lock, LockMode::Wait, false)
-            .map_err(|why| refused(format!("ledger.lock: {why}")))
-            .map(|lock| lock.expect("waiting lock is held on success"))
+    fn lock<F: FilesFace>(&self, files: &mut F, mode: LockMode) -> Result<Option<F::Lock>, Refusal> {
+        files.lock(&self.ledger_lock, mode, false).map_err(|why| refused(format!("ledger.lock: {why}")))
     }
     fn load(&self, files: &mut impl FilesFace) -> Result<Ledger, Refusal> {
         match files.read(&self.ledger) {

@@ -752,7 +752,10 @@ fn ending_a_pass_tells_the_holder_and_releases_its_place_without_the_ledger_watc
         os::unix::net::UnixStream,
         time::Duration,
     };
-    use temper_qa_tool::hold::{Drive, Holder, WATCH};
+    use temper_qa_tool::{
+        faces::{RealClock, RealProcesses},
+        hold::{Drive, Holder, WATCH},
+    };
     let world = World::new();
     let mut run = ready(&world, Agent::Pass);
     let place = world.home.directory.join("places/1");
@@ -773,20 +776,35 @@ printf 'ended\n'
     fs::set_permissions(&fake, fs::Permissions::from_mode(0o700)).expect("executable");
     assert_eq!(WATCH, Duration::from_secs(60));
     let session = world.ledger().passes[0].sessions[0];
-    let holder =
-        Holder::start(Drive::for_session(&world.home, session).expect("drive"), vec![], Duration::from_hours(1))
-            .expect("holder");
+    let home = world.home.clone();
+    let pid = std::process::id();
+    let (bound, listening) = std::sync::mpsc::channel();
     let (done, ended) = std::sync::mpsc::channel();
     #[expect(
         clippy::disallowed_methods,
         reason = "the focused socket peer must serve while the loop sends the end (qa/README.md, 6)"
     )]
     let serving = std::thread::spawn(move || {
+        let mut files = RealFiles;
+        let mut clock = RealClock::default();
+        let mut processes = RealProcesses::default();
+        let holder = Holder::start(
+            Drive::for_session(&home, session, &mut files, &mut clock).expect("drive"),
+            &[],
+            Duration::from_hours(1),
+            pid,
+            &mut files,
+            &mut processes,
+            &mut clock,
+        )
+        .expect("holder");
+        bound.send(()).expect("test waits for socket binding");
         done.send(holder.serve()).expect("test waits for holder");
     });
+    listening.recv().expect("holder has bound the socket");
     // Complete the start handshake before ending the agent.
     let mut stream = UnixStream::connect(place.join("drive.sock")).expect("holder socket");
-    writeln!(stream, "start {}", std::process::id()).expect("start request");
+    writeln!(stream, "start {pid}").expect("start request");
     let mut response = String::new();
     BufReader::new(stream).read_line(&mut response).expect("start response");
     run.tick();

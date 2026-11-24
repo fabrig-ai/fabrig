@@ -484,6 +484,8 @@ fn drive_command_run(
     arguments: &[Box<[u8]>],
     environment: &Environment,
 ) -> Result<crate::hold::Reply, Refusal> {
+    use crate::faces::{RealClock, RealFiles, RealProcesses};
+
     let value = SESSION
         .value(environment)
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session"))?;
@@ -492,21 +494,33 @@ fn drive_command_run(
         .and_then(|value| value.parse::<u64>().ok())
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
-    let home = Home::open(Path::new(OsStr::from_bytes(directory)), &mut crate::faces::RealFiles)?;
-    let drive = crate::hold::Drive::for_session(&home, session)?
+    let mut files = RealFiles;
+    let mut processes = RealProcesses::new(environment.to_vec());
+    let mut clock = RealClock::default();
+    let home = Home::open(Path::new(OsStr::from_bytes(directory)), &mut files)?;
+    let drive = crate::hold::Drive::for_session(&home, session, &mut files, &mut clock)?
         .with_ctl(arguments.iter().any(|argument| argument.as_ref() == b"--ctl"));
     if command == &OPEN {
-        return drive.open(&environment.to_vec());
+        return drive.open(environment, &mut files, &mut processes, &mut clock);
     }
     if command == &CLOSE {
-        return drive.close();
+        return drive.close(&mut files, &mut clock);
     }
     if command == &LINE {
         let line = std::str::from_utf8(arguments.first().expect("line argument"))
             .map_err(|_| refused("a drive line must be UTF-8"))?;
-        return drive.line(line);
+        return drive.line(line, &mut files, &mut clock);
     }
-    crate::hold::Holder::start(drive, environment.to_vec(), crate::hold::WATCH)?.serve()?;
+    crate::hold::Holder::start(
+        drive,
+        environment,
+        crate::hold::WATCH,
+        std::process::id(),
+        &mut files,
+        &mut processes,
+        &mut clock,
+    )?
+    .serve()?;
     Ok(crate::hold::Reply { status: 0, text: String::new() })
 }
 fn execute(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<(u8, String), Refusal> {

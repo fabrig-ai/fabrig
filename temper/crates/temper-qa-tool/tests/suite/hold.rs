@@ -5,7 +5,7 @@ use super::{
 };
 use skein_scratch::Scratch;
 use std::{fs, os::unix::fs::PermissionsExt, time::Duration};
-use temper_qa_tool::faces::RealFiles;
+use temper_qa_tool::faces::{RealClock, RealFiles, RealProcesses};
 use temper_qa_tool::{
     Exit, Home,
     hold::{Drive, Holder},
@@ -39,7 +39,13 @@ fn open_tightens_the_place_and_privatizes_its_log_before_launch() {
     }
     // Refuse the test executable's harness start, after open prepares its paths and log.
     let environment = vec![(Box::from(b"RUST_TEST_THREADS".as_slice()), Box::from(b"invalid".as_slice()))];
-    let reply = Drive::for_session(&home, pass.session).expect("drive").open(&environment).expect("launch refusal");
+    let mut files = RealFiles;
+    let mut clock = RealClock::default();
+    let mut processes = RealProcesses::default();
+    let reply = Drive::for_session(&home, pass.session, &mut files, &mut clock)
+        .expect("drive")
+        .open(&environment, &mut files, &mut processes, &mut clock)
+        .expect("launch refusal");
     assert_ne!(reply.status, 0);
     for path in [&place, &place.join("box"), &place.join("copies")] {
         assert_mode(path, 0o700);
@@ -85,10 +91,17 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
                 &format!("printf '%s\\n' \"$*\" > '{}'; printf 'ready", place.join("arguments").display()),
             );
         fs::write(fake, script).expect("output path");
+        let mut files = RealFiles;
+        let mut clock = RealClock::default();
+        let mut processes = RealProcesses::default();
         let holder = Holder::start(
-            Drive::for_session(&home, pass.session).expect("drive").with_ctl(fixed),
-            vec![],
+            Drive::for_session(&home, pass.session, &mut files, &mut clock).expect("drive").with_ctl(fixed),
+            &[],
             Duration::from_millis(1),
+            std::process::id(),
+            &mut files,
+            &mut processes,
+            &mut clock,
         )
         .expect("holder");
         assert_mode(&place.join("drive.lock"), 0o600);

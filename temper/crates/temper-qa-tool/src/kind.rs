@@ -1,8 +1,12 @@
 //! A place and a setup chain share one kind (qa/places.md, 2; qa/triage.md, 3).
-use crate::{Refusal, refused};
+use crate::{
+    Refusal,
+    faces::{FilesFace, PathKind, RealFiles},
+    refused,
+};
 use std::{
     ffi::OsString,
-    fs::{self, File},
+    io,
     path::{Path, PathBuf},
 };
 
@@ -128,6 +132,15 @@ impl ChainUse {
     }
 }
 pub(crate) fn read_chain(setups: &Path, name: &str, usage: ChainUse) -> Result<Chain, Refusal> {
+    read_chain_with(setups, name, usage, &mut RealFiles)
+}
+
+pub(crate) fn read_chain_with(
+    setups: &Path,
+    name: &str,
+    usage: ChainUse,
+    files: &mut impl FilesFace,
+) -> Result<Chain, Refusal> {
     let mut name = name.to_owned();
     let mut visited = Vec::new();
     let mut members = Vec::new();
@@ -135,7 +148,7 @@ pub(crate) fn read_chain(setups: &Path, name: &str, usage: ChainUse) -> Result<C
         let fail = |why| refused(format!("recipe {name}: {why}"));
         visited.push(name.clone());
         let directory = setups.join(&name);
-        let recipe = fs::read_to_string(directory.join("recipe")).map_err(|why| fail(why.to_string()))?;
+        let recipe = files.read_to_string(&directory.join("recipe")).map_err(|why| fail(why.to_string()))?;
         if recipe.len() > 64 * 1024 || recipe.lines().count() > 1024 {
             return Err(fail("recipe exceeds its size or line bound".into()));
         }
@@ -144,13 +157,13 @@ pub(crate) fn read_chain(setups: &Path, name: &str, usage: ChainUse) -> Result<C
             return Err(fail("expected recipe 1".into()));
         }
         let script = directory.join("scripts.json");
-        let scripts = match fs::metadata(&script) {
-            Ok(metadata) if metadata.is_file() => {
-                File::open(&script).map_err(|why| fail(why.to_string()))?;
+        let scripts = match files.facts(&script, true) {
+            Ok(facts) if facts.kind == PathKind::File => {
+                files.open_read(&script).map_err(|why| fail(why.to_string()))?;
                 Some(script)
             }
             Ok(_) => return Err(fail("scripts.json is not a file".into())),
-            Err(why) if why.kind() == std::io::ErrorKind::NotFound => None,
+            Err(why) if why.kind() == io::ErrorKind::NotFound => None,
             Err(why) => return Err(fail(why.to_string())),
         };
         let Some(second) = lines.next() else {

@@ -106,6 +106,11 @@ pub trait FilesFace {
         self.open_read(path)?.read_to_end(&mut bytes)?;
         Ok(bytes)
     }
+    /// Read a UTF-8 file whole.
+    fn read_to_string(&mut self, path: &Path) -> io::Result<String> {
+        String::from_utf8(self.read(path)?)
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "stream did not contain valid UTF-8"))
+    }
     /// Open a file for reading as a stream.
     fn open_read(&mut self, _path: &Path) -> io::Result<Self::Reader> {
         unsupported()
@@ -163,6 +168,14 @@ pub trait FilesFace {
     /// `None` where it would wait; held until the lock's value is dropped.
     /// If `exact` is set, enforce 0600 even for a lock file that already exists.
     fn lock(&mut self, _path: &Path, _mode: LockMode, _exact: bool) -> io::Result<Option<Self::Lock>> {
+        unsupported()
+    }
+    /// Prepare a lock file without acquiring it.
+    fn open_lock(&mut self, _path: &Path, _exact: bool) -> io::Result<Self::Lock> {
+        unsupported()
+    }
+    /// Try to acquire the prepared lock, answering `false` if held.
+    fn try_lock(&mut self, _lock: &Self::Lock) -> io::Result<bool> {
         unsupported()
     }
     /// Bind a Unix socket: a stale entry replaced, the socket 0600, its accepts never waiting.
@@ -239,6 +252,27 @@ pub(crate) fn private_directory<'a>(files: &mut impl FilesFace, path: &'a Path) 
 
 pub struct RealFiles;
 
+impl RealFiles {
+    pub(super) fn writer(path: &Path, options: WriteOptions) -> io::Result<File> {
+        let mut open = OpenOptions::new();
+        open.write(true).read(options.read);
+        match options.way {
+            WriteMode::Replace => open.create(true).truncate(true),
+            WriteMode::New => open.create_new(true),
+            WriteMode::Append => open.create(true).append(true),
+            WriteMode::OpenOrCreate => open.create(true).truncate(false),
+        };
+        if let Mode::Create(mode) | Mode::Exact(mode) = options.mode {
+            open.mode(mode);
+        }
+        let file = open.open(path)?;
+        if let Mode::Exact(mode) = options.mode {
+            file.set_permissions(Permissions::from_mode(mode))?;
+        }
+        Ok(file)
+    }
+}
+
 impl FilesFace for RealFiles {
     type Lock = File;
     type Listener = UnixListener;
@@ -261,22 +295,7 @@ impl FilesFace for RealFiles {
         Ok(())
     }
     fn open_write(&mut self, path: &Path, options: WriteOptions) -> io::Result<File> {
-        let mut open = OpenOptions::new();
-        open.write(true).read(options.read);
-        match options.way {
-            WriteMode::Replace => open.create(true).truncate(true),
-            WriteMode::New => open.create_new(true),
-            WriteMode::Append => open.create(true).append(true),
-            WriteMode::OpenOrCreate => open.create(true).truncate(false),
-        };
-        if let Mode::Create(mode) | Mode::Exact(mode) = options.mode {
-            open.mode(mode);
-        }
-        let file = open.open(path)?;
-        if let Mode::Exact(mode) = options.mode {
-            file.set_permissions(Permissions::from_mode(mode))?;
-        }
-        Ok(file)
+        Self::writer(path, options)
     }
     fn rename(&mut self, source: &Path, destination: &Path) -> io::Result<()> {
         fs::rename(source, destination)
@@ -342,21 +361,28 @@ impl FilesFace for RealFiles {
         }
     }
     fn lock(&mut self, path: &Path, mode: LockMode, exact: bool) -> io::Result<Option<File>> {
+        let file = self.open_lock(path, exact)?;
+        match mode {
+            LockMode::Wait => file.lock()?,
+            LockMode::Try if !self.try_lock(&file)? => return Ok(None),
+            LockMode::Try => {}
+        }
+        Ok(Some(file))
+    }
+    fn open_lock(&mut self, path: &Path, exact: bool) -> io::Result<File> {
         let options = WriteOptions {
             way: WriteMode::OpenOrCreate,
             mode: if exact { Mode::Exact(0o600) } else { Mode::Create(0o600) },
             read: true,
         };
-        let file = self.open_write(path, options)?;
-        match mode {
-            LockMode::Wait => file.lock()?,
-            LockMode::Try => match file.try_lock() {
-                Ok(()) => {}
-                Err(TryLockError::WouldBlock) => return Ok(None),
-                Err(TryLockError::Error(why)) => return Err(why),
-            },
+        self.open_write(path, options)
+    }
+    fn try_lock(&mut self, lock: &File) -> io::Result<bool> {
+        match lock.try_lock() {
+            Ok(()) => Ok(true),
+            Err(TryLockError::WouldBlock) => Ok(false),
+            Err(TryLockError::Error(why)) => Err(why),
         }
-        Ok(Some(file))
     }
     fn bind(&mut self, path: &Path) -> io::Result<UnixListener> {
         match fs::remove_file(path) {
