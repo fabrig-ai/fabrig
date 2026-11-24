@@ -371,6 +371,16 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
             // Includes addressed retryable capacity refusals, without a retained call flight.
             engine.workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
         }
+        root::Delivery::PartBusy { channel, task, attempt, part } => engine.workers.down(
+            engine.env.now,
+            jig_protocol_engine_workers::Event::PartBusy {
+                channel,
+                run: skein_lib::Token::new(task),
+                attempt: skein_lib::Token::new(attempt),
+                part,
+            },
+            &mut engine.events,
+        ),
         root::Delivery::TurnBusy { channel, task, attempt, turn } => engine.workers.down(
             engine.env.now,
             jig_protocol_engine_workers::Event::TurnBusy {

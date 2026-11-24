@@ -30,9 +30,14 @@ impl Core {
     /// Probing retains no state or grants. At most accounts × (hosts + 1) probes build
     /// at most one fact per source, joining each host's kept logins to issued holders.
     /// Default readiness also joins at most models × accounts × hosts, without reserving slots.
-    #[expect(clippy::too_many_lines, reason = "one joint check preserves account, source and host order and its wait")]
     #[must_use = "retain the checked choice or its waiting reason"]
     pub fn run_choice(&self, task: u64) -> Result<RunChoice, RunWait> {
+        self.run_choice_for_policy(task, None)
+    }
+
+    /// Reuse a policy already chosen from this immutable core during admission.
+    #[expect(clippy::too_many_lines, reason = "one joint check preserves account, source and host order and its wait")]
+    pub(crate) fn run_choice_for_policy(&self, task: u64, policy: Option<RunPolicy>) -> Result<RunChoice, RunWait> {
         let row = self.tasks.task(task).ok_or(RunWait::Host)?;
         let version = self.charter_version(task).ok_or(RunWait::Host)?;
         let payer = self.tasks.payer(task).ok_or(RunWait::Host)?;
@@ -44,7 +49,10 @@ impl Core {
             return Err(RunWait::InvalidAccount { account, why });
         }
         let coverage = self.account_coverage(payer, Some(row.project));
-        let policy = self.chosen_policy(task);
+        let policy = match policy {
+            Some(policy) => policy,
+            None => self.chosen_policy(task),
+        };
         let provider = self.provider(&policy.model).ok_or(account_wait(None))?;
         let preferred = row.kept_account.or(match &row.llm {
             Some(choice) => choice.account,

@@ -142,6 +142,35 @@ fn a_refused_configuration_writes_one_line_and_exits_1_without_a_channel() {
 }
 
 #[test]
+fn an_agent_transport_refusal_is_reported_to_stderr() {
+    use smith_agent_shell::{Agent, command_exit, config};
+
+    let scratch = skein_scratch::Scratch::new("plaintext-transport-refusal");
+    let path = scratch.path().join("agent.json");
+    let mut document = serde_json::json!({
+        "profile":{"name":"standard","declared":{"memory":1_099_511_627_776_u64,
+            "conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},
+        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
+            "address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,
+            "limits":{"window":65536,"output":512,"reasoning_item":64,"head":1000,"idle":1000}}],
+        "environment":[]
+    });
+    let bytes = serde_json::to_vec(&document).expect("loopback document");
+    let _loopback = config::decode(&bytes).expect("the loopback document is valid");
+    document["endpoints"][0]["address"] = serde_json::json!("192.0.2.1:8080");
+    std::fs::write(&path, serde_json::to_vec(&document).expect("off-loopback document"))
+        .expect("agent configuration fixture");
+
+    let errors = smith_agent_process_world::AgentErrors::default();
+    let Err(refusal) = Agent::read(&path, unopened_resources(), Box::new(errors.clone())) else {
+        panic!("an off-loopback plaintext endpoint must refuse before adopting the channel");
+    };
+    assert_eq!(refusal, "plaintext endpoint address must be loopback");
+    assert_eq!(command_exit(&Err(refusal)), 1);
+    assert_eq!(errors.bytes(), b"smith: plaintext endpoint address must be loopback\n");
+}
+
+#[test]
 fn the_configured_environment_reaches_the_seen_agents_command_spawn() {
     let mut world = World::new(42, &charter());
     world.configured_environment();

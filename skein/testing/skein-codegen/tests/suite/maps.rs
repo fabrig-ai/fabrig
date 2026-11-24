@@ -17,7 +17,7 @@ fn maps_command_uses_split_schema_order_and_the_first_stem() {
     fs::write(&first, source).expect("first schema");
     fs::write(&second, tail).expect("second schema");
     fs::write(&maps, mapping).expect("maps");
-    let result = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+    let result = Command::new(skein_scratch::paths::binary("skein-codegen"))
         .args([first.as_os_str(), second.as_os_str(), maps.as_os_str(), out.as_os_str()])
         .output()
         .expect("run maps command");
@@ -38,7 +38,7 @@ fn maps_command_prints_a_refusal_and_writes_nothing() {
     let out = scratch.path().join("generated");
     fs::write(&schema, "family refusal 1\nrecord Scalar { value: u64 }\n").expect("schema input");
     fs::write(&maps, "records r\nrecord Absent = d::Absent").expect("maps input");
-    let result = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+    let result = Command::new(skein_scratch::paths::binary("skein-codegen"))
         .args([schema.as_os_str(), maps.as_os_str(), out.as_os_str()])
         .output()
         .expect("run maps command");

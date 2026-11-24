@@ -40,9 +40,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             run_proof_credentials,
             run_proof_outstanding,
             turn_record_transcript,
+            part_record_body,
         ],
         roots [
-            Row => (1_073_747_852, 1_073_747_712),
+            Row => (1_073_747_856, 1_073_747_712),
         ]
     );
     family!(

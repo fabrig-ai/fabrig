@@ -74,7 +74,7 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
     let process = smith_bench::process::execute(
         &clock,
         skein_world::end_to_end::Command {
-            program: PathBuf::from(env!("CARGO_BIN_EXE_smith-bench")),
+            program: skein_scratch::paths::binary("smith-bench"),
             arguments: vec!["attempt".into(), request.into_os_string()],
             environment: vec![
                 ("HOME".into(), root.join("user-home").into_os_string()),

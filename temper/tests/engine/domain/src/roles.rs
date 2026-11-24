@@ -212,7 +212,7 @@ impl World {
     #[must_use]
     #[expect(
         clippy::too_many_lines,
-        reason = "restore the prior story and initialize its independent opening referee together"
+        reason = "one fixture restores the role world and initializes its independent opening referee before the first input"
     )]
     pub fn new(settings: Settings) -> World {
         let mut store = snapshot(settings);
@@ -270,6 +270,7 @@ impl World {
                     | jig_domain_core::Record::Core(
                         jig_domain_core::CoreRecord::Settings(_)
                         | jig_domain_core::CoreRecord::Projection(_)
+                        | jig_domain_core::CoreRecord::Part(_)
                         | jig_domain_core::CoreRecord::Call(_)
                         | jig_domain_core::CoreRecord::Deployment(_)
                         | jig_domain_core::CoreRecord::Turn(_)

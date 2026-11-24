@@ -44,6 +44,12 @@ pub enum Event {
         parts: Box<[Part]>,
         values: Box<[Option<GrantValue>]>,
     },
+    PartBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
     TurnBusy {
         channel: Token,
         run: Token,
@@ -181,6 +187,9 @@ pub enum Request {
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::PartBusy { channel, run, attempt, part } => {
+                f.debug_tuple("PartBusy").field(channel).field(run).field(attempt).field(part).finish()
+            }
             Self::Figures { .. } => f.write_str("Figures"),
             Self::Workers(workers) => f.debug_tuple("Workers").field(&workers.len()).finish(),
             Self::Accepted { connection, .. } => f.debug_tuple("Accepted").field(connection).finish(),

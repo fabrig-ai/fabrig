@@ -661,6 +661,18 @@ fn jobs_read_as_call_outcomes() {
         assert_result(owned(outcome.clone()), expected, *failed);
     }
 }
+#[test]
+fn interrupted_commands_read_as_restart_results_with_their_output() {
+    for (ran_ms, expected) in [
+        (Some(42_900), b"interrupted by a worker restart after 42 s\nbuilding\n\n... 10 bytes dropped ...\nerror: x\n\nThis call may be run again.".as_slice()),
+        (None, b"interrupted by a worker restart after an unknown time\nbuilding\n\n... 10 bytes dropped ...\nerror: x\n\nThis call may be run again.".as_slice()),
+    ] {
+        assert_result(owned(smith::Outcome::Interrupted(smith::Interrupted {
+            ran_ms, head: b"building\n".as_slice().into(), last: b"error: x\n".as_slice().into(), dropped: 10,
+        })), expected, true);
+    }
+}
+
 fn job(end: smith::JobEnd) -> smith::Outcome {
     smith::Outcome::Job(smith::JobRead {
         job: 1,

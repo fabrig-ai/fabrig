@@ -42,6 +42,21 @@ fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
     for invalid in [words(&[b"one"]), words(&[b"--workers", b"one"]), words(&[b"--check", b"one"])] {
         assert!(super::configure("--back", &invalid, &environment, b"/work").is_err());
     }
+    for (mode, arguments, form) in [
+        ("--check", &["upgrade", "--check"][..], "[DIRECTORIES] DIRECTORY"),
+        ("--workers", &["upgrade", "--workers"], "[DIRECTORIES] DIRECTORY"),
+        ("--back", &["upgrade", "--back", "extra"], "[DIRECTORIES]"),
+    ] {
+        assert_eq!(
+            crate::binary::refusal(arguments),
+            (
+                2,
+                format!(
+                    "temper-engine upgrade {mode}: invalid arguments\nusage: temper-engine upgrade {mode} {form}\n"
+                )
+            )
+        );
+    }
     let arguments = words(&[b"upgrade", b"--workers", b"backup"]);
     let skein_shell::Reached::Command(row, rest) = crate::ENGINE.reach(b"temper-engine", &arguments) else {
         panic!("workers row")

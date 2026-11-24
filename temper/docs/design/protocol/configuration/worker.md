@@ -88,6 +88,13 @@ stop timeout are unchanged.
   cancels them (`../../domain/worker/README.md`, section 2). It may be
   absent, and is then 180,000, the draft's three minutes
   (`../../draft/redeploys.md`, 6.1); `temper-box init` writes none.
+- **The drain's grace** is jig's worker member `graces.drain_grace_ms`:
+  how long a drained run's calls in flight at its answer have to end
+  before its agent cuts them (jig's `domain/hosts/hub.md`, 7). It may be
+  absent, and is then 10,000, the draft's ten seconds
+  (`../../draft/worker-restarts.md`, section 3); `temper-box init` writes
+  none. It runs within the drain's bound, so the stop bound is
+  unchanged.
 - **It is ordered under the engine's grace.** The stop bound a worker
   states is the longer of its ping interval, its silence deadline and
   this grace together, and its drain's bound; then the longer of

@@ -369,9 +369,10 @@ pub(super) fn outcome_cost(outcome: &Outcome) -> Option<u64> {
             }
             Some(cost)
         }
-        Outcome::Exited { head, tail, .. } | Outcome::Running { head, tail, .. } | Outcome::Job { head, tail, .. } => {
-            len(head)?.checked_add(len(tail)?)
-        }
+        Outcome::Exited { head, tail, .. }
+        | Outcome::Running { head, tail, .. }
+        | Outcome::Job { head, tail, .. }
+        | Outcome::Interrupted { head, last: tail, .. } => len(head)?.checked_add(len(tail)?),
         Outcome::EditFailed { edit: _, why } => match why {
             tools::Mismatch::Ambiguous { count: _, lines } => {
                 u64::try_from(size_of::<u32>()).ok()?.checked_mul(skein_lib::len_u64(lines.len()))

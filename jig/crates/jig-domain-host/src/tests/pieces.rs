@@ -22,7 +22,8 @@ fn assert_activity(record: LinkUp) {
         | LinkUp::Usage { .. }
         | LinkUp::Limited { .. }
         | LinkUp::AccountRefused { .. }
-        | LinkUp::Turn { .. }
+        | LinkUp::Part { .. }
+            | LinkUp::Turn { .. }
         | LinkUp::Call { .. }
         | LinkUp::JobAnswer { .. }
         | LinkUp::Answer { .. }) => panic!("only activity leaves: {other:?}"),

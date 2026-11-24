@@ -50,14 +50,20 @@ pub(super) fn history(before: &Maps, after: &Maps) {
                 let mut seen = false;
                 for wire in expected.wires.iter_mut() {
                     if wire.name.as_ref() == b"jig-worker-wire" {
-                        assert_eq!(wire.version, 18, "the kept image's worker wire");
-                        wire.version = u32::from(jig_protocol_worker_wire::VERSION);
+                        let current = u32::from(jig_protocol_worker_wire::VERSION);
+                        if wire.version != current {
+                            assert_eq!(wire.version, 21, "the kept image's worker wire");
+                            wire.version = current;
+                        }
                         seen = true;
+                    } else if wire.name.as_ref() == b"smith-transcript" && wire.version != 8 {
+                        assert_eq!(wire.version, 7, "the kept image's transcript");
+                        wire.version = 8;
                     }
                 }
                 assert!(seen, "the worker wire is kept");
-                assert_eq!(found, expected, "only the worker wire moves at startup");
-                allowed.push("startup's current worker wire");
+                assert_eq!(found, expected, "only the worker wire and transcript move at startup");
+                allowed.push("startup's current worker wire and transcript");
             } else if matches!(own, Some(jig_protocol_store::keys::Own::Opening(_))) {
                 assert!(old.is_some() && new.is_none(), "the start's wires clear the previous worker opening");
                 allowed.push("wires cleared the previous worker opening");

@@ -54,6 +54,11 @@ impl Core {
                 return Some((Key::Core(CoreKey::Call(*key)), Key::Core(CoreKey::RunProof(key.task))));
             }
         }
+        for (key, _) in &self.kept_parts {
+            if !self.proofs.contains_key(&key.task) {
+                return Some((Key::Core(CoreKey::Part(*key)), Key::Core(CoreKey::RunProof(key.task))));
+            }
+        }
         None
     }
 

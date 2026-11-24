@@ -60,6 +60,7 @@ impl Opening {
                         writable: mount.writable,
                         git: mount.git,
                         conflicts: mount.conflicts.clone(),
+                        results: mount.results.clone(),
                     })
                     .expect("root count was checked before opening");
             }

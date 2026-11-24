@@ -63,6 +63,7 @@ skein-kv.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+smith-agent-document.workspace = true
 temper-box-kit.workspace = true
 temper-service-core.workspace = true
 temper-limits-fixtures.workspace = true

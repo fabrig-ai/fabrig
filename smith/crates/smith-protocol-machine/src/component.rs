@@ -178,7 +178,7 @@ impl Component {
                     to_domain.push(ToDomain::Probed { owner, executable: false });
                 }
             }
-            FromDomain::Check { owner, program, bound, cap, tail } => {
+            FromDomain::Check { owner, program, results, bound, cap, tail } => {
                 self.vacant(owner);
                 let deadline = env.now.saturating_add(bound).min(cap);
                 if env.now >= deadline {
@@ -194,6 +194,7 @@ impl Component {
                         env.now,
                         owner,
                         program,
+                        results,
                         &self.environment,
                         tail,
                         bound,

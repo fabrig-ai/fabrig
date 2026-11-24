@@ -168,7 +168,7 @@ impl World {
                         assert!(self.held_push.replace((owner, op)).is_none());
                         return;
                     }
-                    git::Op::Store { .. }
+                    git::Op::Keep { .. } | git::Op::Store { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
                     | git::Op::Reset { .. }

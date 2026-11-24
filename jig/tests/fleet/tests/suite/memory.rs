@@ -263,6 +263,7 @@ fn a_full_fleet_refuses_new_work_and_drains() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one measured lifecycle keeps adoption, relay and teardown in order")]
 fn every_entry_point_preserves_its_lifecycle() {
     let mut fleet = Measured::new(LIMITS);
     // Hellos: a worker with strays and answers it holds, before the parent
@@ -275,6 +276,7 @@ fn every_entry_point_preserves_its_lifecycle() {
     fleet.step(answer);
     fleet.step(Event::Loaded);
     fleet.step(Event::Adopt {
+        kept_part: 0,
         worker: None,
         holds: Box::new([]),
         grants: Box::new([]),
@@ -287,6 +289,7 @@ fn every_entry_point_preserves_its_lifecycle() {
     });
     fleet.step(Event::Acknowledge { run: r2, attempt: a2 });
     fleet.step(Event::Adopt {
+        kept_part: 0,
         worker: None,
         holds: Box::new([]),
         grants: Box::new([]),
@@ -385,6 +388,7 @@ fn held_turns_refuse_overflow_and_release_after_adoption() {
     let refused = fleet.step(Event::Turn { channel: channel(0), run, attempt, turn: 9, body: Token::new(9) });
     assert!(matches!(refused[..], [Request::TurnBusy { .. }, Request::Drop { .. }]));
     fleet.step(Event::Adopt {
+        kept_part: 0,
         worker: None,
         holds: Box::new([]),
         grants: Box::new([]),

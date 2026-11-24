@@ -1,13 +1,13 @@
 //! A resumed start fitted to its room (jig/docs/design/protocol/channel/testing.md, 1).
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT, repeated};
 use crate::fit::{Fitted, cut_words, fit};
-use crate::v21::Record;
+use crate::v22::Record;
 use crate::{self as wire, sizes};
 use skein_lib::List;
 
-// The resumed fixture's fixed fields57 + workspace27 + charter14 + transcript24
+// The resumed fixture's fixed fields61 + workspace27 + charter14 + transcript24
 // + messages60 + grants74 + header8, without any committed calls.
-const BASE_FRAME: u32 = 264;
+const BASE_FRAME: u32 = 268;
 // Each named call: length4 + name6 + length4 + tool6 + arm1 + error/outcome1
 // + body length4. A 256-byte host answer cuts to 64 + 3 decimal digits.
 const CALL_FIELDS: u32 = 26;
@@ -193,7 +193,7 @@ fn a_resumed_start_is_fitted_to_its_room() {
 fn the_smallest_resumed_start_is_measured() {
     // Stock core call records, call name, wire tool ceiling and answer bytes
     // (jig/docs/design/protocol/channel/README.md, 10).
-    for (count, name, tool, answer, expected) in [(32, 64, 64, 69_632, 6817), (128, 64, 64, 135_168, 27_201)] {
+    for (count, name, tool, answer, expected) in [(32, 64, 64, 69_632, 6821), (128, 64, 64, 135_168, 27_205)] {
         let limits = sizes::limits(&sizes::Sizes {
             answered: count,
             call_name: name,
@@ -226,4 +226,39 @@ fn the_smallest_resumed_start_is_measured() {
     }
     assert_eq!(sizes::smallest_resumed(u32::MAX, 64, 64, 1), None);
     assert_eq!(cut_words(135_168).as_ref(), b"[this call ran; its answer of 135168 bytes was left out of this start]");
+}
+
+#[test]
+fn parts_go_before_answers_and_sub_agents_go_by_last_call_all_or_none() {
+    let limits = sizes::limits(&SIZES_LARGE).unwrap();
+    let mut assignment = resumed(calls(&[HOST]));
+    let mut parts = List::with_capacity(4);
+    for (thread, call) in [(0, 9), (1, 2), (2, 3), (2, 3)] {
+        parts
+            .push(wire::KeptPart {
+                attempt: 1,
+                turn: 2,
+                thread,
+                call,
+                kind: wire::PartKind::Answer,
+                body: repeated(b'p', 64),
+            })
+            .unwrap();
+    }
+    assignment.parts = crate::parts::encode(parts.as_slice(), &limits).unwrap();
+    let whole = assignment.measure(&limits).unwrap() + 8;
+    let (fitted, result) = fit(assignment.clone(), &limits, whole).unwrap();
+    assert_eq!(result, Fitted::Whole);
+    assert_eq!(fitted, assignment);
+
+    let mut expected = assignment.clone();
+    expected.parts = crate::parts::encode(&parts.as_slice()[..2], &limits).unwrap();
+    let room = expected.measure(&limits).unwrap() + 8;
+    let (fitted, _) = fit(assignment.clone(), &limits, room + 1).unwrap();
+    assert_eq!(fitted, expected, "last call is dropped whole, main and earlier sub-agent kept");
+
+    expected.parts = Box::new([]);
+    let room = expected.measure(&limits).unwrap() + 8;
+    let (fitted, _) = fit(assignment, &limits, room).unwrap();
+    assert_eq!(fitted, expected, "all parts go before any answer is cut");
 }

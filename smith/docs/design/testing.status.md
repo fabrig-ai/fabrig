@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-20. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-23. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 6: smith's inspection adapter, `smith-inspect`, and its worlds'

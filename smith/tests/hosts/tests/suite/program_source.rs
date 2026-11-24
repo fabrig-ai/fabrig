@@ -1,12 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use smith_fake_claude::{Status, Story};
+    use smith_fake_claude::{Logout, Status, Story};
     use smith_host_domain::{FailureReason, ProgramCheck, ProgramMethod, ProgramSignOut};
     use smith_host_protocol::{SourceAnswer, SourceAsk};
     use smith_hosts_world::program_world::{Run, run};
 
+    const DETAIL_BYTES: u32 = 32;
+    const PRODUCT_DETAIL_BYTES: usize = 1024;
+
     fn check(login: Option<&[u8]>, story: Option<Story>) -> Run {
-        run(7, story, login, &[SourceAsk::Check], false, &[], [Some(0o700); 2])
+        run(7, story, login, &[SourceAsk::Check], false, &[], [Some(0o700); 2], DETAIL_BYTES)
     }
 
     fn failed(run: &Run, expected: FailureReason) {
@@ -20,14 +23,14 @@ mod tests {
     #[test]
     fn an_absent_source_stays_absent_until_login() {
         for directories in [[None, None], [Some(0o700), None]] {
-            let result = run(7, None, None, &[SourceAsk::Check], false, &[], directories);
+            let result = run(7, None, None, &[SourceAsk::Check], false, &[], directories, DETAIL_BYTES);
             assert_eq!(result.answers, [SourceAnswer::Check(ProgramCheck::NotSignedIn)]);
             assert_eq!(result.launches, 0, "declaration must not launch before login");
             assert_eq!(result.directories, directories, "declaration leaves absence unchanged");
         }
         for mode in [0o755, 0o775] {
             for directories in [[Some(mode); 2], [Some(0o700), Some(mode)]] {
-                let result = run(7, None, None, &[SourceAsk::Check], false, &[], directories);
+                let result = run(7, None, None, &[SourceAsk::Check], false, &[], directories, DETAIL_BYTES);
                 let SourceAnswer::Check(ProgramCheck::Failed(failure)) = result.answers.first().expect("one answer")
                 else {
                     unreachable!("nonprivate directories must be refused");
@@ -77,18 +80,63 @@ mod tests {
 
     #[test]
     fn a_missing_program_fails_as_missing() {
-        failed(&run(7, None, None, &[SourceAsk::Check], true, &[], [Some(0o700); 2]), FailureReason::Missing);
+        failed(
+            &run(7, None, None, &[SourceAsk::Check], true, &[], [Some(0o700); 2], DETAIL_BYTES),
+            FailureReason::Missing,
+        );
     }
 
     #[test]
     fn signing_out_removes_the_login() {
-        let run =
-            run(7, None, Some(b"claude.ai"), &[SourceAsk::SignOut, SourceAsk::Check], false, &[], [Some(0o700); 2]);
+        let run = run(
+            7,
+            None,
+            Some(b"claude.ai"),
+            &[SourceAsk::SignOut, SourceAsk::Check],
+            false,
+            &[],
+            [Some(0o700); 2],
+            DETAIL_BYTES,
+        );
         assert_eq!(
             run.answers,
             [SourceAnswer::SignOut(ProgramSignOut::SignedOut), SourceAnswer::Check(ProgramCheck::NotSignedIn)]
         );
         assert_eq!(run.login, None);
+    }
+
+    #[test]
+    fn a_refused_program_logout_keeps_the_login_and_escapes_its_bounded_detail() {
+        // The fill alone is longer than the cap. The last 15 bytes include the fake's final LF.
+        const OVERLONG_FILL: usize = 1100;
+        const RETAINED_FILL: usize = 1009;
+        const SUFFIX: &str = "tail\x1b[2J\r\n\x07end";
+        let login = b"claude.ai";
+        let story = Story {
+            logout: Logout::Detail(format!("discard-this-prefix{}{SUFFIX}", "x".repeat(OVERLONG_FILL))),
+            ..Story::default()
+        };
+        let run = run(
+            7,
+            Some(story),
+            Some(login),
+            &[SourceAsk::SignOut, SourceAsk::Check],
+            false,
+            &[],
+            [Some(0o700); 2],
+            u32::try_from(PRODUCT_DETAIL_BYTES).expect("product detail bound"),
+        );
+        let [SourceAnswer::SignOut(ProgramSignOut::Failed(failure)), SourceAnswer::Check(check)] =
+            run.answers.as_slice()
+        else {
+            unreachable!("one failed sign-out, followed by a check");
+        };
+        assert_eq!(failure.reason, FailureReason::Exited, "the program refused sign-out");
+        assert_eq!(failure.detail.len(), PRODUCT_DETAIL_BYTES, "the bound applies to raw stderr bytes");
+        let tail = format!("{}{SUFFIX}\n", "x".repeat(RETAINED_FILL));
+        assert_eq!(failure.detail.as_ref(), tail.as_bytes(), "discard the prefix and retain the exact tail");
+        assert_eq!(run.login.as_deref(), Some(login.as_slice()), "failed sign-out does not remove the login");
+        assert!(matches!(check, ProgramCheck::Usable { .. }), "the retained login still works");
     }
 
     #[test]
@@ -101,6 +149,7 @@ mod tests {
             false,
             &[b"ANTHROPIC_API_KEY=x".as_slice().into()],
             [Some(0o700); 2],
+            DETAIL_BYTES,
         );
         assert_eq!(
             run.answers,

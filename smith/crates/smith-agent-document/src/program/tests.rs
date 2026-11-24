@@ -118,3 +118,21 @@ fn the_terminal_environment_has_no_hosted_spawn_bound() {
     let command = sign_in(Path::new("/claude"), Path::new("/programs/source"), base);
     assert_eq!(command.get_envs().count(), 103);
 }
+
+#[test]
+fn private_program_directories_are_decided_from_metadata_at_the_name() {
+    let path = Path::new("/fixture/programs");
+    let user = 1000;
+    let private = Stat { kind: Kind::Directory, mode: 0o700, owner: user, size: 0, links: 1 };
+    assert!(!private_directory_with(path, user, Err(std::io::ErrorKind::NotFound.into())).expect("absent"));
+    assert!(private_directory_with(path, user, Ok(private)).expect("private"));
+    for (metadata, reason) in [
+        (Stat { kind: Kind::Symlink, ..private }, "symbolic link"),
+        (Stat { mode: 0o750, ..private }, "nonprivate mode bits 0o50"),
+        (Stat { kind: Kind::File, ..private }, "not a directory"),
+        (Stat { owner: 1001, ..private }, "owned by user 1001"),
+    ] {
+        let why = private_directory_with(path, user, Ok(metadata)).expect_err("unsafe");
+        assert_eq!(why.to_string(), format!("{}: {reason}", path.display()));
+    }
+}

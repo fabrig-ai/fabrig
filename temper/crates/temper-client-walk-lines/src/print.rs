@@ -3,7 +3,7 @@
 //! with page-local generated ids (client/web/journeys.md, 5.3).
 
 use skein_ui::{NodeId, Role};
-use std::{collections::BTreeMap, fmt::Write, fs, io, path::Path};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Write, fs, io, path::Path};
 pub use temper_client_shell_web::journey::Lead;
 
 /// The stylesheets linked relative to a journey's directory.
@@ -125,13 +125,18 @@ fn lines(html: &str) -> String {
 /// # Errors
 /// Returns a filesystem error when the stylesheet, script or a missing overlay cannot be written.
 pub fn beside(journeys: &Path) -> io::Result<()> {
-    fs::write(journeys.join("skein-ui.css"), skein_ui_bundle::STYLESHEET)?;
-    fs::write(journeys.join("journey.js"), SCRIPT)?;
+    for (name, bytes) in beside_files() {
+        fs::write(journeys.join(name), bytes)?;
+    }
     match fs::OpenOptions::new().write(true).create_new(true).open(journeys.join("overlay.css")) {
         Ok(_) => Ok(()),
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
         Err(error) => Err(error),
     }
+}
+
+pub(crate) fn beside_files() -> [(&'static str, Cow<'static, [u8]>); 2] {
+    [("skein-ui.css", Cow::Borrowed(skein_ui_bundle::STYLESHEET)), ("journey.js", Cow::Borrowed(SCRIPT.as_bytes()))]
 }
 
 /// The pages' script, written beside the journeys.

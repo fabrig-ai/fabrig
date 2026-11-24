@@ -132,8 +132,60 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configuration {
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join(temper_config_shell::FILE);
-    let mut value = crate::limit_settings::configuration(&paths[0]);
-    let mut worker = temper_agent_fixtures::read(&paths[0]);
+    let value = crate::limit_settings::configuration(&paths[0]);
+    let worker = temper_agent_fixtures::read(&paths[0]);
+    let (value, setting) = compose_deployment(value, worker);
+    setting.lay(&paths[1]);
+    crate::limit_settings::remember(&paths[0], &value);
+    temper_box_shell::operations_in_with_limits(
+        "temper",
+        &[],
+        b"/",
+        &deployment_directories(paths),
+        &crate::read_start(&config, temper_config_shell::Shape::Standalone).document,
+        &temper_service::stock::Given::Stock,
+        &value.jig,
+        &value.limits,
+    )
+    .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+    value
+}
+
+/// B0's sizing inputs at first start, before any account, store or backend.
+pub struct DeploymentProfile {
+    pub directories: temper_box_shell::directories::Directories,
+    pub document: Box<[u8]>,
+    pub configuration: temper_playground::documents::Configuration,
+    pub agents: Box<[u8]>,
+}
+
+/// Compose the same init and B0 edits with fixed listener addresses instead of drawing ports.
+#[must_use]
+pub fn deployment_profile(paths: &[PathBuf; 3]) -> DeploymentProfile {
+    // Native box init can create the local provider key; sizing needs only its presence.
+    let document = temper_config_shell::init_document(true);
+    let start = serde_json::from_slice(&document).expect("init start");
+    let providers = temper_service::stock::providers();
+    let worker = temper_agent_fixtures::with_figures(&start, &temper_service::stock::agents(), &paths[1], &providers);
+    let mut value = temper_playground::documents::Configuration::from_jig(start);
+    value["world_providers"] = temper_agent_fixtures::providers::flat(&providers);
+    super::live_limits(&mut value);
+    let (configuration, setting) = compose_deployment(value, worker);
+    DeploymentProfile { directories: deployment_directories(paths), document, configuration, agents: setting.bytes() }
+}
+
+fn deployment_directories(paths: &[PathBuf; 3]) -> temper_box_shell::directories::Directories {
+    let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
+    directories.config = paths[0].as_os_str().as_bytes().into();
+    directories.data = paths[1].as_os_str().as_bytes().into();
+    directories.cache = paths[2].as_os_str().as_bytes().into();
+    directories
+}
+
+fn compose_deployment(
+    mut value: temper_playground::documents::Configuration,
+    mut worker: Value,
+) -> (temper_playground::documents::Configuration, temper_agent_fixtures::Setting) {
     for table in ["providers", "endpoints"] {
         temper_agent_fixtures::providers::input(&mut value)[table]
             .as_array_mut()
@@ -158,26 +210,10 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
     assert_eq!(value.limits.root.loads.loads, 32);
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
-    crate::limit_settings::remember(&paths[0], &value);
-    temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
+    let providers = temper_agent_fixtures::providers::take(&mut value).expect("deployment providers");
+    let setting = temper_agent_fixtures::compose_setting(&mut value, &worker, &providers);
     value.jig_over("hub.run_calls", 1);
-    crate::limit_settings::remember(&paths[0], &value);
-    let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
-    directories.config = paths[0].as_os_str().as_bytes().into();
-    directories.data = paths[1].as_os_str().as_bytes().into();
-    directories.cache = paths[2].as_os_str().as_bytes().into();
-    temper_box_shell::operations_in_with_limits(
-        "temper",
-        &[],
-        b"/",
-        &directories,
-        &crate::read_start(&config, temper_config_shell::Shape::Standalone).document,
-        &temper_service::stock::Given::Stock,
-        &value.jig,
-        &value.limits,
-    )
-    .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
-    value
+    (value, setting)
 }
 
 fn turn_limits(value: &mut temper_playground::documents::Configuration, turn: u32) {
@@ -205,11 +241,24 @@ struct Driver {
     forge: u64,
 }
 
+struct Transcript<F> {
+    stdout: (PathBuf, F),
+    stderr: (PathBuf, F),
+}
+
 impl Driver {
     fn owned(store: &Path, client: &Path) -> Self {
-        let deadline = Deadline::arm("the rung's setup", Duration::from_secs(300));
+        Self::new_at(
+            store,
+            client,
+            skein_scratch::paths::binary("temper-box"),
+            Deadline::arm("the rung's setup", Duration::from_secs(300)),
+        )
+    }
+
+    fn new_at(store: &Path, client: &Path, binary: PathBuf, deadline: Deadline) -> Self {
         Self {
-            binary: skein_scratch::paths::binary("temper-box"),
+            binary,
             store: store.into(),
             client: client.into(),
             sequence: 0,
@@ -228,8 +277,11 @@ impl Driver {
     }
 
     fn arm(&mut self, phase: &'static str, within: Duration) {
+        self.arm_deadline(phase, Deadline::arm(phase, within));
+    }
+
+    fn arm_deadline(&mut self, phase: &'static str, deadline: Deadline) {
         self.phase = phase;
-        let deadline = Deadline::arm(phase, within);
         self.until = deadline.until();
         self.deadline = deadline;
         self.active = None;
@@ -243,11 +295,15 @@ impl Driver {
     }
 
     fn check_wait(&mut self) -> Result<(), String> {
-        if now() < self.until {
+        self.check_wait_at(now(), Deadline::expired)
+    }
+
+    fn check_wait_at(&mut self, now: Time, expire: impl FnOnce(&Deadline) -> Expired) -> Result<(), String> {
+        if now < self.until {
             return Ok(());
         }
         let message = format!("phase {} exceeded its bound", self.phase);
-        match self.deadline().expired() {
+        match expire(self.deadline()) {
             Expired::Starved(starved) => {
                 let message = format!("{message}: {}", starved.figures());
                 self.starved = Some(starved);
@@ -258,7 +314,11 @@ impl Driver {
     }
 
     fn request(&mut self) {
-        self.requested = Some(now());
+        self.request_at(now(), Deadline::arm);
+    }
+
+    fn request_at(&mut self, now: Time, mut arm: impl FnMut(&'static str, Duration) -> Deadline) {
+        self.requested = Some(now);
         self.phases = [
             ("inbox question", 40_480),
             ("person's answer sent", 186_660),
@@ -272,7 +332,7 @@ impl Driver {
             ("chat's last word and whole", WHOLE),
         ]
         .into_iter()
-        .map(|(phase, milliseconds)| (phase, Deadline::arm(phase, Duration::from_millis(milliseconds))))
+        .map(|(phase, milliseconds)| (phase, arm(phase, Duration::from_millis(milliseconds))))
         .collect();
     }
 
@@ -282,21 +342,51 @@ impl Driver {
 
     fn execute_within(
         &mut self,
+        command: Command,
+        input: Option<&str>,
+        keep: bool,
+        within: Option<Duration>,
+    ) -> Result<Vec<u8>, String> {
+        self.execute_with(
+            now(),
+            Deadline::expired,
+            |path| fs::File::create(path).map_err(|e| e.to_string()),
+            |driver, number, transcript| driver.run_call(number, transcript, command, input, keep, within),
+        )
+    }
+
+    fn execute_with<F>(
+        &mut self,
+        now: Time,
+        expire: impl FnOnce(&Deadline) -> Expired,
+        mut open: impl FnMut(&Path) -> Result<F, String>,
+        run: impl FnOnce(&mut Self, usize, Transcript<F>) -> Result<Vec<u8>, String>,
+    ) -> Result<Vec<u8>, String> {
+        self.check_wait_at(now, expire)?;
+        let number = self.sequence;
+        self.sequence += 1;
+        let stdout = self.store.join(format!("call-{number}.out"));
+        let stderr = self.store.join(format!("call-{number}.err"));
+        let out = open(&stdout)?;
+        let err = open(&stderr)?;
+        run(self, number, Transcript { stdout: (stdout, out), stderr: (stderr, err) })
+    }
+
+    fn run_call(
+        &mut self,
+        number: usize,
+        transcript: Transcript<fs::File>,
         mut command: Command,
         input: Option<&str>,
         keep: bool,
         within: Option<Duration>,
     ) -> Result<Vec<u8>, String> {
-        self.check_wait()?;
-        let number = self.sequence;
-        self.sequence += 1;
-        let stdout = self.store.join(format!("call-{number}.out"));
-        let stderr = self.store.join(format!("call-{number}.err"));
+        let Transcript { stdout: (stdout, out), stderr: (stderr, err) } = transcript;
         command
             .current_dir(&self.store)
             .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
-            .stdout(fs::File::create(&stdout).map_err(|e| e.to_string())?)
-            .stderr(fs::File::create(&stderr).map_err(|e| e.to_string())?);
+            .stdout(out)
+            .stderr(err);
         let mut request_wait = within.map(|within| Deadline::arm("the rung's forge request", within));
         let mut child = command.spawn().map_err(|e| e.to_string())?;
         self.deadline().watch_process(child.id());
@@ -1393,23 +1483,65 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
 }
 
 pub mod tests {
-    use super::Driver;
-    use std::path::Path;
+    use super::{Driver, Duration, Time};
+    use skein_world::{Expired, Figures, testing::deadline::at};
+    use std::path::{Path, PathBuf};
+
+    fn driver(start: Time) -> Driver {
+        Driver::new_at(
+            Path::new("transcript"),
+            Path::new("client"),
+            PathBuf::from("temper-box"),
+            at("the rung's setup", Duration::from_secs(300), start),
+        )
+    }
 
     pub fn an_expired_rung_phase_starts_no_further_command() {
-        let scratch = skein_scratch::Scratch::new("rung-expired-phase");
-        let mut driver = Driver::owned(scratch.path(), &scratch.path().join("client"));
-        driver.arm("the expired rung phase", skein_lib::Duration::ZERO);
-        let command = std::process::Command::new("/bin/true");
-        assert!(driver.execute(command, None, true).is_err());
+        let phase = "the expired rung phase";
+        let mut driver = driver(Time::ZERO);
+        driver.arm_deadline(phase, at(phase, Duration::ZERO, Time::ZERO));
+        let mut opened = Vec::new();
+        let mut started = false;
+        let result = driver.execute_with(
+            Time::ZERO,
+            |deadline| {
+                assert_eq!(deadline.until(), Time::ZERO);
+                Expired::Failed(Figures {
+                    what: phase,
+                    patience: Duration::ZERO,
+                    elapsed: Duration::ZERO,
+                    thread_waited: None,
+                    thread_cpu: None,
+                    tree_waited: None,
+                })
+            },
+            |path| {
+                opened.push(path.to_path_buf());
+                Ok(())
+            },
+            |_, _, _| {
+                started = true;
+                Ok(Vec::new())
+            },
+        );
+        assert!(result.expect_err("the phase expired").starts_with("phase the expired rung phase exceeded its bound"));
         assert_eq!(driver.sequence, 0, "the expired phase did not start its command");
-        assert!(!scratch.path().join("call-0.out").exists());
+        assert!(opened.is_empty(), "not even call-0.out was opened: {opened:?}");
+        assert!(!started);
     }
 
     pub fn rung_phases_keep_the_request_deadlines_when_selected_again() {
-        let mut driver = Driver::owned(Path::new("."), Path::new("client"));
-        driver.request();
+        let start = Time::from_nanos(17);
+        let mut driver = driver(start);
+        let mut armed = Vec::new();
+        driver.request_at(start, |phase, within| {
+            let deadline = at(phase, within, start);
+            armed.push((phase, deadline.until()));
+            deadline
+        });
+        assert_eq!(driver.requested, Some(start));
         assert_eq!(driver.phases.len(), 10);
+        assert_eq!(armed.len(), 10);
         let question = driver.phases[0].1.until();
         let answer = driver.phases[1].1.until();
         assert!(question < answer);
@@ -1417,6 +1549,10 @@ pub mod tests {
         assert_eq!(driver.until, question);
         driver.phase("person's answer sent");
         assert_eq!(driver.until, answer);
+        for (phase, until) in armed.iter().rev().chain(&armed) {
+            driver.phase(phase);
+            assert_eq!(driver.until, *until, "{phase} keeps its request deadline");
+        }
         driver.phase("person's answer sent");
         assert_eq!(driver.until, answer);
     }

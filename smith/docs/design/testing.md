@@ -177,8 +177,8 @@ vocabulary.
   and has no binary of its own for it (skein/docs/foundation/cli.md, 3).
   A run that hasn't built it fails, naming
   `cargo build -p smith-fake-claude --bin fake-claude`: the lookup
-  returns that refusal, its tests read it, and the story panics on it
-  at its top; the delivery check
+  returns that refusal, decided over the file's facts that its step
+  tests hand it, and the story panics on it at its top; the delivery check
   builds it first whenever it runs `smith`'s tests (tools/pre-pr/design.md, 4).
 - **The referee reads what shows from outside:**
   - the terminal's transcript;
@@ -188,24 +188,37 @@ vocabulary.
   - the event stream, from `--json` or `--trace`, read as `smith-events`
     records, never as text (protocol/events.md).
 - **Against fakes,** in the focused suite and within its budget. These
-  tests are few, one per path through `main`:
-  - the startup refusals: one per settings layer, each naming its key,
-    with exit 2; the first run's lines, with exit 2; and an account
-    without a credential, with exit 3;
-  - `smith check --json`, passing and failing;
-  - `smith exec --json` to an accepted answer, its events and exit 0; and
-    to a parked one, exit 5;
-  - `smith` on a terminal: a first run that signs in and ends with a
-    commit in place; a second invocation that resumes the chat from its
-    files; an interrupt that cancels the run. The interrupt reaches the
-    process alone (skein's `runtime/io/processes.md`);
-  - `smith login` and `smith logout` against the fake issuer and the
-    browser: a first sign-in that registers, and one again; and on a
-    `program` account, against the fake program;
-  - `smith exec` on a `program` account: the product spawns
-    `smith-agent`, which runs the fake program;
-  - `smith-agent` spawned by the sample host: the real-process proof of
-    the channel.
+  tests are few, one per path through `main`, each kept for what only
+  a process shows: a pseudo-terminal, a signal, a shipped binary and the
+  children it spawns, a native file or directory. What the path decides
+  is held below it (2.5):
+  - `smith` on a terminal: its modes as they were after it exits; end of
+    input, the run answering, exit 0; a window's size reaching the status
+    line; an interrupt cancelling the run, which reaches the process
+    alone (skein's `runtime/io/processes.md`); a configured start that
+    answers; a first run that signs in and ends with a commit in place;
+  - startup refusals: the settings' file not a regular file, exit 2; the
+    state directory blocked, exit 1;
+  - `smith check --json`: each value with its layer; a signed-in
+    `program` account, usable;
+  - `smith exec`: with `--json`, an accepted answer, its events and
+    exit 0; with `-o`, its file beside the event stream; with
+    `--ephemeral`, its private files removed; with `--trace`, the trace
+    read as it grows;
+  - `smith login`: a first sign-in that registers, and one on a
+    configured registration, against the fake issuer and the browser; a
+    key from a pipe, and refused at a terminal; `smith logout` revoking
+    its record;
+  - a `program` account: `smith exec` spawning `smith-agent`, which runs
+    one print run on the fake program; refused before its run when the
+    program is not signed in; a plain chat answering before its input
+    ends; an interrupt reaching an uncommitted turn; the program exiting
+    before its answer; two sub-agents side by side; `smith login` and
+    `smith logout` on the fake program; an aborted agent taking its
+    program and relay with it;
+  - `smith-agent`: spawned by the sample host, the real-process proof of
+    the channel; its configuration refused, and its channel ending before
+    the answer, each exit 1; a relay without its secret refused.
 - **Live,** the real backends replace the fakes:
   - the providers' endpoints, over TLS with the machine's roots: OpenAI's
     public Responses route and Anthropic's Messages;
@@ -440,12 +453,32 @@ process story proves operator words and exit 1.
   No test asserts a shipped value; shell/settings.md, section 2 holds them.
 - **Profile tests live with the profile,** in the service crates.
 - **End to end is for paths through `main`** (2.3). Behaviour is shown in
-  the domain worlds first. A test whose whole assertion has no lower
-  seam stays at the top tier until a seam is designed: product program
-  admission and state-directory creation, the provider login notice
-  selected against real files and the kernel, and the private binary
-  capture used to observe standard error. A partial lower assertion
-  does not replace the whole one.
+  the domain worlds first, and what a command decides is held below its
+  process, through the shell's seams (shell/README.md, 2.3):
+  - the local host's simulated world runs what the command line adds
+    around a run, on the fake machine: `-o`'s file and `--ephemeral`'s
+    private chat, their failures and warnings in order (commands.md, 2
+    and 3); a `program` account's agent spawned with the fake program
+    as its child, its rechecks, its trace and live view, and a chat
+    crossing between backends; a sign-in ending in a checked commit; a
+    grant refreshed at its lead, or kept before its earliest refresh
+    time; a repository whose head cannot be read;
+  - the agent's simulated world runs `smith-agent`'s refusals past its
+    document, a program run's offered tools and its children's grants;
+    the hosts' world, a program's refused sign-out and its bounded
+    detail;
+  - the shell's step tests hold each exit and line a command renders
+    from typed facts: settings refusals and budget ceilings, a headless
+    prompt and a parked answer, a credential missing before any request,
+    the chat tree's failures, `smith check`'s report from each account's
+    state, and `smith login`'s and `smith logout`'s words; `smith::step`
+    holds the fake program's lookup and the offered-tools check.
+
+  A test whose whole assertion has no lower seam stays at the top tier
+  until a seam is designed: product program admission and
+  state-directory creation, and the private binary capture used to
+  observe standard error. A partial lower assertion does not replace the
+  whole one.
 
 ### 2.6 Placement
 

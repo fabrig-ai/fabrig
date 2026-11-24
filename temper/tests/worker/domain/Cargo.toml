@@ -17,6 +17,7 @@ smith-charter.workspace = true
 smith-domain-run.workspace = true
 smith-domain-session.workspace = true
 smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 smith-transcript.workspace = true
 temper-worker-domain.workspace = true
 temper-worker-checkout-world.workspace = true

@@ -1444,6 +1444,35 @@ fn turn_ack(channel: Token, nth: u32) -> Request {
 }
 
 #[test]
+fn parts_dedupe_only_after_commitment_and_restore_their_own_prefix() {
+    let mut h = turns();
+    let part = |body| Event::Part { channel: C1, run: R1, attempt: A1, part: 1, body: payload(body) };
+    assert_eq!(&*h.step(part(1)), &[Request::Parted { run: R1, attempt: A1, part: 1, body: payload(1) }]);
+    assert_eq!(&*h.step(part(2)), &[drop(2)]);
+    let ack = Request::AcknowledgePart { channel: C1, run: R1, attempt: A1, part: 1 };
+    assert_eq!(&*h.step(Event::PartKept { run: R1, attempt: A1, part: 1 }), &[ack]);
+    assert_eq!(&*h.step(part(3)), &[Request::AcknowledgePart { channel: C1, run: R1, attempt: A1, part: 1 }, drop(3)]);
+    assert_eq!(
+        &*turn(&mut h, C1, 1, 4),
+        &[Request::Turned { run: R1, attempt: A1, turn: 1, body: payload(4) }],
+        "part prefix is not a turn prefix"
+    );
+    let mut h = Harness::new(LIMITS);
+    let mut adoption = fixtures::adopt(R1, A1, 0);
+    if let Event::Adopt { kept_part, .. } = &mut adoption {
+        *kept_part = 7;
+    } else {
+        panic!("adoption fixture")
+    }
+    h.step(adoption);
+    h.hello(C1, 2, &[], &[hosted(R1, A1, Phase::Active)]);
+    assert_eq!(
+        &*h.step(Event::Part { channel: C1, run: R1, attempt: A1, part: 7, body: payload(5) }),
+        &[Request::AcknowledgePart { channel: C1, run: R1, attempt: A1, part: 7 }, drop(5)]
+    );
+}
+
+#[test]
 fn a_turn_is_handed_once_and_acknowledged_only_after_commitment() {
     let mut h = turns();
     assert_eq!(&*turn(&mut h, C1, 1, 1), &[Request::Turned { run: R1, attempt: A1, turn: 1, body: payload(1) }]);

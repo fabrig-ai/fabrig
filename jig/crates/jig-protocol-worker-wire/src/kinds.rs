@@ -1,5 +1,5 @@
 //! Project record sizes into skein's schema (protocol/channel/README.md, 4.1).
-use crate::{MAGIC, VERSION, v21};
+use crate::{MAGIC, VERSION, v22};
 use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term, Version};
 use skein_lib::List;
 
@@ -41,6 +41,9 @@ pub enum Kind {
     ReadUsage,
     Pause,
     Paused,
+    Part,
+    PartKept,
+    PartBusy,
 }
 
 impl Kind {
@@ -83,6 +86,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x010e, direction: Direction::FromInitiator, body: Kind::Usage },
     KindRule { kind: 0x010f, direction: Direction::FromInitiator, body: Kind::UsageRead },
     KindRule { kind: 0x0110, direction: Direction::FromInitiator, body: Kind::Paused },
+    KindRule { kind: 0x0111, direction: Direction::FromInitiator, body: Kind::Part },
     KindRule { kind: 0x0180, direction: Direction::FromResponder, body: Kind::Assignment },
     KindRule { kind: 0x0181, direction: Direction::FromResponder, body: Kind::Message },
     KindRule { kind: 0x0182, direction: Direction::FromResponder, body: Kind::Relayed },
@@ -102,6 +106,8 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x0190, direction: Direction::FromResponder, body: Kind::Figures },
     KindRule { kind: 0x0191, direction: Direction::FromResponder, body: Kind::ReadUsage },
     KindRule { kind: 0x0192, direction: Direction::FromResponder, body: Kind::Pause },
+    KindRule { kind: 0x0193, direction: Direction::FromResponder, body: Kind::PartKept },
+    KindRule { kind: 0x0194, direction: Direction::FromResponder, body: Kind::PartBusy },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -125,16 +131,16 @@ fn kept() -> List<skein_codec::schema::Schema> {
     schemas
 }
 
-pub fn schema(limits: &v21::Limits) -> Result<Schema, Overflow> {
+pub fn schema(limits: &v22::Limits) -> Result<Schema, Overflow> {
     schema_from(limits, &kept())
 }
 
 /// The channel table and jig's spoken ranges.
-pub fn schema_and_spoken(limits: &v21::Limits) -> Result<(Schema, List<crate::Spoken>), Overflow> {
+pub fn schema_and_spoken(limits: &v22::Limits) -> Result<(Schema, List<crate::Spoken>), Overflow> {
     Ok((schema(limits)?, crate::spoken()))
 }
 
-fn schema_from(limits: &v21::Limits, schemas: &List<skein_codec::schema::Schema>) -> Result<Schema, Overflow> {
+fn schema_from(limits: &v22::Limits, schemas: &List<skein_codec::schema::Schema>) -> Result<Schema, Overflow> {
     use skein_codec::schema::{Shape, VariantIx};
     let values = limits.values();
     let mut versions = List::uncapped();
@@ -144,7 +150,7 @@ fn schema_from(limits: &v21::Limits, schemas: &List<skein_codec::schema::Schema>
             continue;
         }
         let bounds =
-            if version == VERSION { None } else { Some(kept.bounds_within(v21::LIMIT_NAMES, values.as_slice())) };
+            if version == VERSION { None } else { Some(kept.bounds_within(v22::LIMIT_NAMES, values.as_slice())) };
         let mut kinds = List::uncapped();
         for (name, base, direction) in [
             (b"FromWorker".as_slice(), 0x0100_u16, Direction::FromInitiator),
@@ -177,7 +183,7 @@ fn schema_from(limits: &v21::Limits, schemas: &List<skein_codec::schema::Schema>
 
 /// The channel offers the range stated for jig's own wire.
 #[must_use]
-pub fn schema_for(limits: &v21::Limits, wires: &List<crate::Spoken>) -> Option<Schema> {
+pub fn schema_for(limits: &v22::Limits, wires: &List<crate::Spoken>) -> Option<Schema> {
     schema_for_prepared(&schema(limits).ok()?, wires)
 }
 

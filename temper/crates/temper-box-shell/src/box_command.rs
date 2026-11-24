@@ -57,11 +57,29 @@ pub fn run(
     record: bool,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
-    let (read, held, first_run) = configuration_read(directories, environment)?;
-    let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
-    read.prepare(|bytes| {
+    run_with_configuration(directories, echo, fronted, record, environment, configuration_read)
+}
+
+pub(crate) fn run_with_configuration(
+    directories: &super::Directories,
+    echo: Echo,
+    fronted: bool,
+    record: bool,
+    environment: &[super::EnvironmentEntry],
+    configuration: impl FnOnce(&super::Directories, &[super::EnvironmentEntry]) -> Result<ConfigurationRead, String>,
+) -> Result<Exit, String> {
+    run_with(configuration(directories, environment), |bytes, held, opening| {
         run_configuration(directories, bytes, held, Box::new([]), echo, fronted, record, opening, environment)
     })
+}
+
+fn run_with(
+    read: Result<ConfigurationRead, String>,
+    start: impl FnOnce(&[u8], HeldListeners, Opening) -> Result<Exit, String>,
+) -> Result<Exit, String> {
+    let (read, held, first_run) = read?;
+    let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
+    read.prepare(|bytes| start(bytes, held, opening))
 }
 
 /// Lines opening the box log and following its sign-in block (protocol/setup/box-supervision.md, 1).
@@ -287,7 +305,8 @@ fn configuration_path(directories: &super::Directories) -> std::path::PathBuf {
     super::path(&directories.config).join(temper_config_shell::FILE)
 }
 
-type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
+type HeldListeners = Vec<(Fd, std::num::NonZeroU16)>;
+type Configuration = (Box<[u8]>, HeldListeners, Option<Box<[u8]>>);
 /// Prepare a first configuration, keeping init's listeners, or read the existing one.
 pub fn configuration(
     directories: &super::Directories,
@@ -295,25 +314,37 @@ pub fn configuration(
 ) -> Result<Configuration, String> {
     configuration_read(directories, environment).map(|(read, held, first)| (read.document, held, first))
 }
-type ConfigurationRead =
-    (temper_service_shell::configuration::Read, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
+type ConfigurationRead = (temper_service_shell::configuration::Read, HeldListeners, Option<Box<[u8]>>);
 fn configuration_read(
     directories: &super::Directories,
     environment: &[super::EnvironmentEntry],
 ) -> Result<ConfigurationRead, String> {
     let config = super::path(&directories.config);
-    let empty = match std::fs::read_dir(config) {
-        Ok(mut entries) => match entries.next() {
-            None => true,
-            Some(Ok(_)) => false,
-            Some(Err(why)) => return Err(format!("{}: {why}", config.display())),
-        },
+    configuration_read_with(
+        config,
+        std::fs::read_dir(config).map(|mut entries| entries.next().map(|entry| entry.map(|_| ()))),
+        || super::init::core(directories, environment),
+        || temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone),
+        super::close,
+    )
+}
+
+fn configuration_read_with(
+    config: &std::path::Path,
+    first_entry: std::io::Result<Option<std::io::Result<()>>>,
+    init: impl FnOnce() -> Result<super::init::Written, String>,
+    read: impl FnOnce() -> Result<temper_service_shell::configuration::Read, String>,
+    close: impl FnOnce(Vec<Fd>),
+) -> Result<ConfigurationRead, String> {
+    let empty = match first_entry {
+        Ok(None) => true,
+        Ok(Some(Ok(()))) => false,
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => true,
-        Err(why) => return Err(format!("{}: {why}", config.display())),
+        Ok(Some(Err(why))) | Err(why) => return Err(format!("{}: {why}", config.display())),
     };
     let mut held = Vec::new();
     let first_run = if empty {
-        let written = super::init::core(directories, environment)?;
+        let written = init()?;
         held = written.listeners;
         let mut opening =
             written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));
@@ -323,10 +354,10 @@ fn configuration_read(
     } else {
         None
     };
-    match temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone) {
+    match read() {
         Ok(read) => Ok((read, held, first_run)),
         Err(why) => {
-            super::close(held.into_iter().map(|(fd, _)| fd).collect());
+            close(held.into_iter().map(|(fd, _)| fd).collect());
             Err(why)
         }
     }
@@ -398,3 +429,6 @@ pub(crate) fn configuration_steps_checked(
     };
     Ok((steps, *limits))
 }
+
+#[cfg(test)]
+mod tests;

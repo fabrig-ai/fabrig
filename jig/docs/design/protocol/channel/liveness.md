@@ -35,7 +35,8 @@
   its domain can have queued at once, so a record the domain sends is
   never refused at the channel's entrance:
   - engine to worker, per worker: for each slot, an assignment at its
-    largest, its start's messages included, the messages its task's inbox
+    largest but never past the room, none past it being sent (below),
+    the messages its task's inbox
     may hold, an answer for each call a run may have in flight, a kept or
     busy notice for each turn it may have unacknowledged, an
     acknowledgement of its answer, a cancel, and a grant for each LLM
@@ -105,7 +106,7 @@
   assignment still past the room with every host answer cut is refused
   as above, its words naming the frame so cut. The cut is the link's:
   the core keeps every call as committed, and retires them at the run's
-  next turn as any.
+  next turn as any. Parts go before any answer is cut (`records.md`, 5).
 - **Inventories coalesce while output waits.** The worker's component
   keeps one latest whole snapshot outside the channel queue and sends it
   when that queue is empty. A replacement snapshot overwrites an unsent

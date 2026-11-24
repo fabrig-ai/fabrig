@@ -89,6 +89,7 @@ pub(crate) struct Flight {
     tool: Tool,
     observation: Option<crate::CallInfo>,
     started: Time,
+    interrupted: Option<skein_lib::Duration>,
     state: State,
 }
 
@@ -269,7 +270,7 @@ pub(crate) fn start(
     // per kit, for the flights retired in this iteration, which are at most those
     // running when it began.
     let id = flights
-        .insert(Flight { kit, tool, observation, started: env.now, state })
+        .insert(Flight { kit, tool, observation, started: env.now, interrupted: None, state })
         .expect("the flight slab has room for every kit's flights");
     out.push(Request::Io { owner: id.token(), op, deadline });
     id
@@ -277,6 +278,12 @@ pub(crate) fn start(
 
 /// Cancels the flight `id`'s operation, for its kit is closing. The flight answers
 /// with whichever terminal comes.
+pub(crate) fn cut(flight: &mut Flight, now: Time) {
+    if flight.tool == Tool::Shell {
+        flight.interrupted = Some(now.saturating_since(flight.started));
+    }
+}
+
 pub(crate) fn cancel(id: Id<Flight>, out: &mut Queue<Request>) {
     out.push(Request::CancelIo { owner: id.token() });
 }
@@ -333,6 +340,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             | Done::Stored { .. }
             | Done::Conflict { .. }
             | Done::Exited { .. }
+            | Done::CommandCancelled { .. }
             | Done::Job { .. }
             | Done::Found { .. }
             | Done::Missing
@@ -343,7 +351,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             | Done::Escapes
             | Done::Failed { .. }
             | Done::TimedOut
-            | Done::Cancelled) => exited(&kit.working, reply_to, place, timeout, output, done),
+            | Done::Cancelled) => exited(&kit.working, reply_to, place, timeout, output, flight.interrupted, done),
         },
         State::Held { .. } => unreachable!("held terminals use the job table"),
         State::Done => unreachable!("a flight that has answered has nothing in flight"),
@@ -446,7 +454,7 @@ fn loaded(kit: &mut Kit, reply_to: ReplyTo, place: Place, span: Span, done: Done
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
         Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
-        Done::Cancelled => Outcome::Cancelled,
+        Done::Cancelled | Done::CommandCancelled { .. } => Outcome::Cancelled,
         Done::Listed { .. }
         | Done::Removed
         | Done::NotEmpty
@@ -469,7 +477,7 @@ fn scanned(working: &Working, reply_to: ReplyTo, place: Place, done: Done) -> Ne
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
         Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
-        Done::Cancelled => Outcome::Cancelled,
+        Done::Cancelled | Done::CommandCancelled { .. } => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Removed
         | Done::NotEmpty
@@ -502,7 +510,7 @@ fn found(working: &Working, reply_to: ReplyTo, place: Place, done: Done) -> Next
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
         Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
-        Done::Cancelled => Outcome::Cancelled,
+        Done::Cancelled | Done::CommandCancelled { .. } => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Listed { .. }
         | Done::Removed
@@ -559,7 +567,7 @@ fn to_edit(
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
         Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
-        Done::Cancelled => Outcome::Cancelled,
+        Done::Cancelled | Done::CommandCancelled { .. } => Outcome::Cancelled,
         Done::Listed { .. }
         | Done::Removed
         | Done::NotEmpty
@@ -627,7 +635,7 @@ fn stored(
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
         Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
-        Done::Cancelled => Outcome::Cancelled,
+        Done::Cancelled | Done::CommandCancelled { .. } => Outcome::Cancelled,
         Done::Loaded { .. } | Done::Listed { .. } | Done::Exited { .. } | Done::Found { .. } => {
             unreachable!("io ends a store with a store's terminal")
         }
@@ -642,10 +650,15 @@ fn exited(
     place: Place,
     timeout: crate::TimeoutClamp,
     output: crate::BytesClamp,
+    interrupted: Option<skein_lib::Duration>,
     done: Done,
 ) -> Next {
     let outcome = match done {
         Done::Exited { exit, head, tail, dropped } => Outcome::Exited { exit, head, tail, dropped, timeout, output },
+        Done::CommandCancelled { head, tail, dropped } => match interrupted {
+            Some(ran) => Outcome::Interrupted { ran: Some(ran), head, last: tail, dropped },
+            None => Outcome::Cancelled,
+        },
         // The working directory.
         Done::Missing => Outcome::NotFound { path: authority::resolved(working, &place) },
         Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(working, &place) },

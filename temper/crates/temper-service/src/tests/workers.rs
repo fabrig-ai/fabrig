@@ -64,6 +64,7 @@ fn admit_review_wire(assignment: &host::Assignment, settings: &crate::settings::
     let bodies = wire::sizes::limits(&limits.sizes).unwrap();
     let run = &assignment.assignment;
     let record = wire::Assignment {
+        parts: Box::new([]),
         task: run.run.raw(),
         attempt: run.attempt.raw(),
         identity: run.identity,
@@ -93,6 +94,8 @@ fn decode_review(assignment: host::Assignment, bound: u64) -> smith_host_domain:
     *crate::worker_route::decode(
         run.run,
         host::Start {
+            tell_parts: false,
+            parts: Box::default(),
             live: run.live,
             workspace: None,
             charter: run.charter,

@@ -32,6 +32,10 @@ fn arguments_take_hold_and_remove_preserve_the_child_and_reject_other_forms() {
     ] {
         assert!(configure(&invalid, &environment, b"/work").is_err(), "{invalid:?}");
     }
+    assert_eq!(
+        crate::binary::refusal(&["checkpoint", "--hold", std::str::from_utf8(NAME).expect("fixture name")]),
+        (2, "temper-engine checkpoint: invalid arguments\nusage: temper-engine checkpoint [DIRECTORIES]\nusage: temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-engine checkpoint --remove NAME [DIRECTORIES]\n".into())
+    );
     let args = words(&[b"checkpoint", b"--remove", NAME]);
     let skein_shell::Reached::Command(row, rest) = crate::ENGINE.reach(b"temper-engine", &args) else {
         panic!("public checkpoint row")

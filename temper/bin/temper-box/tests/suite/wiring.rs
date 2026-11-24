@@ -4,7 +4,7 @@ use crate::support;
 #[test]
 fn a_scratch_binary_answers_one_chat_and_drains() {
     let scratch = support::Scratch::new("main-wiring");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
     support::stock_agent(scratch.path());
     let peer = support::fake_llm(Box::new([support::chat_script(support::ANSWER)]));
     let seen = support::run(

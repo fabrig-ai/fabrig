@@ -322,6 +322,100 @@ pub(super) fn restore(
     Ok(sequence)
 }
 
+/// Discard only the cut turn when its parts cannot be used.
+pub(super) fn prefix(
+    transcript: Option<crate::record::Transcript>,
+    previous: u32,
+) -> Option<crate::record::Transcript> {
+    let mut transcript = transcript?;
+    if previous == 0 {
+        return None;
+    }
+    let mut turns = List::with_capacity(previous);
+    for turn in transcript.turns.into_iter().take(usize::try_from(previous).expect("u32 fits")) {
+        turns.push(turn).expect("prefix bound");
+    }
+    transcript.turns = turns.into_boxed();
+    Some(transcript)
+}
+
+/// Reopen the answer's place, withholding the waking text until its results.
+pub(super) fn cut(
+    conversation: &mut Conversation,
+    cut: crate::record::Cut,
+    sequence: u32,
+    limits: &Limits,
+) -> Result<u32, crate::record::Refusal> {
+    use crate::record::Refusal;
+    let length = conversation.transcript.len();
+    let waking = conversation.transcript.last().ok_or(Refusal::Malformed)?;
+    let text = waking.content.last().ok_or(Refusal::Malformed)?.text().ok_or(Refusal::Malformed)?;
+    let text = skein_lib::bytes::copy_of(text);
+    let removed = content_cost(&waking.content).ok_or(Refusal::TooLarge)?;
+    conversation.bytes = conversation.bytes.checked_sub(removed).ok_or(Refusal::Malformed)?;
+    conversation.transcript.truncate(length.checked_sub(1).ok_or(Refusal::Malformed)?);
+    let answer =
+        conversation.transcript.get_mut(length.checked_sub(2).ok_or(Refusal::Malformed)?).ok_or(Refusal::Malformed)?;
+    if answer.role != Role::Assistant || answer.content.len() != cut.content.len() {
+        return Err(Refusal::Malformed);
+    }
+    let old = content_cost(&answer.content).ok_or(Refusal::TooLarge)?;
+    answer.content = cut.content;
+    let new = content_cost(&answer.content).ok_or(Refusal::TooLarge)?;
+    conversation.bytes =
+        conversation.bytes.checked_sub(old).ok_or(Refusal::TooLarge)?.checked_add(new).ok_or(Refusal::TooLarge)?;
+    let count = super::tally(&answer.content).0;
+    let skeleton = accounting_skeleton(&answer.content, count).ok_or(Refusal::TooLarge)?;
+    let retained = content_cost(&cut.results).ok_or(Refusal::TooLarge)?;
+    let keep_waking = !cut.waking_in_result && conversation.affinity.thread == 0;
+    let waking = if keep_waking {
+        u64::try_from(core::mem::size_of::<Block>())
+            .or(Err(Refusal::TooLarge))?
+            .checked_add(skein_lib::len_u64(text.len()))
+            .ok_or(Refusal::TooLarge)?
+    } else {
+        0
+    };
+    if let Some(system) = cut.system {
+        conversation.bytes =
+            conversation.bytes.checked_sub(skein_lib::len_u64(conversation.system.len())).ok_or(Refusal::TooLarge)?;
+        if !super::charge(conversation, Some(skein_lib::len_u64(system.len())), limits) {
+            return Err(Refusal::TooLarge);
+        }
+        conversation.system = system;
+    }
+    let added = skeleton.checked_add(retained).ok_or(Refusal::TooLarge)?.checked_add(waking);
+    if !super::charge(conversation, added, limits) {
+        return Err(Refusal::TooLarge);
+    }
+    conversation.resumed_results = cut.results;
+    conversation.waking = if keep_waking { Some(text) } else { None };
+    conversation.cursor.told =
+        length.checked_sub(1).ok_or(Refusal::Malformed)?.checked_sub(cut.messages).ok_or(Refusal::Malformed)?;
+    conversation.cursor.pending = Some(cut.usage);
+    sequence.checked_sub(1).ok_or(Refusal::Malformed)
+}
+
+fn accounting_skeleton(content: &[Block], count: u32) -> Option<u64> {
+    super::accounting::held(content, count, &crate::llm::ToolChoice::Auto, None)?.checked_sub(content_cost(content)?)
+}
+
+/// A result part wins before scheduling or failed-write suppression.
+pub(super) fn result(conversation: &Conversation, block: &Block) -> Option<Returned> {
+    let call = block.tool_call()?;
+    for block in &conversation.resumed_results {
+        match block {
+            Block::ToolResult { id, result } if *id == call.id => return Some(result.clone()),
+            Block::ToolResult { .. }
+            | Block::ToolCall(_)
+            | Block::Text { .. }
+            | Block::Refusal { .. }
+            | Block::Opaque { .. } => {}
+        }
+    }
+    None
+}
+
 pub(super) fn initial_text(prompt: &Message) -> &[u8] {
     prompt.content.first().expect("admission's initial text").text().expect("admission constructs one text block")
 }

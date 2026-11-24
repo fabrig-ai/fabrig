@@ -36,10 +36,25 @@ pub fn serve_listening(data: &Path) -> bool {
     check_serve_listening(data).unwrap_or_else(|why| panic!("{why}"))
 }
 fn check_serve_listening(data: &Path) -> Result<bool, String> {
-    match std::fs::read_to_string(data.join("box/logs/serve.log")) {
-        Ok(log) => Ok(log.contains("listening clients ")),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(format!("serve log: {error}")),
+    let log = match std::fs::read_to_string(data.join("box/logs/serve.log")) {
+        Ok(log) => Some(log),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(format!("serve log: {error}")),
+    };
+    Ok(listening_in(log.as_deref()))
+}
+
+fn listening_in(log: Option<&str>) -> bool {
+    log.is_some_and(|log| log.contains("listening clients "))
+}
+
+pub mod serve_log_tests {
+    use super::listening_in;
+
+    pub fn serve_listening_requires_the_clients_listener_in_this_runs_log() {
+        assert!(!listening_in(None), "an absent log is not listening");
+        assert!(!listening_in(Some("listening workers 127.0.0.1:9000\n")), "another listener is not clients");
+        assert!(listening_in(Some("2026-11-06T00:00:00Z listening clients 127.0.0.1:8367\n")), "clients have listened");
     }
 }
 
@@ -1352,7 +1367,19 @@ pub fn run_ctl_with_cut(
     let clock = Clock::new();
     let pair = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let data = PathBuf::from(&pair[1]);
-    let mut binary = cut_binary(directory, flags);
+    let mut binary = Binary::start_with_tree(
+        dying_with_test(Command {
+            program: skein_scratch::paths::binary("temper-box"),
+            arguments: flags.into_iter().map(Into::into).collect(),
+            directory: directory.into(),
+            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+        }),
+        Mode::Pipes,
+        262_144,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("temper box starts");
     let streams = binary.take_streams().expect("box pipes");
     let mut fds = streams.descriptors();
     let root = skein_shell::open_root(directory).expect("client root");
@@ -1419,24 +1446,4 @@ pub fn run_ctl_with_cut(
 fn chosen_fake_ports() -> (std::ffi::OsString, std::ffi::OsString) {
     let ports = super::free_addresses::<9>(&[]).map(|address| address.port().to_string()).join(",");
     ("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into())
-}
-
-fn cut_binary(directory: &Path, flags: Vec<String>) -> Binary {
-    let mut environment = vec![("PATH".into(), "/usr/bin:/bin".into())];
-    if flags.iter().any(|flag| flag == "--fake-backends") {
-        environment.push(chosen_fake_ports());
-    }
-    Binary::start_with_tree(
-        dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper-box"),
-            arguments: flags.into_iter().map(Into::into).collect(),
-            directory: directory.into(),
-            environment,
-        }),
-        Mode::Pipes,
-        262_144,
-        Expectation::Supervise,
-        false,
-    )
-    .expect("temper box starts")
 }

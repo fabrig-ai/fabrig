@@ -33,6 +33,8 @@ pub fn assignment() -> jig_domain_host::Assignment {
     use jig_domain_host as host;
     use skein_lib::Token;
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         assignment: host::RunAssignment {
             live: host::LiveAsk::NONE,
             identity: [7; 16],
@@ -155,6 +157,8 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     jig_protocol_worker_link::Request::Down {
         down: host::LinkDown::Assign {
             assignment: host::Assignment {
+                parts: Box::new([]),
+                tell_parts: false,
                 assignment: host::RunAssignment {
                     live: host::LiveAsk::NONE,
                     identity: [7; 16],

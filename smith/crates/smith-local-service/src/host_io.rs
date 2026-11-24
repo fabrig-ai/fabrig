@@ -706,6 +706,9 @@ impl HostIo {
                     host::Down::Answer { call, reply } => {
                         process.send_reply(call, reply, send_token, &mut self.process_events, &mut self.io_requests)
                     }
+                    host::Down::PartKept { number } => {
+                        process.send_part_kept(number, send_token, &mut self.process_events, &mut self.io_requests)
+                    }
                     host::Down::Acknowledge { turn } => {
                         process.send_acknowledge(turn, send_token, &mut self.process_events, &mut self.io_requests)
                     }
@@ -725,8 +728,8 @@ impl HostIo {
                     host::Down::Cancel => {
                         process.send_cancel(send_token, &mut self.process_events, &mut self.io_requests)
                     }
-                    host::Down::Drain => {
-                        process.send_drain(send_token, &mut self.process_events, &mut self.io_requests)
+                    host::Down::Drain { grace } => {
+                        process.send_drain(grace, send_token, &mut self.process_events, &mut self.io_requests)
                     }
                 };
                 if sent.is_err() {

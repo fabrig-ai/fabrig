@@ -18,8 +18,6 @@ pub enum Story {
     Modes,
     /// Observe a changed terminal width.
     Resize,
-    /// Observe the program account's startup check.
-    ProgramCheck,
     /// Observe the program account's run.
     ProgramRun,
 }
@@ -42,13 +40,12 @@ pub(super) struct Judge {
     finding: Option<String>,
     pub common: Settling,
     watch: Option<Watch>,
-    program: Option<super::program_interrupt::Watch>,
 }
 
 impl Judge {
-    pub fn new(common: Settling, story: Story, master: Option<Fd>, scratch: &std::path::Path) -> Self {
+    pub fn new(common: Settling, story: Story, master: Option<Fd>) -> Self {
         let watch = match story {
-            Story::None | Story::ProgramRun | Story::ProgramCheck => None,
+            Story::None | Story::ProgramRun => None,
             Story::Modes | Story::Resize => {
                 let master = master.expect("terminal story has a master");
                 Some(Watch {
@@ -58,15 +55,12 @@ impl Judge {
                     after: None,
                     resize: match story {
                         Story::Resize => Resize::Response,
-                        Story::None | Story::Modes | Story::ProgramRun | Story::ProgramCheck => Resize::None,
+                        Story::None | Story::Modes | Story::ProgramRun => Resize::None,
                     },
                 })
             }
         };
-        let program = matches!(story, Story::ProgramCheck).then(|| {
-            super::program_interrupt::Watch::new(scratch.join("state/smith/programs/work/fake-claude.observations"))
-        });
-        Self { finding: None, common, watch, program }
+        Self { finding: None, common, watch }
     }
 }
 
@@ -145,9 +139,6 @@ impl Judge {
         if let Some(watch) = &mut self.watch {
             watch.inspect(procs)?;
         }
-        if let Some(program) = &mut self.program {
-            program.act(now, procs)?;
-        }
         self.common.act(now, procs);
         Ok(())
     }
@@ -172,11 +163,7 @@ impl Referee<Process> for Judge {
     }
 
     fn next_deadline(&self) -> Option<Time> {
-        self.common
-            .next_deadline()
-            .into_iter()
-            .chain(self.program.as_ref().and_then(super::program_interrupt::Watch::next_deadline))
-            .min()
+        self.common.next_deadline()
     }
 
     fn overdue(&self, now: Time) -> Option<String> {
@@ -184,23 +171,20 @@ impl Referee<Process> for Judge {
     }
 
     fn passed(&self) -> bool {
-        self.finding.is_none()
-            && (self.common.passed()
-                && self.watch.as_ref().is_none_or(Watch::passed)
-                && self.program.as_ref().is_none_or(super::program_interrupt::Watch::passed))
+        self.finding.is_none() && self.common.passed() && self.watch.as_ref().is_none_or(Watch::passed)
     }
 }
 
 impl Story {
-    /// The settlement patience for this story and sign-in path.
+    /// The settlement patience for this story.
     #[must_use]
-    pub fn budget(self, sign_in: bool) -> Duration {
+    pub fn budget(self) -> Duration {
         match self {
             // Widths are this story's subject, so its referee uses the world's
             // patience (skein/docs/foundation/testing-strategy.md, 2.9).
             Self::Resize => WORLD_PATIENCE,
-            Self::ProgramRun | Self::ProgramCheck => Duration::from_secs(30),
-            Self::None | Self::Modes => Duration::from_secs(if sign_in { 5 } else { 1 }),
+            Self::ProgramRun => Duration::from_secs(30),
+            Self::None | Self::Modes => Duration::from_secs(1),
         }
     }
 }

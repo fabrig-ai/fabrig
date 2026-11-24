@@ -2,7 +2,19 @@
 use skein_lib::{Duration, Time};
 use skein_world::faults::Struck;
 use temper_faults::restarts::{Point, Way, worker};
-use temper_worker_domain_world::whole::restarts::{Recovery, at_point};
+use temper_worker_domain_world::whole::restarts::{
+    Recovery, at_point, signalled_during_delivery, signalled_during_model_answer,
+};
+
+#[test]
+fn a_worker_signalled_while_its_delivery_push_is_held_delivers_once_on_the_same_disk() {
+    signalled_during_delivery(71).expect("worker inspection");
+}
+
+#[test]
+fn a_drained_worker_and_a_stray_agent_signal_commit_the_held_turn_once() {
+    signalled_during_model_answer(71).expect("worker inspection");
+}
 
 #[test]
 fn workers_stop_at_each_turn_point_and_crashes_resume_on_same_or_another_worker() {

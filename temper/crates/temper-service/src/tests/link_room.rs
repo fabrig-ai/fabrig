@@ -25,6 +25,9 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
             let start = match rule.body {
                 Kind::Assignment | Kind::Job | Kind::Figures => true,
                 Kind::Hello
+                | Kind::Part
+                | Kind::PartKept
+                | Kind::PartBusy
                 | Kind::Turn
                 | Kind::Call
                 | Kind::Answer

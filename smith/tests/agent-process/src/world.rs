@@ -7,9 +7,12 @@ use crate::fake;
 use smith_channel::Record;
 
 mod coding;
+mod parts;
 mod peer;
 mod setup;
 mod signals;
+
+pub use coding::{CODING_LINES, CODING_OUTPUT, large_coding_write};
 use peer::child_charter;
 pub use peer::{TraceCase, long_child_answer};
 pub(crate) use setup::{Mode, ParentOptions, Setup};
@@ -43,6 +46,7 @@ pub(crate) struct Parent {
     next: u64,
     acknowledge_turns: bool,
     acknowledged: u32,
+    parts: Option<parts::Host>,
     frames_at_release: usize,
     refreshing: Option<smith_channel::GrantValue>,
     pub(crate) cancel_pending: bool,
@@ -56,7 +60,7 @@ pub(crate) struct Parent {
 
 impl Parent {
     pub(crate) fn new(root: Fd, charter: &[u8], value: &smith_channel::GrantValue, options: ParentOptions<'_>) -> Self {
-        let ParentOptions { hang_up, window, message, live, setup } = options;
+        let ParentOptions { hang_up, window, message, live, setup, parts_after } = options;
         let Setup { tracing, capture: _, provider, output, mode, order_requests: _ } = setup;
         let environment = matches!(mode, Mode::Environment);
         let mut peer = if matches!(tracing, Some((TraceCase::StoppedReasoning, _))) {
@@ -69,14 +73,15 @@ impl Parent {
             crate::host()
         };
         if !hang_up {
-            peer.play(crate::start_workspace_message(
+            let start = crate::start_workspace_message(
                 charter,
                 window,
                 environment || matches!(tracing, Some((TraceCase::StoppedReasoning, _))),
                 message,
                 value,
                 live,
-            ));
+            );
+            peer.play(crate::wire::edit_start(&start, |start| start.tell_parts = parts_after.is_some()));
         }
         let mut parent = Self {
             peer,
@@ -98,8 +103,9 @@ impl Parent {
             errors: Vec::new(),
             closing: 0,
             next: 0,
-            acknowledge_turns: matches!(tracing, Some((TraceCase::StoppedReasoning, _))),
+            acknowledge_turns: parts_after.is_some() || matches!(tracing, Some((TraceCase::StoppedReasoning, _))),
             acknowledged: 0,
+            parts: parts_after.map(parts::Host::new),
             frames_at_release: 0,
             refreshing: None,
             cancel_pending: false,
@@ -159,7 +165,10 @@ impl Parent {
         self.submit(Op::Close { fd });
     }
 
-    fn acknowledge(&mut self) {
+    fn acknowledge(&mut self, now: Time) {
+        if let Some(parts) = &mut self.parts {
+            parts.acknowledge(now, &mut self.peer);
+        }
         if self.admitted()
             && let Some(value) = self.refreshing.take()
         {
@@ -303,7 +312,7 @@ impl Parent {
 }
 
 impl Host for Parent {
-    fn iterate(&mut self, _now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, _wall: Wall) {
         if self.program_message {
             self.program_message = false;
             let message = self.program_messages.pop_front().unwrap_or_else(crate::program_world::message);
@@ -318,7 +327,7 @@ impl Host for Parent {
         }
         crate::program_world::answer_host(self);
         coding::answer_delivery(self);
-        self.acknowledge();
+        self.acknowledge(now);
         for _ in self.signalled..self.signal {
             self.signalled = self.signalled.checked_add(1).expect("finite requested signals");
             self.submit(Op::Signal {
@@ -363,8 +372,9 @@ impl Host for Parent {
     fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
         &mut self.submissions
     }
-    fn work_pending(&self, _now: Time) -> bool {
-        !self.completions.is_empty()
+    fn work_pending(&self, now: Time) -> bool {
+        self.next_policy_deadline().is_some_and(|at| at <= now)
+            || !self.completions.is_empty()
             || !self.submissions.is_empty()
             || self.program_message
             || self.cancel_pending
@@ -377,7 +387,7 @@ impl Host for Parent {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        None
+        self.parts.as_ref().and_then(parts::Host::deadline)
     }
     fn is_empty(&self) -> bool {
         self.status.is_some()
@@ -910,6 +920,7 @@ pub struct World {
     full_completion: bool,
     outcome: Option<Outcome<Proc, Machine>>,
     window: u32,
+    parts_after: Option<Duration>,
     environment: bool,
     records: Vec<smith_events::Record>,
     trace_bytes: Box<[u8]>,
@@ -970,6 +981,7 @@ impl World {
             full_completion: false,
             outcome: None,
             window: 8,
+            parts_after: None,
             environment: false,
             records: Vec::new(),
             trace_bytes: Box::new([]),
@@ -1110,6 +1122,17 @@ impl World {
             .filter(|spawn| spawn.program.as_ref() == b"/bin/sh")
             .map(|spawn| spawn.environment.clone())
             .collect()
+    }
+
+    /// Ask for parts and keep each after the supplied simulated delay.
+    pub fn tell_parts(&mut self, after: Duration) {
+        self.parts_after = Some(after);
+    }
+
+    /// Part acknowledgements: clock, number, and count of preceding output frames.
+    #[must_use]
+    pub fn part_acknowledgements(&self) -> &[(Time, u32, usize)] {
+        &self.parent().parts.as_ref().expect("parts requested").acknowledgements
     }
 
     /// Bound outstanding turns while the independent host withholds acknowledgements.
@@ -1393,6 +1416,7 @@ impl World {
                     message: self.message.as_ref(),
                     live: self.live.clone(),
                     setup,
+                    parts_after: self.parts_after,
                 },
             );
             if let Some(dumps) = &self.dumps {

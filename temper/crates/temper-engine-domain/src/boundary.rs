@@ -50,6 +50,7 @@ pub struct Assignment {
     pub workspace: ForgeWorkspace,
     /// Ordered opaque committed turn bodies of this task, empty for a fresh run.
     pub transcript: Box<[Box<[u8]>]>,
+    pub parts: Box<[jig_domain_link::KeptPart]>,
     /// Named answers committed after the task's last accepted turn. The
     /// worker gives these to the new attempt before it can decide new calls.
     pub answered: Box<[crate::CallRecord]>,
@@ -1433,6 +1434,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Procedure { .. }
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
+        | Delivery::PartBusy { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
         delivery @ (Delivery::Push(_)
         | Delivery::Providers(..)

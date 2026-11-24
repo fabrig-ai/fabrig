@@ -28,8 +28,8 @@ pub(crate) fn collect(ranges: &[RestoreRange]) -> Result<Box<[Range]>, CountFail
     for range in ranges {
         let size = match range {
             RestoreRange::Accounts => 3,
-            RestoreRange::People | RestoreRange::Tasks => 2,
-            RestoreRange::Deployment | RestoreRange::Settings | RestoreRange::Core => 1,
+            RestoreRange::People | RestoreRange::Tasks | RestoreRange::Core => 2,
+            RestoreRange::Deployment | RestoreRange::Settings => 1,
             RestoreRange::Census(census) => census_size(census).ok_or(CountFailure::Census)?,
         };
         count = count.checked_add(size).ok_or(CountFailure::Total)?;
@@ -89,7 +89,12 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
                 Range::prefix(&[keys::JIG, 1, 21]),
             ]);
         }
-        RestoreRange::Core => Range { start: Box::new([keys::JIG, 0, 1]), end: Some(Box::new([keys::JIG, 0, 4])) },
+        RestoreRange::Core => {
+            return Box::new([
+                Range { start: Box::new([keys::JIG, 0, 1]), end: Some(Box::new([keys::JIG, 0, 4])) },
+                Range::prefix(&[keys::JIG, 0, 10]),
+            ]);
+        }
         RestoreRange::Census(census) => return census_ranges(census),
     }])
 }

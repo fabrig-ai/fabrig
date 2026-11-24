@@ -214,6 +214,8 @@ them is its own (temper's `protocol/wires.md`).
 | a result | `Ended`'s outcome in `Answer` | `smith-charter`, root `RunResult` | to the agreed version | to the current |
 | a turn | `Turn.body` | `smith-transcript`, root `Turn` | to the agreed version | from its own version to the current |
 | a resumed window's turns | `Assignment.transcript`, each turn | `smith-transcript`, root `Turn` | as written when its version is at most the worker's agreed one; else down to it | from its own version to the current |
+| a part | `Part.body`, from version 22 | `smith-transcript`, root `Turn` | to the agreed version | from its own version to the current |
+| a resumed turn's parts | `Assignment.parts`, each body, from version 22 | `smith-transcript`, root `Turn` | as a resumed window's turns | from its own version to the current |
 | a call's name | `Call.name`, `Relayed.name`, each answered call's name | `smith-pieces` | as written | as written |
 | a delivery's evidence | `DeliveryAnswer.evidence`, each answered call's reply | `smith-pieces` | as written | as written |
 
@@ -280,6 +282,16 @@ them is its own (temper's `protocol/wires.md`).
   rolling redeploy, takes it. Whether an assignment goes down depends on
   its values, not its versions alone (an appended option at none goes
   down), so trying it is the judge, once per task and channel.
+- **But its parts are dropped, not refused** (`records.md`, 5): below
+  version 22 the translation clears `Assignment.parts` before the
+  assignment goes down, as it clears a hello's `fresh` below 21, since
+  the round trip refuses a reverse that drops a field it carries
+  (`skein/docs/design/data/codec/bridges.md`, 2.2); the reverse written
+  for `Assignment.parts` then meets an empty list. So
+  does a part whose body cannot go down to the worker's agreed
+  version of `smith-transcript`; the run resumes from its window alone,
+  its cut turn planned again, as before parts. A window that cannot go
+  down is refused as above.
 
 ### 6.2 To a running attempt
 
@@ -292,6 +304,9 @@ them is its own (temper's `protocol/wires.md`).
   there and that the bridge's reverse is total for its record (skein's
   `data/codec/bridges.md`, 5.3). A change that breaks it is breaking,
   and raises the floor.
+- **`part kept` and `part busy` are not among them:** they answer a part,
+  which only a worker whose agreed version has `part` sends (`records.md`,
+  5), so they go only where they exist, as the restart word does.
 - **One that halts anyway** is a bridge's bug: the component discards it,
   logs `cannot send KIND to worker NAME at jig-worker-wire N: HALT`, and
   marks the channel mismatched, so nothing more is placed there
@@ -308,6 +323,13 @@ them is its own (temper's `protocol/wires.md`).
   smith's `RunResult` and `Turn`; and the application's parts it sends
   (`Left`, `Saved`, `Preparation`, `JobResult`, `Items` of a job's
   answer where it has one, and `Ask`).
+- **`part` is not checked:** a worker sends none at an agreed version
+  without it, asking its agents for none (`records.md`, 5), as a link's
+  `paused` is sent only where it exists. smith's `Turn` is checked as
+  ever, so a worker whose `smith-transcript` is newer than its engine's
+  in a way the reverse cannot carry, the `interrupted` outcome of
+  version 8 among them (smith's `protocol/transcript.md`, section 6),
+  waits for its engine to go first.
 - **One that is not** closes the channel at once, logging `the engine
   speaks WIRE N, below what this worker sends whole: restart the engine
   first`, naming each such wire, and redials after its pause. So the

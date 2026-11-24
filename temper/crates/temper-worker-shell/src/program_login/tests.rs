@@ -68,6 +68,79 @@ fn a_worker_alone_login_reads_only_its_worker_part() {
 }
 
 #[test]
+fn login_selects_and_places_only_the_fetched_launcher() {
+    let directory = Path::new(ROOT);
+    let directories = crate::tests::configuration::directories(directory);
+    let (_, input) = crate::tests::worker_document(directory);
+    let part = temper_worker_service::startup::worker_part(
+        &crate::tests::worker_start(&input),
+        &jig_directories(&directories),
+        None,
+        &[],
+    )
+    .expect("worker fixture");
+    let bin = directory.join("program-bin");
+    let on_path = bin.join("claude");
+    let launcher = directory.join("claude-code/claude");
+    let binary = directory.join("temper-box");
+    let mut placements = Vec::new();
+    for (found_on_path, selected) in [(true, &on_path), (false, &launcher)] {
+        let command = from_machine_with(
+            &part,
+            &directories,
+            "source",
+            vec![("PATH".into(), bin.as_os_str().into())],
+            |candidate| {
+                assert_eq!(candidate, on_path);
+                found_on_path
+            },
+            |programs, program, name| {
+                assert_eq!(programs, directory.join("programs"));
+                place_launcher_with(
+                    programs,
+                    program,
+                    super::super::path(&directories.cache),
+                    &binary,
+                    |candidate| {
+                        assert_eq!(candidate, binary);
+                        true
+                    },
+                    |place, cache, target| {
+                        placements.push((place.to_path_buf(), cache.to_path_buf(), target.to_path_buf()));
+                        Ok(())
+                    },
+                )?;
+                Ok(programs.join(name))
+            },
+        )
+        .expect("prepared login");
+        assert_eq!(command.get_program(), selected.as_os_str());
+        assert_eq!(command.get_args().collect::<Vec<_>>(), ["auth", "login"]);
+        if found_on_path {
+            assert!(placements.is_empty(), "the PATH row places neither link");
+            // The resolved PATH program is `false`: its completion, not a launcher refusal.
+            let mut streams = None;
+            let status = run_command_with(
+                command,
+                false,
+                |_| panic!("no terminal"),
+                |exec| {
+                    assert_eq!(exec.get_program(), on_path.as_os_str());
+                    streams = Some((b"".as_slice(), b"".as_slice()));
+                    Ok(1)
+                },
+            );
+            assert_eq!(status, Ok(1));
+            let (stdout, stderr) = streams.expect("the direct login ran on the fake");
+            assert_eq!(stdout, b"");
+            assert!(!String::from_utf8_lossy(stderr).contains("fetching"));
+        } else {
+            assert_eq!(placements, [(directory.join("claude-code"), directory.to_path_buf(), binary.clone())]);
+        }
+    }
+}
+
+#[test]
 fn an_engine_file_is_refused_at_its_key_before_program_setup() {
     let scratch = skein_scratch::Scratch::new("temper-login-shape");
     let directory = scratch.path();

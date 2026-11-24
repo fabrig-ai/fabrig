@@ -311,7 +311,10 @@ fn read_refuses_the_former_file_before_reading_and_uses_machine_facts() {
         }
     }
     let large = vec![b' '; FILE_BYTES + 1];
-    assert!(read(false, Some(&large), Shape::Standalone).expect_err("large").to_string().contains("1048576"));
+    assert_eq!(
+        read(false, Some(&large), Shape::Standalone).expect_err("large").to_string(),
+        "temper.toml: past 1048576 bytes"
+    );
     let text = b"listen = \"127.0.0.1:7100\"\n";
     let actual = read(false, Some(text), Shape::Standalone).expect("good file read");
     assert!(fixed.provider_key);

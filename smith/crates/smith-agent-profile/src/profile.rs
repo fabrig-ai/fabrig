@@ -180,7 +180,7 @@ pub fn endpoint_allowance(profile: &Profile, endpoint: &Endpoint, tools: &tools:
 fn transcript(
     domain: &domain::Limits,
     client: &shared::client::Limits,
-) -> Result<smith_transcript::v7::Limits, Refusal> {
+) -> Result<smith_transcript::v8::Limits, Refusal> {
     let session = domain.session;
     let tools = session.tools;
     let run = domain.run;
@@ -221,6 +221,8 @@ fn transcript(
     limits.command_end_last = tools.shell_tail;
     limits.command_running_head = tools.shell_head;
     limits.command_running_last = tools.shell_tail;
+    limits.interrupted_head = tools.shell_head;
+    limits.interrupted_last = tools.shell_tail;
     limits.job_read_head = tools.shell_head;
     limits.job_read_last = tools.shell_tail;
     limits.ambiguous_lines = tools.match_lines;
@@ -294,6 +296,7 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let mut bodies = smith_channel::CEILINGS;
     bodies.directory_name = run.directory_name_bytes;
     bodies.directory_path = run.host_path_bytes;
+    bodies.directory_results_some = 4096;
     bodies.directory_conflicts = run.conflicts;
     bodies.directory_conflicts_item = run.conflict_path_bytes;
     bodies.workspace_directories = run.directories;
@@ -319,6 +322,9 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let piece = history.checked_add(lengths).ok_or(derived(Layer::Channel, "start_transcript"))?;
     validate::turn_in_channel(piece, u64::from(bodies.start_transcript))?;
     bodies.start_transcript = u32::try_from(piece).or(Err(derived(Layer::Channel, "start_transcript")))?;
+    bodies.start_parts = bodies.start_transcript;
+    bodies.part_body = bodies.turn_body;
+    bodies.kept_part_body = bodies.turn_body;
     validate::turn_in_channel(turn, u64::from(smith_channel::CEILINGS.turn_body))?;
     validate::turn_in_channel(charter, u64::from(smith_channel::CEILINGS.start_charter))?;
     validate::turn_in_channel(u64::from(run.message_bytes), u64::from(smith_channel::CEILINGS.message_text))?;
@@ -341,7 +347,7 @@ fn channel_limits(
     policy: &Policy,
     bodies: smith_channel::Limits,
     charter: smith_charter::v5::Limits,
-    transcript: smith_transcript::v7::Limits,
+    transcript: smith_transcript::v8::Limits,
     io: &io::Limits,
 ) -> Result<channel::Limits, Refusal> {
     let refusal = derived(Layer::Channel, "output_frames");
@@ -389,7 +395,7 @@ fn channel_limits(
             skip: channel_start_bytes(&bodies)?.max(output_bytes),
             output_bytes,
             output_frames,
-            kinds: u32::try_from(smith_channel::V13.len()).or(Err(derived(Layer::Channel, "kinds")))?,
+            kinds: u32::try_from(smith_channel::V14.len()).or(Err(derived(Layer::Channel, "kinds")))?,
         },
         endpoints: ENDPOINTS,
         calls: domain.run.calls,
@@ -660,7 +666,7 @@ fn derive_machine(
     }
 }
 
-fn transcript_bounds(limits: smith_transcript::v7::Limits) -> Result<smith_transcript::v7::Limits, Refusal> {
+fn transcript_bounds(limits: smith_transcript::v8::Limits) -> Result<smith_transcript::v8::Limits, Refusal> {
     let ceiling = smith_transcript::CEILINGS;
     for (field, required, available) in [
         ("replay_bytes", limits.replay_bytes, ceiling.replay_bytes),

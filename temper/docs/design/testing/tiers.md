@@ -435,14 +435,6 @@ hands it its macOS tiers' runs. Linux's own tests are listed by name.
   of disjoint choosers and retained sandbox ports; slow-tier changes
   compile without running.
 
-- **A started cut with the box's sign-in enabled** (`process-tier.md`): the cut holds
-  the engine before it hears the group's `started`, while the source
-  step needs that engine's discovery before the group can finish. A
-  proof on that configuration needs a cut or a source step that breaks
-  this dependency without weakening the cut's assertions. Default:
-  `process-tier.md`'s no-sign-in fixture for this cut alone; the final setup and
-  removal cut use the box's sign-in.
-
 - **A default box's combined browser and terminal proof** (`process-tier.md`;
   `../protocol/setup/box.md`, 1, and `../protocol/setup/box-supervision.md`, 1, and `../protocol/setup/testing.md`, 4): one 1440-pixel walk with the
   default runner and separate configuration, data and cache directories,

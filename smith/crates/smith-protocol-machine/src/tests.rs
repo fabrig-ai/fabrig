@@ -32,6 +32,7 @@ fn configured_component(variables: &[crate::Variable]) -> Component {
     );
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"code"[..]),
             root: Token::new(10),
@@ -616,6 +617,7 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
     let mut harness = Harness::new();
     let owner = Token::new(33);
     harness.request(FromDomain::Check {
+        results: None,
         owner,
         program: run::Place { root: Token::new(10), path: Box::from(&b"check"[..]) },
         bound: skein_lib::Duration::from_nanos(100),
@@ -741,6 +743,7 @@ fn directory_request(operation: u32, path: &[u8]) -> FromDomain {
         5 => FromDomain::Read { owner, at, max: 16, deadline },
         6 => FromDomain::Probe { owner, at, deadline },
         7 => FromDomain::Check {
+            results: None,
             owner,
             program: run::Place { root: Token::new(10), path: Box::from(&b"check"[..]) },
             bound: deadline.saturating_since(Time::ZERO),
@@ -834,6 +837,7 @@ fn configured_variables_are_encoded_once_for_commands_and_checks_and_absent_for_
                     },
                 },
                 1 => FromDomain::Check {
+                    results: None,
                     owner,
                     bound: deadline.saturating_since(Time::ZERO),
                     cap: deadline,
@@ -1218,6 +1222,53 @@ fn a_listing_directory_failure_or_cancel_never_launches_rg() {
 }
 
 #[test]
+fn cancelled_command_keeps_the_output_read_before_its_cut() {
+    use skein_io::Event;
+    use skein_lib::stream::Up;
+    let mut harness = Harness::new();
+    let owner = Token::new(32);
+    harness.operate(
+        owner,
+        tools::Op::Spawn { cwd: place(b"."), command: b"command".as_slice().into(), head: 2, tail: 2, after: None },
+        Time::from_nanos(100),
+    );
+    harness.below.pop().expect("spawn");
+    harness.event(BelowEvent::Process(Event::Spawned {
+        owner,
+        child: Token::new(42),
+        pipes: Box::new([Token::new(43), Token::new(44)]),
+    }));
+    while harness.below.pop().is_some() {}
+    harness
+        .event(BelowEvent::Pipe(Event::Stream { owner: Token::new(43), up: Up::Bytes(b"abcdef".as_slice().into()) }));
+    harness.below.pop().expect("read again");
+    harness.request(FromDomain::Cancel { owner });
+    harness.below.pop().expect("stop the group");
+    harness.event(BelowEvent::Pipe(Event::Stream {
+        owner: Token::new(43),
+        up: Up::Bytes(b"after cut".as_slice().into()),
+    }));
+    harness.below.pop().expect("drain the pipe");
+    harness.event(BelowEvent::Process(Event::Exited { owner, exit: kernel::Exit::Signal(15) }));
+    for pipe in [Token::new(43), Token::new(44)] {
+        harness.event(BelowEvent::Pipe(Event::Closed { owner: pipe }));
+    }
+    assert_eq!(harness.above.len(), 0, "reaping is still owed");
+    harness.event(BelowEvent::Process(Event::Closed { owner }));
+    assert_eq!(
+        harness.above.pop(),
+        Some(ToDomain::Done {
+            owner,
+            done: tools::Done::CommandCancelled {
+                head: b"ab".as_slice().into(),
+                tail: b"ef".as_slice().into(),
+                dropped: 2
+            },
+        })
+    );
+}
+
+#[test]
 fn a_tools_output_is_the_same_whatever_its_deliveries() {
     use crate::process::{Process, Work, stream};
     use skein_lib::stream::Up;
@@ -1284,5 +1335,52 @@ fn a_failed_listing_directory_close_never_spawns_a_child() {
             Some(ToDomain::Done { owner, done: tools::Done::Failed { fault: tools::Fault::Other } })
         );
         assert!(harness.below.is_empty());
+    }
+}
+
+#[test]
+fn checks_receive_their_results_directory_and_create_it_before_exec() {
+    let configured = [
+        crate::Variable { name: b"SMITH_CHECK_RESULTS".as_slice().into(), value: b"/stale".as_slice().into() },
+        crate::Variable { name: b"KEEP".as_slice().into(), value: b"yes".as_slice().into() },
+    ];
+    for results in [None, Some(b"/results/one directory".as_slice())] {
+        let mut harness = Harness {
+            component: configured_component(&configured),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
+        };
+        harness.request(FromDomain::Check {
+            owner: Token::new(90),
+            program: run::Place { root: Token::new(10), path: b".smith/check".as_slice().into() },
+            results: match results {
+                Some(path) => Some(Box::from(path)),
+                None => None,
+            },
+            bound: skein_lib::Duration::from_secs(10),
+            cap: Time::from_nanos(u64::MAX),
+            tail: 4,
+        });
+        let Some(Below::Spawn { spawn, .. }) = harness.below.pop() else { panic!("check spawn") };
+        match results {
+            None => {
+                assert_eq!(spawn.env.as_ref(), &[Box::from(b"KEEP=yes".as_slice())]);
+                assert_eq!(spawn.program.as_ref(), b".smith/check");
+                assert!(spawn.args.is_empty());
+            }
+            Some(_) => {
+                assert_eq!(
+                    spawn.env.as_ref(),
+                    &[
+                        Box::from(b"KEEP=yes".as_slice()),
+                        Box::from(b"SMITH_CHECK_RESULTS=/results/one directory".as_slice())
+                    ]
+                );
+                assert_eq!(spawn.program.as_ref(), b"/bin/sh");
+                assert_eq!(spawn.args[0].as_ref(), b"-c");
+                assert_eq!(spawn.args[1].as_ref(), b"/bin/mkdir -p -- \"$SMITH_CHECK_RESULTS\" && exec \"$1\"");
+                assert_eq!(spawn.args[3].as_ref(), b".smith/check");
+            }
+        }
     }
 }

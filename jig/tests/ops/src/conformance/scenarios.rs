@@ -116,14 +116,17 @@ impl State {
                 }
                 Vec::new()
             }
-            host::ToAgent::Drain { agent } | host::ToAgent::Cancel { agent } => {
+            host::ToAgent::Drain { agent, grace: _ } | host::ToAgent::Cancel { agent } => {
                 if let Some(worker) = self.workers.remove(&agent) {
                     self.spent += worker.actual_spent;
                     self.acknowledged += worker.turn_acks;
                 }
                 vec![Input::Event(root::Event::Agent(host::FromAgent::Gone { owner: agent, detail: Box::new([]) }))]
             }
-            host::ToAgent::Renewals { .. } | host::ToAgent::Grant { .. } | host::ToAgent::Answer { .. } => Vec::new(),
+            host::ToAgent::AcknowledgePart { .. }
+            | host::ToAgent::Renewals { .. }
+            | host::ToAgent::Grant { .. }
+            | host::ToAgent::Answer { .. } => Vec::new(),
         }
     }
     pub(super) fn poll(&mut self, clock: Clock) -> Inputs {
@@ -179,7 +182,7 @@ impl State {
 }
 
 fn transcript(turn: u32, spent: u64) -> Box<[u8]> {
-    use smith_transcript::v7 as t;
+    use smith_transcript::v8 as t;
 
     let text = t::Text { text: b"shared scenario turn".as_slice().into(), replay: None };
     let message = t::Message { role: t::Role::Assistant, blocks: List::from_boxed(Box::new([t::Block::Text(text)])) };

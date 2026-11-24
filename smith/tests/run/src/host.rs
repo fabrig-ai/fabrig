@@ -324,6 +324,7 @@ impl Host {
                     })
                     .collect();
                 out.push(Event::Start {
+                    tell_parts: false,
                     messages: Box::default(),
                     reply_to: ReplyTo::new(job),
                     host_run: job,
@@ -429,6 +430,7 @@ impl Host {
         let brief = TEXT.iter().copied().cycle().take(usize::try_from(len).expect("a u32 fits")).collect();
         let writable = self.rng.chance(script.writable);
         let mut repositories = vec![Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"temper"[..]),
             root: self.name(),
@@ -438,6 +440,7 @@ impl Host {
         }];
         if self.rng.chance(500) {
             repositories.push(Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: Box::from(&b"docs"[..]),
                 root: self.name(),
