@@ -17,6 +17,7 @@ use skein_world::{
 
 mod actions;
 mod funds;
+mod parks;
 
 #[expect(clippy::struct_excessive_bools, reason = "independent script milestones survive task holds and new attempts")]
 #[derive(Debug)]
@@ -27,6 +28,7 @@ struct Progress {
     pruned: bool,
     parked: bool,
     words: bool,
+    asked: bool,
     last: (Time, u64),
     expect: Expect,
 }
@@ -53,6 +55,8 @@ struct Driver {
     script_target: Option<usize>,
     seed: u64,
     receipts: Vec<actions::Receipt>,
+    parks: Vec<parks::Park>,
+    reads: Vec<(u64, u64, u64)>,
 }
 
 /// Run a workload with the caller's configured kinds and exclusions.
@@ -98,10 +102,12 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
             pruned: false,
             parked: false,
             words: false,
+            asked: false,
             last,
             expect: Expect::Ends,
         })
         .collect();
+    let parks = parks::draw(&workload, streams, configured);
     let mut driver = Driver {
         workload,
         progress,
@@ -117,6 +123,8 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         script_target: None,
         seed: streams.seed(),
         receipts: Vec::new(),
+        parks,
+        reads: Vec::new(),
     };
     let bound = Bound::default();
     let mut script_turn = true;
@@ -133,6 +141,7 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         world
             .try_drain_with(&mut |world| {
                 driver.refresh(world);
+                driver.drive_parks(world, sweep)?;
                 driver.act(world, sweep)
             })
             .map_err(|finding| {
@@ -143,6 +152,7 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         driver.refresh(&world);
         if driver.finished(&world, bound).inspect_err(|finding| eprintln!("{finding}"))? {
             driver.check_outcomes(&world)?;
+            driver.check_parks(&world)?;
             return Ok(world.fault_ledger.take().expect("workload ledger"));
         }
         // Waiting on a person's choice does not busy-spin the simulator.
@@ -315,7 +325,7 @@ impl Driver {
         }
     }
 
-    fn read_run(&mut self, world: &mut World, number: u64) -> bool {
+    fn read_run(&mut self, world: &mut World, number: u64) -> Result<bool, String> {
         let current = row(world, number).expect("scripted live task");
         if matches!(current.phase, tasks::Phase::Active(tasks::Active::Running { .. })) {
             if let Some(last) = current.inbox.last() {
@@ -325,8 +335,19 @@ impl Driver {
                     .rev()
                     .find(|assigned| assigned.task == number && assigned.attempt == current.attempt)
                     .expect("running assignment");
-                let offered =
-                    world.inbound.iter().chain(assigned.messages.iter()).any(|word| word.number == last.number);
+                let offered = world.inbound_runs.contains(&(number, current.attempt, last.number))
+                    || assigned.messages.iter().any(|word| word.number == last.number);
+                if offered {
+                    for message in current.inbox.iter().filter(|message| message.number <= last.number) {
+                        if self.reads.iter().any(|(task, _, read)| *task == number && *read == message.number) {
+                            return Err(format!(
+                                "seed {}: task {number}, attempt {} read message {} twice",
+                                self.seed, current.attempt, message.number
+                            ));
+                        }
+                        self.reads.push((number, current.attempt, message.number));
+                    }
+                }
                 world.enqueue(root::Event::Turn {
                     channel: Token::new(7),
                     task: number,
@@ -338,7 +359,7 @@ impl Driver {
                     opens_window: current.turn == 0 && assigned.turns.is_empty(),
                     refused: Box::new([]),
                 });
-                return true;
+                return Ok(true);
             }
             if !current.unrecorded.is_empty() {
                 self.completion += 1;
@@ -354,10 +375,10 @@ impl Driver {
                         messages: current.unrecorded.iter().map(|word| word.number).collect(),
                     },
                 }));
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     fn create(&mut self, world: &mut World, index: usize, sweep: &Sweep) -> Result<bool, String> {
@@ -488,7 +509,7 @@ impl Driver {
             }
             return Ok(false);
         };
-        if self.read_run(world, number) {
+        if self.read_run(world, number)? {
             return Ok(true);
         }
         let task = &self.workload.tasks[index];
@@ -539,7 +560,24 @@ impl Driver {
         self.run_step(world, index, number)
     }
 
+    fn question_step(&mut self, world: &mut World, index: usize, number: u64) -> bool {
+        let current = row(world, number).expect("scripted running task");
+        if !matches!(current.phase, tasks::Phase::Active(tasks::Active::Running { .. })) {
+            return false;
+        }
+        if self.workload.tasks[index].asks_requester && !self.progress[index].asked {
+            let tasks::Party::Task(parent) = current.requester else { panic!("delegate's requester") };
+            self.message(world, number, parent, tasks::MessageKind::Question, b"Which next?");
+            self.progress[index].asked = true;
+            return true;
+        }
+        self.answer_children(world, index)
+    }
+
     fn run_step(&mut self, world: &mut World, index: usize, number: u64) -> Result<bool, String> {
+        if self.question_step(world, index, number) {
+            return Ok(true);
+        }
         let task = &self.workload.tasks[index];
         let current = row(world, number).expect("scripted running task");
         let before_deadline = task.short
@@ -584,6 +622,9 @@ impl Driver {
                 world.enqueue(park(current));
                 return Ok(true);
             }
+            return Ok(false);
+        }
+        if self.parks_block(index, world) {
             return Ok(false);
         }
         let needs_park = self.acts.iter().any(|act| {
@@ -762,6 +803,7 @@ impl Driver {
         }
         Ok(all
             && self.receipts.is_empty()
+            && self.parks_settled(world, bound)?
             && self.acts.iter().all(|act| {
                 act.fired
                     || self.progress[act.act.target].pruned

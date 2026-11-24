@@ -42,6 +42,8 @@ pub struct Task {
     pub parent: Option<usize>,
     pub party: Party,
     pub kind: TaskKind,
+    /// A delegate's one-third question draw addresses its requester, not a person task.
+    pub asks_requester: bool,
     pub budget: u64,
     /// Milliseconds from admission; the short quarter passes while work waits.
     pub deadline_ms: u64,
@@ -100,7 +102,23 @@ impl Workload {
             let mut room = 5;
             draw_task(&mut tasks, &mut rng, &format!("t{goal}"), None, party, budget, 0, &mut room, deadline_ms, short);
         }
-        Self { tasks }
+        // Keep the seed's draw order and tree slots. A question position under a
+        // delegate is that run's own question, not another task to admit.
+        let mut positions: Vec<usize> = Vec::new();
+        let mut kept: Vec<Task> = Vec::new();
+        for task in &tasks {
+            let parent = task.parent.map(|parent| positions[parent]);
+            if task.kind == TaskKind::Question && task.parent.is_some_and(|p| tasks[p].parent.is_some()) {
+                kept[parent.expect("requester question has a parent")].asks_requester = true;
+                positions.push(kept.len());
+            } else {
+                positions.push(kept.len());
+                let mut task = task.clone();
+                task.parent = parent;
+                kept.push(task);
+            }
+        }
+        Self { tasks: kept }
     }
 
     /// Each actor consumes only its own part, even if the other actor's configured acts change.
@@ -108,7 +126,12 @@ impl Workload {
     pub fn acts(&self, streams: Streams, party: Party, configured: &[Kind]) -> Vec<Act> {
         let mut rng = streams.rng(Stream::Parties, party.part());
         let mut acts = Vec::new();
-        for kind in configured.iter().copied().collect::<std::collections::BTreeSet<_>>() {
+        for kind in configured
+            .iter()
+            .copied()
+            .filter(|kind| kind.family == people::FAMILY)
+            .collect::<std::collections::BTreeSet<_>>()
+        {
             let chosen = rng.below(2) == 0;
             let (moment, candidates): (_, Vec<_>) = if kind == people::RELEASES_A_TASK {
                 (
@@ -184,6 +207,7 @@ fn draw_task(
         parent,
         party,
         kind: TaskKind::Run { words },
+        asks_requester: false,
         budget,
         deadline_ms,
         short,
@@ -197,6 +221,7 @@ fn draw_task(
             parent: Some(index),
             party,
             kind: TaskKind::Question,
+            asks_requester: false,
             budget: 0,
             deadline_ms,
             short,

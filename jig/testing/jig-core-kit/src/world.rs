@@ -155,6 +155,8 @@ pub struct World {
     pub host_calls: Vec<(Token, u64, u64, fleet::Call)>,
     pub host_answers: Vec<(Box<[u8]>, core::SettledCall)>,
     pub inbound: Vec<tasks::Word>,
+    /// (Task, attempt, message) for live relays, to distinguish a resumed recipient.
+    pub inbound_runs: Vec<(u64, u64, u64)>,
     pub proposal_reads: Vec<(Token, core::CallKey, core::ProposalRead)>,
     pub settings_answers: Vec<(Token, core::CallKey, core::SettingsAnswer)>,
     pub person_answers: Vec<(Token, core::CallKey, core::reads::Answer)>,

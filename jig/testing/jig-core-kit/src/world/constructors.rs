@@ -235,6 +235,7 @@ impl World {
             host_calls: Vec::new(),
             host_answers: Vec::new(),
             inbound: Vec::new(),
+            inbound_runs: Vec::new(),
             answers: Vec::new(),
             settings_answers: Vec::new(),
             person_answers: Vec::new(),

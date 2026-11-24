@@ -55,7 +55,8 @@ fn workload_and_party_draws_do_not_consume_each_others_streams() {
     let streams = Streams::new(1);
     let workload = Workload::draw(streams);
     assert_eq!(workload.tasks[0].budget, 60, "Workload/tasks stream");
-    assert_eq!(workload.tasks.len(), 6);
+    assert_eq!(workload.tasks.len(), 5);
+    assert_eq!(workload.tasks.iter().filter(|task| task.asks_requester).count(), 1);
     let configured = [people::HOLDS_A_TASK, people::RELEASES_A_TASK, people::ANSWERS_LATE];
     let owner = workload.acts(streams, Party::Owner, &configured);
     let _ = streams.rng(Stream::Parties, "member").next_u64();
@@ -73,6 +74,7 @@ fn workload_and_party_draws_do_not_consume_each_others_streams() {
 fn workload_draws_only_eligible_targets_and_releases_its_own_hold() {
     let mut releases = 0;
     let mut questions = 0;
+    let mut requester_questions = 0;
     for seed in 0..64 {
         let streams = Streams::new(seed);
         let workload = Workload::draw(streams);
@@ -109,6 +111,15 @@ fn workload_draws_only_eligible_targets_and_releases_its_own_hold() {
             }
         }
         for (index, task) in workload.tasks.iter().enumerate() {
+            if task.kind == crate::workload::TaskKind::Question {
+                let parent = task.parent.expect("person question's asking goal");
+                assert!(workload.tasks[parent].parent.is_none(), "only goals ask their person");
+            }
+            if task.asks_requester {
+                requester_questions += 1;
+                assert!(task.parent.is_some(), "a delegate asks its requester task");
+                assert!(matches!(task.kind, crate::workload::TaskKind::Run { .. }));
+            }
             if task.parent.is_none() {
                 let count = workload.tasks[index..]
                     .iter()
@@ -119,7 +130,7 @@ fn workload_draws_only_eligible_targets_and_releases_its_own_hold() {
             assert!(task.name.split('.').count() <= 3);
         }
     }
-    assert!(releases > 0 && questions > 0);
+    assert!(releases > 0 && questions > 0 && requester_questions > 0);
 }
 
 #[test]

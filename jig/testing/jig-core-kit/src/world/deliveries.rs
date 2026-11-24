@@ -128,7 +128,10 @@ impl World {
                 self.stop_deliveries.push(held);
             }
             root::Delivery::CallAnswer { name, call, .. } => self.host_answers.push((name, call)),
-            root::Delivery::Message { word, .. } => self.inbound.push(word),
+            root::Delivery::Message { task, attempt, word, .. } => {
+                self.inbound_runs.push((task, attempt, word.number));
+                self.inbound.push(word);
+            }
             root::Delivery::Assigned { assignment, .. } => {
                 self.last_read = None;
                 self.assignments.push((assignment.task, assignment.attempt));

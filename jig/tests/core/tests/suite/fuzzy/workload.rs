@@ -1,5 +1,5 @@
 //! Workload sweeps (`jig/docs/design/domain/testing-workloads.md`, 7).
-use jig_core_kit::{bounds, open, people, workload};
+use jig_core_kit::{bounds, open, parks, people, workload};
 use skein_world::{streams::Streams, sweep::Sweep};
 
 #[test]
@@ -28,13 +28,42 @@ fn people_act_on_tasks_at_any_step() -> Result<(), String> {
         }
     }
     // Each is necessary: 1 amends a passed deadline, 3 widens authority,
-    // and 9 never answers. Together they strike every configured kind.
-    for seed in [1, 3, 9] {
+    // and 29 answers an ended run and never answers. Together they strike every configured kind.
+    for seed in [1, 3, 29] {
         eprintln!("workload seed {seed}");
         let ledger = workload::run(Streams::new(seed), &configured, &sweep)?;
         eprintln!("workload fell {seed}: {:?}", ledger.fell());
         sweep.ran(&ledger);
     }
+    sweep.check_fell()
+}
+
+#[test]
+fn runs_park_resume_and_move_at_any_step() -> Result<(), String> {
+    let configured = [
+        open::PARKS_WITH_A_QUESTION_OPEN,
+        parks::ANSWERED_WHILE_PARKED,
+        parks::ANSWERED_AFTER_ITS_END,
+        parks::ANSWERED_TO_ITS_SUCCESSOR,
+        parks::COORDINATOR_ENDS_WHILE_A_CHILD_WAITS,
+    ];
+    let mut sweep = Sweep::new("runs_park_resume_and_move_at_any_step");
+    for kind in configured {
+        sweep.configure(kind);
+    }
+    for exclusion in open::EXCLUSIONS {
+        if configured.contains(&exclusion.fault) {
+            sweep.exclude(exclusion)?;
+        }
+    }
+    // Each contributes a different answer/end kind; removing any leaves it unfired.
+    for seed in [11, 20, 33, 37] {
+        eprintln!("parks seed {seed}");
+        let ledger = workload::run(Streams::new(seed), &configured, &sweep)?;
+        eprintln!("parks fell {seed}: {:?}", ledger.fell());
+        sweep.ran(&ledger);
+    }
+    eprintln!("P43 left out: {}", sweep.left_out("a_coordinator_watching_its_asker_is_woken"));
     sweep.check_fell()
 }
 
@@ -58,9 +87,9 @@ fn the_cores_tables_and_funds_reach_their_bounds() -> Result<(), String> {
             sweep.exclude(exclusion)?;
         }
     }
-    // Each is necessary: 2 reaches the newcomer and minimum-run edges, 6
-    // starts without its own budget, and 125 fills the kept-answer table.
-    for seed in [2, 6, 125] {
+    // Each is necessary: 261 reaches all three funds edges, and 1731 fills
+    // the kept-answer table with the goals' requests and person answers.
+    for seed in [261, 1731] {
         eprintln!("bounds workload seed {seed}");
         let ledger = workload::run(Streams::new(seed), &configured, &sweep)?;
         eprintln!("bounds workload fell {seed}: {:?}", ledger.fell());
