@@ -7481,7 +7481,7 @@ pub fn closing_message_to_domain(record: crate::v25::ClosingMessage) -> temper_e
 }
 
 pub fn closing_relay_to_record(value: &temper_engine_domain_forge_closer::relay::Relay) -> Result<crate::v25::ClosingRelay, crate::v25::Problem> {
-    let temper_engine_domain_forge_closer::relay::Relay { open: field_000000, replies: field_000001 } = value;
+    let temper_engine_domain_forge_closer::relay::Relay { open: field_000000, replies: field_000001, waiting: field_000002 } = value;
     Ok(crate::v25::ClosingRelay {
         open: match field_000000 {
             Some(item) => {
@@ -7499,13 +7499,23 @@ pub fn closing_relay_to_record(value: &temper_engine_domain_forge_closer::relay:
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        waiting: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CLOSING_RELAY_WAITING.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = closing_question_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
         }
     })
 }
 
 #[must_use]
 pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay) -> temper_engine_domain_forge_closer::relay::Relay {
-    let crate::v25::ClosingRelay { open: field_000000, replies: field_000001 } = record;
+    let crate::v25::ClosingRelay { open: field_000000, replies: field_000001, waiting: field_000002 } = record;
     temper_engine_domain_forge_closer::relay::Relay {
         open: match field_000000 {
             Some(item) => {
@@ -7520,6 +7530,16 @@ pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay) -> temper_engin
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = closing_message_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        waiting: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = closing_question_to_domain(item);
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
