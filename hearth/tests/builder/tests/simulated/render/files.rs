@@ -1,11 +1,10 @@
-use hearth::Form;
-use hearth_builder_world::fixtures::{self, Repository, files};
+use hearth_builder_world::fixtures::{files, lines_starting};
+
 #[test]
 fn hearth_render_lists_a_link_a_directory_and_a_files_new_mode() {
-    let repository = Repository::make("links", &fixtures::thin_with(files::LINKS));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
+    let rendered = super::render(files::LINKS);
     assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  /"]),
+        lines_starting(&rendered.stdout, &["  /"]),
         concat!(
             "  /etc/motd                file 0600 root:adm 775324fcea7f\n",
             "  /etc/mtab                link root:root /proc/self/mounts\n",
@@ -17,10 +16,9 @@ fn hearth_render_lists_a_link_a_directory_and_a_files_new_mode() {
 
 #[test]
 fn hearth_render_lists_rendered_and_copied_files_by_their_sha256() {
-    let repository = Repository::make("files", &fixtures::thin_with(files::FILES));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
+    let rendered = super::render(files::FILES);
     assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  /"]),
+        lines_starting(&rendered.stdout, &["  /"]),
         concat!(
             "  /etc/motd                file 0644 root:root 775324fcea7f\n",
             "  /etc/motd.d/dev          file 0640 root:root b0b0dd8b10a8\n",

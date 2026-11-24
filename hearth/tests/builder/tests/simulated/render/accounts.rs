@@ -1,11 +1,10 @@
-use hearth::Form;
-use hearth_builder_world::fixtures::{self, Repository, accounts};
+use hearth_builder_world::fixtures::{accounts, lines_starting};
+
 #[test]
 fn hearth_render_lists_groups_users_and_members() {
-    let repository = Repository::make("accounts", &fixtures::thin_with(&[accounts::ACCOUNTS]));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
+    let rendered = super::render(&[accounts::ACCOUNTS]);
     assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  groups ", "  users ", "  members "]),
+        lines_starting(&rendered.stdout, &["  groups ", "  users ", "  members "]),
         concat!(
             "  groups     mail package\n",
             "  groups     ops 1500\n",

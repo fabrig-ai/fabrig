@@ -29,30 +29,34 @@ mod diff {
 }
 
 mod render {
+    use ::hearth::Form;
+    use hearth_builder_world::{fixtures, protocol};
+
+    mod accounts;
+    mod additions;
+    mod boot;
+    mod collisions;
+    mod data;
     mod errors;
     mod exports;
+    mod files;
     mod git;
     mod hearth;
+    mod ids;
     mod outputs;
     mod reserved;
     mod resolution;
     mod resolve;
+    mod scripts;
+    mod software;
 
-    use ::hearth::{Call, Form};
-    use hearth_builder_world::{fixtures, protocol};
+    fn render(overrides: &[fixtures::File]) -> protocol::Run {
+        let files = fixtures::thin_with(overrides);
+        render_files(&files, &[], Form::Text)
+    }
 
-    fn render(files: &[fixtures::File], targets: &[&[u8]], form: Form) -> protocol::Run {
-        let scenario = fixtures::Scenario {
-            files,
-            call: Call::Render {
-                resolve: false,
-                repository: fixtures::GIT_DIR.into(),
-                revision: b"HEAD".as_slice().into(),
-                targets: targets.iter().map(|target| Box::<[u8]>::from(*target)).collect(),
-            },
-            form,
-            ..fixtures::thin()
-        };
+    fn render_files(files: &[fixtures::File], targets: &[&[u8]], form: Form) -> protocol::Run {
+        let scenario = fixtures::Scenario { form, ..fixtures::render_targets(files, targets, false) };
         protocol::run(&scenario, fixtures::SIMULATION_SEED)
     }
 }
@@ -66,6 +70,7 @@ mod store {
 
 mod fuzzy {
     mod inputs;
+
     mod memory;
     mod protocol;
     mod simulation;

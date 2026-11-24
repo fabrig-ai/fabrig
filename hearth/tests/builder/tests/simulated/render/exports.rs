@@ -1,8 +1,8 @@
 //! Exports as printed by render over the protocol world's cut tool pipes.
-use super::{Form, fixtures, protocol, render};
+use super::{Form, fixtures, protocol, render_files};
 
 fn render_x1(files: &[fixtures::File], form: Form) -> protocol::Run {
-    render(files, &[b"x1-prod"], form)
+    render_files(files, &[b"x1-prod"], form)
 }
 
 #[test]
@@ -79,7 +79,7 @@ fn an_export_reading_tasks_is_refused() {
 
 #[test]
 fn a_reader_sees_the_exports_of_its_own_environment_alone() {
-    let run = render(&fixtures::thin_with(fixtures::VPN), &[b"carbon-lab", b"carbon-prod"], Form::Text);
+    let run = render_files(&fixtures::thin_with(fixtures::VPN), &[b"carbon-lab", b"carbon-prod"], Form::Text);
     assert_eq!(
         fixtures::lines_starting(&run.stdout, &["  /etc/vpn/peers"]),
         concat!(
@@ -93,7 +93,7 @@ fn a_reader_sees_the_exports_of_its_own_environment_alone() {
 #[test]
 fn an_exporters_fault_prints_for_it_and_for_its_reader() {
     let files = fixtures::thin_with(&[fixtures::VPN, &[fixtures::VPN_BAD]].concat());
-    let run = render(&files, &[b"carbon-lab", b"carbon-prod", b"west-lab", b"west-prod"], Form::Text);
+    let run = render_files(&files, &[b"carbon-lab", b"carbon-prod", b"west-lab", b"west-prod"], Form::Text);
     assert_eq!(
         fixtures::lines_starting(&run.stdout, &["hosts/west/west-prod.json:"]),
         concat!(

@@ -1,11 +1,10 @@
-use hearth::Form;
-use hearth_builder_world::fixtures::{self, Repository, scripts};
+use hearth_builder_world::fixtures::{lines_starting, scripts};
+
 #[test]
 fn hearth_render_lists_presets_tmpfiles_and_scripts() {
-    let repository = Repository::make("scripts", &fixtures::thin_with(scripts::PRESETS));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
+    let rendered = super::render(scripts::PRESETS);
     assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  presets ", "  tmpfiles ", "  scripts "]),
+        lines_starting(&rendered.stdout, &["  presets ", "  tmpfiles ", "  scripts "]),
         concat!(
             "  presets    getty@tty1.service disable\n",
             "  presets    ssh.service enable\n",

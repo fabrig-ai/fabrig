@@ -104,18 +104,3 @@ fn a_tree_git_cannot_read_prints_git_s_tail_and_exits_75() {
     assert_eq!(String::from_utf8_lossy(&rendered.stdout), "git ls-tree exited 128\n  fatal: not a tree object\n");
     assert_eq!(rendered.exit, Exit::Code(75));
 }
-
-mod files;
-
-mod boot;
-
-mod accounts;
-
-mod additions;
-mod data;
-mod scripts;
-
-mod software;
-
-mod collisions;
-mod ids;

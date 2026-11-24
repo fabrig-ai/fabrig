@@ -1,10 +1,10 @@
 //! The reserved hearth task as seen by the builder's protocol world.
-use super::{Form, fixtures, render, reserved::CONFIGURATION_EXIT};
+use super::{Form, fixtures, render_files, reserved::CONFIGURATION_EXIT};
 use fixtures::reserved::hearth as f;
 
 #[test]
 fn the_hearth_task_passes_every_reserved_rule() {
-    let run = render(&fixtures::thin_with(f::HEARTH), &[], Form::Text);
+    let run = render_files(&fixtures::thin_with(f::HEARTH), &[], Form::Text);
     assert_eq!(
         fixtures::lines_starting(
             &run.stdout,
@@ -17,14 +17,14 @@ fn the_hearth_task_passes_every_reserved_rule() {
 
 #[test]
 fn an_empty_hearth_task_requests_no_packages() {
-    let run = render(fixtures::TEST_REPOSITORY, &[b"test-min"], Form::Text);
+    let run = render_files(fixtures::TEST_REPOSITORY, &[b"test-min"], Form::Text);
     assert_eq!(fixtures::lines_starting(&run.stdout, &["  request"]), "");
     assert_eq!(run.code, Some(0));
 }
 
 #[test]
 fn a_container_renders_without_the_hearth_declaration() {
-    let run = render(&f::no_hearth(f::CONTAINER), &[b"chat-prod"], Form::Text);
+    let run = render_files(&f::no_hearth(f::CONTAINER), &[b"chat-prod"], Form::Text);
     assert_eq!(
         fixtures::lines_starting(&run.stdout, &["target ", "tasks/", "hosts/"]),
         "target       chat-prod   base chat   environment prod\n"
@@ -34,14 +34,14 @@ fn a_container_renders_without_the_hearth_declaration() {
 
 #[test]
 fn a_host_names_the_missing_hearth_declaration() {
-    let run = render(&f::no_hearth(f::CONTAINER), &[b"east-prod"], Form::Text);
+    let run = render_files(&f::no_hearth(f::CONTAINER), &[b"east-prod"], Form::Text);
     assert_eq!(run.stdout, b"tasks/hearth/task.json: east-prod: no task hearth under tasks/\n");
     assert_eq!(run.code, Some(CONFIGURATION_EXIT));
 }
 
 #[test]
 fn a_container_names_hearth_at_its_key() {
-    let run = render(&f::no_hearth(f::CONTAINER_HEARTH), &[b"chat-prod"], Form::Text);
+    let run = render_files(&f::no_hearth(f::CONTAINER_HEARTH), &[b"chat-prod"], Form::Text);
     assert_eq!(run.stdout, b"hosts/chat/chat-prod.json:1:57: chat-prod: hearth: \"hearth\" is reserved: a container has no hearth task (protocol/format/tasks-hearth.md, 1)\n");
     assert_eq!(run.code, Some(CONFIGURATION_EXIT));
 }

@@ -1,12 +1,12 @@
 //! Reserved declarations and paths as diagnosed by the builder's protocol world.
-use super::{Form, fixtures, render};
+use super::{Form, fixtures, render_files};
 use fixtures::{File, reserved as f};
 
 // hearth/docs/design/client/README.md, 3.3.
 pub(super) const CONFIGURATION_EXIT: u8 = 2;
 
 fn assert_refusal(files: &[File], message: &[u8]) {
-    let run = render(&fixtures::thin_with(files), &[], Form::Text);
+    let run = render_files(&fixtures::thin_with(files), &[], Form::Text);
     assert_eq!(run.stdout, message, "{}", String::from_utf8_lossy(&run.stdout));
     assert_eq!(run.code, Some(CONFIGURATION_EXIT), "{}", String::from_utf8_lossy(message));
 }
@@ -23,7 +23,7 @@ fn a_password_preseed_prints_reserved_and_not_an_unlisted_type() {
 
 #[test]
 fn a_line_past_2048_bytes_names_the_parameter_that_crosses_it() {
-    let run = render(&fixtures::thin_with(&[f::long_line()]), &[], Form::Text);
+    let run = render_files(&fixtures::thin_with(&[f::long_line()]), &[], Form::Text);
     assert!(run.stdout.starts_with(b"tasks/motd/task.json:1:1040: x1-prod: motd: "));
     assert!(String::from_utf8_lossy(&run.stdout).contains("the command line is 2141 bytes"));
     assert_eq!(run.code, Some(CONFIGURATION_EXIT));
