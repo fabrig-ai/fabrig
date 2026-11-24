@@ -253,22 +253,6 @@ esac
 }
 
 #[test]
-fn a_configuration_file_past_its_bound_is_refused() {
-    let scratch = support::Scratch::startup("configuration-bound");
-    let directory = scratch.path();
-    fs::File::create(directory.join(temper_config_shell::FILE))
-        .expect("configuration file")
-        .set_len(1_048_577)
-        .expect("one byte past bound");
-    assert_eq!(
-        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-            .err()
-            .expect("refused"),
-        format!("temper serve: {}: past 1048576 bytes\n", temper_config_shell::FILE)
-    );
-    scratch.remove();
-}
-#[test]
 fn a_worker_root_reached_through_a_link_is_refused() {
     let scratch = support::Scratch::startup("linked-root");
     let directory = scratch.path();
@@ -463,37 +447,6 @@ fn a_box_refuses_an_unmatched_inherited_listener_naming_its_address() {
         )
     );
     assert!(ended.stdout.is_empty(), "no step started");
-    scratch.remove();
-}
-#[test]
-fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
-    let scratch = support::Scratch::startup("box-absent-document");
-    fs::write(scratch.path().join("other"), b"kept").expect("nonempty configuration");
-    assert_eq!(
-        temper_box_shell::run(
-            temper_box_shell::Command::Box {
-                directories: support::configuration::directories(scratch.path()),
-                echo: temper_box_machine::host::Echo::None,
-                front: false,
-                record: false,
-            },
-            &[],
-            b"/",
-            b"temper-box",
-            "0.0.0",
-            "0123456789ab",
-        ),
-        Err(format!("temper-box: {}: absent; temper-box init writes one\n", temper_config_shell::FILE))
-    );
-    scratch.remove();
-}
-#[test]
-fn a_box_configuration_missing_members_is_refused_one_line_each() {
-    let scratch = support::Scratch::startup("box-members");
-    assert_eq!(
-        refused_box(&scratch, &serde_json::json!({})),
-        "temper-box: engine: missing\ntemper-box: workers: missing\ntemper-box: application: missing\n"
-    );
     scratch.remove();
 }
 #[test]
@@ -1031,114 +984,6 @@ fn program_login_prepares_private_directories_through_each_supported_parent() {
             assert_eq!(fs::metadata(path).expect("created directory").permissions().mode() & 0o777, 0o700);
         }
         no_deployment_resources(directory);
-        scratch.remove();
-    }
-}
-
-#[test]
-fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr() {
-    const NO_GIT: &str =
-        "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as [programs] git";
-    for (has_git, boxed) in [(true, false), (false, false), (true, true), (false, true)] {
-        let scratch = support::Scratch::startup(&format!("init-command-{has_git}-{boxed}"));
-        let bin = scratch.path().join("bin");
-        fs::create_dir(&bin).expect("bin");
-        let git = bin.join("git");
-        if has_git {
-            fs::write(&git, b"#!/bin/sh\nexit 0\n").expect("git");
-            fs::set_permissions(&git, fs::Permissions::from_mode(0o755)).expect("executable");
-        }
-        let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
-            .arg("init")
-            .args(if boxed { vec!["--box"] } else { vec![] })
-            .args(support::configuration::flags(scratch.path()))
-            .env_clear()
-            .env("PATH", &bin)
-            .output()
-            .expect("init command");
-        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        assert_eq!((output.stdout).len(), 0);
-        let lines = String::from_utf8(output.stderr).expect("init lines");
-        let mut expected = String::new();
-        let names = if boxed {
-            vec!["worker.secret", "demo/bin/git", temper_config_shell::FILE]
-        } else {
-            vec!["worker.secret", temper_config_shell::FILE]
-        };
-        for name in names {
-            writeln!(expected, "init: wrote {}", scratch.path().join(name).display()).expect("string");
-        }
-        assert!(lines.starts_with(&expected), "files are reported in write order");
-        assert!(
-            lines.contains(
-                "init: after starting, continue with ChatGPT or add an OpenAI API key from the accounts page\n"
-            )
-        );
-        let path = scratch.path().display();
-        let command = if boxed { "temper box" } else { "temper-box serve" };
-        assert!(
-            lines.ends_with(&format!("init: start it with {command} --config {path} --data {path} --cache {path}\n"))
-        );
-
-        let diagnostics: Vec<_> = lines.lines().filter(|line| line.starts_with("init: no git")).collect();
-        assert_eq!(diagnostics, if has_git { vec![] } else { vec![NO_GIT] });
-        let document = temper_agent_fixtures::start(scratch.path());
-        assert!(document["application"].get("workers").is_none());
-        assert!(document["application"].get("welcome").is_none());
-        assert_eq!(scratch.path().join("demo").exists(), boxed);
-        if !boxed {
-            assert!(!lines.contains("person is person"), "bare init has no person diagnostic");
-        }
-        scratch.remove();
-    }
-}
-
-#[test]
-fn box_initializes_only_absent_or_empty_configuration_directories() {
-    for row in ["absent", "empty", "nonempty"] {
-        let scratch = support::Scratch::startup(&format!("box-directory-{row}"));
-        let config = scratch.path().join("config");
-        let data = scratch.path().join("data");
-        let cache = scratch.path().join("cache");
-        let arguments: Vec<Box<[u8]>> = [
-            b"--config".as_slice(),
-            config.as_os_str().as_encoded_bytes(),
-            b"--data",
-            data.as_os_str().as_encoded_bytes(),
-            b"--cache",
-            cache.as_os_str().as_encoded_bytes(),
-        ]
-        .iter()
-        .map(|v| Box::from(*v))
-        .collect();
-        let (dirs, _) = temper_box_shell::directories::resolve(&arguments, &[], b"/").expect("scratch directories");
-        if row != "absent" {
-            fs::create_dir(&config).expect("configuration");
-        }
-        if row == "nonempty" {
-            fs::write(config.join("other"), b"kept").expect("entry");
-        }
-        let result = temper_box_shell::box_command::configuration(&dirs, &[]);
-        if row == "nonempty" {
-            assert_eq!(
-                result.expect_err("missing document"),
-                format!("{}: absent; temper-box init writes one", temper_config_shell::FILE)
-            );
-            assert_eq!(fs::read(config.join("other")).expect("kept"), b"kept");
-            assert!(!data.exists());
-            assert!(!cache.exists());
-        } else {
-            let (first, held, _) = result.expect("initialization");
-            assert_eq!(held.len(), 2, "init retains clients and webhooks");
-            assert!(data.join("worker.secret").exists());
-            assert!(cache.is_dir());
-            let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");
-            assert_eq!(second, first, "existing configuration is kept");
-            assert!(reopened.is_empty(), "reading an existing configuration reserves no listeners");
-            for (fd, _) in held {
-                skein_shell::keeper::close_keeper_fd(fd);
-            }
-        }
         scratch.remove();
     }
 }

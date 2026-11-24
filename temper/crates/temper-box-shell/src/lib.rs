@@ -137,6 +137,10 @@ pub enum Command {
         environment: Box<[EnvironmentEntry]>,
     },
 }
+fn dispatch_box(exit: Result<Exit, String>) -> Result<Exit, String> {
+    exit.map_err(|why| prefixed("temper-box", &why))
+}
+
 fn prefixed(command: &str, why: &str) -> String {
     let mut lines = String::new();
     for line in why.lines() {
@@ -373,15 +377,16 @@ pub fn run(
         Command::Serve { directories, boxed, record } => {
             serve::run("temper-box", environment, working, &directories, boxed, record)?
         }
-        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => fake_backends::run(
-            &directories,
-            &fake_backends::Options { bundle, scripts, strict },
-            echo,
-            front,
-            record,
-            environment,
-        )
-        .map_err(|why| prefixed("temper-box", &why))?,
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => {
+            dispatch_box(fake_backends::run(
+                &directories,
+                &fake_backends::Options { bundle, scripts, strict },
+                echo,
+                front,
+                record,
+                environment,
+            ))?
+        }
         Command::Box { directories, echo, front, record } => {
             return box_status(box_command::run(&directories, echo, front, record, environment));
         }
@@ -423,7 +428,7 @@ pub fn run(
 }
 
 fn box_status(result: Result<Exit, String>) -> Result<u8, String> {
-    result.map(exit_status).map_err(|why| prefixed("temper-box", &why))
+    dispatch_box(result).map(exit_status)
 }
 
 fn exit_status(exit: Exit) -> u8 {

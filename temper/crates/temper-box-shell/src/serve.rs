@@ -1,4 +1,6 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
+#[cfg(test)]
+mod tests;
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
@@ -498,17 +500,25 @@ pub(crate) fn prepare_in_with_read(
     directories: &Directories,
     read: impl FnOnce(&Directories, temper_config_shell::Shape) -> Result<temper_service_shell::configuration::Read, String>,
 ) -> Result<Service, String> {
-    let read = read(directories, temper_config_shell::Shape::Standalone)
-        .map_err(|why| temper_service_shell::serve_error(binary, &why))?;
-    let bytes = &read.document;
-    let mut owned = Vec::new();
-    let result = read
-        .programs()
-        .and_then(|programs| prepare(binary, environment, working, directories, bytes, &mut owned, &programs));
-    if result.is_err() {
-        close(owned);
-    }
-    result.map_err(|why| temper_service_shell::serve_error(binary, &read.problems(&why)))
+    prepare_in_read(binary, read(directories, temper_config_shell::Shape::Standalone), |read| {
+        let mut owned = Vec::new();
+        let result = read.programs().and_then(|programs| {
+            prepare(binary, environment, working, directories, &read.document, &mut owned, &programs)
+        });
+        if result.is_err() {
+            close(owned);
+        }
+        result
+    })
+}
+
+fn prepare_in_read<T>(
+    binary: &str,
+    read: Result<temper_service_shell::configuration::Read, String>,
+    prepare: impl FnOnce(&temper_service_shell::configuration::Read) -> Result<T, String>,
+) -> Result<T, String> {
+    let read = read.map_err(|why| temper_service_shell::serve_error(binary, &why))?;
+    prepare(&read).map_err(|why| temper_service_shell::serve_error(binary, &read.problems(&why)))
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(

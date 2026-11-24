@@ -13,7 +13,8 @@ pub fn read(directories: &Directories, shape: Shape) -> Result<Read, Refusal> {
     )
 }
 
-pub(super) fn read_with(
+/// Discover and read the configuration over supplied file and machine facts.
+pub fn read_with(
     shape: Shape,
     former: impl FnOnce() -> std::io::Result<()>,
     current: impl FnOnce(u32) -> Result<Box<[u8]>, skein_shell::Unread>,

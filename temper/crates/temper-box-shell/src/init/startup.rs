@@ -1,4 +1,4 @@
-use super::super::{DeploymentIo, ProviderKey, StartupIo, Written, write_deployment_with};
+use super::{DeploymentIo, ProviderKey, StartupIo, Written, write_deployment_with};
 use crate::{Directories, EnvironmentEntry, path, testing::init_fixtures::directories};
 use skein_fake_machine::{How, Is, Item, Machine, Opened, Refusal};
 use skein_io::kernel::{Done, Error, Family, Fd, Op};
@@ -48,7 +48,7 @@ impl StartupIo for ListenerScript {
     }
 }
 
-pub(super) struct Startup {
+pub(crate) struct Startup {
     files: Machine,
     root: Opened,
     link: Option<(PathBuf, PathBuf)>,
@@ -57,7 +57,7 @@ pub(super) struct Startup {
 }
 
 impl Startup {
-    pub(super) fn new(items: &[Item], accepts: bool) -> Self {
+    pub(crate) fn new(items: &[Item], accepts: bool) -> Self {
         let mut files = Machine::new();
         let root = files.lay(items);
         Self {
@@ -69,7 +69,7 @@ impl Startup {
         }
     }
 
-    pub(super) fn init(&mut self, boxed: bool, program: Option<&Path>) -> Result<Written, String> {
+    pub(crate) fn init(&mut self, boxed: bool, program: Option<&Path>) -> Result<Written, String> {
         let dirs = directories(Path::new("/fixture"));
         let environment = [(Box::from(b"PATH".as_slice()), Box::from(b"/fixture/bin".as_slice()))];
         write_deployment_with(
@@ -88,17 +88,68 @@ impl Startup {
         (self.files.state_digest(), self.link.clone())
     }
 
-    pub(super) fn read(&mut self, name: &Path) -> Vec<u8> {
-        let file = self.files.open(self.root, relative(name), How::Read).expect("fixture file");
+    pub(crate) fn read(&mut self, name: &Path) -> Vec<u8> {
+        self.read_bounded(name, u32::MAX).expect("fixture file").into_vec()
+    }
+
+    fn read_bounded(&mut self, name: &Path, max: u32) -> Result<Box<[u8]>, skein_shell::Unread> {
+        let file = match self.files.open(self.root, relative(name), How::Read) {
+            Ok(file) => file,
+            Err(Refusal::NotFound) => return Err(skein_shell::Unread::Absent),
+            Err(why) => panic!("unexpected read refusal: {why:?}"),
+        };
         let size = self.files.stat(file).size.try_into().expect("fixture length");
-        let bytes = self.files.read(file, 0, size).expect("read fixture file");
+        let bytes = if size > max {
+            Err(skein_shell::Unread::TooLarge { max })
+        } else {
+            Ok(self.files.read(file, 0, size).expect("read fixture file").into_boxed_slice())
+        };
         self.files.close(file);
         bytes
     }
 
+    pub(crate) fn kind(&mut self, name: &Path) -> Option<Is> {
+        let opened = self.files.open(self.root, relative(name), How::PathNoFollow).ok()?;
+        let kind = self.files.stat(opened).is;
+        self.files.close(opened);
+        Some(kind)
+    }
+
+    pub(crate) fn first_entry(&mut self, config: &Path) -> io::Result<Option<io::Result<()>>> {
+        let dir = match self.files.open(self.root, relative(config), How::Directory) {
+            Ok(dir) => dir,
+            Err(Refusal::NotFound) => return Err(io::ErrorKind::NotFound.into()),
+            Err(why) => panic!("unexpected open refusal: {why:?}"),
+        };
+        // One entry, with room for any name.
+        let names = self.files.list(dir, 1, 4096).expect("list fixture directory");
+        self.files.close(dir);
+        Ok(names.first().map(|_| Ok(())))
+    }
+
+    fn configuration_file(
+        &mut self,
+        dirs: &Directories,
+    ) -> Result<temper_config_shell::Read, temper_config_shell::Refusal> {
+        let config = path(&dirs.config);
+        let former = self.symlink_metadata(&config.join(temper_config_shell::FORMER));
+        temper_config_shell::read_with(
+            temper_config_shell::Shape::Standalone,
+            || former,
+            |max| self.read_bounded(&config.join(temper_config_shell::FILE), max),
+            || Ok(temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false }),
+        )
+    }
+
+    pub(crate) fn read_configuration(
+        &mut self,
+        dirs: &Directories,
+    ) -> Result<temper_service_shell::configuration::Read, String> {
+        temper_service_shell::configuration::read_with(self.configuration_file(dirs), || self.open_directories(dirs))
+    }
+
     pub(super) fn document(&mut self) -> serde_json::Value {
-        let text = self.read(&Path::new("/fixture/config").join(temper_config_shell::FILE));
-        let read = temper_box_kit::configuration::parse(&text, temper_config_shell::Shape::Standalone);
+        let read = self.configuration_file(&directories(Path::new("/fixture"))).expect("configuration");
         serde_json::from_slice(&read.document).expect("start document")
     }
 }
