@@ -9,6 +9,7 @@ fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its ca
 (`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
 waits, disk and faults, `worker.md`), the
+restarts and stops they inject (`restarts.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what

@@ -33,6 +33,8 @@ pub struct Hub {
     /// attributes interrupted work to shutdown (domain/hosts/hub.md, 7, 9).
     pub(crate) shut: bool,
     pub(crate) pause: jig_domain_link::PauseState,
+    pub(crate) local_places: u32,
+    reported_full: bool,
     pub(crate) refusals_lost: u64,
 }
 
@@ -54,6 +56,8 @@ impl Hub {
             answers: Map::with_capacity(limits.slots),
             shut: false,
             pause: jig_domain_link::PauseState::Taking,
+            local_places: u32::MAX,
+            reported_full: false,
             refusals_lost: 0,
         }
     }
@@ -90,6 +94,30 @@ impl Hub {
     #[must_use]
     pub const fn pause_state(&self) -> jig_domain_link::PauseState {
         self.pause
+    }
+
+    /// Capacity available on this machine, independent of an owner's pause.
+    pub fn set_local_places(&mut self, places: u32, out: &mut Queue<Request>) {
+        self.local_places = places;
+        self.report_capacity(out);
+    }
+
+    fn reported_pause(&self) -> jig_domain_link::PauseState {
+        if self.pause == jig_domain_link::PauseState::Taking && self.hosted() >= self.local_places {
+            jig_domain_link::PauseState::Paused
+        } else {
+            self.pause
+        }
+    }
+
+    fn report_capacity(&mut self, out: &mut Queue<Request>) {
+        let full = self.hosted() >= self.local_places;
+        if full != self.reported_full {
+            self.reported_full = full;
+            if self.link_up && !self.shut && self.pause == jig_domain_link::PauseState::Taking {
+                out.push(Request::Up(LinkUp::Paused { state: self.reported_pause() }));
+            }
+        }
     }
 
     /// Runs hosted: the slots taken, closed runs included until they are
@@ -343,8 +371,8 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             crate::answers::opened(domain, env.limits.slots, stop_bound, workstreams, bounds, out);
             if domain.shut {
                 out.push(Request::Up(LinkUp::Draining));
-            } else if domain.pause != jig_domain_link::PauseState::Taking {
-                out.push(Request::Up(LinkUp::Paused { state: domain.pause }));
+            } else if domain.reported_pause() != jig_domain_link::PauseState::Taking {
+                out.push(Request::Up(LinkUp::Paused { state: domain.reported_pause() }));
             }
         }
         Event::Job(event) => crate::jobs::reported(domain, env, event, out),
@@ -421,6 +449,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         },
     }
     check_drained(domain, out);
+    domain.report_capacity(out);
 }
 
 // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
@@ -448,9 +477,10 @@ fn pause(domain: &mut Hub, mode: jig_domain_link::PauseMode, out: &mut Queue<Req
 }
 
 fn say_pause(domain: &mut Hub, state: jig_domain_link::PauseState, out: &mut Queue<Request>) {
-    out.push(Request::Up(LinkUp::Paused { state }));
-    if state != domain.pause {
-        domain.pause = state;
+    let changed = state != domain.pause;
+    domain.pause = state;
+    out.push(Request::Up(LinkUp::Paused { state: domain.reported_pause() }));
+    if changed {
         out.push(Request::Paused { state });
     }
 }

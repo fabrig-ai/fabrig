@@ -5,6 +5,7 @@ pub use temper_service::Service;
 use temper_service_shell::Served;
 
 pub const SERVED: Served<Service> = Served {
+    set_local_places: None,
     stages: &service::STAGES,
     iterate_stage: service::iterate_stage,
     resolve: |service| temper_engine_shell::served::resolve(service.engine_component()),

@@ -370,21 +370,26 @@ pub fn reading_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client
     world.front().next_client_limits(limits);
     world.client_with(PARTY, chat_page(task), limits, reading_root)
 }
-/// The unread-word fixture needs its larger task document, while its history
-/// still refuses a line past the unchanged 1,024-byte long-text bound.
+/// A larger window that still refuses lines past the 1,024-byte long-text bound.
 #[must_use]
-pub fn unread_reading_limits() -> Limits {
+pub fn roomy_reading_limits() -> Limits {
     let mut limits = reading_limits();
-    limits.client.domain.document_bytes = 4096;
+    limits.client.domain.document_bytes = 2 * READING_BYTES;
     limits
 }
-pub fn unread_reading_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client_kit::harness::ClientId {
-    let limits = unread_reading_limits();
-    world.front().next_client_limits(limits);
-    world.client_with(PARTY, chat_page(task), limits, unread_reading_root)
+/// Two activity rows per page, with room for all of the history's request keys.
+#[must_use]
+pub fn roomy_reading_world(seed: u64, requests: u32) -> World<Temper, Joint> {
+    let limits = roomy_reading_limits();
+    world_with(seed, Joint::with_reading_requests(seed, &limits, requests))
 }
-fn unread_reading_root(seed: u64) -> (crate::app::Root, crate::app::View) {
-    reading_root_with_limits(seed, unread_reading_limits())
+pub fn roomy_reading_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client_kit::harness::ClientId {
+    let limits = roomy_reading_limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, chat_page(task), limits, roomy_reading_root)
+}
+fn roomy_reading_root(seed: u64) -> (crate::app::Root, crate::app::View) {
+    reading_root_with_limits(seed, roomy_reading_limits())
 }
 fn reading_root(seed: u64) -> (crate::app::Root, crate::app::View) {
     reading_root_with_limits(seed, reading_limits())
@@ -401,6 +406,12 @@ fn reading_root_with_limits(seed: u64, limits: Limits) -> (crate::app::Root, cra
 /// Commit another whole assistant turn on the running chat's worker link.
 pub fn reading_turn(front: &mut Joint, task: u64, words: &[u8]) {
     delegate_turn(front, task, None, words);
+}
+
+/// Commit a reply that takes the person's latest message from the run's inbox.
+pub fn reading_reply(front: &mut Joint, task: u64, words: &[u8]) {
+    let read = front.engine.task(task).expect("running chat").inbox.last().map(|message| message.number);
+    delegate_turn(front, task, read, words);
 }
 
 /// A live prefix for the current run's next turn, without committing it.
@@ -1813,6 +1824,31 @@ pub fn model_world(seed: u64) -> World<Temper, Joint> {
 #[must_use]
 pub fn accounts_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_accounts(seed, domain_limits()))
+}
+
+/// Walking's external worker and project owner, with a deployment role and room to add and revise w2.
+#[must_use]
+pub fn worker_settings_world(seed: u64) -> World<Temper, Joint> {
+    use temper_engine_domain_world::{store::Store, walking};
+
+    const OWNERSHIPS: u32 = 2; // One person owns the project and the deployment.
+    const CONFIGURED_WORKERS: u32 = 2; // Walking's worker and the one the owner adds.
+    const PLACES: u32 = 2; // The revised worker can take two runs.
+    let mut limits = crate::front::engine_limits();
+    limits.people.initial_owners = OWNERSHIPS;
+    limits.fleet.configured_workers = CONFIGURED_WORKERS;
+    limits.fleet.slots = PLACES;
+    // The core prices the engine's program observations as well as every configured worker's.
+    limits.people.program_hosts = CONFIGURED_WORKERS + 1;
+    limits.accounts.program_hosts = CONFIGURED_WORKERS + 1;
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(seed);
+        let owner = config.core.owners[0].clone();
+        config.core.owners = Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, ..owner }]);
+        config
+    });
+    let front = Joint::with_engine(seed, &domain_limits(), Store::new(), configs, &limits, 1);
+    world_with(seed, front)
 }
 
 /// Finish the chat's assigned run at the spend this funding story scripts.

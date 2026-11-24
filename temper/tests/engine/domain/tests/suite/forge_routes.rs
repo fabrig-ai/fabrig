@@ -3619,6 +3619,9 @@ fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
     world.close();
 }
 
+#[path = "restarts.rs"]
+mod restart_faults;
+
 fn issue_effect_call(world: &mut World, assignment: &engine::Assignment) -> engine::Event {
     world.protocol.call(
         Token::new(7),

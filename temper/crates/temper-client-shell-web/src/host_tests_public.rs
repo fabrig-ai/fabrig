@@ -1,8 +1,14 @@
 //! Public host at the fetch boundary (temper/docs/design/client/web/public.md, 4).
 use super::*;
-use jig_client_protocol_wire::Record as _;
+use temper_client_view_kit::public_records as records;
+
+const TASK_PATH: &[u8] = b"/public/projects/3f2a9c0176543210/tasks/9abcdef076543210";
+const CARD_GET: &[u8] = b"/jig/v1/public/0/1/3/3f2a9c0176543210/9abcdef076543210";
+const CHANGE_GET: &[u8] = b"/jig/v1/public/2/4/1/3f2a9c0176543210/9abcdef076543210";
+const PROJECTS_GET: &[u8] = b"/jig/v1/public/0/1/1";
+
 fn fixture(path: &[u8]) -> (PublicHost, Duties) {
-    let mut host = PublicHost::new(Time::ZERO, Wall::EPOCH, Ways::NONE);
+    let mut host = PublicHost::new(Time::ZERO, Wall::EPOCH, Ways::parse("", b"https://temper.example"));
     host.start(path);
     let duties = host.report(Report::Start);
     (host, duties)
@@ -22,10 +28,13 @@ fn exchange(duties: Duties) -> u32 {
     id.expect("public exchange")
 }
 fn answered(host: &mut PublicHost, id: u32) -> Duties {
+    answer(host, id, 200, records::projects_with(false))
+}
+fn answer(host: &mut PublicHost, id: u32, status: u16, body: Box<[u8]>) -> Duties {
     host.report(Report::Heard(Heard::Answered {
         exchange: id,
-        status: 200,
-        body: projects(),
+        status,
+        body,
         headers: vec![
             ("cache-control".into(), "public, max-age=8, must-revalidate".into()),
             ("age".into(), "3".into()),
@@ -95,25 +104,86 @@ fn the_timer_follows_the_reader() {
 }
 #[test]
 fn malformed_paths_are_replaced_and_old_answers_are_ignored() {
-    let (mut host, duties) = fixture(b"/public/projects/1");
-    assert_eq!(
-        duties.show.as_ref().map(|(path, replace)| (path.as_ref(), *replace)),
-        Some((b"/public".as_slice(), true))
-    );
-    let old = exchange(duties);
-    let duties = host.report(Report::Place { path: b"/public/projects/0123456789abcdef".as_slice().into() });
-    assert_eq!(duties.asked.len(), 2);
-    answered(&mut host, old);
-    assert!(matches!(host.reader.shown(), temper_client_domain::public::Shown::Reading));
+    for path in [b"/public/projects/1".as_slice(), b"/public/projects/ABCDEF0123456789"] {
+        let (mut host, duties) = fixture(path);
+        assert_eq!(
+            duties.show.as_ref().map(|(path, replace)| (path.as_ref(), *replace)),
+            Some((b"/public".as_slice(), true)),
+            "replace malformed path {path:?}"
+        );
+        let old = exchange(duties);
+        let duties = host.report(Report::Place { path: b"/public/projects/0123456789abcdef".as_slice().into() });
+        assert_eq!(duties.asked.len(), 2);
+        answered(&mut host, old);
+        assert!(matches!(host.reader.shown(), temper_client_domain::public::Shown::Reading));
+    }
 }
 
-fn projects() -> Box<[u8]> {
-    use jig_client_protocol_wire::public_v1 as j;
-    let projects = j::PublicProjects { projects: List::with_capacity(0), max_age: 8 };
-    let mut writer = skein_lib::Writer::new(
-        usize::try_from(projects.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
-            .expect("small projects"),
+#[test]
+fn a_task_made_private_reads_unknown_at_its_next_read() {
+    let (mut host, duties) = fixture(TASK_PATH);
+    let mut page = crate::host::page(&host.bounds, skein_ui_web::mapping::Primary::Control);
+    assert!(duties.show.is_none());
+    assert_eq!(duties.asked.len(), 2);
+    let card = asked_for(&duties, CARD_GET);
+    let change = asked_for(&duties, CHANGE_GET);
+    answer(&mut host, card, 200, records::card());
+    answer(&mut host, change, 200, records::change());
+    host.draw(&mut page, &mut Vec::new());
+    assert!(words(&host).contains(&b"A public goal title".as_slice()));
+    assert!(words(&host).contains(&b"Approved".as_slice()), "the change was shown too");
+
+    host.clocks(Time::ZERO.saturating_add(Duration::from_secs(5)), Wall::EPOCH);
+    let due = host.report(Report::Due);
+    assert!(due.show.is_none());
+    assert_eq!(due.asked.len(), 2);
+    let card = asked_for(&due, CARD_GET);
+    let change = asked_for(&due, CHANGE_GET);
+    let unknown = answer(&mut host, card, 404, Box::default());
+    assert!(unknown.show.is_none(), "Unknown leaves the task address alone");
+    let mut ops = Vec::new();
+    host.draw(&mut page, &mut ops);
+    let unknown_words: &[&[u8]] = &[b"temper", b"Sign in", b"Not public, or not here.", b"Read public projects"];
+    assert_eq!(words(&host), unknown_words, "Unknown replaces the card and change");
+
+    let late = answer(&mut host, change, 200, records::change());
+    assert!(late.show.is_none());
+    host.draw(&mut page, &mut Vec::new());
+    assert_eq!(words(&host), unknown_words, "a late change leaves Unknown in place");
+
+    let node = host
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.role == skein_ui::Role::Link && node.name.as_deref() == Some(b"Read public projects"))
+        .expect("Unknown's link")
+        .id;
+    assert!(
+        ops.iter().any(|op| matches!(op, Op::Href { node: id, path } if *id == node && path.as_ref() == b"/public"))
     );
-    projects.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("projects record");
-    writer.finish()
+    let projects = host.report(Report::Act { node, act: Act::Press });
+    assert_eq!(projects.show, Some((b"/public".as_slice().into(), false)));
+    assert_eq!(projects.asked.len(), 1);
+    answered(&mut host, asked_for(&projects, PROJECTS_GET));
+    host.draw(&mut page, &mut Vec::new());
+    let empty_words: &[&[u8]] = &[b"temper", b"Sign in", b"Public projects", b"No public projects yet."];
+    assert_eq!(words(&host), empty_words);
+}
+
+fn asked_for(duties: &Duties, path: &[u8]) -> u32 {
+    duties
+        .asked
+        .iter()
+        .find_map(|asked| match asked {
+            Asked::Exchange { id, call, .. } if call.path.as_ref() == path => Some(*id),
+            Asked::Exchange { .. } => None,
+            Asked::OpenStream { .. } | Asked::CloseStream | Asked::Save { .. } | Asked::Erase { .. } => {
+                panic!("only public exchanges")
+            }
+        })
+        .unwrap_or_else(|| panic!("no exchange for {path:?}"))
+}
+
+fn words(host: &PublicHost) -> Vec<&[u8]> {
+    host.tree().nodes().iter().flat_map(|node| node.text.iter().map(|run| run.text.as_ref())).collect()
 }

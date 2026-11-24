@@ -1,5 +1,5 @@
 //! The once-made floor deployment (temper/docs/design/protocol/floor.md, 5).
-mod dev;
+pub(crate) mod dev;
 pub(crate) mod files;
 use crate::{
     ctl, fixtures,
@@ -32,6 +32,9 @@ const CHAT_REPLY: &str =
 struct Golden;
 type Proc = programs::Process<Golden>;
 impl Harness for Golden {
+    fn complete(role: programs::Role, complete: &skein_io::kernel::Complete) {
+        crate::restarts::observe(role, complete);
+    }
     type Service = Observer;
     type Process = HarnessProcess;
     fn seeds(_: u64) -> temper_service::settings::Seeds {

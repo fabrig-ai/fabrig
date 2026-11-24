@@ -260,7 +260,13 @@ closure:
   or anything that links it.
 - **`smith-agent-document`,** ordinary Rust as the shell is, on the
   profile's crate: `config`, the document decoded from its bytes,
-  resolved and checked, and read from its file; `trace`, the trace's
+  resolved and checked, and read from its file. Resolving reads the
+  trust each endpoint names, its DER files, PEM bundles and the
+  machine's bundle, natively; or, for a caller's tests that replay,
+  takes those roots from the caller for each source the document names,
+  and is otherwise the same: jig's reference binary checks its
+  configurations so in its step tests
+  (`jig/docs/design/protocol/service-testing.md`, 1); `trace`, the trace's
   settings it names; `program`, a program's directory, source and
   sign-in (../protocol/programs.md), on Unix; `host_limits`, the profile
   crate's, re-exported. Its fixture, the standard product document, is
