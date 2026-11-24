@@ -37,6 +37,8 @@ pub fn task_line_from_summary(
         ended_at: Some(summary.ended_at),
         budget: super::task_tree::budget_figures(summary.numbers, summary.funder, summary.deadline),
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: PhaseCounts::ZERO,
         delegates_done: summary.ended_delegates.done,
         delegates_total: summary.ended_delegates.done.saturating_add(summary.ended_delegates.failed),
@@ -54,26 +56,12 @@ pub fn task_line(
     ended_read: Option<u64>,
 ) -> Result<TaskLine, Missing> {
     role(core, party, row.project)?;
-    let mut phases = PhaseCounts::ZERO;
-    let mut pending = List::with_capacity(limits.tasks.tree_tasks);
+    let projection = crate::runs::waits::read(core, limits, row);
+    let phases = projection.phases;
     let ended = match row.phase {
         tasks::Phase::Ended(_) => true,
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } | tasks::Phase::Closing(_) => false,
     };
-    if !ended {
-        pending.push(row.number).expect("validated tree bound");
-    }
-    for _ in 0..limits.tasks.tree_tasks {
-        let Some(index) = pending.len().checked_sub(1) else { break };
-        let number = *pending.get(index).expect("pending live task");
-        pending.truncate(index);
-        let Some(candidate) = core.tasks.task(number) else { continue };
-        phases.add(&candidate.phase);
-        for delegate in candidate.delegates.iter().rev() {
-            pending.push(*delegate).expect("live subtree within tree_tasks");
-        }
-    }
-    drop(pending);
     let held_below = phases.held.saturating_sub(match row.phase {
         tasks::Phase::Held { .. } => 1,
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => 0,
@@ -107,7 +95,9 @@ pub fn task_line(
         last_activity: row.last_activity,
         ended_at: row.ended_at,
         budget: super::task_tree::budget(row),
-        waits_on: if ended { WaitsOn::Nothing } else { core.waits_on(limits, row.number) },
+        waits_on: projection.on,
+        wait: projection.waits.first,
+        nearest: projection.waits.nearest,
         phases,
         delegates_done: row.ended_delegates.done,
         delegates_total: u32::try_from(row.delegates.len())

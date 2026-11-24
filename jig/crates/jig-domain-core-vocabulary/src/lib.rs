@@ -78,7 +78,7 @@ pub use crate::{
         NamedAction, Now, PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, RetentionLimits,
         StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
     },
-    waits::Figures,
+    waits::{AtBound, Bound, Figures, Nearest, Thing, Unbounded, Wait, WaitKind, WaitObject, Waits},
 };
 
 use alloc::boxed::Box;

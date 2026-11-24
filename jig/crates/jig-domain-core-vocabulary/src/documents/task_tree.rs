@@ -243,6 +243,8 @@ pub struct Task {
     /// None for a procedure's or a person's task.
     pub settings: Option<TaskSettings>,
     pub waits_on: super::WaitsOn,
+    pub waits: List<crate::Wait>,
+    pub wait_count: u32,
     pub label: u32,
     pub flags: tasks::Flags,
     pub last_activity: Wall,

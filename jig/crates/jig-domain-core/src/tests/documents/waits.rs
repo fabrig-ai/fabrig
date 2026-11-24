@@ -312,3 +312,329 @@ fn asking_and_answering_an_own_question_change_the_task_document_wait() {
     assert!(core.tasks.task(2).unwrap().questions.is_empty());
     assert_eq!(document_wait(&core), WaitsOn::Nothing, "the answer wakes the next run");
 }
+
+use crate::{AtBound, Bound, Nearest, Unbounded, Wait, WaitKind, WaitObject};
+use tasks::EscalationHolder as Holder;
+
+const SINCE: Wall = Wall::from_nanos(100);
+const SOON: Wall = Wall::from_nanos(300);
+const FINAL: Holder = Holder::Role { project: 1, role: 0 };
+const REQUESTER: Holder = Holder::Person(1);
+const PARENT: Holder = Holder::Task(1);
+
+fn at(since: Wall, figure: Duration, then: AtBound) -> Bound {
+    Bound::At { at: Wall::from_nanos(since.as_nanos().checked_add(figure.as_nanos()).unwrap()), then }
+}
+
+fn remember(core: &mut Core, task: u64, line: u64, message: u64) {
+    core.question_activity
+        .insert(
+            (task, line),
+            tasks::ActivityLine {
+                task,
+                position: line,
+                at: SINCE,
+                line: tasks::Line::Words {
+                    message,
+                    by: tasks::Party::Task(task),
+                    kind: tasks::MessageKind::Question,
+                    words: b"Which?".as_slice().into(),
+                },
+            },
+        )
+        .expect("room for the fixture's open question");
+}
+
+#[test]
+fn party_question_uses_asking_time_and_distinguishes_pass_up_from_overdue() {
+    let (mut core, limits) = pair();
+    let mut row = core.tasks.task(1).unwrap().clone();
+    row.question_lines = Box::new([tasks::QuestionLine { message: 7, line: row.activity, answer: None }]);
+    remember(&mut core, row.number, row.activity, 7);
+    let mut expected = Wait {
+        task: 1,
+        kind: WaitKind::Party,
+        object: WaitObject::Entry { kind: people::EntryKind::Question { message: 7 }, at: Holder::Person(1) },
+        since: SINCE,
+        bound: at(SINCE, limits.waits.party, AtBound::PassUp),
+        hears: Some(REQUESTER),
+    };
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(read.waits.own.get(0), Some(&expected));
+    row.project = 99; // No project policy or covering holder.
+    expected.bound = at(SINCE, limits.waits.party, AtBound::Overdue);
+    expected.hears = None;
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
+}
+
+#[test]
+fn party_entries_keep_the_escalation_proposal_and_person_clocks() {
+    let (core, limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.phase =
+        tasks::Phase::Held { why: tasks::Hold::Budget, source: None, was: tasks::Was::Active(tasks::Active::Due) };
+    row.escalation = tasks::Escalation::Waiting { holder: Holder::Task(1), revision: 1, entry: 7, since: SINCE };
+    row.proposal = Some(Box::new(tasks::Proposal {
+        number: 8,
+        proposer: 2,
+        project: 1,
+        action: tasks::ProposalAction::Release { task: 2 },
+        reason: Box::new([]),
+        as_holder: false,
+        state: tasks::ProposalState::Pending {
+            holder: tasks::ProposalHolder::Policy { project: 1, kind: tasks::ProposalKind::Release },
+            since: SINCE,
+        },
+    }));
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(
+        read.waits.own.as_slice(),
+        &[
+            Wait {
+                task: 2,
+                kind: WaitKind::Party,
+                object: WaitObject::Entry { kind: people::EntryKind::Escalation { revision: 1 }, at: Holder::Task(1) },
+                since: SINCE,
+                bound: at(SINCE, limits.tasks.escalation_stall, AtBound::PassUp),
+                hears: Some(PARENT),
+            },
+            Wait {
+                task: 2,
+                kind: WaitKind::Party,
+                object: WaitObject::Entry {
+                    kind: people::EntryKind::Proposal { proposer: Proposer::Task(2), number: 8 },
+                    at: FINAL
+                },
+                since: SINCE,
+                bound: at(SINCE, limits.tasks.proposal_stall, AtBound::Overdue),
+                hears: Some(PARENT),
+            },
+        ]
+    );
+    row.escalation = tasks::Escalation::Unheld { revision: 1 };
+    row.proposal = None;
+    row.executor = tasks::Executor::Person(tasks::PersonAddress::Role(0));
+    row.phase = tasks::Phase::Active(tasks::Active::Idle);
+    row.person_wait =
+        Some(tasks::PersonWait { since: SINCE, stall: limits.tasks.person_stall, deadline: SOON, notice: None });
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(
+        read.waits.first,
+        Some(Wait {
+            task: 2,
+            kind: WaitKind::Party,
+            object: WaitObject::Entry { kind: people::EntryKind::PersonTask, at: FINAL },
+            since: SINCE,
+            bound: at(SINCE, limits.tasks.person_stall, AtBound::Overdue),
+            hears: Some(PARENT),
+        })
+    );
+}
+
+#[test]
+fn requester_question_precedes_pending_dependency_and_respects_the_deadline() {
+    let (mut core, limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.phase = tasks::Phase::Active(tasks::Active::Idle);
+    row.questions = Box::new([own_credit(&row, 7)]);
+    row.waiting_on = Box::new([1]);
+    remember(&mut core, row.number, row.activity, 7);
+    let mut expected = Wait {
+        task: 2,
+        kind: WaitKind::Question,
+        object: WaitObject::Question { number: 7, answerer: 1 },
+        since: SINCE,
+        bound: at(SINCE, limits.waits.question, AtBound::PassUp),
+        hears: Some(PARENT),
+    };
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(read.waits.own.get(0), Some(&expected));
+    assert_eq!(read.waits.own.get(1).unwrap().kind, WaitKind::Dependency);
+    row.authority.budget.deadline = Some(SOON);
+    expected.bound = Bound::At { at: SOON, then: AtBound::PassUp };
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(read.waits.first, Some(expected));
+    assert_eq!(read.waits.nearest, Some(Nearest { at: SOON, then: AtBound::PassUp, kind: WaitKind::Question }));
+}
+
+#[test]
+fn dependency_records_use_addition_time_and_keep_the_count_past_the_cap() {
+    let (core, mut limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.created_at = Wall::from_nanos(10);
+    row.phase = tasks::Phase::Active(tasks::Active::Due);
+    row.executor = tasks::Executor::Procedure { connector: 2, code: 1 };
+    row.waiting_on = Box::new([3, 4]);
+    row.added = Box::new([tasks::Added { task: 3, at: SINCE, by: tasks::Party::Task(1) }]);
+    let mut expected = [
+        Wait {
+            task: 2,
+            kind: WaitKind::Dependency,
+            object: WaitObject::Task(4),
+            since: row.created_at,
+            bound: Bound::None(Unbounded::NoDeadline),
+            hears: Some(PARENT),
+        },
+        Wait {
+            task: 2,
+            kind: WaitKind::Dependency,
+            object: WaitObject::Task(3),
+            since: SINCE,
+            bound: Bound::None(Unbounded::NoDeadline),
+            hears: Some(PARENT),
+        },
+    ];
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(read.waits.own.as_slice(), &expected);
+    assert_eq!(read.waits.nearest, None);
+    row.authority.budget.deadline = Some(SOON);
+    limits.documents.lines = 1;
+    expected[0].bound = Bound::At { at: SOON, then: AtBound::Hold };
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(read.waits.count, 2);
+    assert_eq!(read.waits.own.as_slice(), &expected[..1]);
+}
+
+#[test]
+fn resource_wait_names_the_holder_and_counts_from_the_latest_join() {
+    let (mut core, limits) = tree_core();
+    let name = tasks::Name { connector: 2, path: Box::new([b"one".as_slice().into()]) };
+    let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
+    for event in [
+        tasks::Event::Kinds { connector: 2, kinds: Box::new([tasks::Kind { connector: 2, kind: 1, hold }]) },
+        tasks::Event::Resource { name: name.clone(), hold },
+        tasks::Event::ResourceAccess { project: 1, name: name.clone(), access: tasks::ResourceAccess::Writable },
+    ] {
+        send_task(&mut core, &limits, event);
+    }
+    for (task, made) in [(1, Wall::EPOCH), (2, SINCE)] {
+        let mut member = new_row(&core, task, tasks::Funder::Period { project: 1, period: 1 }, None);
+        member.holdings = Box::new([tasks::Holding::Write { resource: name.clone(), kind: 1 }]);
+        fixtures::make_batch_at(&mut core, &limits, tasks::Party::Person(1), Box::new([member]), made);
+    }
+    let mut row = core.tasks.task(2).unwrap().clone();
+    let mut expected = Wait {
+        task: 2,
+        kind: WaitKind::Resource,
+        object: WaitObject::Resource { name, holder: Some(1) },
+        since: SINCE,
+        bound: at(SINCE, limits.tasks.hold_wait, AtBound::Hold),
+        hears: Some(REQUESTER),
+    };
+    assert_eq!(core.waits(2).first, Some(expected.clone()));
+    assert_eq!(core.waits_on(&limits, 2), WaitsOn::Nothing);
+    row.hold_bound_since = Some(SOON);
+    expected.since = SOON;
+    expected.bound = at(SOON, limits.tasks.hold_wait, AtBound::Hold);
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
+}
+
+#[test]
+fn delegates_use_their_making_time_and_replace_news() {
+    let (mut core, limits) = pair();
+    let delegate = new_row(&core, 3, tasks::Funder::Task(1), None);
+    fixtures::make_batch_at(&mut core, &limits, tasks::Party::Task(1), Box::new([delegate]), SINCE);
+    let mut row = core.tasks.task(1).unwrap().clone();
+    row.phase = tasks::Phase::Active(tasks::Active::Idle);
+    row.delegates = Box::new([3, 2]);
+    let mut expected = [
+        Wait {
+            task: 1,
+            kind: WaitKind::Delegate,
+            object: WaitObject::Task(2),
+            since: Wall::EPOCH,
+            bound: Bound::None(Unbounded::NoDeadline),
+            hears: Some(REQUESTER),
+        },
+        Wait {
+            task: 1,
+            kind: WaitKind::Delegate,
+            object: WaitObject::Task(3),
+            since: SINCE,
+            bound: Bound::None(Unbounded::NoDeadline),
+            hears: Some(REQUESTER),
+        },
+    ];
+    let read = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(read.waits.own.as_slice(), &expected);
+    assert_eq!(read.waits.nearest, None);
+    row.authority.budget.deadline = Some(SOON);
+    for wait in &mut expected {
+        wait.bound = Bound::At { at: SOON, then: AtBound::Hold };
+    }
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.own.as_slice(), &expected);
+}
+
+#[test]
+fn parked_news_keeps_four_subscriptions_and_the_timer_but_standing_has_no_bound() {
+    let (core, limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.phase = tasks::Phase::Active(tasks::Active::Idle);
+    row.phase_since = SINCE;
+    row.subscriptions = Box::new([6, 7, 8, 9, 10].map(|number| tasks::Subscription {
+        number,
+        kind: if number == 10 {
+            tasks::SubscriptionKind::Timer { at: SOON, period: None }
+        } else {
+            tasks::SubscriptionKind::Topic { connector: 2, topic: number }
+        },
+    }));
+    let mut expected = Wait {
+        task: 2,
+        kind: WaitKind::News,
+        since: SINCE,
+        hears: Some(PARENT),
+        object: WaitObject::News { subscriptions: List::from_boxed(Box::new([6, 7, 8, 9])), timer: Some(SOON) },
+        bound: at(SINCE, limits.waits.news, AtBound::Hold),
+    };
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected.clone()));
+    expected.bound = Bound::None(Unbounded::Standing);
+    row.flags.ended_by = tasks::EndedBy::Standing;
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected.clone()));
+    row.flags.ended_by = tasks::EndedBy::Requester;
+    row.flags.conversation = true;
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
+}
+
+#[test]
+fn a_goals_line_names_a_descendants_party_wait_but_its_own_nearer_bound() {
+    let (mut core, limits) = pair();
+    let mut parent = core.tasks.task(1).unwrap().clone();
+    parent.tracked = Some(1);
+    parent.phase = tasks::Phase::Active(tasks::Active::Idle);
+    parent.waiting_on = Box::new([2]);
+    parent.authority.budget.deadline = Some(SOON);
+    let mut child = core.tasks.task(2).unwrap().clone();
+    child.escalation = tasks::Escalation::Waiting { holder: Holder::Person(1), revision: 1, entry: 7, since: SINCE };
+    restore(&mut core, &limits, Box::new([child]));
+    let line = task_line(&core, &limits, 1, &parent, None).unwrap();
+    let first = line.wait.expect("party wait below the goal");
+    assert_eq!((first.task, first.kind), (2, WaitKind::Party));
+    assert_eq!(line.nearest, Some(Nearest { at: SOON, then: AtBound::Hold, kind: WaitKind::Dependency }));
+}
+
+#[test]
+fn working_line_has_no_first_but_its_document_lists_party_and_question_waits() {
+    let (mut core, limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.attempt = 1;
+    row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 1 });
+    row.questions = Box::new([own_credit(&row, 7)]);
+    row.proposal = Some(Box::new(tasks::Proposal {
+        number: 8,
+        proposer: 2,
+        project: 1,
+        action: tasks::ProposalAction::Release { task: 2 },
+        reason: Box::new([]),
+        as_holder: false,
+        state: tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Task(1), since: SINCE },
+    }));
+    remember(&mut core, row.number, row.activity, 7);
+    let line = task_line(&core, &limits, 1, &row, None).unwrap();
+    let doc = task_from_row(&core, &limits, 1, &row, SINCE).unwrap();
+    assert_eq!(line.wait, None);
+    assert_eq!(line.waits_on, WaitsOn::Nothing);
+    assert_eq!(doc.wait_count, 2);
+    assert_eq!(doc.waits.get(0).unwrap().kind, WaitKind::Party);
+    assert_eq!(doc.waits.get(1).unwrap().kind, WaitKind::Question);
+}

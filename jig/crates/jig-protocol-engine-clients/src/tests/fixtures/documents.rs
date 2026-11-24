@@ -156,6 +156,8 @@ pub fn task_with_hold() -> d::Task {
         run_wait: None,
         settings: Some(d::TaskSettings { task: 1, run: None, newest: 1 }),
         waits_on: d::WaitsOn::Nothing,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         label: 0,
         flags: t::Flags::PLAIN,
         last_activity: Wall::EPOCH,

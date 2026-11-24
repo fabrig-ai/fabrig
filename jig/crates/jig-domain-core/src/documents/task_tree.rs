@@ -360,6 +360,7 @@ fn task_with_lineage(
     };
     let acts = super::offers::task(core, limits, party, row, decision)?;
     let authority = authority(limits, &crate::translate::tasks_authority(&row.authority))?;
+    let projection = crate::runs::waits::read(core, limits, row);
     Ok(Task {
         tasks_left: match core.tasks.delegation(number) {
             Some(context) => context.tasks_left,
@@ -379,7 +380,9 @@ fn task_with_lineage(
             }),
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
-        waits_on: crate::runs::waits::from_row(core, limits, row),
+        waits_on: projection.on,
+        waits: projection.waits.own,
+        wait_count: projection.waits.count,
         label: row.label,
         flags: row.flags,
         last_activity: row.last_activity,
@@ -422,7 +425,14 @@ fn task_with_lineage(
         },
         llm: core.document_llm(row),
         kept_account: row.kept_account,
-        run_wait: super::task_wait::waiting(core, row),
+        run_wait: match row.phase {
+            tasks::Phase::Active(tasks::Active::Preparing) => super::task_wait::waiting(core, row),
+            tasks::Phase::Active(_)
+            | tasks::Phase::Waiting
+            | tasks::Phase::Held { .. }
+            | tasks::Phase::Closing(_)
+            | tasks::Phase::Ended(_) => projection.due_wait,
+        },
         resources,
         inputs: links(core, limits, party, &row.spec.inputs)?,
         dependencies: links(core, limits, party, &row.dependencies)?,

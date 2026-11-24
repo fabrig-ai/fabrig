@@ -463,6 +463,7 @@ fn durable(mut document: Document) -> Document {
         Document::Terminal { login } => *login = None,
         // Engine 6 step 3 adopts runs afresh; the dead host's receipt is not retained.
         Document::Task(row) => {
+            durable_waits(row);
             row.chip.details.observation = None;
             // client/domain/contract/documents.md 1: run_wait and an omitted choice derive from
             // current source and host availability, absent after a cold restart.
@@ -503,6 +504,30 @@ fn durable(mut document: Document) -> Document {
     document
 }
 
+/// Keep the durable wait episodes. A due run choice and a live observation
+/// are volatile, just as their source document fields are.
+fn durable_waits(row: &mut core::documents::Task) {
+    use core::WaitKind;
+    use core::documents::{ChipWork, PhaseLine};
+    let next_run = matches!(row.chip.phase, PhaseLine::Active(tasks::Active::Due)) && row.run_wait.is_some();
+    let observed_park = row.chip.details.live_delegates == 0
+        && row.chip.details.observation.as_ref().is_some_and(|value| value.work == ChipWork::Waiting);
+    if !next_run && !observed_park {
+        return;
+    }
+    let mut durable = skein_lib::List::with_capacity(row.waits.capacity());
+    for wait in &row.waits {
+        if (next_run && matches!(wait.kind, WaitKind::Account | WaitKind::Host))
+            || (observed_park && wait.kind == WaitKind::News)
+        {
+            continue;
+        }
+        durable.push(wait.clone()).expect("durable waits are a subset of the document lines");
+    }
+    row.waits = durable;
+    row.wait_count = row.wait_count.saturating_sub(1);
+}
+
 fn compare_answer(
     key: &(u64, Option<u64>),
     expected: &core::reads::Answer,
@@ -531,6 +556,8 @@ fn compare_answer(
             fields!(left, right;
                 settings,
                 waits_on,
+                waits,
+                wait_count,
                 label,
                 flags,
                 last_activity,
