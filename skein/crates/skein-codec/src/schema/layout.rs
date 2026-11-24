@@ -3,6 +3,7 @@
 use super::grammar::Parsed;
 use super::{
     DeclIx, Declaration, Field, FieldIx, Held, Schema, SchemaError, Shape, Span, Type, TypeIx, VariantIx, Wrong, add,
+    spelled,
 };
 use skein_lib::{Set, bytes};
 
@@ -80,14 +81,19 @@ fn field_size(parsed: &mut Parsed, field: Field) -> Result<u64, SchemaError> {
     Ok(size)
 }
 
-fn record_size(parsed: &mut Parsed, versioned: bool, first: FieldIx, count: u32) -> Result<(u64, u64), SchemaError> {
+fn record_size(
+    parsed: &mut Parsed,
+    text: &[u8],
+    versioned: bool,
+    first: FieldIx,
+    count: u32,
+) -> Result<(u64, u64), SchemaError> {
     let mut names = Set::with_capacity(count);
     let mut maximum = if versioned { 2 } else { 0 };
     let mut minimum = maximum;
     for at in first.index()..add(first.index(), count) {
         let field = parsed.schema.field(FieldIx::new(at));
-        let name = bytes::copy_of(parsed.schema.spelled(field.name));
-        if !names.insert(name).expect("at most one name per field") {
+        if !names.insert(spelled(text, field.name)).expect("at most one name per field") {
             return Err(error(field.line, field.name, Wrong::DuplicateField));
         }
         let size = field_size(parsed, field)?;
@@ -99,6 +105,7 @@ fn record_size(parsed: &mut Parsed, versioned: bool, first: FieldIx, count: u32)
 
 fn enum_size(
     parsed: &mut Parsed,
+    text: &[u8],
     declaration: Declaration,
     first: VariantIx,
     count: u32,
@@ -114,7 +121,7 @@ fn enum_size(
     let mut minimum = u64::MAX;
     for at in first.index()..add(first.index(), count) {
         let variant = parsed.schema.variant(VariantIx::new(at));
-        if !names.insert(bytes::copy_of(parsed.schema.spelled(variant.name))).expect("at most one name per variant") {
+        if !names.insert(spelled(text, variant.name)).expect("at most one name per variant") {
             return Err(error(variant.line, variant.name, Wrong::DuplicateVariant));
         }
         let (least, most) = match *parsed.payloads.get(at).expect("one payload span per variant") {
@@ -136,12 +143,13 @@ fn enum_size(
     Ok((sum(1, minimum, declaration.line, declaration.name)?, sum(1, maximum, declaration.line, declaration.name)?))
 }
 
-pub(super) fn check(parsed: &mut Parsed) -> Result<(), SchemaError> {
+/// Uses the original text to borrow member names while resolving types in the owned schema.
+pub(super) fn check(parsed: &mut Parsed, text: &[u8]) -> Result<(), SchemaError> {
     for at in 0..parsed.schema.declarations() {
         let declaration = parsed.schema.declaration(DeclIx::new(at));
         let (minimum, maximum) = match declaration.shape {
-            Shape::Record { versioned, first, count } => record_size(parsed, versioned, first, count)?,
-            Shape::Enum { first, count } => enum_size(parsed, declaration, first, count)?,
+            Shape::Record { versioned, first, count } => record_size(parsed, text, versioned, first, count)?,
+            Shape::Enum { first, count } => enum_size(parsed, text, declaration, first, count)?,
         };
         let name = parsed.schema.spelled(declaration.name);
         if parsed.schema.names.contains_key(name) {

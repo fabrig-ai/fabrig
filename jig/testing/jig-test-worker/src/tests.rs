@@ -97,7 +97,19 @@ fn a_part_is_encoded_relayed_and_acknowledged_to_its_agent() {
                     acknowledged = true;
                 }
             }
-            _ => {}
+            Request::Asked { .. }
+            | Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault
+            | Request::Hello(_)
+            | Request::Link(_)
+            | Request::CancelRelay { .. }
+            | Request::Stop
+            | Request::Decode { .. }
+            | Request::Encode { .. }
+            | Request::Fact { .. } => {}
         }
     }
     assert!(relayed && acknowledged);

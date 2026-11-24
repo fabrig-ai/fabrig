@@ -599,6 +599,5 @@ fn story(seed: u64, case: Case, draw: (Way, Point, Recovery), ledger: &mut Fault
     world.stops = 0;
     world.report.cancellations = 0;
     world.report.saves = 0;
-    world.story(case).expect("worker inspection");
-    world.completed(case).expect("worker inspection");
+    world.play_and_complete(case).expect("worker inspection");
 }

@@ -501,7 +501,7 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     let final_line = tokens::scan(text, &mut tokens)?;
     let parser = grammar::Parser::new(bytes::copy_of(text), tokens, final_line);
     let mut parsed = parser.parse()?;
-    layout::check(&mut parsed)?;
+    layout::check(&mut parsed, text)?;
     metadata::check(&mut parsed.schema)?;
     Ok(parsed.schema.fitted())
 }

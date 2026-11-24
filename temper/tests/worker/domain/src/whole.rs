@@ -707,12 +707,17 @@ impl World {
 
     fn run(mut self, case: Case) -> Result<Report, String> {
         self.start()?;
-        self.story(case)?;
-        self.completed(case)?;
+        self.play_and_complete(case)?;
         Ok(self.report)
     }
 
-    fn completed(&mut self, case: Case) -> Result<(), String> {
+    fn play_and_complete(&mut self, case: Case) -> Result<(), String> {
+        let kept_before = self.report.kept.len();
+        self.story(case)?;
+        self.completed(case, kept_before)
+    }
+
+    fn completed(&mut self, case: Case, kept_before: usize) -> Result<(), String> {
         assert_eq!(self.domain.agent().agents(), 0);
         assert_eq!(self.domain.workspaces(), 0);
         let (answer, work, preparation) = self.answer.take().expect("a terminal answer");
@@ -752,13 +757,14 @@ impl World {
                 panic!("one saved head");
             };
             assert_eq!(*saved, translate::commit(commit).raw());
+            let new_marks = &self.report.kept[kept_before..];
             if matches!(case, Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired) {
-                let [mark] = self.report.kept.as_slice() else {
+                let [mark] = new_marks else {
                     panic!("cut run keeps one workspace");
                 };
                 assert_eq!(mark.repositories[0].commit.raw(), *saved);
             } else {
-                assert_eq!(self.report.kept.len(), 0);
+                assert!(new_marks.is_empty(), "contact loss must not keep a workspace for this attempt");
             }
         } else {
             assert_eq!(
