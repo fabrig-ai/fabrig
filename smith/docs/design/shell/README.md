@@ -377,8 +377,7 @@ closure:
   - `tests/clippy.toml` is unchanged, and `benchmarks/` keeps its own
     (../benchmarks/README.md), since a harness starts processes.
 - **Every `clippy.toml` here bans catching a panic,** whatever its layer,
-  `crates/smith-agent-document/`'s and `tests/transcript-patches/`'
-  among them: its `disallowed-methods` ends with the two entries for
+  `crates/smith-agent-document/`'s among them: its `disallowed-methods` ends with the two entries for
   `std::panic::catch_unwind` and `std::panic::resume_unwind` that
   `tools/lints/design.md`, 4, gives, byte for byte.
 

@@ -57,10 +57,9 @@ them.
   `temper-host-tools`.
 - **`smith-channel` is per-build:** a worker pins its agent's program
   and configuration at its start, so the channel between them never
-  spans two builds; its version moves with its layout and keeps its
-  text, with no reverse, no floor below its current and no breaking
-  declaration (`schema/wires`, `smith-channel build`). What the engine
-  keeps of it is `smith-pieces`.
+  spans two builds and nothing converts it; its version is frozen at its
+  header's, as every wire's is (3.1). What the engine keeps of it is
+  `smith-pieces`.
 - **Clients' wires** are section 9's.
 
 ## 3. Frozen versions
@@ -68,7 +67,8 @@ them.
 ### 3.1 The rule
 
 - **A worker wire's version is frozen** (`../draft/layouts-both-ways.md`,
-  3): `jig-worker-wire` at 22, `smith-charter` at 5 and
+  3): `jig-worker-wire` at 22, `smith-pieces` at 1, `smith-charter` at
+  5, `smith-transcript` at 8, `smith-channel` at 14 and
   `temper-worker-wire` at 12, their headers'. Their crates keep no old
   text and no patch: no `schema/kept/`, `patches/` or `schema/wires`. A
   layout change is made in the current text alone; what it costs a
@@ -76,25 +76,25 @@ them.
   3), and the common changes cost nothing: a field added with a default,
   a field dropped with its tombstone (`dropped name: type = default`), a
   variant added, a bound widened (skein's `data/codec/layouts.md`, 2).
-- **Three keep their patch history** for what reads it by version:
-  `smith-transcript`, whose turns the engine's store reads by their
-  version until it names their layout (jig's `protocol/store/layouts.md`,
-  1; `../draft/layouts-both-ways.md`, 8.3); `smith-pieces`, whose bytes
-  the engine keeps naming no layout, so a worker whose layout of it is
-  not the engine's is refused at the opening (jig's
-  `protocol/channel/wires.md`, 3); and `smith-channel`, per-build (2).
-  For these the wire rule holds as before: a landing that changes the
-  layout moves the version by one, keeps the old text and brings its
-  forward patch, written by `cargo run -p skein-codegen -- patch <crate>`
-  (skein's `data/codec/command.md`, 2), with its reverse or its breaking
-  declaration; `fabrig-boundary`'s `patches` test (`floor.md`, 6) lists
-  their crates as owners.
+- **`smith-pieces` is compared, never converted:** the engine keeps its
+  bytes naming no layout, so a worker whose layout of it is not the
+  engine's is refused at the opening (jig's `protocol/channel/wires.md`,
+  3), and a change of its layout is met by draining the workers of the
+  build before (`../draft/redeploys.md`, 6.1).
+- **One old text stays, as the store's seed:** transcript frames
+  written before the registry hold turns at `smith-transcript` 7, which
+  the open registers from that text (jig's
+  `protocol/store/transcripts.md`, 6). It is kept as
+  `smith/crates/smith-transcript/schema/seed/smith-transcript-v7.schema`,
+  read by the store alone, never by a wire, and goes once dev.fabrig.ai's
+  store holds the rows (`../draft/store-floor.md`). No other text of a
+  build that isn't running is kept.
 - **Each wire crate says what it speaks,** in a module `wire`:
 
   ```rust
   pub mod wire {
       pub const FAMILY: &str;          // the family's name, as its header gives it
-      pub const VERSION: u16;          // its version, as its header gives it: frozen, but for 3.1's three
+      pub const VERSION: u16;          // its version, as its header gives it: frozen
       pub const TEXT: &str;            // its current schema text, embedded by include_str!
       pub fn layout() -> [u8; 32];     // TEXT's family fingerprint (skein's data/codec/fingerprints.md, 1)
   }
@@ -102,9 +102,9 @@ them.
 
   `layout` parses `TEXT` with `skein_codec::schema::parse` and returns
   its `fingerprints().family().digest()`. A focused test in each crate
-  holds `FAMILY` and `VERSION` equal to the header, and in each frozen
-  wire's crate `VERSION` equal to its frozen number. The three of 3.1's
-  second point keep `FLOOR`, their generated floor. Every writer and
+  holds `FAMILY` and `VERSION` equal to the header and `VERSION` equal to
+  its frozen number. No worker wire has a `FLOOR`; `temper-host-tools`
+  keeps its own (7). Every writer and
   reader that names the version names `wire::VERSION`:
   `Charter::FORMAT_VERSION`, `Turn::FORMAT_VERSION`,
   `smith_domain_session::record::VERSION`, `kind::VERSION`,
@@ -281,8 +281,8 @@ them.
   naming the tool and the fixes, an adapter or the floor raised by a
   breaking move. And `fabrig-boundary`'s: a kept text the base holds
   never changes, the kept versions run from 1 to the greatest without
-  a gap, and the floor moves by the rules above against the base, read
-  as the `patches` test reads it (`floor.md`, 6).
+  a gap, and the floor moves by the rules above against the base
+  (`floor.md`, 6).
 - **Not stated at the opening:** a worker carries a call's name, tool,
   input and contract as bytes and numbers and reads none of them.
 
@@ -311,8 +311,8 @@ them.
   section 8), with no kept text, no patch and no bridge: a landing whose
   text of a family has another family fingerprint than the base's text
   of that family, at the same version, is refused by the gate, naming
-  the family and the fix, "move its version". The base is read as the
-  `patches` test reads it (`floor.md`, 6), the family found by its
+  the family and the fix, "move its version". The base is `floor.md`,
+  6's, the family found by its
   header among the crate's `schema/*.schema`, a family of several files
   read as its generated code reads them. A family the base lacks, or
   one whose version moved, passes. A focused test in each crate holds

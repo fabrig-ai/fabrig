@@ -75,7 +75,6 @@ tests/fake-peers                the LLM, OAuth and forge peers on loopback io ag
 tests/fake-checkout             the fake checkout's leaf tests and its replay sweep against a small private remote, skein-fake-checkout-tests
 tests/channel                   the framed channel's machine and protocol worlds, skein-channel-world
 tests/codec                     a generated sample codec and its worlds, skein-codec-tests
-tests/codec-patches             the patch command's owner crate and its replayed history, skein-codec-patches (../data/codec/command.md, 9)
 tests/kv                        the store over file io, the simulated kernel and a crashing fake disk, skein-kv-tests
 tests/browser                   the browser kit's machine world against a fake browser, its tests against real Chromium, and its peaks under scenario ceilings with the counting allocator, skein-browser-world
 tests/tls                       the TLS client's machine worlds against a rustls server in memory, the HTTP client stacked on it, and its peaks under scenario ceilings with the counting allocator, skein-tls-world

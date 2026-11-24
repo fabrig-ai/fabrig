@@ -77,10 +77,10 @@ document's "The world" section.
 
 Domain worlds use domains and fakes only, never protocol crates. Codec
 tests build values with public fields or fixed-rule encodings from
-embedded schema text; earlier versions use their kept texts. Drift compares
+embedded schema text. Drift compares
 the records' module with the committed code (skein's
 `data/codec/golden.md`, section 1). Families keep no golden files or
-generated test targets; event JSONL and patch goldens remain. Memory and
+generated test targets; event JSONL goldens remain. Memory and
 boundary tests check the generated `encoded_bound` and `decoded_bound`
 vocabulary.
 
@@ -831,7 +831,6 @@ tests/hosts                      simulated world: a sample host and the agent it
 tests/local-process              simulated world: the local host and its peers
 tests/real                       the real loop
 tests/fake-claude                smith-fake-claude: the fake program a program backend runs (section 4)
-tests/transcript-patches         the transcript patches' fixture family (protocol/transcript.md, section 12)
 tests/machine/tests/simulated/   machine seam checks and fake-kernel stories: step + simulated
 tests/machine/tests/suite/       real rg children and a held job's teardown
 tests/fake-claude/tests/simulated/ encodings and the hosted fake: step + simulated

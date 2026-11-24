@@ -335,16 +335,15 @@ to an older reader or writer. Each has one version at a time.
   to agents of several builds (jig's engine) converts a charter down and
   its result up, and turns both ways, between its layouts and its
   agent's, by plans derived from both texts (jig's
-  `protocol/channel/layouts.md`, 2.1), never the agent. `smith-charter`'s
-  version is frozen at 5, its layout its text's fingerprint, and it keeps
-  no old text and no patch (`temper/docs/design/protocol/wires.md`, 3).
-  `smith-transcript` stays a patch owner, marked a wire in its crate's
-  `schema/wires` with its floor, its version moving with its layout and
-  keeping the old text and its forward patch, because a host's store
-  reads the turns it keeps by their version (jig's
-  `protocol/store/layouts.md`, 1) until the store names their layout
-  (`temper/docs/design/draft/layouts-both-ways.md`, 8.3).
-  `smith-channel` is a patch owner marked per-build (`build`).
+  `protocol/channel/layouts.md`, 2.1), never the agent. Every one of
+  smith's wires has its version frozen at its header, `smith-charter` at
+  5, `smith-transcript` at 8, `smith-channel` at 14 and `smith-pieces`
+  at 1, its layout its text's fingerprint, and its crate keeps no old
+  text and no patch (`temper/docs/design/protocol/wires.md`, 3.1). A
+  host's store reads the turns it keeps by their layout (jig's
+  `protocol/store/transcripts.md`, 6), from the texts its registry
+  holds; `smith-transcript` keeps the one older text a store registers
+  for turns written before its registry (transcript.md, section 12).
 - **The pieces a host keeps are a wire of their own,** `smith-pieces`:
   a call's name (`CallName`) and a delivery's evidence (`DeliveryReply`
   and what it reaches), declared in `smith-channel`'s crate as a second
@@ -356,35 +355,30 @@ to an older reader or writer. Each has one version at a time.
   speaking to it. The engine keeps a delivery's evidence as bytes
   without its layout, so `smith-pieces` is never converted: the engine
   refuses a worker whose layout of it is not its own (jig's
-  `protocol/channel/wires.md`, 3), its floor is its current, and every
-  move of it is breaking (skein's `data/codec/bridges.md`, 3), raising
-  the floor. Its version starts at
-  1, its module `smith_channel::pieces::wire` saying what it speaks. A
-  landing that changes the layout of `smith-channel`, `smith-transcript`
-  or `smith-pieces` in
-  anything but names, comments, `boxed` and the text's layout moves its
-  version by one, keeps the old text and brings its forward patch;
-  `fabrig-boundary`'s `patches` test refuses one changed in place. Each
-  crate says what it speaks in a module `wire`: `FAMILY`, `VERSION` and
-  `layout()`, its current text's family fingerprint. Every writer and
-  reader that names a version names `wire::VERSION`:
+  `protocol/channel/wires.md`, 3), so a change of its layout is met by
+  draining the workers of the build before (temper's
+  `draft/redeploys.md`, 6.1). Its module `smith_channel::pieces::wire`
+  says what it speaks. A landing that changes the layout of any of
+  smith's wires makes the change in its current text alone and moves no
+  version. Each crate says what it speaks in a module `wire`: `FAMILY`,
+  `VERSION` and `layout()`, its current text's family fingerprint. Every
+  writer and reader that names a version names `wire::VERSION`:
   `Charter::FORMAT_VERSION`, `Turn::FORMAT_VERSION`,
   `smith_domain_session::record::VERSION` and the prefixes
   `decode_charter` and `decode_transcript` check are it or derived from
-  it, so a version moves in its schema's header and its constant alone.
-  Kept texts and forward patches stay for good: stored turns keep the
-  versions they were written in.
+  it, so the version is its schema's header and its constant alone.
+  Stored turns keep the layouts they were written at, converted as they
+  are read.
 - **A reader refuses any other version,** each in its own terms:
   - **the channel** is versioned whole: its frames, its kinds and its
     records. Each side's opening says the version it speaks; with none
     in common, the channel ends before a run starts (channel.md, section
     2). This wire is per-build: a spawning host pins its agent's program
     and configuration for its lifetime and adopts no older agents, so
-    both halves move together. Every layout change moves the version
-    and keeps the previous schema text; no bridge or previous
-    spoken version is needed. temper records this exemption in its wire
-    bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
-    4.4). A consumer permitting independently upgraded agents needs a
+    both halves move together and share one layout. Its version is
+    frozen like the others', and no bridge, plan or previous text is
+    needed (`temper/docs/design/draft/redeploys.md`, 4.4). A consumer
+    permitting independently upgraded agents needs a
     compatibility contract before using that shape (section 11).
   - **the charter** carries its own version, since the party that writes
     it may not be the host: jig's engine writes charters that its
@@ -396,9 +390,9 @@ to an older reader or writer. Each has one version at a time.
     3). A transcript in another version fails the run as transient, and
     its host starts afresh (../domain/run-messages.md, section 1). From the
     baseline, turns are kept for a later release, and so is the local
-    host's store: a host that keeps turns patches an older turn to the
-    current version as it reads it, by smith's patches (transcript.md,
-    section 12), so a reader is still handed one version.
+    host's store: a host that keeps turns converts an older layout's turn
+    to the current one as it reads it, by plans from the texts it keeps
+    (transcript.md, section 12), so a reader is still handed one layout.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
 - **Where each is.** The channel speaks version 14 (channel.md, section

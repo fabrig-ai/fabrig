@@ -80,13 +80,12 @@ of domain/host.md, section 2.
   window (section 4); version 11 added a program that
   started without smith's tools to a run's failures, and version 8 a
   model failure's status to its report.
-  From 2026-11-12 the version
-  moves with every change to its layout (the owner, 2026-11-12), as a new
-  kind always moved it. Its `schema/` holds the current text alone, and
-  each version from 7 on is kept as its text in `schema/kept/` (skein's
-  `data/codec/command.md`, section 1). Earlier values are built from
-  those kept texts, not stored golden files; no kept text is a
-  negotiated version.
+  Its version is frozen at 14, as every wire's is (temper's
+  `draft/layouts-both-ways.md`, 3, which the user approved on
+  2026-11-18, in place of the owner's rule of 2026-11-12 that moved it
+  with every change to its layout): a change is made in its current text
+  alone, its `schema/` holds that text and no other, and no older text
+  is kept. Host and agent are one build (below), so nothing converts it.
 - **The host and agent stay on one build.** A consumer that spawns agents
   pins their program and configuration for its lifetime, and never
   adopts a previous host process's agents. In temper, the worker pins
@@ -596,7 +595,7 @@ a trace is kept is the agent's configuration (agent.md).
 - **The codecs:**
   - records-only drift, under skein's
     `data/codec/golden.md`, section 1; fixed-rule values built from
-    embedded current or kept text, with no generated test targets;
+    embedded current text, with no generated test targets;
   - each decoder fuzzed in the fuzzy suite.
 - **A protocol world:** the agent's half with `smith-domain`, under a
   scripted LLM and machine, against the host's half with
