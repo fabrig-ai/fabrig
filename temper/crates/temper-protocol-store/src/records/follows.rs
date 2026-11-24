@@ -5,7 +5,7 @@ use skein_codec::Record;
 use skein_lib::{List, Reader};
 use temper_engine_domain_forge_vocabulary as d;
 pub(super) fn encode(row: &d::FollowRow) -> w::FollowRow {
-    crate::generated::store::follow_row_to_record(row, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::follow_row_to_record(row).expect(FITS)
 }
 pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow, Undecodable> {
     let context = super::Context {
@@ -15,8 +15,9 @@ pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow,
     };
     crate::generated::store::follow_row_to_domain(row, &context).or(Err(Undecodable::Malformed))
 }
-pub fn follow_files_to_record(value: &[Box<[u8]>], _context: &super::Context) -> Result<w::FollowFiles, w::Problem> {
-    Ok(w::FollowFiles { files: names::encode_piece(value) })
+#[must_use]
+pub fn follow_files_to_record(value: &[Box<[u8]>]) -> w::FollowFiles {
+    w::FollowFiles { files: names::encode_piece(value) }
 }
 
 pub fn follow_files_to_domain(value: w::FollowFiles, context: &super::Context) -> Result<Box<[Box<[u8]>]>, w::Problem> {

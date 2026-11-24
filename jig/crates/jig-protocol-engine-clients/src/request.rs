@@ -33,8 +33,7 @@ impl Component {
             w::Owner::Family(value) => Some(value.number),
         };
         if !self.serves(family, keyed.version) {
-            let answer =
-                w::KeyedAnswer::NotServed(crate::served::not_served(&self.settings, keyed.owner, &env.limits.wire));
+            let answer = w::KeyedAnswer::NotServed(crate::served::not_served(&self.settings, keyed.owner));
             self.respond(exchange, routes::encoded(&answer));
             return;
         }

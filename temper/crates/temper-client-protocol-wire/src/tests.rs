@@ -306,8 +306,7 @@ fn a_change_panel_of_another_version_is_refused() {
 fn a_change_panel_refuses_trailing_bytes_and_a_zero_queue_place() {
     let limits = fixtures::limits();
     for (row, place, trailing) in [("first", 1, false), ("zero", 0, false), ("trailing", 1, true)] {
-        let parts =
-            v1::ChangePanel { step: v1::Step::Queued(fixtures::queued(place, 0, &limits)), ..fixtures::panel_parts() };
+        let parts = v1::ChangePanel { step: v1::Step::Queued(fixtures::queued(place, 0)), ..fixtures::panel_parts() };
         let panel = parts;
         let bytes = crate::change_panel(&panel);
         let bytes = if trailing { fixtures::trailing(&bytes) } else { bytes };

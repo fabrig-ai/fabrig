@@ -5,7 +5,10 @@ use skein_lib::{List, usize_of};
 
 mod plan;
 pub use plan::{Change, Comparison, Matching, RenameRefused, changes};
-pub(crate) use plan::{compare as compare_types, held as compare_held, payload as payload_matches};
+pub(crate) use plan::{
+    compare as compare_types, held as compare_held, leaf as compare_leaf, payload as payload_matches,
+    width as integer_width,
+};
 mod run;
 pub use run::{Build, Halt, Old, Step};
 mod text;

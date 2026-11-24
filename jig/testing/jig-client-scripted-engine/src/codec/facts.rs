@@ -1,5 +1,5 @@
 //! Ordered recursive fact tables (protocol/client/wire.md, 1).
-use super::{c, pieces, problem, values, w};
+use super::{c, problem, try_pieces, values, w};
 pub(super) struct Facts {
     rows: Vec<Option<w::Fact>>,
 }
@@ -131,42 +131,42 @@ impl Facts {
 pub(super) fn chip(value: &c::Chip, limits: &w::Limits) -> Result<w::Chip, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.chip(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
+    let rows = try_pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
     Ok(w::Chip { rows })
 }
 pub(super) fn closing(value: &c::Closing, limits: &w::Limits) -> Result<w::Closing, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.closing(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
+    let rows = try_pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
     Ok(w::Closing { rows })
 }
 pub(super) fn ending(value: &c::Ending, limits: &w::Limits) -> Result<w::Ending, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.ending(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
+    let rows = try_pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
     Ok(w::Ending { rows })
 }
 pub(super) fn held_runtime(value: &c::HeldRuntime, limits: &w::Limits) -> Result<w::HeldRuntime, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.held_runtime(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
+    let rows = try_pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
     Ok(w::HeldRuntime { rows })
 }
 pub(super) fn hold_reason(value: &c::HoldReason, limits: &w::Limits) -> Result<w::HoldReason, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.hold_reason(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
+    let rows = try_pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
     Ok(w::HoldReason { rows })
 }
 pub(super) fn chip_ending(value: &c::ChipEnding, limits: &w::Limits) -> Result<w::ChipEnding, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.chip_ending(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
+    let rows = try_pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
     Ok(w::ChipEnding { rows })
 }
 pub(super) fn result_value(value: &c::ResultValue, limits: &w::Limits) -> Result<w::ResultValue, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.result_value(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
+    let rows = try_pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), limits)?;
     Ok(w::ResultValue { rows })
 }

@@ -1879,13 +1879,13 @@ fn a_landing_written_before_read_holds_reads_as_before() {
 }
 
 fn assert_landing_through_layout(current: &str, before: &str, added_variant: bool) {
-    use skein_codec::layout::{Plan, Workspace};
+    use skein_codec::layout::{Mode, Plan, Workspace};
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", None).unwrap();
     let new_root = new.root(b"Row", None).unwrap();
     let down = if added_variant {
-        Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[])
+        Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[])
     } else {
         Plan::derive(&new, new_root, &[], &old, old_root, &[])
     }

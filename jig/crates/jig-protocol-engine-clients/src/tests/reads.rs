@@ -426,7 +426,7 @@ fn an_activity_beside_read_crosses_the_wire() {
     use jig_client_domain::contract as c;
     for (side, expected) in [(c::Side::Earlier, reads::Side::Earlier), (c::Side::Later, reads::Side::Later)] {
         let query = c::Read::ActivityBeside { task: 7, position: 11, side };
-        let wire = jig_client_protocol_link::translate::reads::read(&query, &f::wire()).unwrap();
+        let wire = jig_client_protocol_link::translate::reads::read(&query);
         let mut exchange = f::read_exchange();
         let (_, _, read) = exchange.read(&wire);
         assert_eq!(read, reads::Read::ActivityBeside { task: 7, position: 11, side: expected });

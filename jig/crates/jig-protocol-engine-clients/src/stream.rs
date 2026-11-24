@@ -9,7 +9,6 @@ pub(crate) struct Watch {
     pub name: u64,
     pub family: Option<u16>,
     pub version: u32,
-    pub project: u32,
     pub rows: u32,
     pub parts: skein_lib::List<crate::translate::parts::Slot>,
     pub opening: Option<Token>,

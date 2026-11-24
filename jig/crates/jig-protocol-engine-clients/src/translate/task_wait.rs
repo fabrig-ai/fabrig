@@ -3,9 +3,10 @@ use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary::documents as d;
 
 /// Translate a core-derived next-run wait at the current jig wire version.
-pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Option<w::TaskRunWait>, w::Problem> {
-    let Some(value) = value else { return Ok(None) };
-    Ok(Some(match value {
+#[must_use]
+pub fn waiting(value: Option<d::TaskRunWait>) -> Option<w::TaskRunWait> {
+    let value = value?;
+    Some(match value {
         d::TaskRunWait::Credential => w::TaskRunWait::Credential,
         d::TaskRunWait::Host => w::TaskRunWait::Host,
         d::TaskRunWait::Worker { worker, until } => {
@@ -16,16 +17,16 @@ pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Opti
                 d::TaskWaitRefused::Hello { kind, at, why, figures } => w::TaskWaitRefused::Hello(w::TaskWaitHello {
                     kind: super::deployment::host_kind(kind),
                     at: at.as_nanos(),
-                    why: super::deployment::hello(why, limits)?,
-                    figures: shortfall_figures(figures, limits)?,
+                    why: super::deployment::hello(why),
+                    figures: shortfall_figures(figures),
                 }),
                 d::TaskWaitRefused::Bounds { kind, why, figures } => w::TaskWaitRefused::Bounds(w::TaskWaitBounds {
                     kind: super::deployment::host_kind(kind),
                     why: match why {
-                        Some(why) => Some(super::deployment::shortfall(why, limits)?),
+                        Some(why) => Some(super::deployment::shortfall(why)),
                         None => None,
                     },
-                    figures: shortfall_figures(figures, limits)?,
+                    figures: shortfall_figures(figures),
                 }),
             },
         }),
@@ -46,16 +47,15 @@ pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Opti
                     },
                 }),
                 d::TaskWaitWhy::Source(state) => {
-                    w::TaskWaitWhy::Source(w::TaskWaitSource { state: source_state(state, limits)? })
+                    w::TaskWaitWhy::Source(w::TaskWaitSource { state: source_state(state) })
                 }
             },
         }),
-    }))
+    })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn source_state(value: d::TaskSourceState, _limits: &w::Limits) -> Result<w::TaskSourceState, w::Problem> {
+fn source_state(value: d::TaskSourceState) -> w::TaskSourceState {
     use jig_domain_accounts::{Place, Unread};
-    Ok(match value {
+    match value {
         d::TaskSourceState::Asking => w::TaskSourceState::Asking,
         d::TaskSourceState::Granted => w::TaskSourceState::Granted,
         d::TaskSourceState::Later { until } => {
@@ -83,7 +83,7 @@ fn source_state(value: d::TaskSourceState, _limits: &w::Limits) -> Result<w::Tas
                 Unread::TooLarge => w::TaskSourceUnread::TooLarge,
             },
         }),
-    })
+    }
 }
 fn wall(value: Option<skein_lib::Wall>) -> Option<u64> {
     match value {
@@ -92,13 +92,9 @@ fn wall(value: Option<skein_lib::Wall>) -> Option<u64> {
     }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn shortfall_figures(
-    value: Option<jig_domain_fleet::Figures>,
-    _limits: &w::Limits,
-) -> Result<Option<w::ShortfallFigures>, w::Problem> {
+fn shortfall_figures(value: Option<jig_domain_fleet::Figures>) -> Option<w::ShortfallFigures> {
     match value {
-        Some(value) => Ok(Some(w::ShortfallFigures { required: value.required, offered: value.offered })),
-        None => Ok(None),
+        Some(value) => Some(w::ShortfallFigures { required: value.required, offered: value.offered }),
+        None => None,
     }
 }

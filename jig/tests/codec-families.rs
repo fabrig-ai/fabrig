@@ -1,10 +1,14 @@
-//! Each jig codec's records (skein's data/codec/golden.md, 1).
-use skein_codegen::{generate, translate, values};
+//! Each jig codec's records and bounds (skein's data/codec/golden.md, 1).
+use skein_codegen::{bounds_text, generate, translate, values};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
 };
+
+#[path = "../testing/codec-drift.rs"]
+mod codec_drift;
+use codec_drift::check_text;
 
 pub struct Family {
     pub name: &'static str,
@@ -13,9 +17,20 @@ pub struct Family {
     pub text: &'static str,
     /// Record code under `codec_root`, then glue under `root`.
     pub generated: &'static [&'static str],
+    /// Compiled bounds, unless the family has its own drift world.
+    pub bounds: Option<fn() -> String>,
     pub maps: Option<&'static str>,
     /// Translation module relative to the tree.
     pub translation: Option<&'static str>,
+}
+
+macro_rules! compiled_bounds {
+    ($module:path) => {
+        Some(|| {
+            use $module as codec;
+            bounds_text(codec::DECLARATIONS, codec::CEILINGS.values().as_slice())
+        })
+    };
 }
 
 pub const FAMILIES: &[Family] = &[
@@ -25,6 +40,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-engine-clients",
         codec_root: "crates/jig-protocol-engine-clients-codec",
         generated: &["src/generated/cursor.rs"],
+        bounds: compiled_bounds!(jig_protocol_engine_clients::cursor_v2),
         maps: None,
         translation: None,
     },
@@ -34,6 +50,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
         generated: &["src/generated/client.rs"],
+        bounds: compiled_bounds!(jig_client_protocol_wire::v43),
         maps: None,
         translation: None,
     },
@@ -43,6 +60,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-view",
         codec_root: "crates/jig-client-view-codec",
         generated: &["src/generated/records.rs"],
+        bounds: compiled_bounds!(jig_client_view_codec::records_v1),
         maps: None,
         translation: None,
     },
@@ -52,6 +70,7 @@ pub const FAMILIES: &[Family] = &[
         root: "examples/ops/client-protocol-wire",
         codec_root: "examples/ops/client-protocol-wire",
         generated: &["src/generated/ops_client.rs"],
+        bounds: compiled_bounds!(jig_ops_client_protocol_wire::v1),
         maps: None,
         translation: None,
     },
@@ -61,6 +80,7 @@ pub const FAMILIES: &[Family] = &[
         root: "testing/jig-client-test-protocol-wire",
         codec_root: "testing/jig-client-test-protocol-wire-codec",
         generated: &["src/generated/test_client.rs"],
+        bounds: compiled_bounds!(jig_client_test_protocol_wire::v2),
         maps: None,
         translation: None,
     },
@@ -70,6 +90,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/component.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::component_v3),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/component.maps")),
         translation: Some("crates/jig-protocol-store-records/src/generated/component.rs"),
     },
@@ -79,6 +100,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-core",
         generated: &["src/generated/core.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::core_v6),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/core.maps")),
         translation: Some("crates/jig-protocol-store-records/src/generated/core.rs"),
     },
@@ -88,6 +110,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-tasks",
         generated: &["src/generated/tasks.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::tasks_v13),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/tasks.maps")),
         translation: Some("crates/jig-protocol-store-records/src/generated/tasks.rs"),
     },
@@ -97,6 +120,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-people",
         generated: &["src/generated/people.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::people_v17),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/people.maps")),
         translation: Some("crates/jig-protocol-store-records/src/generated/people.rs"),
     },
@@ -106,6 +130,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/registry.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::registry_v1),
         maps: None,
         translation: None,
     },
@@ -115,6 +140,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/openings.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::openings_v1),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/openings.maps")),
         translation: Some("crates/jig-protocol-store/src/generated/openings.rs"),
     },
@@ -124,6 +150,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/notes.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::notes_v1),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/notes.maps")),
         translation: Some("crates/jig-protocol-store-records/src/generated/notes.rs"),
     },
@@ -133,6 +160,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/accounts.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::accounts_v2),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/accounts.maps")),
         translation: Some("crates/jig-protocol-store-records/src/generated/accounts.rs"),
     },
@@ -142,6 +170,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-settings",
         generated: &["src/generated/settings.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::settings_v3),
         maps: Some(include_str!("../crates/jig-protocol-store/schema/settings.maps")),
         translation: Some("crates/jig-protocol-store-records/src/generated/settings.rs"),
     },
@@ -151,6 +180,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         generated: &["src/generated/secrets.rs"],
+        bounds: compiled_bounds!(jig_protocol_store::secrets_v1),
         maps: None,
         translation: None,
     },
@@ -160,6 +190,7 @@ pub const FAMILIES: &[Family] = &[
         root: "testing/jig-test-store",
         codec_root: "testing/jig-test-store-codec",
         generated: &["src/generated/test_connector.rs"],
+        bounds: compiled_bounds!(jig_test_store::v2),
         maps: None,
         translation: None,
     },
@@ -169,6 +200,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
         generated: &["src/generated/worker_wire.rs"],
+        bounds: None,
         maps: None,
         translation: None,
     },
@@ -178,6 +210,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-accounts",
         codec_root: "crates/jig-protocol-accounts-codec",
         generated: &["src/generated/moved.rs"],
+        bounds: None,
         maps: None,
         translation: None,
     },
@@ -187,16 +220,17 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
         generated: &["src/generated/public.rs"],
+        bounds: compiled_bounds!(jig_client_protocol_wire::public_v1),
         maps: None,
         translation: None,
     },
 ];
 
-#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh codec drift files")]
 pub fn check() {
     let tree = skein_scratch::paths::tree();
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world -p jig-store-codecs-world -E 'binary(drift) | test(drift::)'";
+    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-store-codecs-world --test drift";
     let mut inventories: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
     for family in FAMILIES {
         let root = tree.join(family.root);
@@ -215,6 +249,10 @@ pub fn check() {
             .extend(family.generated.iter().skip(1).map(|path| root.join(path)));
         inventories.entry(codec_root.join("src/generated")).or_default().insert(code.clone());
         check_text(&code, &output.records, write, again);
+        if let Some(bounds) = family.bounds {
+            let path = tree.join("tests/bounds").join(code.file_name().expect("codec file")).with_extension("bounds");
+            check_text(&path, &bounds(), write, again);
+        }
         match (family.maps, family.translation) {
             (Some(maps), Some(path)) => {
                 let code = tree.join(path);
@@ -231,15 +269,6 @@ pub fn check() {
     }
     for (directory, expected) in inventories {
         assert_eq!(entries(&directory), expected, "{}: generated inventory", directory.display());
-    }
-}
-
-fn check_text(path: &Path, text: &str, write: bool, again: &str) {
-    if write {
-        fs::create_dir_all(path.parent().expect("generated parent")).expect("create generated directory");
-        fs::write(path, text).expect("write generated text");
-    } else {
-        assert_eq!(fs::read_to_string(path).expect("generated text committed"), text, "{}: {again}", path.display());
     }
 }
 

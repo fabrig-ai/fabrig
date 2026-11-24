@@ -116,6 +116,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::DiffPaths { .. }
             | Command::MergeBases { .. }
             | Command::BringsList { .. }
@@ -136,7 +137,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         return Err(Refusal::Broken("commit author"));
     }
     let credential = if remote(&command).is_some()
-        || matches!(command, Command::CheckOut { .. } | Command::Merge { .. })
+        || matches!(command, Command::CheckOut { .. } | Command::Merge { .. } | Command::MergeHistory { .. })
         || (matches!(command, Command::IsAncestor { .. }) && env.contains_key(b"GIT_CONFIG_COUNT".as_slice()))
     {
         Some(read_credential(&mut env, spawn)?)
@@ -244,6 +245,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add
@@ -410,6 +412,17 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => {
             Command::Merge { theirs: invocation::object(theirs)? }
         }
+        [
+            b"-c",
+            b"remote.origin.promisor=true",
+            b"log",
+            b"--no-merges",
+            b"-M",
+            b"--diff-filter=R",
+            b"--format=%H",
+            range,
+            b"--",
+        ] => Command::MergeHistory { theirs: invocation::object(range.strip_prefix(b"HEAD...")?)? },
         [b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"] => Command::Unmerged,
         [b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"] => Command::Add,
         [b"diff-tree", b"--no-commit-id", b"--name-only", b"--no-renames", b"-r", b"-z", before, after, b"--"] => {

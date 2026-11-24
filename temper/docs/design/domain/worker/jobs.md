@@ -40,7 +40,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   the contract's (`../../protocol/tooling.md`), its directory the job's,
   its environment free of credentials and of the worker's own, its
   wall time the job's deadline, its output files bounded; it reaches no
-  forge, since the checkout fetched everything it reads. The worker kills
+  forge, since the checkout fetched everything it reads: the files it
+  checks out and merges, and for a merge left in conflict, the contents a
+  rename-detecting comparison of each side's history reads
+  (`../../protocol/git-operations.md`, 1.6). A read past those, of a file
+  no step fetched, fails as git does, naming the object. The worker kills
   its group at that deadline, at the job's cancel, or as the worker
   aborts, and the kill names which: `Deadline`, `Cancelled` or `Closed`
   (skein's `runtime/io/processes.md`, section 5).

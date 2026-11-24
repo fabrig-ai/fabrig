@@ -64,7 +64,7 @@ pub fn outcome_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ApplicationOu
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(parts::decode_application_outcome(record.value, bound))
+    Ok(parts::decode_application_outcome(record.value))
 }
 #[must_use]
 pub fn subject(value: &d::ClientSubject) -> Box<[u8]> {

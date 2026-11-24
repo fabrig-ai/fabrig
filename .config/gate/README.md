@@ -118,7 +118,8 @@ with product or build inputs also run the regular Gate. A failed replay is red.
     on the candidate. Exit 1 refuses a change that raises a figure of
     `tools/tiers/budgets.toml` or adds a reason's line, one line naming
     each, the output ending with the repair line; a change of that file
-    alone passes, whatever it does there. The runner makes a red case of
+    alone passes, whatever it does there, and so does a batched member
+    whose own merge onto the one below changes it alone. The runner makes a red case of
     each `figure raised:` and `figure added:` line. Rule:
     `tools/tiers/budgets.md`, 10.1; every figure there is the user's
     (`skein/docs/foundation/testing-strategy.md`, 8.1).

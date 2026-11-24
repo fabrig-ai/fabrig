@@ -19,7 +19,7 @@ fn resolve(schema: &Schema, name: Span, line: u32) -> Result<DeclIx, SchemaError
     schema.find(schema.spelled(name)).ok_or(error(line, name, Wrong::Undeclared))
 }
 
-fn field_size(parsed: &mut Parsed, field: Field) -> Result<u64, SchemaError> {
+fn resolve_field(parsed: &mut Parsed, field: Field) -> Result<u32, SchemaError> {
     let mut end = field.ty.index();
     // Every wrapper advances to the next type; the chain ends within the table.
     for _ in 0..parsed.schema.types.len() {
@@ -58,6 +58,11 @@ fn field_size(parsed: &mut Parsed, field: Field) -> Result<u64, SchemaError> {
             | Type::Bytes { held: Held::Opaque | Held::Record { .. }, .. } => break,
         }
     }
+    Ok(end)
+}
+
+fn field_size(parsed: &mut Parsed, field: Field) -> Result<u64, SchemaError> {
+    let end = resolve_field(parsed, field)?;
     let mut size = 0;
     for at in (field.ty.index()..=end).rev() {
         size = match parsed.schema.ty(TypeIx::new(at)) {
@@ -87,18 +92,26 @@ fn record_size(
     versioned: bool,
     first: FieldIx,
     count: u32,
+    record: DeclIx,
 ) -> Result<(u64, u64), SchemaError> {
-    let mut names = Set::with_capacity(count);
+    let (dropped, dropped_count) = parsed.schema.tombstones(record);
+    let mut names = Set::with_capacity(add(count, dropped_count));
     let mut maximum = if versioned { 2 } else { 0 };
     let mut minimum = maximum;
-    for at in first.index()..add(first.index(), count) {
-        let field = parsed.schema.field(FieldIx::new(at));
-        if !names.insert(spelled(text, field.name)).expect("at most one name per field") {
-            return Err(error(field.line, field.name, Wrong::DuplicateField));
+    for (first, count, live) in [(first, count, true), (dropped, dropped_count, false)] {
+        for at in first.index()..add(first.index(), count) {
+            let field = parsed.schema.field(FieldIx::new(at));
+            if !names.insert(spelled(text, field.name)).expect("at most one name per field or tombstone") {
+                return Err(error(field.line, field.name, Wrong::DuplicateField));
+            }
+            if live {
+                let size = field_size(parsed, field)?;
+                maximum = sum(maximum, size, field.line, field.name)?;
+                minimum = sum(minimum, u64::from(parsed.schema.fewest_bytes(field.ty)), field.line, field.name)?;
+            } else {
+                resolve_field(parsed, field)?;
+            }
         }
-        let size = field_size(parsed, field)?;
-        maximum = sum(maximum, size, field.line, field.name)?;
-        minimum = sum(minimum, u64::from(parsed.schema.fewest_bytes(field.ty)), field.line, field.name)?;
     }
     Ok((minimum, maximum))
 }
@@ -145,10 +158,11 @@ fn enum_size(
 
 /// Uses the original text to borrow member names while resolving types in the owned schema.
 pub(super) fn check(parsed: &mut Parsed, text: &[u8]) -> Result<(), SchemaError> {
-    for at in 0..parsed.schema.declarations() {
-        let declaration = parsed.schema.declaration(DeclIx::new(at));
+    for index in 0..parsed.schema.declarations() {
+        let at = DeclIx::new(index);
+        let declaration = parsed.schema.declaration(at);
         let (minimum, maximum) = match declaration.shape {
-            Shape::Record { versioned, first, count } => record_size(parsed, text, versioned, first, count)?,
+            Shape::Record { versioned, first, count } => record_size(parsed, text, versioned, first, count, at)?,
             Shape::Enum { first, count } => enum_size(parsed, text, declaration, first, count)?,
         };
         let name = parsed.schema.spelled(declaration.name);
@@ -159,7 +173,7 @@ pub(super) fn check(parsed: &mut Parsed, text: &[u8]) -> Result<(), SchemaError>
             return Err(error(declaration.line, declaration.name, Wrong::Large));
         };
         let minimum = u32::try_from(minimum).expect("minimum does not exceed the checked maximum");
-        parsed.schema.names.insert(bytes::copy_of(name), DeclIx::new(at)).expect("at most one name per declaration");
+        parsed.schema.names.insert(bytes::copy_of(name), at).expect("at most one name per declaration");
         parsed.schema.minimum.push(minimum).expect("at most one minimum per declaration");
         parsed.schema.maximum.push(maximum).expect("at most one maximum per declaration");
     }

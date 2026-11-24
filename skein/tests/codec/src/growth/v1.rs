@@ -9,6 +9,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub growth_items: u32,
@@ -25,9 +26,17 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.growth_items).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.growth_items,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            growth_items: self.growth_items.min(most),
+        }
     }
 }
 
@@ -44,49 +53,11 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const GROWTH_ITEMS: Path = Path::new(0, 0);
-    pub const GROWTH_TAIL: Path = Path::new(0, 1);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Growth.items",
-        "Growth (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 0, item: 0, size: size_of::<u64>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    2,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    16,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const GROWTH_ITEMS: Path = Path::new("Growth.items");
+    pub const GROWTH_TAIL: Path = Path::new("Growth (tail)");
 }
 
 // Type: Growth.
@@ -97,6 +68,12 @@ pub struct Growth {
 
 // Record: Growth.
 impl Growth {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, growth_items), item: 0, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -106,11 +83,11 @@ impl Record for Growth {
     const TAIL: Path = paths::GROWTH_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Growth")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Growth")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -134,3 +111,21 @@ impl Record for Growth {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Growth", nodes: Growth::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.growth_items,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

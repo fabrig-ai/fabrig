@@ -4,10 +4,7 @@ use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use skein_lib::List;
 
-pub(super) fn encode(
-    value: Option<&c::AuthorityModels>,
-    _limits: &w::Limits,
-) -> Result<Option<w::ModelSet>, w::Problem> {
+pub(super) fn encode(value: Option<&c::AuthorityModels>) -> Result<Option<w::ModelSet>, w::Problem> {
     Ok(match value {
         None => None,
         Some(c::AuthorityModels::All) => Some(w::ModelSet::All),

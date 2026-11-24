@@ -255,7 +255,7 @@ fn a_by_test_repair_keeps_its_top_fact() {
 #[expect(clippy::disallowed_methods, reason = "ordinary Rust registered layout contract test")]
 fn landing_waits_and_clocks_round_trip_and_default_on_older_rows() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use skein_lib::{Buffer, Wall};
@@ -308,7 +308,7 @@ fn landing_waits_and_clocks_round_trip_and_default_on_older_rows() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"landing")).unwrap();
     let new_root = new.root(b"Row", Some(b"landing")).unwrap();
-    let down = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let down = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let up = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("landing's added fields default to none");
     let mut work = Workspace::new();
     assert!(work.fit(&down));

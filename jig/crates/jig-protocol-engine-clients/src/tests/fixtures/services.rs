@@ -22,7 +22,7 @@ pub fn service_kept() -> Kept {
 }
 impl Exchange {
     pub fn make_service(&mut self) -> (Token, ReplyTo) {
-        let (ask, expected) = make_service_case(&wire());
+        let (ask, expected) = make_service_case();
         self.ask_service(&ask, expected)
     }
     pub fn reissue_service(&mut self, party: u64) -> (Token, ReplyTo) {

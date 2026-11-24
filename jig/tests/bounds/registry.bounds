@@ -1,0 +1,4 @@
+Job: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+Layout: ceilings encoded=1103 decoded=1024; at_most(3) encoded=181 decoded=102
+Text: ceilings encoded=262150 decoded=262144; at_most(3) encoded=9 decoded=3
+family: ceilings encoded=262150 decoded=262144; at_most(3) encoded=181 decoded=102

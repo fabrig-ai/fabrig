@@ -11,8 +11,7 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
     w::Application {
         token,
         until: until.as_nanos(),
-        outcome: crate::generated::store::application_outcome_to_record(outcome, &super::Context::UNBOUNDED)
-            .expect(FITS),
+        outcome: crate::generated::store::application_outcome_to_record(outcome),
     }
 }
 pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored, Undecodable> {
@@ -23,21 +22,16 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
 }
 
 /// Owner-shaped `CoreRefused` (skein/docs/design/data/codec/maps.md, 3.3).
-pub fn core_refused_to_record(
-    value: &jig_domain_people::Refusal,
-    _context: &super::Context,
-) -> Result<w::CoreRefused, w::Problem> {
-    Ok(w::CoreRefused {
+#[must_use]
+pub fn core_refused_to_record(value: &jig_domain_people::Refusal) -> w::CoreRefused {
+    w::CoreRefused {
         refusal: refusal::encode_refusal(value, &jig_protocol_store::people_v17::CEILINGS)
             .expect("refusal facts fit")
             .encode(&jig_protocol_store::people_v17::CEILINGS)
             .expect("refusal facts fit"),
-    })
+    }
 }
-pub fn core_refused_to_domain(
-    value: w::CoreRefused,
-    _context: &super::Context,
-) -> Result<jig_domain_people::Refusal, w::Problem> {
+pub fn core_refused_to_domain(value: w::CoreRefused) -> Result<jig_domain_people::Refusal, w::Problem> {
     let record = jig_protocol_store::people_v17::Refusal::decode(
         &jig_protocol_store::people_v17::CEILINGS,
         &mut Reader::new(&value.refusal),
@@ -48,32 +42,21 @@ pub fn core_refused_to_domain(
 
 /// Owner-shaped `SeveralRepositories` (skein/docs/design/data/codec/maps.md, 3.3).
 #[expect(clippy::borrowed_box, reason = "maps pairs take the domain type by reference")]
-pub fn several_repositories_to_record(
-    value: &Box<[d::DraftRepository]>,
-    _context: &super::Context,
-) -> Result<w::SeveralRepositories, w::Problem> {
-    Ok({
+#[must_use]
+pub fn several_repositories_to_record(value: &Box<[d::DraftRepository]>) -> w::SeveralRepositories {
+    {
         let mut repositories = skein_lib::List::with_capacity(w::CEILINGS.several_repositories_repositories);
         for named in value {
-            repositories
-                .push(
-                    crate::generated::store::open_repository_to_record(named, &super::Context::UNBOUNDED).expect(FITS),
-                )
-                .expect(FITS);
+            repositories.push(crate::generated::store::open_repository_to_record(named)).expect(FITS);
         }
         w::SeveralRepositories { repositories }
-    })
+    }
 }
-pub fn several_repositories_to_domain(
-    value: w::SeveralRepositories,
-    _context: &super::Context,
-) -> Result<Box<[d::DraftRepository]>, w::Problem> {
+pub fn several_repositories_to_domain(value: w::SeveralRepositories) -> Result<Box<[d::DraftRepository]>, w::Problem> {
     {
         let mut repositories = skein_lib::List::with_capacity(w::CEILINGS.several_repositories_repositories);
         for named in value.repositories.into_boxed() {
-            repositories
-                .push(crate::generated::store::open_repository_to_domain(named, &super::Context::UNBOUNDED)?)
-                .expect(FITS);
+            repositories.push(crate::generated::store::open_repository_to_domain(named)).expect(FITS);
         }
         Ok::<_, w::Problem>(repositories.into_boxed())
     }

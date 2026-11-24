@@ -992,7 +992,7 @@ fn a_move_out_answers_with_its_record_once_and_a_move_in_is_adopted() {
     let mut service = fixtures::ready();
     let link = service.links().pop().expect("sign-in link");
     let engine = service.engine.as_mut().expect("engine");
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut login = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     login.pump(engine, true);
     let w::SignInAnswer::SignedIn(answer) = login.sign_in_answer(engine) else { panic!("signed in") };

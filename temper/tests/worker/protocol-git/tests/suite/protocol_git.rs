@@ -103,8 +103,8 @@ fn each_operation_ends_once_with_its_transcript_s_outcome() {
 fn a_point_failure_is_broken_without_forge_classification() {
     let mut scenario = fixtures::point();
     let invocation = scenario.script.invocations.front_mut().expect("update-ref");
-    invocation.transcript.exit = 128;
-    invocation.transcript.stderr = b"fatal: Authentication failed for 'remote'\n".as_slice().into();
+    invocation.exit = 128;
+    invocation.stderr = b"fatal: Authentication failed for 'remote'\n".as_slice().into();
     scenario.expected = Expected::fault(git::Fault::Broken);
     let outcome = world::run(&scenario, fixtures::SEED);
     assert_eq!(outcome.verdict, Verdict::Passed);
@@ -150,14 +150,13 @@ fn outputs_cut_at_random_and_past_each_cap_end_as_git_md_says() {
         let mut scenario = fixtures::fetch();
         let invocation = scenario.script.invocations.front_mut().expect("fetch");
         match change {
-            0 => invocation.transcript.stdout = vec![b'x'; 513].into_boxed_slice(),
+            0 => invocation.stdout = vec![b'x'; 513].into_boxed_slice(),
             1 => {
-                invocation.transcript.stdout =
-                    Box::from(&invocation.transcript.stdout[..invocation.transcript.stdout.len() - 1]);
+                invocation.stdout = Box::from(&invocation.stdout[..invocation.stdout.len() - 1]);
             }
             2 => {
-                invocation.transcript.exit = 1;
-                invocation.transcript.stderr = vec![b'x'; 513].into_boxed_slice();
+                invocation.exit = 1;
+                invocation.stderr = vec![b'x'; 513].into_boxed_slice();
             }
             _ => unreachable!("three cases"),
         }
