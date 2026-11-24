@@ -71,7 +71,7 @@ pub(super) fn decode_client_document(
     Ok(match value {
         w::ClientDocument::Object(value) => {
             let w::ClientDocumentObject { object, now } = value;
-            d::ClientDocument::Object { object, now: decode_application_object(now, limits) }
+            d::ClientDocument::Object { object, now: decode_application_object(now) }
         }
         w::ClientDocument::Panel(value) => {
             let w::ClientDocumentPanel { task, procedure, result, resources, effects } = value;
@@ -136,8 +136,8 @@ pub(super) fn decode_client_document(
                 outbox: decode_clientdocumentdeployment_outbox(outbox, limits)?,
                 subject_limit,
                 staged_limit,
-                request_budget: decode_diagnostic_availability(request_budget, limits),
-                system_last_response: decode_diagnostic_availability(system_last_response, limits),
+                request_budget: decode_diagnostic_availability(request_budget),
+                system_last_response: decode_diagnostic_availability(system_last_response),
             }
         }
     })

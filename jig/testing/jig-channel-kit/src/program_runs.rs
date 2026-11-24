@@ -710,19 +710,8 @@ impl Judge {
                 }
             }
         }
-        let turns = world::turns(&self.store).into_iter().cloned().collect();
-        let terminals: Vec<_> = self
-            .store
-            .rows
-            .values()
-            .filter_map(|row| {
-                if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row {
-                    Some(answer.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let turns = self.store.turns().cloned().collect();
+        let terminals: Vec<_> = self.store.terminals().cloned().collect();
         let parked = terminals.iter().any(|answer| answer.end == jig_domain_tasks::End::Parked);
         if self.case == Case::Open {
             self.prepare_open(procs)?;

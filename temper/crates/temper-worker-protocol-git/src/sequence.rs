@@ -17,6 +17,7 @@ pub enum Next {
     Reds { directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32> },
     Results { directory: Box<[u8]> },
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
+    Keep,
     Make,
     Look { directory: Box<[u8]> },
     Store,
@@ -33,6 +34,7 @@ pub enum Next {
 pub fn first(op: &git::Op) -> Next {
     Next::Run(match op {
         git::Op::Reds { .. } => return crate::reds::first(op),
+        git::Op::Keep { .. } => return Next::Keep,
         git::Op::Make { .. } => return Next::Make,
         git::Op::Store { .. } => return Next::Store,
         git::Op::Look { at, .. } => Command::Origin { directory: invocation::git_dir(at) },
@@ -127,6 +129,7 @@ pub fn after(
                 _ => {}
             },
             git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -209,9 +212,9 @@ pub fn after(
             }
         }
         Command::CheckOut { .. } if code == 0 => return checked_out(op),
-        Command::Merge { .. } => match code {
+        Command::Merge { theirs } => match code {
             0 => return Next::End(git::Done::Merged),
-            1 => return Next::Run(Command::Unmerged),
+            1 => return Next::Run(Command::MergeHistory { theirs: *theirs }),
             _ => {}
         },
         Command::DiffPaths { .. } if code == 0 => {
@@ -220,7 +223,7 @@ pub fn after(
                 return Next::End(git::Done::Paths { files });
             }
         }
-        Command::UpdateIndex { .. } if code == 0 => return Next::Run(Command::Unmerged),
+        Command::MergeHistory { .. } | Command::UpdateIndex { .. } if code == 0 => return Next::Run(Command::Unmerged),
         Command::Unmerged if code == 0 => {
             if let Some(next) = unmerged(op, stdout, checkout) {
                 return next;
@@ -235,6 +238,7 @@ pub fn after(
                 });
             }
             git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -300,6 +304,7 @@ pub fn after(
             | git::Op::DiffPaths { .. }
             | git::Op::Look { .. }
             | git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -328,6 +333,7 @@ pub fn after(
         | Command::Fetch { .. }
         | Command::CheckOut { .. }
         | Command::Clean
+        | Command::MergeHistory { .. }
         | Command::DiffPaths { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
@@ -393,6 +399,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
             Some(Next::Scan { files, cut })
         }
         git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
@@ -417,6 +424,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
             Some(Command::CommitTree { tree, parent: *parent, merging: *merging })
         }
         git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
@@ -441,6 +449,7 @@ fn checked_out(op: &git::Op) -> Next {
         git::Op::CheckOut { clean: false, .. } => Next::End(git::Done::Succeeded),
         git::Op::CheckOut { clean: true, .. }
         | git::Op::Store { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
@@ -468,7 +477,8 @@ fn remote(command: &Command) -> bool {
         | Command::Create { .. }
         | Command::Push { .. }
         | Command::CheckOut { .. }
-        | Command::Merge { .. } => true,
+        | Command::Merge { .. }
+        | Command::MergeHistory { .. } => true,
         Command::Reds(_)
         | Command::CountObjects { .. }
         | Command::Repack { .. }
@@ -537,6 +547,7 @@ pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
         | git::Op::Commit { at, .. }
         | git::Op::Reset { at, .. } => Some(at),
         git::Op::Pack { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Store { .. }
         | git::Op::Look { .. }
@@ -618,6 +629,7 @@ pub(crate) fn after_view(
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add

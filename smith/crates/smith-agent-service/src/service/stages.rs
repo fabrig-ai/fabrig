@@ -302,6 +302,8 @@ impl Stages {
             charter: start.charter,
             workspace,
             transcript: start.transcript,
+            tell_parts: start.tell_parts,
+            parts: start.parts,
             answered: start.answered,
             grants: grants.into_boxed(),
         }));

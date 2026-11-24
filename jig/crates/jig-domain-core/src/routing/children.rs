@@ -177,6 +177,12 @@ pub(crate) fn tag_fleet(
             fleet::Request::Acknowledge { channel, run, attempt } => {
                 Request::Held(Box::new(Held::Acknowledge { channel, run, attempt }))
             }
+            fleet::Request::AcknowledgePart { channel, run, attempt, part } => {
+                Request::Held(Box::new(Held::AcknowledgePart { channel, run, attempt, part }))
+            }
+            fleet::Request::PartBusy { channel, run, attempt, part } => {
+                Request::Held(Box::new(Held::PartBusy { channel, run, attempt, part }))
+            }
             fleet::Request::AcknowledgeTurn { channel, run, attempt, turn } => {
                 Request::Held(Box::new(Held::AcknowledgeTurn { channel, run, attempt, turn }))
             }
@@ -470,6 +476,9 @@ pub(crate) fn tag_fleet(
             }
             fleet::Request::Grant { channel, run, attempt, grant } => {
                 Request::Held(Box::new(Held::Grant { channel, run, attempt, grant }))
+            }
+            fleet::Request::Parted { run, attempt, part, body } => {
+                Request::Now(Box::new(Now::Link(LinkNow::PartPayload { run, attempt, part, body })))
             }
             fleet::Request::Turned { run, attempt, turn, body } if core.stopping => {
                 let mut follow = Queue::uncapped();
@@ -904,6 +913,9 @@ pub(crate) fn route_fleet(
         | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
+        | fleet::Event::Part { .. }
+        | fleet::Event::PartKept { .. }
+        | fleet::Event::PartBusy { .. }
         | fleet::Event::Turn { .. }
         | fleet::Event::TurnKept { .. }
         | fleet::Event::TurnBusy { .. }
@@ -1011,6 +1023,9 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
+        | fleet::Event::Part { .. }
+        | fleet::Event::PartKept { .. }
+        | fleet::Event::PartBusy { .. }
         | fleet::Event::Turn { .. }
         | fleet::Event::TurnKept { .. }
         | fleet::Event::TurnBusy { .. }

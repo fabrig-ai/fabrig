@@ -144,6 +144,8 @@ fn io_limits() -> io::Limits {
 
 fn start(live: Option<host::channel::LiveAsk>) -> host::Start {
     host::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live,
         messages: Box::default(),
         logical_run: Token::new(1),
@@ -409,6 +411,12 @@ impl HostService {
                 self.seen.detail = Some(detail);
                 self.observations.push(Observation::Gone);
             }
+            host::Output::Parent(host::parent::Request::Part { part, .. }) => {
+                self.domain_events.push(host::Input::Parent(host::parent::Event::AcknowledgePart {
+                    agent: self.agent_owner(),
+                    number: part.number,
+                }));
+            }
             host::Output::Parent(host::parent::Request::Turn { turn, .. }) => {
                 self.seen.turns = self.seen.turns.checked_add(1).expect("bounded observed turns");
                 self.domain_events.push(host::Input::Parent(host::parent::Event::Acknowledge {
@@ -468,11 +476,12 @@ impl HostService {
             host::Down::Answer { call, .. } => Some(*call),
             host::Down::Start { .. }
             | host::Down::Message { .. }
+            | host::Down::PartKept { .. }
             | host::Down::Acknowledge { .. }
             | host::Down::Renewals { .. }
             | host::Down::Grant { .. }
             | host::Down::Cancel
-            | host::Down::Drain => None,
+            | host::Down::Drain { .. } => None,
         };
         let sent = match message {
             host::Down::Start { start, window } => process.send_start(
@@ -495,6 +504,9 @@ impl HostService {
             host::Down::Answer { call, reply } => {
                 process.send_reply(call, reply, token, &mut self.process_events, &mut self.io_requests)
             }
+            host::Down::PartKept { number } => {
+                process.send_part_kept(number, token, &mut self.process_events, &mut self.io_requests)
+            }
             host::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io_requests)
             }
@@ -509,7 +521,9 @@ impl HostService {
                 process.send_renewals(held, token, &mut self.process_events, &mut self.io_requests)
             }
             host::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io_requests),
-            host::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io_requests),
+            host::Down::Drain { grace } => {
+                process.send_drain(grace, token, &mut self.process_events, &mut self.io_requests)
+            }
         };
         if sent.is_err() {
             self.domain_events.push(host::Input::Process(host::process::Event::Unsent { owner: self.agent_owner() }));

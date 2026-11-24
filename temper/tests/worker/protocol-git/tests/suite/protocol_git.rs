@@ -1,3 +1,4 @@
+use skein_lib::Token;
 use temper_worker_domain_checkout::git;
 use temper_worker_protocol_git_world::{
     fixtures,
@@ -8,6 +9,78 @@ use temper_worker_protocol_git_world::{
 
 mod sweep;
 pub(crate) use sweep::sweep_past_a_stuck_file;
+
+#[test]
+fn a_mark_keeps_only_its_workspace_and_git_directories_across_start() {
+    let mut scenario = fixtures::operations().remove(0).1;
+    let mark = git::Kept {
+        workspace: Token::new(7),
+        key: b"stream".as_slice().into(),
+        when: 42,
+        repositories: Box::new([git::KeptRepository {
+            name: b"app".as_slice().into(),
+            remote: b"remote".as_slice().into(),
+            commit: git::Commit::new([3; 32]),
+        }]),
+    };
+    scenario.op = git::Op::Keep { workspace: mark.workspace, mark: Some(mark.clone()) };
+    for directory in [
+        "workspaces/7",
+        "workspaces/7/app",
+        "workspaces/7/app/.git",
+        "workspaces/8",
+        "gitdirs/7",
+        "gitdirs/7/app",
+        "gitdirs/8",
+    ] {
+        scenario.files.insert(directory.as_bytes().to_vec(), Node::Directory);
+    }
+    for file in [
+        "workspaces/7/app/output",
+        "workspaces/7/app/.git/passed",
+        "gitdirs/7/app/HEAD",
+        "workspaces/8/lost",
+        "gitdirs/8/lost",
+    ] {
+        scenario.files.insert(file.as_bytes().to_vec(), Node::File(b"content".as_slice().into()));
+    }
+    let written = world::run(&scenario, fixtures::SEED);
+    assert_eq!(written.verdict, Verdict::Passed);
+    assert!(written.tree.contains_key(b"kept/7".as_slice()));
+    scenario.files.clear();
+    scenario.op = git::Op::Keep { workspace: Token::new(999), mark: None };
+    let restarted = world::run_on_tree(&scenario, fixtures::SEED, written.tree);
+    assert_eq!(restarted.verdict, Verdict::Passed);
+    assert_eq!(restarted.kept.as_ref(), &[mark]);
+    for file in ["workspaces/7/app/output", "workspaces/7/app/.git/passed", "gitdirs/7/app/HEAD"] {
+        assert!(restarted.tree.contains_key(file.as_bytes()), "{file} survives");
+    }
+    assert!(!restarted.tree.keys().any(|path| path.starts_with(b"workspaces/8") || path.starts_with(b"gitdirs/8")));
+}
+
+#[test]
+fn a_mark_for_a_missing_workspace_is_removed_at_start() {
+    let mut scenario = fixtures::operations().remove(0).1;
+    scenario.op = git::Op::Keep {
+        workspace: Token::new(7),
+        mark: Some(git::Kept {
+            workspace: Token::new(7),
+            key: b"stream".as_slice().into(),
+            when: 42,
+            repositories: Box::new([git::KeptRepository {
+                name: b"app".as_slice().into(),
+                remote: b"remote".as_slice().into(),
+                commit: git::Commit::new([3; 32]),
+            }]),
+        }),
+    };
+    let written = world::run(&scenario, fixtures::SEED);
+    assert_eq!(written.verdict, Verdict::Passed);
+    scenario.op = git::Op::Keep { workspace: Token::new(999), mark: None };
+    let restarted = world::run_on_tree(&scenario, fixtures::SEED, written.tree);
+    assert!(restarted.kept.is_empty());
+    assert!(!restarted.tree.contains_key(b"kept/7".as_slice()));
+}
 
 #[test]
 fn each_operation_ends_once_with_its_transcript_s_outcome() {
@@ -30,8 +103,8 @@ fn each_operation_ends_once_with_its_transcript_s_outcome() {
 fn a_point_failure_is_broken_without_forge_classification() {
     let mut scenario = fixtures::point();
     let invocation = scenario.script.invocations.front_mut().expect("update-ref");
-    invocation.transcript.exit = 128;
-    invocation.transcript.stderr = b"fatal: Authentication failed for 'remote'\n".as_slice().into();
+    invocation.exit = 128;
+    invocation.stderr = b"fatal: Authentication failed for 'remote'\n".as_slice().into();
     scenario.expected = Expected::fault(git::Fault::Broken);
     let outcome = world::run(&scenario, fixtures::SEED);
     assert_eq!(outcome.verdict, Verdict::Passed);
@@ -77,14 +150,13 @@ fn outputs_cut_at_random_and_past_each_cap_end_as_git_md_says() {
         let mut scenario = fixtures::fetch();
         let invocation = scenario.script.invocations.front_mut().expect("fetch");
         match change {
-            0 => invocation.transcript.stdout = vec![b'x'; 513].into_boxed_slice(),
+            0 => invocation.stdout = vec![b'x'; 513].into_boxed_slice(),
             1 => {
-                invocation.transcript.stdout =
-                    Box::from(&invocation.transcript.stdout[..invocation.transcript.stdout.len() - 1]);
+                invocation.stdout = Box::from(&invocation.stdout[..invocation.stdout.len() - 1]);
             }
             2 => {
-                invocation.transcript.exit = 1;
-                invocation.transcript.stderr = vec![b'x'; 513].into_boxed_slice();
+                invocation.exit = 1;
+                invocation.stderr = vec![b'x'; 513].into_boxed_slice();
             }
             _ => unreachable!("three cases"),
         }
@@ -148,7 +220,7 @@ fn a_store_already_there_is_kept_without_a_clone_after_setting_aside() {
         assert_eq!(outcome.spawns, 0, "existing store needs no clone");
         assert!(!outcome.tree.keys().any(|path| path.starts_with(b"making/")));
         if aside.is_some() {
-            assert!(outcome.tree.contains_key(b"trash/1004/old".as_slice()));
+            assert!(outcome.tree.contains_key(b"trash/1002/old".as_slice()));
         }
     }
 }

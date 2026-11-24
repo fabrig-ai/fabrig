@@ -87,12 +87,44 @@ const TABLE: [u32; 256] = [
     0xf36e_6f75, 0x0105_ec76, 0x1255_1f82, 0xe03e_9c81, 0x34f4_f86a, 0xc69f_7b69, 0xd5cf_889d, 0x27a4_0b9e,
     0x79b7_37ba, 0x8bdc_b4b9, 0x988c_474d, 0x6ae7_c44e, 0xbe2d_a0a5, 0x4c46_23a6, 0x5f16_d052, 0xad7d_5351,
 ];
+
+// Extend each byte's remainder by one zero byte, at compile time only.
+#[expect(clippy::indexing_slicing, reason = "the loop and the low byte both index inside the 256-entry tables")]
+#[expect(clippy::as_conversions, reason = "the const lookup widens a byte to usize")]
+const fn advance(table: &[u32; 256]) -> [u32; 256] {
+    let mut next = [0; 256];
+    let mut index = 0_usize;
+    while index < next.len() {
+        let crc = table[index];
+        let [low, ..] = crc.to_le_bytes();
+        next[index] = (crc >> 8_u32) ^ TABLE[low as usize];
+        index = index.saturating_add(1);
+    }
+    next
+}
+
+const TWO: [u32; 256] = advance(&TABLE);
+const THREE: [u32; 256] = advance(&TWO);
+const FOUR: [u32; 256] = advance(&THREE);
+
 #[must_use]
 pub fn crc32c(bytes: &[u8]) -> u32 {
+    let (words, tail) = bytes.as_chunks::<4>();
     let mut crc = !0_u32;
-    for byte in bytes {
-        let index = skein_lib::length::usize_of((crc ^ u32::from(*byte)) & 0xff);
-        crc = (crc >> 8_u32) ^ *TABLE.get(index).expect("one table entry per byte");
+    for &word in words {
+        // Each byte contributes the remainder after that byte and every byte
+        // to its right. XOR combines the four independent remainders.
+        let [a, b, c, d] = (crc ^ u32::from_le_bytes(word)).to_le_bytes();
+        crc = entry(&FOUR, a) ^ entry(&THREE, b) ^ entry(&TWO, c) ^ entry(&TABLE, d);
+    }
+    for &byte in tail {
+        let [low, ..] = crc.to_le_bytes();
+        crc = (crc >> 8_u32) ^ entry(&TABLE, low ^ byte);
     }
     !crc
+}
+
+#[expect(clippy::indexing_slicing, reason = "every u8 indexes the fixed 256-entry table")]
+fn entry(table: &[u32; 256], byte: u8) -> u32 {
+    table[usize::from(byte)]
 }

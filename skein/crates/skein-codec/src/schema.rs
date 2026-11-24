@@ -39,7 +39,7 @@ impl DeclIx {
     }
 }
 
-/// An index in the schema's fields, in the text's order.
+/// An index in the schema's fields: live fields first, then tombstones, each in text order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FieldIx(u32);
 
@@ -292,7 +292,7 @@ pub enum Wrong {
 pub enum Expected {
     /// A name after was.
     Name,
-    /// A value after = or some.
+    /// A tombstone's = or a value after = or some.
     Default,
     /// The family keyword.
     Family,
@@ -316,6 +316,8 @@ pub struct Schema {
     version: u16,
     declarations: List<Declaration>,
     fields: List<Field>,
+    tombstones: List<(FieldIx, u32)>,
+    droppable: List<bool>,
     variants: List<Variant>,
     types: List<Type>,
     names: Map<Box<[u8]>, DeclIx>,
@@ -336,6 +338,8 @@ impl Schema {
         Self {
             declarations: List::from_boxed(self.declarations.into_boxed()),
             fields: List::from_boxed(self.fields.into_boxed()),
+            tombstones: List::from_boxed(self.tombstones.into_boxed()),
+            droppable: List::from_boxed(self.droppable.into_boxed()),
             variants: List::from_boxed(self.variants.into_boxed()),
             types: List::from_boxed(self.types.into_boxed()),
             minimum: List::from_boxed(self.minimum.into_boxed()),
@@ -391,6 +395,19 @@ impl Schema {
     #[must_use]
     pub fn field(&self, at: FieldIx) -> Field {
         *self.fields.get(at.0).expect("field index belongs to this schema")
+    }
+
+    /// The first tombstone and count for a record, in text order after all live fields.
+    /// The count is zero for an enumeration or a record without tombstones.
+    #[must_use]
+    pub fn tombstones(&self, record: DeclIx) -> (FieldIx, u32) {
+        *self.tombstones.get(record.index()).expect("declaration index belongs to this schema")
+    }
+
+    /// Whether the field is marked `droppable`. Tombstones are never marked.
+    #[must_use]
+    pub fn droppable(&self, at: FieldIx) -> bool {
+        *self.droppable.get(at.index()).expect("field index belongs to this schema")
     }
 
     /// The variant at its table index.
@@ -501,7 +518,7 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     let final_line = tokens::scan(text, &mut tokens)?;
     let parser = grammar::Parser::new(bytes::copy_of(text), tokens, final_line);
     let mut parsed = parser.parse()?;
-    layout::check(&mut parsed)?;
+    layout::check(&mut parsed, text)?;
     metadata::check(&mut parsed.schema)?;
     Ok(parsed.schema.fitted())
 }
@@ -515,6 +532,9 @@ pub(crate) fn schema_bound(text: u32) -> Option<u64> {
         List::<tokens::Token>::price(text)?,
         List::<Declaration>::price(declarations)?,
         List::<Field>::price(text)?,
+        List::<(FieldIx, u32)>::price(declarations)?,
+        List::<bool>::price(text)?,
+        grammar::tombstone_bound(text)?,
         List::<Variant>::price(text)?,
         List::<Type>::price(text)?,
         List::<Span>::price(text)?.checked_mul(4)?, // references and former name ranges

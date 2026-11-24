@@ -14,32 +14,37 @@ fn argument<'a>(arguments: &'a [String], flag: &str) -> Option<&'a str> {
     arguments.next().map(String::as_str)
 }
 
-fn run(modify: bool) -> Run {
-    let tools = if modify { vec!["inspect", "modify"] } else { vec!["inspect"] };
+const MAIN_MODEL: &str = "claude-opus-5-5";
+const CHILD_MODEL: &str = "fake";
+const WRITING_REFUSED: &str = "Writing sub-agent refused";
+const TOOLS_PROBLEM: &str = "invalid field value \"tools\"";
+
+fn run(writing: Option<&str>) -> Run {
+    let mut tools = vec!["inspect"];
+    if let Some(family) = writing {
+        tools.push(family);
+    }
+    let (reply, report) =
+        if writing.is_some() { (TOOLS_PROBLEM, WRITING_REFUSED) } else { ("exports run", "exports run") };
     let story = Story {
         turns: vec![
             Turn::new(vec![Step::CallChecked {
                 tool: "sub_agent".into(),
-                input: json!({"brief":"CUE-ALPHA List what lib.rs exports.","tools":tools,"llm":"fake"}),
-                contains: if modify { "tools" } else { "exports run" }.into(),
+                input: json!({"brief":"CUE-ALPHA List what lib.rs exports.","tools":tools,"llm":CHILD_MODEL}),
+                contains: reply.into(),
             }]),
-            Turn::new(vec![Step::Call {
-                tool: "finish".into(),
-                input: json!({"outcome":{"form":"report","text":"exports run","fields":{}}}),
-            }]),
+            Turn::new(vec![Step::Outcome { input: json!({"outcome":{"form":"report","text":report,"fields":{}}}) }]),
         ],
         cued: vec![Script { cue: "CUE-ALPHA".into(), turns: vec![Turn::new(vec![Step::Text("exports run".into())])] }],
         observe_tools: true,
         ..Default::default()
     };
-    program_world::run(
-        Case::Events,
-        &story,
-        Some(b"claude.ai"),
-        &program_world::child_charter(),
-        &program(b"source"),
-        None,
-    )
+    let charter = smith_agent_process_world::wire::edit_charter(&program_world::child_charter(), |parts| {
+        parts.main.model = MAIN_MODEL.as_bytes().into();
+        parts.tools.families.modify = true;
+        parts.tools.families.shell = true;
+    });
+    program_world::run(Case::Events, &story, Some(b"claude.ai"), &charter, &program(b"source"), None)
 }
 
 fn accepted(run: &Run) {
@@ -73,7 +78,7 @@ fn results(run: &Run) -> Vec<smith_transcript::ToolResult> {
 
 #[test]
 fn a_program_main_reads_its_sub_agents_answer() {
-    let run = run(false);
+    let run = run(None);
     accepted(&run);
     assert!(run.seen.contains(&smith_fake_claude::Seen::Called { tool: "sub_agent".into(), error: false }));
     let child = run
@@ -83,7 +88,7 @@ fn a_program_main_reads_its_sub_agents_answer() {
         .expect("child invocation at its own effort");
     let args = &child.arguments;
     assert_eq!(args[0], "-p");
-    assert_eq!(argument(args, "--model"), Some("fake"));
+    assert_eq!(argument(args, "--model"), Some(CHILD_MODEL));
     assert_eq!(argument(args, "--tools"), Some("Read,Glob,Grep"));
     assert!(args.iter().any(|arg| arg == "--permission-prompt-tool"));
     assert!(args.iter().any(|arg| arg == "--mcp-config"));
@@ -98,7 +103,7 @@ fn a_program_main_reads_its_sub_agents_answer() {
         })
         .expect("child conversation opened");
     assert!(child.call.is_some());
-    assert_eq!(child.model.model.as_ref(), b"fake");
+    assert_eq!(child.model.model.as_ref(), CHILD_MODEL.as_bytes());
     assert_eq!(child.model.effort.as_deref(), Some(b"high".as_slice()));
     assert!(run.events.iter().any(
         |record| matches!(&record.event, Event::ConversationClosed(close) if close.conversation == child.conversation)
@@ -153,7 +158,7 @@ fn a_program_child_reports_usage_for_its_account() {
 
 #[test]
 fn a_program_childs_program_ends_with_its_conversation() {
-    let run = run(false);
+    let run = run(None);
     accepted(&run);
     assert_eq!(
         run.invocations.iter().filter(|invocation| invocation.arguments.first().is_some_and(|arg| arg == "-p")).count(),
@@ -164,17 +169,44 @@ fn a_program_childs_program_ends_with_its_conversation() {
 
 #[test]
 fn a_program_child_asking_to_write_is_refused() {
-    let run = run(true);
-    accepted(&run);
-    assert_eq!(
-        run.invocations.iter().filter(|invocation| invocation.arguments.first().is_some_and(|arg| arg == "-p")).count(),
-        1
-    );
-    let result = results(&run).into_iter().next().expect("sub_agent result is told");
-    let smith_transcript::Returned::Invalid(invalid) = &result.returned else { panic!("invalid tool result") };
-    assert!(
-        matches!( &invalid.problem, smith_transcript::CallProblem::BadValue(field) if field.field.as_ref() == b"tools")
-    );
+    use smith_charter::Record as _;
+
+    for family in ["modify", "shell"] {
+        let run = run(Some(family));
+        let answer = run.answer().expect("answer after the refused call");
+        let smith_channel::RunResult::Accepted(accepted) = &answer.result else {
+            panic!("{family}: the main report was not accepted: {answer:?}");
+        };
+        let report = smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut Reader::new(&accepted.result))
+            .expect("declared report");
+        assert_eq!(report.form, smith_charter::Form::Report, "{family}");
+        assert_eq!(report.text.as_ref(), WRITING_REFUSED.as_bytes(), "{family}");
+        assert_eq!(run.exits, [skein_io::kernel::Exit::Code(0); 5], "{family}: clean exits after refusal");
+
+        let print_models: Vec<_> = run
+            .invocations
+            .iter()
+            .filter(|invocation| invocation.arguments.first().is_some_and(|arg| arg == "-p"))
+            .map(|invocation| argument(&invocation.arguments, "--model"))
+            .collect();
+        assert_eq!(print_models, [Some(MAIN_MODEL)], "{family}: only main prints, not {CHILD_MODEL}");
+        assert!(
+            run.seen.contains(&Seen::Called { tool: "sub_agent".into(), error: true }),
+            "{family}: the fake received a refusal"
+        );
+        assert!(
+            !run.seen.contains(&Seen::ReplyMismatch { tool: "sub_agent".into() }),
+            "{family}: the refusal reply must name the tools field"
+        );
+        let result = results(&run).into_iter().next().expect("sub_agent result is told");
+        let smith_transcript::Returned::Invalid(invalid) = &result.returned else {
+            panic!("{family}: invalid tool result")
+        };
+        assert!(
+            matches!(&invalid.problem, smith_transcript::CallProblem::BadValue(field) if field.field.as_ref() == b"tools"),
+            "{family}: the transcript names the invalid tools field"
+        );
+    }
 }
 
 // The declared room includes main, leaving four child conversations (domain/run.md, 5.3).

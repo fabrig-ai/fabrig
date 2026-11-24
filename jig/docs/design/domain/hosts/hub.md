@@ -349,6 +349,35 @@ pub enum ModelEvidence { Unsent, Unknown, Response }
   reach, and the stop bound holds (6).
 - **Before the answer.** The answer says how many turns the run took,
   and is sent after them.
+- **Parts, as turns** (`../../protocol/channel/records.md`, 5): a run
+  whose assignment says its link carries parts, `tell_parts`, is
+  started asking its agent for them (smith's `domain/turn-parts.md`,
+  section 3), and is handed back those the engine kept, `parts`. The hub
+  takes each part its agent tells as it takes a turn: acknowledged to
+  the agent capability at once, counted with the run's turns and their
+  bytes against its room, sent up in the order told among the turns,
+  kept until the engine says `part kept`, sent again after every hello
+  and after a backoff when the engine answers `part busy`, and before
+  the answer. It reads only a part's numbers and size. The link sets
+  `tell_parts` from its agreed version: a link without `part` takes no
+  part, so its runs are asked for none.
+
+  ```rust
+  // jig-domain-link
+  pub enum PartKind { Answer, Result, Window }
+  pub struct Part { pub number: u32, pub turn: u32, pub thread: u32, pub call: u32, pub kind: PartKind, pub body: Box<[u8]> }
+  pub struct KeptPart { pub attempt: u64, pub turn: u32, pub thread: u32, pub call: u32, pub kind: PartKind, pub body: Box<[u8]> }
+  // jig-domain-host
+  pub enum FromAgent { /* as before */ Part { owner: Token, part: Part } }
+  pub enum ToAgent {
+      /* as before */
+      AcknowledgePart { agent: Token, number: u32 },
+      Drain { agent: Token, grace: Option<Duration> }, // grace: 7, for a run asked for parts
+  }
+  pub enum LinkUp { /* as before */ Part { run: Token, attempt: Token, part: Part } }
+  pub enum LinkDown { /* as before */ PartKept { run: Token, attempt: Token, part: u32 } }
+  pub struct Assignment { /* as before */ pub parts: Box<[KeptPart]>, pub tell_parts: bool }
+  ```
 - **Lost with the worker.** A turn not acknowledged when a worker dies is
   lost with the run; the transcript ends at the last turn committed, and
   the next run starts from there. In the engine, turns die only with the
@@ -523,7 +552,14 @@ hub arms no timers (2):
    tail (2): stop, save, release, and the answer `Cancelled(Shutdown)`,
    unless the run said in that turn how it finished, which is its
    answer. A job runs on (9): its work is never saved, so a job that
-   finishes within the drain is not run again.
+   finishes within the drain is not run again. A run asked for parts
+   (4) is asked to stop at its answer instead, the drain carrying the
+   hub's drain grace, by default 10 seconds (the worker's
+   `graces.drain_grace_ms`, `../../protocol/configuration.md`, section 4): its agent
+   lets the answer in flight arrive, gives the calls in flight the
+   grace, then cuts them, and the turn stays open for the next attempt
+   (smith's `domain/turn-parts.md`, section 4). Its end takes the same
+   tail, its save included.
 2. **The cancel** of every run and job still going, for shutdown: at
    the drain's bound, or at once for a root that does not drain. A run
    whose stop has begun goes on with it.
@@ -555,7 +591,8 @@ section 2):
   go on as ever.
 - **`Drain`,** from taking or paused: *draining*. The hub admits
   nothing, and drains as step 1 does: each live run's agent asked to
-  stop at the end of its current turn, a run not yet live cancelled at
+  stop at the end of its current turn, or at its answer with the drain's
+  grace for a run asked for parts, a run not yet live cancelled at
   once, a job running on, and a drained run's end taking the cancel's
   tail and answering `Cancelled(Shutdown)`. Its root times the drain's
   bound, as for a stop's, and at it sends `Event::DrainPassed`: the hub
@@ -579,6 +616,13 @@ section 2):
   down whatever its pause state: it says `draining` as before and no
   more `paused`, and its root's own deadlines for the stop then hold
   alone. A drained hub's stop finds nothing to drain.
+
+A host may supply a local limit on occupied places. Once occupancy reaches
+that limit the hub advertises paused and answers a crossed assignment as
+busy before preparation. Work already admitted continues. When capacity
+returns it advertises taking only while the owner is taking. A reconnect
+advertises the effective state after hello. The root's pause notifications
+continue to reflect the owner's own pause and drain.
 
 ## 8. smith's payloads
 

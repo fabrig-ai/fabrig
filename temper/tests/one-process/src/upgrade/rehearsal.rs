@@ -10,6 +10,7 @@ use std::path::Path;
 use temper_playground::machine::{self, SignalHost};
 
 pub(crate) mod live;
+pub(crate) mod settings;
 
 struct Tool(temper_service::Service, Time);
 impl Host for Tool {

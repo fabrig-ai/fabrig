@@ -14,7 +14,7 @@ use jig_domain_core_vocabulary::{self as core, Record, RestoreRange};
 use jig_domain_tasks as tasks;
 use skein_codec::{
     Record as _,
-    layout::{Plan, Workspace},
+    layout::{Mode, Plan, Workspace},
     schema,
     value::Value,
 };
@@ -43,13 +43,20 @@ const CURRENT: OwnerSets = OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SE
 fn old_sets() -> OwnerSets {
     let families = crate::STORE_FAMILIES.map(|family| crate::KeptFamily {
         current: TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1,
+        // Dev's core predates parts: keep only its registered types and key range.
+        types: if family.name == "jig-store-core" { &family.types[..8] } else { family.types },
+        keys: if family.name == "jig-store-core" { &family.keys[..1] } else { family.keys },
         ..family
     });
-    let smith = crate::KeptFamily { current: SMITH, ..crate::SMITH_SET.families[0] };
+    let smith = crate::KeptFamily {
+        current: SMITH,
+        frames: Some(crate::Frames { root: smith_transcript::ROOT, texts: &[SMITH], patches: &[] }),
+        ..crate::SMITH_SET.families[0]
+    };
     OwnerSets {
         sets: Box::leak(Box::new([
             crate::SKEIN_SET,
-            crate::OwnerSet { families: Box::leak(Box::new([smith])), ..crate::SMITH_SET },
+            crate::OwnerSet { families: Box::leak(Box::new([smith])), level: Some(0), ..crate::SMITH_SET },
             crate::OwnerSet { families: Box::leak(Box::new(families)), ..crate::JIG_STORE_SET },
         ])),
     }
@@ -91,7 +98,8 @@ fn at_dev(family: &crate::KeptFamily, ty: &crate::ValueType, value: &[u8]) -> Bo
     let binary_held: Vec<_> = held.clone().map(|held| parse(held.current)).collect();
     let old_held: Vec<_> = held.map(|held| parse(dev(held.name))).collect();
     let variant = ty.variant.map(str::as_bytes);
-    let plan = Plan::derive_dropping(
+    let plan = Plan::between(
+        Mode::Read,
         &binary,
         binary.root(ty.root.as_bytes(), variant).unwrap(),
         &binary_held.iter().collect::<Vec<_>>(),
@@ -184,8 +192,12 @@ fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
 fn registry(store: &mut Store) {
     for (family, text) in TEXTS {
         let family = crate::STORE_FAMILIES.iter().find(|held| held.name == family).unwrap();
+        let schema = schema::parse(text.as_bytes()).unwrap();
         for ty in family.types {
-            let id = schema::parse(text.as_bytes()).unwrap().version();
+            if schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_none() {
+                continue;
+            }
+            let id = schema.version();
             let key = keys::encode_own(
                 &keys::Own::Layout { family: family.name.into(), number: ty.number, id },
                 fixtures::KEY_LIMIT,

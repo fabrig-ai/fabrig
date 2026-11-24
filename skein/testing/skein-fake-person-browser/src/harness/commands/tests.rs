@@ -1,10 +1,13 @@
 use super::*;
 use skein_lib::Duration;
-use skein_world::testing::deadline::at;
+
+fn at(what: &'static str, bound: Duration, now: Time) -> Account {
+    Account::arm(false, what, bound, now)
+}
 
 fn process(command: Command, context: Context<'_>) -> Process {
     let deadline = at("the scenario command's readiness", command.within, Time::ZERO);
-    Process::with_deadline(0, command, context, deadline)
+    Process::new(0, command, context, deadline)
 }
 
 fn child(opens: bool) -> Process {

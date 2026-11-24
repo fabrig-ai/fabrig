@@ -4,11 +4,7 @@
 
 use std::{
     ffi::{OsStr, OsString},
-    fs,
-    os::unix::{
-        ffi::OsStrExt,
-        fs::{DirBuilderExt, MetadataExt},
-    },
+    os::unix::{ffi::OsStrExt, fs::DirBuilderExt},
     path::{Path, PathBuf},
     process::Stdio,
 };
@@ -19,6 +15,7 @@ use std::{
 )]
 use std::process::Command;
 
+use skein_io::kernel::{Kind, Stat};
 use smith_protocol_program::{ANTHROPIC_DIRECTORY, Error, Programs, SIGN_IN, configuration_directory, keeps};
 
 /// Why a source's directories were refused before its program ran.
@@ -68,54 +65,33 @@ impl std::fmt::Display for Refusal {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Kind {
-    Directory,
-    Link,
-    Other,
-}
-
-#[derive(Clone, Copy)]
-struct Facts {
-    kind: Kind,
-    owner: u32,
-    mode: u32,
-}
-
-fn inspect(path: &Path) -> std::io::Result<Facts> {
-    let metadata = fs::symlink_metadata(path)?;
-    let kind = if metadata.file_type().is_symlink() {
-        Kind::Link
-    } else if metadata.is_dir() {
-        Kind::Directory
-    } else {
-        Kind::Other
-    };
-    Ok(Facts { kind, owner: metadata.uid(), mode: metadata.mode() })
-}
-
 /// Check an existing directory's kind, owner and mode; `Ok(false)` means absent.
 pub fn private_directory(path: &Path) -> Result<bool, Refusal> {
-    private_directory_with(path, skein_shell::effective_user, &mut inspect)
+    private_directory_with(path, skein_shell::effective_user(), inspect_at(path, skein_shell::symlink_stat))
 }
 
-fn private_directory_with(
-    path: &Path,
-    effective_user: fn() -> u32,
-    inspect: &mut impl FnMut(&Path) -> std::io::Result<Facts>,
-) -> Result<bool, Refusal> {
+fn inspect_at(path: &Path, inspect: impl FnOnce(&Path) -> std::io::Result<Stat>) -> std::io::Result<Stat> {
     let inspected: PathBuf = path.components().collect();
-    let facts = match inspect(&inspected) {
-        Ok(facts) => facts,
+    inspect(&inspected)
+}
+
+/// Check supplied no-follow metadata; a not-found result means the name is absent.
+pub fn private_directory_with(path: &Path, user: u32, metadata: std::io::Result<Stat>) -> Result<bool, Refusal> {
+    let metadata = match metadata {
+        Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(error) => return Err(Refusal::Io { path: path.into(), error }),
     };
-    let found = match facts.kind {
-        Kind::Link => Some(Unsafe::Link),
-        Kind::Other => Some(Unsafe::NotADirectory),
-        Kind::Directory if facts.owner != effective_user() => Some(Unsafe::Owner { found: facts.owner }),
-        Kind::Directory if facts.mode & 0o077 != 0 => Some(Unsafe::Mode(facts.mode & 0o077)),
-        Kind::Directory => None,
+    let found = if metadata.kind == Kind::Symlink {
+        Some(Unsafe::Link)
+    } else if metadata.kind != Kind::Directory {
+        Some(Unsafe::NotADirectory)
+    } else if metadata.owner != user {
+        Some(Unsafe::Owner { found: metadata.owner })
+    } else if metadata.mode & 0o077 != 0 {
+        Some(Unsafe::Mode(metadata.mode & 0o077))
+    } else {
+        None
     };
     match found {
         Some(found) => Err(Refusal::Unsafe { path: path.into(), found }),
@@ -125,15 +101,18 @@ fn private_directory_with(
 
 /// Make and recheck the private programs and source directories, refusing names first.
 pub fn prepare(directory: &Path, source: &str) -> Result<PathBuf, Refusal> {
-    prepare_with(directory, source, skein_shell::effective_user, inspect, make_directory)
+    prepare_with(directory, source, skein_shell::effective_user(), skein_shell::symlink_stat, |path, parents, mode| {
+        std::fs::DirBuilder::new().recursive(parents).mode(mode).create(path)
+    })
 }
 
-fn prepare_with(
+/// Check both names before making either directory, then recheck each at its name.
+pub fn prepare_with(
     directory: &Path,
     source: &str,
-    effective_user: fn() -> u32,
-    mut inspect: impl FnMut(&Path) -> std::io::Result<Facts>,
-    mut make_directory: impl FnMut(&Path, bool, u32) -> std::io::Result<()>,
+    user: u32,
+    mut inspect: impl FnMut(&Path) -> std::io::Result<Stat>,
+    mut create: impl FnMut(&Path, bool, u32) -> std::io::Result<()>,
 ) -> Result<PathBuf, Refusal> {
     let programs = Programs { directory: directory.as_os_str().as_bytes().into(), claude: Box::default() };
     let configuration = match configuration_directory(&programs, source.as_bytes()) {
@@ -141,15 +120,15 @@ fn prepare_with(
         Err(Error::Name) => return Err(Refusal::Name),
         Err(Error::Directory | Error::Environment) => return Err(Refusal::Relative(directory.into())),
     };
-    let mut check = |path: &Path| private_directory_with(path, effective_user, &mut inspect);
+    let mut check = |path: &Path| private_directory_with(path, user, inspect_at(path, &mut inspect));
     let programs_present = check(directory)?;
     let source_present = check(&configuration)?;
     if !programs_present {
-        make(directory, true, &mut make_directory)?;
+        made(directory, create(directory, true, 0o700))?;
     }
     require_directory(directory, check(directory)?)?;
     if !source_present {
-        make(&configuration, false, &mut make_directory)?;
+        made(&configuration, create(&configuration, false, 0o700))?;
     }
     require_directory(&configuration, check(&configuration)?)?;
     Ok(configuration)
@@ -163,16 +142,8 @@ fn require_directory(path: &Path, present: bool) -> Result<(), Refusal> {
     }
 }
 
-fn make_directory(path: &Path, parents: bool, mode: u32) -> std::io::Result<()> {
-    fs::DirBuilder::new().recursive(parents).mode(mode).create(path)
-}
-
-fn make(
-    path: &Path,
-    parents: bool,
-    make_directory: &mut impl FnMut(&Path, bool, u32) -> std::io::Result<()>,
-) -> Result<(), Refusal> {
-    match make_directory(path, parents, 0o700) {
+fn made(path: &Path, result: std::io::Result<()>) -> Result<(), Refusal> {
+    match result {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
         Err(error) => Err(Refusal::Io { path: path.into(), error }),

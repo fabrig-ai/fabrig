@@ -16,8 +16,26 @@ use crate::{Endpoints, Error};
 /// Encode one domain turn under its configured endpoint and replay dialect.
 pub fn encode_turn(
     source: &record::Turn,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     endpoints: &Endpoints,
+) -> Result<Box<[u8]>, Error> {
+    encode(source, limits, endpoints, false)
+}
+
+/// Encode a part body, whose first-turn result carries no conversation opening.
+pub fn encode_part(
+    source: &record::Turn,
+    limits: &wire::v8::Limits,
+    endpoints: &Endpoints,
+) -> Result<Box<[u8]>, Error> {
+    encode(source, limits, endpoints, true)
+}
+
+fn encode(
+    source: &record::Turn,
+    limits: &wire::v8::Limits,
+    endpoints: &Endpoints,
+    part: bool,
 ) -> Result<Box<[u8]>, Error> {
     if source.version != record::VERSION || source.sequence == 0 {
         return Err(Error::Transcript(record::Refusal::Version));
@@ -30,7 +48,7 @@ pub fn encode_turn(
     let dialect = source.dialect;
     let messages = encode_messages(source, limits)?;
     let usage = encode_usage(source.usage);
-    let (kind, opening) = encode_kind(&source.kind, source.sequence)?;
+    let (kind, opening) = encode_kind(&source.kind, source.sequence, part)?;
     let turn = wire::Turn {
         kind,
         system: supplied_system(&source.kind),
@@ -51,7 +69,7 @@ pub fn encode_turn(
     }
 }
 
-fn encode_message(source: &llm::Message, dialect: u32, limits: &wire::v7::Limits) -> Result<wire::Message, Error> {
+fn encode_message(source: &llm::Message, dialect: u32, limits: &wire::v8::Limits) -> Result<wire::Message, Error> {
     let role = match source.role {
         llm::Role::User => wire::Role::User,
         llm::Role::Assistant => wire::Role::Assistant,
@@ -65,7 +83,7 @@ fn encode_message(source: &llm::Message, dialect: u32, limits: &wire::v7::Limits
     Ok(wire::Message { role, blocks })
 }
 
-fn encode_block(source: &llm::Block, dialect: u32, limits: &wire::v7::Limits) -> Result<wire::Block, Error> {
+fn encode_block(source: &llm::Block, dialect: u32, limits: &wire::v8::Limits) -> Result<wire::Block, Error> {
     let block = match source {
         llm::Block::Text { text, replay } => {
             wire::Block::Text(wire::Text { text: text.clone(), replay: encode_replay(replay.as_ref(), dialect) })
@@ -94,7 +112,7 @@ fn encode_replay(source: Option<&llm::Replay>, dialect: u32) -> Option<wire::Rep
     }
 }
 
-fn encode_returned(source: &llm::Returned, limits: &wire::v7::Limits) -> Result<wire::Returned, Error> {
+fn encode_returned(source: &llm::Returned, limits: &wire::v8::Limits) -> Result<wire::Returned, Error> {
     let returned = match source {
         llm::Returned::Owned { outcome } => {
             wire::Returned::Outcome(wire::OwnedOutcome { value: encode_outcome(outcome, limits)? })
@@ -155,7 +173,7 @@ fn encode_problem(source: &llm::Problem) -> wire::CallProblem {
 }
 
 #[expect(clippy::too_many_lines, reason = "every typed tool outcome has an explicit durable representation")]
-fn encode_outcome(source: &tools::Outcome, limits: &wire::v7::Limits) -> Result<wire::Outcome, Error> {
+fn encode_outcome(source: &tools::Outcome, limits: &wire::v8::Limits) -> Result<wire::Outcome, Error> {
     let outcome = match source {
         tools::Outcome::Read { content, first, lines, total, next, cut, window } => wire::Outcome::Read(wire::Read {
             content: content.clone(),
@@ -242,6 +260,18 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v7::Limits) -> Result<
                 timeout: encode_timeout(*timeout),
                 output: encode_bytes(*output),
                 after: encode_timeout(*after),
+            })
+        }
+        tools::Outcome::Interrupted { ran, head, last, dropped } => {
+            let ran_ms = match ran {
+                Some(ran) => Some(ran.as_millis()),
+                None => None,
+            };
+            wire::Outcome::Interrupted(wire::Interrupted {
+                ran_ms,
+                head: head.clone(),
+                last: last.clone(),
+                dropped: *dropped,
             })
         }
         tools::Outcome::Job { job, head, tail, dropped, output, wait, end } => {
@@ -394,7 +424,7 @@ fn supplied_system(kind: &record::Kind) -> Option<Box<[u8]>> {
     }
 }
 
-fn encode_messages(source: &record::Turn, limits: &wire::v7::Limits) -> Result<List<wire::Message>, Error> {
+fn encode_messages(source: &record::Turn, limits: &wire::v8::Limits) -> Result<List<wire::Message>, Error> {
     let mut messages = List::with_capacity(count(source.messages.len())?);
     for message in &source.messages {
         if messages.push(encode_message(message, source.dialect, limits)?).is_err() {
@@ -414,7 +444,11 @@ fn encode_usage(usage: llm::Usage) -> wire::Usage {
     }
 }
 
-fn encode_kind(kind: &record::Kind, sequence: u32) -> Result<(wire::TurnKind, Option<wire::Opening>), Error> {
+fn encode_kind(
+    kind: &record::Kind,
+    sequence: u32,
+    part: bool,
+) -> Result<(wire::TurnKind, Option<wire::Opening>), Error> {
     Ok(match kind {
         record::Kind::First(opener) => {
             if sequence != 1 {
@@ -423,7 +457,7 @@ fn encode_kind(kind: &record::Kind, sequence: u32) -> Result<(wire::TurnKind, Op
             (wire::TurnKind::Ordinary, Some(encode_opening(opener.affinity, opener.account, &opener.backend)))
         }
         record::Kind::Ordinary => {
-            if sequence == 1 {
+            if sequence == 1 && !part {
                 return Err(Error::Transcript(record::Refusal::Malformed));
             }
             (wire::TurnKind::Ordinary, None)

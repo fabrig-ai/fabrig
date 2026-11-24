@@ -8,7 +8,6 @@ rust-version.workspace = true
 publish = false
 
 [lib]
-test = false
 doctest = false
 
 [[test]]

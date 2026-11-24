@@ -213,6 +213,6 @@ fn repeated_compactions_jobs_and_children_hold_no_more_heap() {
         open_and_close_child(&mut memory);
         *bytes = memory.held();
     }
-    assert!(held[1] <= held[0]);
-    assert!(held[2] <= held[0]);
+    assert!(held[1] <= held[0], "heap held across repeated windows: {held:?}");
+    assert!(held[2] <= held[0], "heap held across repeated windows: {held:?}");
 }

@@ -105,6 +105,8 @@ pub enum Event {
         transcript: Option<Token>,
         /// The root selected a concrete transcript for main, independently of its binding.
         resumed: bool,
+        /// Ask every conversation to tell its answer and result parts.
+        tell_parts: bool,
     },
 
     /// Parent-labelled live message; names, including zero, are opaque and
@@ -145,7 +147,9 @@ pub enum Event {
     /// answered, or decided how it ends, ignores it.
     Cancel { run: Token },
     /// From the host: finish the current main turn, then end as cancelled.
-    Drain { run: Token },
+    Drain { run: Token, grace: Option<Duration> },
+    /// Durable prefix of activation-local parts.
+    PartKept { run: Token, number: u32 },
     /// The conversation was admitted, and `peer` names it from now on.
     Started { conversation: Token, peer: Token },
     /// The addressed session has settled every job cancelled for a writer.
@@ -358,6 +362,8 @@ pub enum Request {
         owner: Token,
         /// IO-confined check executable, run as a contained process tree.
         program: Place,
+        /// Optional host-retained results directory for this check.
+        results: Option<Box<[u8]>>,
         bound: Duration,
         cap: Time,
         /// Last output bytes retained under the caller's cap.
@@ -639,6 +645,8 @@ pub enum Read {
     reason = "independent immutable tool descriptors and finish policy, not lifecycle states"
 )]
 pub struct Opening {
+    /// Tell each answer and result before its whole turn.
+    pub tell_parts: bool,
     /// Session-owned final answer for a child; main follows its charter lifecycle in the run.
     pub final_turn: Option<FinalTurn>,
     /// The run identity shared by all its conversations.

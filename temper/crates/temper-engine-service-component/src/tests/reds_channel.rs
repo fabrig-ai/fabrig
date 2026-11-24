@@ -193,6 +193,7 @@ impl Channel {
                     | worker::Request::Untranslated { .. }
                     | worker::Request::Refused { .. }
                     | worker::Request::RelayCancelled { .. }
+                    | worker::Request::ResendPart { .. }
                     | worker::Request::Resend { .. }
                     | worker::Request::Lost
                     | worker::Request::Restarting { .. }
@@ -267,6 +268,8 @@ fn exchange(
     let mut out = Queue::uncapped();
     channel.send_down(hub::LinkDown::Assign {
         assignment: hub::Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
             assignment: hub::RunAssignment {
                 identity: [0; 16],
                 run: Token::new(run.task),

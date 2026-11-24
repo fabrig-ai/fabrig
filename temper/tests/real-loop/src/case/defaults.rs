@@ -1,4 +1,4 @@
-//! The reference cases' defaults, shared by the real loop and its process adapter.
+//! The reference cases' defaults in the real loop.
 mod values;
 pub use values::items;
 

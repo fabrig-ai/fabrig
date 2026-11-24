@@ -52,7 +52,7 @@ fn trash_is_due_after_a_successful_pass_and_pending_after_a_refused_removal() {
     let mut world = World::new(fixtures::SEED, BTreeMap::new());
     let make = fixtures::operations().remove(0).1;
     assert_eq!(world.run(&make).expect("inspection").verdict, Verdict::Passed);
-    assert_eq!(world.component.sweep_state(), (false, 0, false, Some(1006)));
+    assert_eq!(world.component.sweep_state(), (false, 0, false, Some(1004)));
     let mut inspected = inspection();
     inspect_trash(&world.component, &[b"17"], &mut inspected);
     let table = &inspected.tables()[0];
@@ -74,7 +74,7 @@ fn trash_is_due_after_a_successful_pass_and_pending_after_a_refused_removal() {
         let Some(Input::Kernel(complete)) = world.below.next(&mut 0) else { panic!("Make completion") };
         world.component.complete(Time::ZERO, complete, &mut world.below.out);
     }
-    assert_eq!(world.component.sweep_state(), (true, 0, false, Some(1006)));
+    assert_eq!(world.component.sweep_state(), (true, 0, false, Some(1004)));
     let mut running = inspection();
     inspect_trash(&world.component, &[b"17"], &mut running);
     assert_eq!(running.tables()[0].entries[0].release, Release::Pending);
@@ -83,7 +83,7 @@ fn trash_is_due_after_a_successful_pass_and_pending_after_a_refused_removal() {
 
     let mut world = World::with_trash_faults(Streams::new(fixtures::SEED));
     assert_eq!(world.run(&fixtures::trash_make()).expect("inspection").verdict, Verdict::Passed);
-    assert_eq!(world.component.sweep_state(), (true, 2, true, Some(1006)));
+    assert_eq!(world.component.sweep_state(), (true, 2, true, Some(1004)));
     let mut inspected = inspection();
     let names = world.below.trash();
     let names: Vec<_> = names.iter().map(Vec::as_slice).collect();

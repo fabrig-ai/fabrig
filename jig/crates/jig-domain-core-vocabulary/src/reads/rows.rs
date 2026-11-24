@@ -31,6 +31,7 @@ pub fn row_key(row: &Row) -> Option<Position> {
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Projection(_),
         )

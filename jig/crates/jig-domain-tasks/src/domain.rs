@@ -76,6 +76,7 @@ pub struct Domain {
     pub(crate) wakes: Deadlines<u64>,
     pub(crate) proposal_alarms: Deadlines<u64>,
     pub(crate) escalation_alarms: Deadlines<u64>,
+    pub(crate) escalation_holders: Map<(u64, u64), ()>,
     pub(crate) hold_alarms: Deadlines<u64>,
     pub(crate) hold_kinds: Map<crate::holds::KindKey, crate::HoldKind>,
     pub(crate) resource_access: Map<crate::holds::ResourceKey, crate::ResourceAccess>,
@@ -275,6 +276,7 @@ impl Domain {
             wakes: Deadlines::with_capacity(limits.tasks),
             proposal_alarms: Deadlines::with_capacity(limits.tasks),
             escalation_alarms: Deadlines::with_capacity(limits.tasks),
+            escalation_holders: Map::with_capacity(limits.tasks),
             hold_alarms: Deadlines::with_capacity(limits.tasks),
             hold_kinds: Map::with_capacity(limits.hold_kinds),
             resource_access: Map::with_capacity(limits.resource_reports),
@@ -1401,9 +1403,7 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         None => None,
     };
     task.alarm = alarm;
-    save_cold(task, out);
-    crate::changed::observe(task, env.wall);
-    out.push(Request::Save { record: Stored::Live(Box::new(task.record.clone())) });
+    save_live(domain, env, number, out);
     crate::grace::schedule(domain, env, number);
     crate::escalation::schedule(domain, env, number);
     if escalation {
@@ -1428,6 +1428,15 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         crate::proposals::holder_unavailable(domain, number, out);
         crate::escalation::holder_unavailable(domain, number, out);
     }
+}
+
+fn save_live(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+    // Compare the waiting holder before replacing the published snapshot.
+    crate::escalation::refresh_holder(domain, env, number);
+    let task = task_mut(domain, number).expect("published task is live");
+    save_cold(task, out);
+    crate::changed::observe(task, env.wall);
+    out.push(Request::Save { record: Stored::Live(Box::new(task.record.clone())) });
 }
 
 /// Compare before observe replaces the last published record (protocol/store/parts.md, 2).

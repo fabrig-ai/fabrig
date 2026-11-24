@@ -26,9 +26,47 @@ JOURNEY_WRITTEN = re.compile(
     r'|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js)')
 
 
-def git(repository, *args, stderr=None):
-    return subprocess.run(['git', *args], cwd=repository, check=True,
-                          stdout=subprocess.PIPE, stderr=stderr).stdout
+class GitError(subprocess.CalledProcessError):
+    def __str__(self):
+        args = self.cmd[1:]
+        if args[0] == '--literal-pathspecs':
+            args = args[1:]
+        invocation = ['git', args[0]]
+        after_options = False
+        for arg in args[1:]:
+            operand = os.fsdecode(arg)
+            if not after_options and operand == '--':
+                after_options = True
+                continue
+            if not after_options and operand.startswith('-'):
+                continue
+            if not after_options:
+                # Keep revision syntax while abbreviating SHA-1 and SHA-256 ids.
+                revision = re.fullmatch(r'(\^?)([0-9a-f]{40}|[0-9a-f]{64})(\^1)?', operand)
+                if revision:
+                    prefix, commit, suffix = revision.groups()
+                    operand = prefix + commit[:12] + (suffix or '')
+            if not operand.isascii() or not operand.isprintable() or ' ' in operand:
+                operand = ascii(operand)
+            if len(operand) > 32:
+                operand = operand[:29] + '...'
+            invocation.append(operand)
+        lines = [line for line in self.stderr.splitlines() if line]
+        diagnostic = next((line for line in reversed(lines) if line.startswith((b'fatal: ', b'error: '))),
+                          lines[-1] if lines else f'exit {self.returncode}'.encode('ascii'))
+        return ' '.join(invocation) + ': ' + diagnostic.decode('utf-8', errors='replace')
+
+
+def git(repository, *args):
+    execution = subprocess.run(['git', *args], cwd=repository, capture_output=True)
+    if execution.stderr:
+        sys.stderr.buffer.write(execution.stderr)
+        if not execution.stderr.endswith(b'\n'):
+            sys.stderr.buffer.write(b'\n')
+        sys.stderr.buffer.flush()
+    if execution.returncode:
+        raise GitError(execution.returncode, execution.args, execution.stdout, execution.stderr)
+    return execution.stdout
 
 
 def unmerged(repository):

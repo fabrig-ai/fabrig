@@ -112,8 +112,8 @@ pub(crate) fn busy() -> Box<[u8]> {
     out.finish()
 }
 
-pub(crate) fn read_none(why: jig_domain_core_vocabulary::reads::Why, limits: &w::Limits) -> Box<[u8]> {
-    let answer = crate::translate::reads::none(why, limits);
+pub(crate) fn read_none(why: jig_domain_core_vocabulary::reads::Why) -> Box<[u8]> {
+    let answer = crate::translate::reads::none(why);
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(
         answer.measure(&w::CEILINGS).expect("bounded client response"),
     ));
@@ -121,7 +121,7 @@ pub(crate) fn read_none(why: jig_domain_core_vocabulary::reads::Why, limits: &w:
     out.finish()
 }
 
-pub(crate) fn open_answer(why: Option<jig_domain_core_vocabulary::WatchRefusal>, _limits: &w::Limits) -> Box<[u8]> {
+pub(crate) fn open_answer(why: Option<jig_domain_core_vocabulary::WatchRefusal>) -> Box<[u8]> {
     let answer = match why {
         Some(why) => w::OpenAnswer::Refused(w::OpenAnswerRefused { why: crate::translate::watches::refused(why) }),
         None => w::OpenAnswer::Admitted,
@@ -138,11 +138,11 @@ pub(crate) fn close_answer(signed_out: bool) -> Box<[u8]> {
     answer.write(&w::CEILINGS, &mut out).expect("close answer fits");
     out.finish()
 }
-pub(crate) fn unauthenticated(route: Route, limits: &w::Limits) -> Box<[u8]> {
+pub(crate) fn unauthenticated(route: Route) -> Box<[u8]> {
     match route {
         Route::LinkAsk => link_ask_answer(w::LinkAskAnswer::SignedOut),
-        Route::Read => read_none(jig_domain_core_vocabulary::reads::Why::SignedOut, limits),
-        Route::Watch => open_answer(Some(jig_domain_core_vocabulary::WatchRefusal::SignedOut), limits),
+        Route::Read => read_none(jig_domain_core_vocabulary::reads::Why::SignedOut),
+        Route::Watch => open_answer(Some(jig_domain_core_vocabulary::WatchRefusal::SignedOut)),
         Route::Unwatch => close_answer(true),
         Route::ApprovalAsk => approval_ask_answer(w::ApprovalAskAnswer::Refused),
         Route::ApprovalRead => approval_state(w::ApprovalState::SignedOut),
@@ -180,7 +180,7 @@ pub(crate) fn link_unknown() -> Box<[u8]> {
 pub(crate) fn sign_in_busy() -> Box<[u8]> {
     sign_in_answer(w::SignInAnswer::Busy)
 }
-pub(crate) fn sign_in_full(_limits: &w::Limits, sign_ins: u32, earliest: u64, link_until: u64) -> Box<[u8]> {
+pub(crate) fn sign_in_full(sign_ins: u32, earliest: u64, link_until: u64) -> Box<[u8]> {
     sign_in_answer(w::SignInAnswer::Full(w::SignInsFull { sign_ins, earliest, link_until }))
 }
 fn sign_in_answer(answer: w::SignInAnswer) -> Box<[u8]> {

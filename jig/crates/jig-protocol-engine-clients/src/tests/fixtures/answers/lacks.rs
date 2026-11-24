@@ -32,73 +32,62 @@ pub fn lacks() -> [(p::Lack, w::Lacking); 21] {
 }
 
 pub fn ceiling_lacks() -> [(p::Lack, w::Lacking); 10] {
-    let limits = wire();
     [
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::PeriodSpend, w::CeilingDimension::PeriodSpend),
             Some(1000),
             Some(1001),
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Policy, w::CeilingHolder::Policy),
             (p::CeilingDimension::Tools, w::CeilingDimension::Tools),
             None,
             None,
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Role(0), w::CeilingHolder::Role(w::CeilingRole { role: 0 })),
             (p::CeilingDimension::PeriodSpend, w::CeilingDimension::PeriodSpend),
             Some(500),
             Some(499),
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::Spend, w::CeilingDimension::Spend),
             Some(500),
             Some(501),
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::Tasks, w::CeilingDimension::Tasks),
             Some(3),
             Some(4),
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::Depth, w::CeilingDimension::Depth),
             Some(2),
             Some(3),
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::Executors, w::CeilingDimension::Executors),
             None,
             None,
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::Grants, w::CeilingDimension::Grants),
             None,
             None,
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::Deadline, w::CeilingDimension::Deadline),
             Some(10),
             None,
         ),
         ceiling_case(
-            &limits,
             (p::CeilingHolder::Rules, w::CeilingHolder::Rules),
             (p::CeilingDimension::Notes, w::CeilingDimension::Notes),
             None,
@@ -107,7 +96,6 @@ pub fn ceiling_lacks() -> [(p::Lack, w::Lacking); 10] {
     ]
 }
 fn ceiling_case(
-    _limits: &w::Limits,
     holder: (p::CeilingHolder, w::CeilingHolder),
     dimension: (p::CeilingDimension, w::CeilingDimension),
     value: Option<u64>,

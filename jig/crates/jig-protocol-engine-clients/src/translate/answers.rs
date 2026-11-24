@@ -22,7 +22,7 @@ pub(crate) fn answer(
         p::Reply::Outcome(p::Outcome::Restored { proposal, to, left_out }) => {
             let mut settings = skein_lib::List::with_capacity(super::count(left_out.len())?);
             for setting in left_out {
-                settings.push(super::settings::name(*setting, limits)?).expect("left-out count");
+                settings.push(super::settings::name(*setting)).expect("left-out count");
             }
             let outcome = w::Outcome::Restored(w::OutcomeRestored { proposal: *proposal, to: *to, left_out: settings });
             w::Final::Done(w::Done { outcome })
@@ -37,7 +37,7 @@ pub(crate) fn answer(
         p::Reply::Outcome(p::Outcome::SettingsChanged { revision }) => w::Final::Done(w::Done {
             outcome: w::Outcome::SettingsChanged(w::OutcomeSettingsChanged { revision: *revision }),
         }),
-        p::Reply::Outcome(p::Outcome::Again(why)) | p::Reply::Again(why) => return again(*why, limits),
+        p::Reply::Outcome(p::Outcome::Again(why)) | p::Reply::Again(why) => return Ok(again(*why)),
         p::Reply::Outcome(p::Outcome::SignedOut) | p::Reply::SignedOut => return Ok(w::KeyedAnswer::SignedOut),
         p::Reply::Outcome(p::Outcome::Refused(why)) | p::Reply::Refused(why) => {
             w::Final::Refused(w::Refused { at: None, refusal: refusal(why.clone(), models, limits)? })
@@ -52,7 +52,7 @@ pub(crate) fn answer(
             w::Final::Done(w::Done { outcome })
         }
         p::Reply::Outcome(value) => {
-            let value = owner(value, limits)?;
+            let value = owner(value)?;
             let outcome = w::Outcome::Document(w::OutcomeDocument { value });
             w::Final::Done(w::Done { outcome })
         }
@@ -60,12 +60,12 @@ pub(crate) fn answer(
     };
     let mut out = Writer::new(skein_lib::length::usize_of(final_answer.measure(limits)?));
     final_answer.write(limits, &mut out).expect("measured final answer");
-    owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
+    Ok(owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish()))
 }
 /// A refusal, a refused model by its configured name.
 fn refusal(value: p::Refusal, models: &[crate::Model], limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     if let p::Refusal::Llm { model, why } = value {
-        return super::llm::refusal(model, why, models, limits);
+        return super::llm::refusal(model, why, models);
     }
     refusals::refusal(value, limits)
 }
@@ -88,7 +88,7 @@ fn made(what: w::Made, limits: &w::Limits) -> Result<w::KeyedAnswer, w::Problem>
     let answer = w::Final::Done(w::Done { outcome });
     let mut out = Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
     answer.write(limits, &mut out).expect("measured final answer");
-    owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
+    Ok(owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish()))
 }
 pub(crate) fn moving_out(
     account: u32,
@@ -101,32 +101,25 @@ pub(crate) fn moving_out(
     let answer = w::Final::Done(w::Done { outcome });
     let mut out = Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
     answer.write(limits, &mut out).expect("measured final answer");
-    owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
+    Ok(owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish()))
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn owned(
-    owner: w::Owner,
-    version: u32,
-    record: Box<[u8]>,
-    _limits: &w::Limits,
-) -> Result<w::KeyedAnswer, w::Problem> {
-    Ok(w::KeyedAnswer::FinalAnswer(w::Owned { owner, version, record }))
+pub(crate) fn owned(owner: w::Owner, version: u32, record: Box<[u8]>) -> w::KeyedAnswer {
+    w::KeyedAnswer::FinalAnswer(w::Owned { owner, version, record })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn again(value: p::Again, _limits: &w::Limits) -> Result<w::KeyedAnswer, w::Problem> {
-    Ok(match value {
+fn again(value: p::Again) -> w::KeyedAnswer {
+    match value {
         p::Again::Busy => w::KeyedAnswer::Busy,
         p::Again::Full { held, room_at } => {
             w::KeyedAnswer::AnswersFull(w::AnswersFull { held, room_at: room_at.as_nanos() })
         }
         p::Again::NotReady => w::KeyedAnswer::NotReady,
-    })
+    }
 }
 fn problem() -> w::Problem {
     w::Problem { path: w::paths::OWNED_RECORD, reason: skein_codec::Reason::Malformed }
 }
 #[expect(clippy::too_many_lines, reason = "one total match names every people outcome")]
-fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w::Problem> {
+fn owner(value: &p::Outcome) -> Result<w::DocumentOutcome, w::Problem> {
     Ok(match value {
         p::Outcome::VisibilitySet { project, public } => {
             w::DocumentOutcome::VisibilitySet(w::OutcomeVisibilitySet { project: *project, public: *public })
@@ -205,7 +198,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
             w::DocumentOutcome::PoolSet(w::OutcomePoolSet { project: *project, person: *person })
         }
         p::Outcome::MarkedSeen { seen } => {
-            w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: self::seen(*seen, limits)? })
+            w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: self::seen(*seen) })
         }
         p::Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated } => {
             let proposer = match proposer {
@@ -240,7 +233,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         p::Outcome::AccountSignedOut { confirmed, failed_hosts } => {
             w::DocumentOutcome::AccountSignedOut(w::OutcomeAccountSignedOut {
                 confirmed: *confirmed,
-                failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
+                failed_hosts: super::account_hosts::encode(failed_hosts)?,
             })
         }
         p::Outcome::AccountKeyKept { source } => {
@@ -259,7 +252,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         p::Outcome::AccountRemoved { confirmed, failed_hosts } => {
             w::DocumentOutcome::AccountRemoved(w::OutcomeAccountRemoved {
                 confirmed: *confirmed,
-                failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
+                failed_hosts: super::account_hosts::encode(failed_hosts)?,
             })
         }
         p::Outcome::Restored { .. }
@@ -278,12 +271,11 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         }
     })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn seen(value: p::Seen, _limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
-    Ok(match value {
+fn seen(value: p::Seen) -> w::SeenThrough {
+    match value {
         p::Seen::Results { through } => w::SeenThrough::Results(w::SeenResults { through }),
         p::Seen::Conversation { task, through } => w::SeenThrough::Conversation(w::SeenConversation { task, through }),
-    })
+    }
 }
 fn proposal_choice(value: p::ProposalChoice) -> w::ProposalChoice {
     match value {

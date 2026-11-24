@@ -3,6 +3,7 @@
 //! It knows the output path and kernel terminals, not the run's outcome.
 use super::{Refused, cleanup::EphemeralCleanup, host, root};
 use crate::command::Usage;
+use crate::local_host::{PrivateChat, ProductFiles, ResultDestination};
 use skein_io::file_layer::step;
 use skein_io::{file, file_layer, kernel};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -13,7 +14,7 @@ use std::path::{Path, PathBuf};
 const PATH_BYTES: u64 = 4096;
 
 pub(crate) struct Files {
-    pub(super) output: Option<Box<ResultFile>>,
+    output_root: Option<kernel::Fd>,
     pub(super) temporary: Option<PathBuf>,
     created: bool,
     store_root: Option<kernel::Fd>,
@@ -48,16 +49,20 @@ impl Files {
         } else {
             None
         };
-        Ok(Self {
+        Ok(Self::new(target, temporary, maximum, resolved.agent.service.limits.file_timeout))
+    }
+
+    fn new(target: Option<PathBuf>, temporary: Option<PathBuf>, maximum: u32, timeout: Duration) -> Self {
+        Self {
             target,
             temporary,
             created: false,
             store_root: None,
             parent_root: None,
-            output: None,
+            output_root: None,
             maximum,
-            timeout: resolved.agent.service.limits.file_timeout,
-        })
+            timeout,
+        }
     }
 
     pub(crate) fn has_output(&self) -> bool {
@@ -75,9 +80,10 @@ impl Files {
         }
     }
 
-    pub(super) fn prepare_output(&mut self, seed: u64) -> Result<(), Refused> {
+    pub(super) fn prepare_output(&mut self) -> Result<(), Refused> {
         if let Some(path) = &self.target {
-            self.output = Some(Box::new(ResultFile::open(path, self.maximum, self.timeout, seed)?));
+            let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
+            self.output_root = Some(root(parent)?);
         }
         Ok(())
     }
@@ -93,7 +99,7 @@ impl Files {
         Ok(())
     }
 
-    pub(super) fn store_root(&mut self, path: &Path) -> Result<kernel::Fd, Refused> {
+    fn store_root(&mut self, path: &Path) -> Result<kernel::Fd, Refused> {
         let descriptor = root(path)?;
         if self.created {
             self.store_root = Some(descriptor);
@@ -101,39 +107,53 @@ impl Files {
         Ok(descriptor)
     }
 
-    pub(super) fn parent_root(&mut self) -> Result<kernel::Fd, Refused> {
-        let path = self.temporary.as_ref().expect("private directory configured");
-        let descriptor = root(path.parent().expect("private directory has a parent"))?;
-        self.parent_root = Some(descriptor);
-        Ok(descriptor)
+    fn result_destination(&self, parent: kernel::Fd) -> ResultDestination {
+        ResultDestination {
+            parent,
+            path: self.target.clone().expect("configured result file"),
+            maximum: self.maximum,
+            timeout: self.timeout,
+        }
     }
 
-    pub(super) fn attach_private(&mut self, local: &mut crate::Local) -> Result<(), Refused> {
-        if let Some(path) = self.temporary.clone() {
-            local.ephemeral(self.parent_root()?, &path).map_err(|_| {
-                Refused::Local(crate::startup::Failure::Host { detail: "private parent cannot be adopted".into() })
-            })?;
-        }
-        Ok(())
+    pub(super) fn opened(&mut self, store_path: &Path) -> Result<ProductFiles, Refused> {
+        let store = self.store_root(store_path)?;
+        let private = if let Some(path) = &self.temporary {
+            let parent = root(path.parent().expect("private directory has a parent"))?;
+            self.parent_root = Some(parent);
+            Some(PrivateChat { parent, path: path.clone() })
+        } else {
+            None
+        };
+        let result = self.output_root.map(|parent| self.result_destination(parent));
+        Ok(ProductFiles { store, private, result })
     }
 
     pub(super) fn composed(&mut self) {
         self.created = false;
         self.store_root = None;
         self.parent_root = None;
+        self.output_root = None;
     }
 
-    pub(super) fn close_startup(&mut self, kernel: &mut Kernel, clock: &Clock) {
-        if let Some(mut output) = self.output.take() {
-            output.close();
-            let _exit = skein_shell::drive(kernel, clock, output.as_mut());
+    fn startup_cleanup(&mut self) -> Option<EphemeralCleanup> {
+        if !std::mem::take(&mut self.created) {
+            return None;
         }
-        if self.created {
-            let path = self.temporary.as_ref().expect("private directory created");
-            let mut cleanup =
-                EphemeralCleanup::new(path, self.store_root.take(), self.parent_root.take(), self.timeout);
+        let path = self.temporary.as_ref().expect("private directory created");
+        Some(EphemeralCleanup::new(path, self.store_root.take(), self.parent_root.take(), self.timeout))
+    }
+
+    pub(super) fn close_startup(&mut self, kernel: &mut Kernel, clock: &Clock, seed: u64) {
+        if let Some(parent) = self.output_root.take() {
+            let mut output = ResultFile::adopt(self.result_destination(parent), seed);
+            output.close();
+            let _exit = skein_shell::drive(kernel, clock, &mut output);
+        }
+        if let Some(mut cleanup) = self.startup_cleanup() {
             let _exit = skein_shell::drive(kernel, clock, &mut cleanup);
             if let Some(error) = cleanup.failure() {
+                let path = self.temporary.as_ref().expect("private directory created");
                 eprintln!("smith: warning: ephemeral directory {}: {error:?}", path.display());
             }
         }
@@ -205,13 +225,13 @@ impl ResultFile {
         }
     }
 
-    fn open(path: &Path, maximum: u32, timeout: Duration, seed: u64) -> Result<Self, Refused> {
-        let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    pub(crate) fn adopt(destination: ResultDestination, seed: u64) -> Self {
+        let ResultDestination { parent, path, maximum, timeout } = destination;
         let file_limits = file_layer::Limits { files: 2, read: 4096, entries: 1, whole: maximum, timeout };
         let mut io = file_layer::FileIo::with_limits(&file_limits);
-        let directory = io.adopt_root(root(parent)?).expect("one result directory");
+        let directory = io.adopt_root(parent).expect("one result directory");
         io.seed_randomness(seed);
-        Ok(Self::new(io, file_limits, directory, path))
+        Self::new(io, file_limits, directory, &path)
     }
 
     pub(crate) fn begin(&mut self, text: Box<[u8]>) {
@@ -356,12 +376,15 @@ mod tests {
     use super::*;
 
     fn file() -> ResultFile {
-        let file_limits =
-            file_layer::Limits { files: 2, read: 4096, entries: 1, whole: 4096, timeout: Duration::from_secs(1) };
-        let mut io = file_layer::FileIo::with_limits(&file_limits);
-        let directory = io.adopt_root(kernel::Fd::new(41)).unwrap();
-        io.seed_randomness(1);
-        ResultFile::new(io, file_limits, directory, Path::new("answer.txt"))
+        ResultFile::adopt(
+            ResultDestination {
+                parent: kernel::Fd::new(41),
+                path: "answer.txt".into(),
+                maximum: 4096,
+                timeout: Duration::from_secs(1),
+            },
+            1,
+        )
     }
 
     fn complete(file: &mut ResultFile, submit: kernel::Submit, result: Result<kernel::Done, kernel::Error>) {
@@ -388,6 +411,71 @@ mod tests {
                 "runtime {runtime:?}, temporary {temporary:?}",
             );
         }
+    }
+
+    #[test]
+    fn an_ephemeral_directory_is_created_privately_under_its_base() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let scratch = skein_scratch::Scratch::new("private-chat-mode");
+        let base = ephemeral_base(Some(scratch.path().join("runtime").into()), None);
+        let path = base.join(".smith-exec-test");
+        let mut files = Files::new(None, Some(path.clone()), 1, Duration::from_secs(1));
+        files.create_temporary().unwrap_or_else(|why| panic!("{}", why.line()));
+
+        let entries: Vec<_> = std::fs::read_dir(base).unwrap().map(|entry| entry.unwrap().path()).collect();
+        assert_eq!(entries, std::slice::from_ref(&path));
+        assert_eq!(std::fs::metadata(path).unwrap().permissions().mode() & 0o777, 0o700);
+    }
+
+    #[test]
+    fn an_ephemeral_directory_is_removed_when_product_startup_refuses() {
+        use skein_fake_machine::{How, Item, Machine};
+        use skein_sim::{Config, Handle, Sim};
+
+        const BASE: &[u8] = b"runtime";
+        const PRIVATE: &str = "runtime/.smith-exec-test";
+        const CLEANUP_OPERATIONS: u32 = 3; // Store close, directory remove, parent close.
+        let scratch = skein_scratch::Scratch::new("refused-private-chat");
+        let mut machine = Machine::new();
+        let disk = machine.lay(&[Item::directory(BASE), Item::directory(PRIVATE.as_bytes())]);
+        let mut sim = Sim::new(41, Config::calm());
+        let pid = sim.spawn_process();
+        let mut files = Files::new(None, Some(PRIVATE.into()), 1, Duration::from_secs(1));
+        // The startup finder has already made the private directory and opened both roots.
+        files.created = true;
+        let parent = machine.open(disk, BASE, How::Directory).unwrap();
+        let private = machine.open(disk, PRIVATE.as_bytes(), How::Directory).unwrap();
+        files.parent_root = Some(sim.root(pid, Handle::new(parent.raw())));
+        files.store_root = Some(sim.root(pid, Handle::new(private.raw())));
+        let Err(refused) = super::super::open_trace(&scratch.path().join("absent/events.jsonl")) else {
+            panic!("an absent trace parent refuses startup");
+        };
+        let mut cleanup = files.startup_cleanup().expect("the refused start still owns its private directory");
+        for _ in 0..CLEANUP_OPERATIONS {
+            cleanup.iterate(sim.now(), sim.wall());
+            let submit = cleanup.submissions().pop().expect("one cleanup operation");
+            assert!(
+                matches!(submit.kind, kernel::Op::Close { .. } | kernel::Op::Remove { directory: true, .. }),
+                "refused startup writes nothing to stdout"
+            );
+            assert!(cleanup.submissions().is_empty(), "one operation at a time");
+            cleanup.submissions().push(submit);
+            sim.submit(pid, cleanup.submissions());
+            skein_fake_machine::serve(&mut machine, &mut sim);
+            sim.reap(pid, cleanup.completions());
+        }
+        cleanup.iterate(sim.now(), sim.wall());
+
+        assert_eq!(refused.code(), 1);
+        assert!(cleanup.is_empty(), "cleanup settles before the command exits");
+        assert!(cleanup.failure().is_none(), "the private directory is removed without a warning");
+        sim.assert_quiescent(pid);
+        sim.assert_no_open_fds(pid);
+        let base = machine.open(disk, BASE, How::Directory).unwrap();
+        assert!(machine.list(base, 1, 4096).unwrap().is_empty(), "nothing left beneath the runtime base");
+        machine.close(base);
+        machine.close(disk);
     }
 
     #[test]

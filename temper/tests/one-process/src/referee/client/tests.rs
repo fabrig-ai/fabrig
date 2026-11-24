@@ -1,4 +1,4 @@
-use super::{Connection, Received, client, wire};
+use super::{Connection, LandingRead, Received, client, wire};
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{Writer, base64};
 
@@ -36,11 +36,11 @@ fn stream_receipts_join_data_lines_and_keep_the_unfinished_event() {
     connection.body.extend_from_slice(b"\n\ndata: ");
     connection.body.extend_from_slice(&encoded);
     let mut received = Vec::new();
-    connection.stream(&mut received, false);
+    connection.stream(&mut received, false, &mut LandingRead::Off);
     assert_eq!(received.len(), FIRST_EVENT, "only the complete event releases a receipt");
     assert_eq!(connection.body, [b"data: ".as_slice(), &encoded].concat(), "partial event is kept");
     connection.body.extend_from_slice(b"\n\n");
-    connection.stream(&mut received, false);
+    connection.stream(&mut received, false, &mut LandingRead::Off);
     assert_eq!(received.len(), BOTH_EVENTS, "each complete event releases one receipt");
     assert_eq!(connection.body, b"".as_slice());
     for receipt in received {

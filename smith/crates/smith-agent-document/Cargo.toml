@@ -28,6 +28,7 @@ serde = { workspace = true }
 serde_json.workspace = true
 
 [target.'cfg(unix)'.dependencies]
+skein-io.workspace = true
 skein-shell.workspace = true
 
 [dev-dependencies]

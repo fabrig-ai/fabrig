@@ -1,13 +1,11 @@
 use super::*;
-use crate::tests::{TuiWorld, tui_approval_reply};
-use temper_client_shell_tui::{host::Report, journey};
+use crate::tests::TuiWorld;
+use temper_client_shell_tui::journey;
 pub(super) fn saves() -> (Box<[u8]>, Box<[u8]>) {
     let mut world = TuiWorld::sized(b"127.0.0.1:9", skein_ui_screen::Size { rows: 24, columns: 80 });
     let first = world.save();
     world.mark();
-    let exchange = TuiWorld::saved_exchange(&first, false);
-    world.report(Report::Heard(jig_client::Event::Reply { exchange, message: tui_approval_reply() }));
-    world.report(Report::Opened { opened: true });
+    world.offer_approval(true);
     (first, world.save())
 }
 fn approve(m: &mut Machine, source: &str) -> Vec<Action> {

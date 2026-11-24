@@ -10,8 +10,8 @@ use smith_channel::Record;
 use smith_host_domain::channel;
 
 use smith_channel::kind::{
-    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, SIGNALLED, TURN,
-    UNAUTHORIZED, USAGE, WAITING, WITHDRAW,
+    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, PART, SIGNALLED,
+    TURN, UNAUTHORIZED, USAGE, WAITING, WITHDRAW,
 };
 
 /// What a refusal says of a record it could not take: its order, its call, or its kind.
@@ -34,6 +34,7 @@ pub(super) fn refusal_text(kind: u16, error: Error) -> &'static [u8] {
         CALL => b"invalid call",
         WITHDRAW => b"invalid withdrawal",
         TURN => b"invalid turn",
+        PART => b"invalid part",
         WAITING => b"invalid waiting record",
         SIGNALLED => b"invalid signal notice",
         LONG | LONG_DONE => b"invalid long operation",
@@ -59,6 +60,7 @@ impl Component {
                     CALL => self.call(&body)?,
                     WITHDRAW => return self.withdraw(&body),
                     TURN => self.turn(&body)?,
+                    PART => self.part(&body)?,
                     WAITING => self.waiting(&body)?,
                     SIGNALLED => self.signalled(&body)?,
                     LONG => self.long(&body)?,
@@ -191,6 +193,11 @@ impl Component {
         };
         self.sequence = value.sequence;
         self.live.turn(turn.number);
+        if self.turn_number.checked_add(1) != Some(turn.number) {
+            return Err(Error::Order);
+        }
+        self.turn_number = turn.number;
+        self.answered_turn = false;
         let body =
             smith_host_domain::TurnValue::new(value, u64::MAX).expect("codec bounds ensure representable ownership");
         Ok(Received::Message {
@@ -203,6 +210,41 @@ impl Component {
                         Some(name) => Some(Token::new(*name)),
                         None => None,
                     },
+                    body,
+                },
+            },
+        })
+    }
+
+    fn part(&mut self, body: &[u8]) -> Result<Received, Error> {
+        let part = smith_channel::Part::decode(&self.bodies, &mut Reader::new(body))?;
+        if !self.tell_parts
+            || self.part_number.checked_add(1) != Some(part.number)
+            || self.turn_number.checked_add(1) != Some(part.turn)
+            || (part.kind == smith_channel::PartKind::Result && !self.answered_turn)
+        {
+            return Err(Error::Order);
+        }
+        let value = smith_protocol_translate::decode_part(&part.body, &self.transcript, &self.endpoints)
+            .or(Err(Error::Value))?;
+        let body = smith_host_domain::TurnValue::new(value, u64::MAX).ok_or(Error::Value)?;
+        let kind = match part.kind {
+            smith_channel::PartKind::Answer => smith_domain::session::record::PartKind::Answer,
+            smith_channel::PartKind::Result => smith_domain::session::record::PartKind::Result,
+            smith_channel::PartKind::Window => smith_domain::session::record::PartKind::Window,
+        };
+        self.part_number = part.number;
+        if part.thread == 0 && part.kind == smith_channel::PartKind::Answer {
+            self.answered_turn = true;
+        }
+        Ok(Received::Message {
+            message: channel::Up::Part {
+                part: channel::ToldPart {
+                    number: part.number,
+                    turn: part.turn,
+                    thread: part.thread,
+                    call: part.call,
+                    kind,
                     body,
                 },
             },

@@ -127,8 +127,7 @@ impl Repository {
 pub fn git(directory: &Path, path: &OsStr, args: &[&str]) {
     drop(git_output(directory, path, args));
 }
-#[expect(clippy::must_use_candidate, reason = "fixture git commands also run for their side effects")]
-pub fn git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Vec<u8> {
+fn git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Vec<u8> {
     try_git_output(directory, path, args).unwrap_or_else(|error| panic!("{error}"))
 }
 fn try_git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Result<Vec<u8>, String> {
@@ -199,7 +198,7 @@ pub enum Laid {
     Record(&'static str, hearth_lib::encode::Digest),
     Layer(Box<hearth_protocol_tree::layer::Layer>),
 }
-pub fn lay(store: &Path, entries: &[Laid]) {
+fn lay(store: &Path, entries: &[Laid]) {
     fs::DirBuilder::new().recursive(true).mode(0o700).create(store.join("cache")).expect("cache directory");
     fs::DirBuilder::new().recursive(true).mode(0o700).create(store.join("resolutions")).expect("resolutions directory");
     if entries.iter().any(|entry| matches!(entry, Laid::Layer(_))) {

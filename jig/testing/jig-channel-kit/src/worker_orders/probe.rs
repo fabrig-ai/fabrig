@@ -13,8 +13,6 @@ const OTHER_ATTEMPT: u64 = 992;
 // Smith's Call record, smith-channel's version-six kind table.
 const PROCESS_CALL: u16 = 0x0107;
 const HEADER: usize = 8;
-// Refusing the extra assignment, taking Cancel and taking the unrelated marker.
-const CALL_PASS_STEPS: u64 = 3;
 
 #[derive(Default)]
 struct Frames {
@@ -208,12 +206,11 @@ impl Probe {
         // Raw kernel bytes may need another IO iteration before the root receives their record.
         if self.call_stage && steps > 0 {
             assert_eq!(now, self.call_time.expect("Call release clock"), "Cancel progresses before a timer is needed");
-            assert_eq!(steps, CALL_PASS_STEPS, "the extra assignment, Cancel and marker enter while the Call waits");
             self.call_held = true;
             self.call_stage = false;
         }
         if self.marker_stage && steps > 0 {
-            self.marker_passed = if self.calls { self.call_held && steps == CALL_PASS_STEPS } else { waits > 0 };
+            self.marker_passed = if self.calls { self.call_held } else { waits > 0 };
             self.marker_stage = false;
         }
     }

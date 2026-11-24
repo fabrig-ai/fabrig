@@ -68,7 +68,6 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
         let wire = engine::translate::llm::models(
             &[jig_domain_core_vocabulary::Offered { model: 0, accounts: List::with_capacity(0) }],
             core::slice::from_ref(&model),
-            limits.wire(),
         )
         .unwrap();
         let mut wire = wire.get(0).unwrap().clone();
@@ -85,9 +84,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
                 Box::new([])
             },
         };
-        let choice = engine::translate::llm::choice(Some(&preview), core::slice::from_ref(&model), limits.wire())
-            .unwrap()
-            .unwrap();
+        let choice = engine::translate::llm::choice(Some(&preview), core::slice::from_ref(&model)).unwrap().unwrap();
         defaults.push(w::MeDefault { template: 9, choice }).unwrap();
         let decoded =
             jig_client_protocol_link::translate::documents::frame(me_with_offer(wire, defaults), &limits).unwrap();

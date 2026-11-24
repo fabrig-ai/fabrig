@@ -151,6 +151,7 @@ impl Harness {
     ) -> Box<[Request]> {
         let reply_to = ReplyTo::new(Token::new(call));
         self.step(Event::Start {
+            tell_parts: false,
             messages: Box::default(),
             window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
             reply_to,
@@ -231,8 +232,10 @@ impl Harness {
         let Event::Delegated { name, .. } = &mut event else { unreachable!("finish is delegated") };
         name.activation = activation;
         let requests = self.step(event);
-        let [Request::Check { owner, program, bound, cap, tail }, Request::Checking { host_run: _, deadline: until }] =
-            &*requests
+        let [
+            Request::Check { owner, program, results: _, bound, cap, tail },
+            Request::Checking { host_run: _, deadline: until },
+        ] = &*requests
         else {
             panic!("expected the first check, got {requests:?}");
         };
@@ -312,6 +315,7 @@ pub(crate) fn rule(name: &[u8], min: u32, max: u32) -> VerdictRule {
 pub(crate) fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"temper"),
             root: Token::new(900),
@@ -408,6 +412,7 @@ pub(crate) fn failed(failure: RunFailure, spent: Spend) -> Answer {
 
 pub(crate) fn repository(name: &[u8]) -> Directory {
     Directory {
+        results: None,
         host: Box::from(b"/host".as_slice()),
         name: bytes(name),
         root: Token::new(1),
@@ -478,6 +483,7 @@ pub(crate) fn coding_workspace() -> Workspace {
     Workspace {
         directories: Box::new([
             Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"temper"),
                 root: Token::new(900),
@@ -486,6 +492,7 @@ pub(crate) fn coding_workspace() -> Workspace {
                 conflicts: Box::new([]),
             },
             Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"docs"),
                 root: Token::new(901),
@@ -726,6 +733,7 @@ pub(crate) fn workspace_directory(name: &[u8], root: u64, writable: bool, git: b
         paths.push(bytes(path)).expect("bounded fixture conflict count");
     }
     Directory {
+        results: None,
         host: Box::from(b"/host".as_slice()),
         name: bytes(name),
         root: Token::new(root),
@@ -774,6 +782,7 @@ pub(crate) fn observed_facts(harness: &mut Harness) -> Box<[crate::facts::Fact]>
 
 pub(crate) fn carried_start(charter: Charter, messages: Box<[crate::Message]>, workspace: Option<Workspace>) -> Event {
     Event::Start {
+        tell_parts: false,
         messages,
         window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
         reply_to: ReplyTo::new(Token::new(1)),
@@ -797,6 +806,7 @@ pub(crate) fn message_driven_charter() -> Charter {
 
 pub(crate) fn identity_open(harness: &mut Harness, identity: Option<crate::Identity>) -> (Token, Token, Opening) {
     let requests = harness.step(Event::Start {
+        tell_parts: false,
         identity,
         messages: Box::default(),
         window: crate::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },

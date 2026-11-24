@@ -119,6 +119,7 @@ fn bounds(messages: u32) -> Limits {
 fn workspace() -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: b"work".as_slice().into(),
             root: Token::new(7),
@@ -592,7 +593,8 @@ impl Counted {
                     assert_eq!(complete.owner, owner);
                     assert!(matches!(complete.prompt.purpose, llm::Purpose::Compaction { .. }));
                 }
-                Request::HostCall { .. }
+                Request::Part { .. }
+                | Request::HostCall { .. }
                 | Request::WithdrawHost { .. }
                 | Request::Save { .. }
                 | Request::Deliver { .. }
@@ -602,7 +604,8 @@ impl Counted {
                 | Request::Limited { .. }
                 | Request::MessageRefused { .. }
                 | Request::Lower(
-                    smith_domain::Lower::Io { .. }
+                    smith_domain::Lower::Classify { .. }
+                    | smith_domain::Lower::Io { .. }
                     | smith_domain::Lower::Job { .. }
                     | smith_domain::Lower::CancelIo { .. }
                     | smith_domain::Lower::Check { .. }
@@ -1101,6 +1104,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
     let mounted = run::Workspace {
         directories: Box::new([
             run::Directory {
+                results: None,
                 host: format!(
                     "/{:h<width$}",
                     "",
@@ -1127,6 +1131,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
                     .collect(),
             },
             run::Directory {
+                results: None,
                 host: format!(
                     "/{:h<width$}",
                     "",

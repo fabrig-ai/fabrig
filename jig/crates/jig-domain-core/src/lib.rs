@@ -107,7 +107,8 @@ pub use crate::{
     start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
-        Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
+        Made, PartKey, PartRecord, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof,
+        TurnRecord,
     },
     translate::{
         authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
@@ -219,6 +220,7 @@ pub struct Core {
     /// Durable live named-call decisions, with connector payloads retained by
     /// their owner and represented here only by connector number.
     pub call_parts: Map<CallKey, CallPart>,
+    pub(crate) kept_parts: Map<PartKey, PartRecord>,
     /// Settled host answers and opaque delivery evidence under the same retained names.
     pub call_settled: Map<CallKey, SettledCall>,
     /// Live reply rights waiting for a committed effect or its answer deadline.
@@ -467,6 +469,7 @@ impl Core {
             jobs: config.jobs,
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
+            kept_parts: Map::with_capacity(limits.call_records),
             call_settled: Map::with_capacity(limits.call_records),
             effect_replies: Map::with_capacity(limits.call_records),
             closing_connectors: Map::with_capacity(

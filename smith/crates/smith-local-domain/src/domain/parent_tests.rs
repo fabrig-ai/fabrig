@@ -28,6 +28,7 @@ fn plain_delivery_config() -> Config {
     });
     config.workspace = Some(run::Workspace {
         directories: Box::from([run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: b"work".as_slice().into(),
             root: Token::new(9),
@@ -1083,6 +1084,8 @@ fn an_alien_save_ask_is_refused_without_touching_the_local_tree() {
     let charter = domain.charter().0;
     assert!(!charter.grants.save, "local charters grant no save");
     let start = host::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::new([]),
         logical_run: Token::new(1),

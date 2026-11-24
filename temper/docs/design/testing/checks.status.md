@@ -5,9 +5,12 @@
 Section 6.1's engine adapter is `engine-checks.md`'s; the worker's
 adapter is `worker.status.md`'s.
 
-- **Not yet:** 6.2: no engine world but the engine's forge world
-  keeps a fault ledger, draws from the seed's streams or sweeps with
-  configured faults and exclusions.
+- **Not yet:** 6.2: outside the engine's forge world, only the
+  restart family's faults (`restarts.md`) and the system world's account
+  faults (6.3) are kept in a fault ledger, drawn from the seed's streams
+  and swept with configured faults. No
+  check holds the 3.3 failure table's rows for runs outside the system
+  world's account case (6.3).
 
 - **Departs:** 1: twelve named real-loop stories remain in the fuzzy
   suite: nine scripted stories cut to what only the real loop shows
@@ -76,9 +79,7 @@ proof is not established by the supplied inventory (`../protocol/setup/box.statu
 after-landing execution (`../protocol/openid-provider.status.md`, 9).
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
-  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
    the later live ladder rungs remain `live-tier.status.md` (Not yet).
    the live GitHub pull-read proof remains `live-tier.status.md` (Not yet).

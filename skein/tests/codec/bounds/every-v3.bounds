@@ -1,0 +1,15 @@
+Blank: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
+Every: ceilings encoded=469 decoded=642; at_most(3) encoded=354 decoded=509
+Grouped: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+Held: ceilings encoded=184 decoded=160; at_most(3) encoded=42 decoded=18
+Kinds: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Light: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Lists: ceilings encoded=230 decoded=312; at_most(3) encoded=224 decoded=306
+LongRecord: ceilings encoded=800 decoded=400; at_most(3) encoded=700 decoded=300
+Nest: ceilings encoded=256 decoded=470; at_most(3) encoded=229 decoded=431
+Numbers: ceilings encoded=27 decoded=0; at_most(3) encoded=27 decoded=0
+Options: ceilings encoded=101 decoded=14; at_most(3) encoded=98 decoded=11
+Shape: ceilings encoded=33 decoded=68; at_most(3) encoded=28 decoded=57
+Stamp: ceilings encoded=31 decoded=12; at_most(3) encoded=25 decoded=6
+Texts: ceilings encoded=32 decoded=20; at_most(3) encoded=21 decoded=9
+family: ceilings encoded=800 decoded=642; at_most(3) encoded=700 decoded=509

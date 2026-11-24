@@ -14,6 +14,7 @@ mod joined;
 mod link;
 mod liveness;
 mod memory;
+mod parts;
 mod pause;
 mod prepared;
 mod records;

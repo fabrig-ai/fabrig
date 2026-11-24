@@ -202,6 +202,7 @@ fn a_conflicted_merge_copies_its_unmerged_index_and_merge_files() {
     let mut s = Started::new();
     request(&mut s, git::Op::Merge { at: at(), theirs: fixtures::COMMIT, identity: 1, account: None });
     invocation(&mut s, b"", 1);
+    invocation(&mut s, b"", 0);
     invocation(&mut s, b"conflict\0", 0);
     let ops = copy(
         &mut s,

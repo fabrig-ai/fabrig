@@ -119,6 +119,10 @@ pub struct Start {
     /// False charter.resume ignores it; semantic refusal never starts fresh.
     /// Receiving record/count caps are checked before root retention.
     pub transcript: Option<smith_domain_session::record::Transcript>,
+    /// Whether the host keeps turn parts.
+    pub tell_parts: bool,
+    /// Parts kept since the last whole turn.
+    pub parts: Box<[smith_domain_session::record::Resumed]>,
     /// Host answers the saved transcript does not hold.
     pub answered: Box<[AnsweredCall]>,
     /// Host credential-name and remaining-validity notices, bounded by `Limits.accounts`.
@@ -168,13 +172,17 @@ pub enum Event {
     /// A refreshed credential, pushed by the engine through the host.
     Grant { grant: Grant },
     /// From the host: stop after the current main turn, without cutting its calls.
-    Drain { run: Token },
+    Drain { run: Token, grace: Option<Duration> },
+    /// The host kept this part and every preceding part.
+    PartKept { run: Token, number: u32 },
 
     /// From the host: end the run as cancelled unless its answer is decided.
     Cancel {
         /// Root-issued admitted run token, supplied in `Request::Admitted` and echoed by cancellation.
         run: Token,
     },
+    /// The host channel is gone: cancel the run without waiting for durable output credit.
+    Disconnected { run: Token },
     /// Host terminal for `Deliver`, including while shutdown settles.
     /// Constructor-sealed owned evidence is revalidated against admitted writable
     /// mounts; stale callback generations are inert.
@@ -188,6 +196,8 @@ pub enum Event {
 /// the root. Calls require the typed terminal documented on their variant.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A turn part for the host to keep durably.
+    Part { host_run: Token, number: u32, turn: u32, part: smith_domain_session::record::Part },
     /// A host message refused at ingress; this is its one terminal.
     MessageRefused { host_run: Token, name: Token, reason: run::MessageRefusal },
 
@@ -324,6 +334,8 @@ pub enum Operation {
 /// Provider and machine terminals returned to the root or its inline owner.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Below {
+    /// Terminal of Classify: the cut answer, or unusable parts (domain/turn-parts.md, 5).
+    Classified { owner: Token, completion: Option<Completion> },
     /// One program allowance observation for the owning completion.
     Usage { owner: Token, window: crate::UsageWindow },
     /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
@@ -378,6 +390,15 @@ pub enum Below {
 /// Provider and machine operations emitted by the root or its inline owner.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Lower {
+    /// Classify a cut answer with the ordinary decoder, without a provider request (domain/turn-parts.md, 5).
+    Classify {
+        owner: Token,
+        content: Box<[crate::session::llm::Block]>,
+        tools: tools::Grants,
+        served: Box<[crate::llm::Served]>,
+        asker: crate::llm::Asker,
+        decoded_call_bytes: u64,
+    },
     /// Ask an LLM for its next message, ended by one completion or call terminal.
     Complete {
         /// Session's opaque token, shared with its provider terminals and captured content.
@@ -446,6 +467,7 @@ pub enum Lower {
         owner: Token,
         /// IO-confined check executable, run as a contained process tree.
         program: run::Place,
+        results: Option<Box<[u8]>>,
         bound: Duration,
         cap: Time,
         /// Last output bytes retained under the caller's cap.

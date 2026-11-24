@@ -36,6 +36,7 @@ impl Harness {
                         assert_ne!(h.core.restore(&h.env, core::Record::Core(row.clone())), core::Restore::Refused);
                     }
                     core::CoreRecord::Projection(_)
+                    | core::CoreRecord::Part(_)
                     | core::CoreRecord::Call(_)
                     | core::CoreRecord::RunProof(_)
                     | core::CoreRecord::Turn(_)

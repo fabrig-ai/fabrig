@@ -52,21 +52,41 @@
   `every-v3` holds it. A held type's record or enumeration is its
   family's, unknown to the text (`run-time.md`, 1.2), so the list counts a hold per
   carrier; `every` holds both from `every-other`.
-- **What each family keeps,** none of it reading a golden file:
+- **What each family keeps,** none of it reading a golden file of bytes:
   - **drift:** the generator run on the schema equals the committed
-    records' module.
-    On a difference it fails, saying how to write the code again, which
+    records' module, and the family's **bounds file** equals the bounds
+    its generated code computes.
+    On a difference it fails, saying how to write both again, which
     the same test does when `SKEIN_CODEGEN_WRITE=1` asks it to. The test
     reads the owner's schema and the family's codec crate (`README.md`, section 2),
     writing the code where it reads it;
+  - **the bounds file,** `bounds/<stem>.bounds` in the directory of the
+    test world whose drift test checks the family
+    (`skein/tests/codec/bounds/sample.bounds`; jig's shared
+    `jig/tests/codec-families.rs` keeps its families' in
+    `jig/tests/bounds/`; skein's fixtures that keep versions in their
+    names, `every-v3.bounds`), is
+    `bounds_text`'s (below): for each declaration of `DECLARATIONS`, in
+    its order, one line with its encoded and decoded bounds at the
+    ceilings and at each limit lowered to 3, then the family's, on the
+    64-bit target the suites run on. Decoded bounds hold the generated
+    types' sizes, which only the compiler knows, so the drift test writes
+    the file, not the generator, and the merge job doesn't make it: a
+    conflict in it is settled by the drift test in write mode. No test
+    spells a bound, a type's size or a limit's name that the generated
+    code or this file holds, and a hand edit of the file fails as one of
+    the code does. A test keeps the bounds it pins at its owner's own
+    limits, which are its owner's figures;
   - **fuzzing,** in the fuzzy suite, where the family has it: each
     top-level record's decoder over arbitrary bytes, and over the
     fixed-rule values with bytes changed, cut or grown. It never panics,
     and what decodes encodes back to the same bytes;
   - **memory:** each owner's suite includes `skein/testing/codec-memory.rs`
     by relative path, test code outside any crate. This harness holds
-    the choice of limits under the test's cap (ceiling bounds pinned
-    when lowered), the family check over all roots, and the round trip.
+    the choice of limits under the test's cap, the largest clamp
+    `Limits::at_most` (`README.md`, section 4) fits under it, the family
+    check over all roots, and the round trip; a root's bounds at the
+    ceilings are its bounds file's.
     It decodes each root's `largest` value, each enum variant, measuring
     the allocator's peak against the decoded bound (`README.md`, section 4).
 
@@ -105,9 +125,10 @@
   which it holds as named fields.
 - **Nothing every change touches:** a generated module holds no array
   whose length counts the schema's items (a `fixed N` field's `[u8; N]`
-  is its width), no item named by an ordinal, no version in its file's
-  name and no committed fingerprint, and each declaration's code sits in
-  its own place, in schema order, with family-wide lists one entry a
+  is its width), no item named by an ordinal, no position
+  (`README.md`, section 4, "Stable under insertion"), no version in its
+  file's name and no committed fingerprint, and each declaration's code
+  sits in its own place, with family-wide lists one entry a
   line. So two branches that change different declarations of one
   family merge its generated module line by line, into the module of
   the merged schema; where they don't, the merge job writes it again
@@ -136,6 +157,10 @@
   // made once per text for the process; a text that fails panics
   pub struct Values { pub schema: Schema, pub fixed: Vec<FixedValue> }
   pub fn values(text: &'static str) -> &'static Values;
+  // a family's bounds file, from its generated DECLARATIONS and
+  // CEILINGS.values(); a bound the walk can't compute panics
+  pub fn bounds_text(declarations: &[skein_codec::bounds::Declaration], ceilings: &[u32])
+      -> String;
   ```
 
   The largest value: each list at its count limit, each item, option
@@ -148,4 +173,8 @@
   before it is declared, a name used twice, a worst case too large);
   small schemas' encodings and largest values against bytes written by
   hand; each construct found in a small schema and in `every`'s text,
-  and `missing` naming one taken out of it.
+  and `missing` naming one taken out of it; a declaration inserted into
+  a schema, and its line into a maps file, leaving every line of the
+  modules generated before in the new ones, in order, the lines added
+  being the inserted declaration's (`README.md`, section 4, "Stable
+  under insertion").

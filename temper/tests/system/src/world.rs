@@ -246,6 +246,7 @@ fn agent_for_with_options(
     );
     let workspace = Some(run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

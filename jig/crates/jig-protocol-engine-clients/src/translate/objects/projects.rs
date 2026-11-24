@@ -10,7 +10,7 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
     for row in &value.resources {
         resources
             .push(w::ProjectResource {
-                part: owner::part(&row.part, limits)?,
+                part: owner::part(&row.part),
                 home: row.home,
                 role: match row.role {
                     d::ResourceRole::Fork => w::ProjectResourceRole::Fork,
@@ -32,27 +32,27 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
                     jig_domain_people::Kind::Person => w::PartyKind::Person,
                     jig_domain_people::Kind::Service => w::PartyKind::Service,
                 },
-                role: owner::held_role(row.role, limits)?,
-                login: owner::text(&row.login, limits)?,
-                name: owner::text(&row.name, limits)?,
+                role: owner::held_role(row.role),
+                login: owner::text(&row.login),
+                name: owner::text(&row.name),
             })
             .expect("supplied rows fit");
     }
     let mut pools = List::with_capacity(value.pools.len());
     for row in &value.pools {
-        pools.push(owner::ledger(row, limits)?).expect("supplied rows fit");
+        pools.push(owner::ledger(row)).expect("supplied rows fit");
     }
     let mut configured_pools = List::with_capacity(value.configured_pools.len());
     for row in &value.configured_pools {
-        configured_pools.push(owner::ledger(row, limits)?).expect("supplied rows fit");
+        configured_pools.push(owner::ledger(row)).expect("supplied rows fit");
     }
     let mut spend = List::with_capacity(value.spend.len());
     for row in &value.spend {
         spend
             .push(w::ProjectSpend {
                 chip: chips::chip(&row.chip, limits)?,
-                funder: owner::funder(row.funder, limits)?,
-                numbers: owner::numbers(row.numbers, limits)?,
+                funder: owner::funder(row.funder),
+                numbers: owner::numbers(row.numbers),
             })
             .expect("supplied rows fit");
     }
@@ -66,12 +66,12 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
     Ok(w::Project {
         acts: task::offered(models, &value.acts, limits, limits.project_acts, w::paths::PROJECT_ACTS)?,
         number: value.number,
-        name: owner::text(&value.name, limits)?,
+        name: owner::text(&value.name),
         resources,
         policy: policy(models, &value.policy, limits)?,
         members,
         current_period: match &value.current_period {
-            Some(item) => Some(owner::ledger(item, limits)?),
+            Some(item) => Some(owner::ledger(item)),
             None => None,
         },
         pools,
@@ -86,7 +86,7 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
 pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) -> Result<w::ProjectPolicy, w::Problem> {
     let mut projections = List::with_capacity(value.projections.len());
     for row in &value.projections {
-        projections.push(owner::grant(row, limits)?).expect("supplied rows fit");
+        projections.push(owner::grant(row)).expect("supplied rows fit");
     }
     let projections =
         grant_pieces(&projections, limits.project_policy_projections, w::paths::PROJECT_POLICY_PROJECTIONS, limits)?;
@@ -110,7 +110,7 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
             .push(w::PolicyRequirement {
                 connector: row.grant.connector,
                 kind: row.grant.kind,
-                pattern: owner::pattern(&row.grant.segments, &row.grant.last, limits)?,
+                pattern: owner::pattern(&row.grant.segments, &row.grant.last),
                 judge: w::PolicyJudge {
                     connector: row.judge.connector,
                     requirement: row.judge.requirement,
@@ -145,7 +145,7 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
         None => None,
     };
     Ok(w::ProjectPolicy {
-        templates: super::super::me::overrides(&value.templates, limits)?,
+        templates: super::super::me::overrides(&value.templates),
         ceiling: owner::authority(models, &value.ceiling, limits)?,
         period_spend: value.period_spend,
         escalation_role: value.escalation_role,

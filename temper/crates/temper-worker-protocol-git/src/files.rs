@@ -5,6 +5,7 @@ use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use skein_lib::{Decimal, List, Token, bytes};
 use temper_worker_domain_checkout::git;
 mod index;
+mod kept;
 mod objects;
 mod reds;
 mod results;
@@ -17,6 +18,10 @@ use sweep::Sweep;
 #[derive(Debug)]
 pub(crate) struct Directories {
     pub keep: bool,
+    pub kept: Option<Fd>,
+    pub scanning: Option<Fd>,
+    pub mark_file: Option<Fd>,
+    pub marks: List<git::Kept>,
     pub trash: Option<Fd>,
     pub workspaces: Option<Fd>,
     pub gitdirs: Option<Fd>,
@@ -26,7 +31,19 @@ pub(crate) struct Directories {
 }
 impl Directories {
     pub fn new(serial: u64) -> Directories {
-        Directories { keep: false, trash: None, workspaces: None, gitdirs: None, stores: None, making: None, serial }
+        Directories {
+            keep: false,
+            kept: None,
+            scanning: None,
+            mark_file: None,
+            marks: List::uncapped(),
+            trash: None,
+            workspaces: None,
+            gitdirs: None,
+            stores: None,
+            making: None,
+            serial,
+        }
     }
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
         let to = Box::from(Decimal::of(self.serial).as_bytes());
@@ -45,7 +62,9 @@ pub(crate) struct Task {
 pub(crate) enum Phase {
     Reds(reds::Files),
     Results(results::File),
-    Layout(Layout),
+    Layout(Layout, Option<kept::Layout>),
+    KeptLayout(kept::Layout),
+    Keep(kept::File),
     Make(Make),
     Look(Look),
     Store(Store),
@@ -60,8 +79,6 @@ pub(crate) enum Phase {
 pub(crate) enum Layout {
     Trash,
     OpenTrash,
-    Workspaces,
-    Gitdirs,
     NewGitdirs,
     OpenGitdirs,
     Home,
@@ -130,8 +147,15 @@ impl Task {
     pub fn results(directory: Box<[u8]>) -> Task {
         Task { word: Some(b"results"), pending: Token::new(0), phase: Phase::Results(results::File::new(directory)) }
     }
-    pub fn layout() -> Task {
-        Task { word: None, pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
+    pub fn layout(limits: temper_worker_domain_checkout::Limits) -> Task {
+        Task {
+            word: None,
+            pending: Token::new(0),
+            phase: Phase::Layout(Layout::Trash, Some(kept::Layout::new(limits))),
+        }
+    }
+    pub fn keep(workspace: Token, mark: Option<&git::Kept>) -> Task {
+        Task { word: Some(b"keep"), pending: Token::new(0), phase: Phase::Keep(kept::File::new(workspace, mark)) }
     }
     pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
         Task { word: None, pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
@@ -207,7 +231,9 @@ impl Task {
             Phase::Sweep(sweep) => sweep.take_set_aside(),
             Phase::Reds(_)
             | Phase::Results(_)
-            | Phase::Layout(_)
+            | Phase::Layout(_, _)
+            | Phase::KeptLayout(_)
+            | Phase::Keep(_)
             | Phase::Make(_)
             | Phase::Look(_)
             | Phase::Store(_)
@@ -225,7 +251,9 @@ impl Task {
         match &mut self.phase {
             Phase::Reds(files) => files.first(settings),
             Phase::Results(file) => file.first(settings),
-            Phase::Layout(_) => Action::Run(mkdir(settings.root, b"trash")),
+            Phase::Layout(_, _) => Action::Run(mkdir(settings.root, b"trash")),
+            Phase::KeptLayout(layout) => layout.first(dirs, settings),
+            Phase::Keep(file) => file.first(dirs),
             Phase::Make(make) => make.first(dirs),
             Phase::Look(look) => look.first(settings),
             Phase::Store(store) => store.first(dirs),
@@ -287,10 +315,29 @@ impl Task {
         match &mut self.phase {
             Phase::Reds(files) => files.complete(complete.result, settings, stop),
             Phase::Results(file) => file.complete(complete, settings, stop),
-            Phase::Layout(stage) => {
+            Phase::Layout(stage, kept) => {
                 let action = layout(stage, complete.result, dirs, settings);
+                if stop {
+                    return Action::Layout(Err(Error::Cancelled));
+                }
+                match action {
+                    Action::Layout(Ok(())) => {
+                        let kept = kept.take().expect("layout continuation");
+                        self.phase = Phase::KeptLayout(kept);
+                        self.first(dirs, settings, limits)
+                    }
+                    other @ (Action::Run(_)
+                    | Action::Layout(Err(_))
+                    | Action::Operation(_)
+                    | Action::Swept { .. }
+                    | Action::Closed) => other,
+                }
+            }
+            Phase::KeptLayout(layout) => {
+                let action = layout.complete(complete, dirs, settings);
                 if stop { Action::Layout(Err(Error::Cancelled)) } else { action }
             }
+            Phase::Keep(file) => file.complete(complete.result, dirs, stop),
             Phase::Make(make) => make.complete(complete.result, dirs, settings, stop),
             Phase::Look(look) => look.complete(complete.result, stop),
             Phase::Store(store) => store.complete(complete.result, dirs, stop),
@@ -304,6 +351,15 @@ impl Task {
     }
 }
 fn closing(dirs: &mut Directories) -> Action {
+    if let Some(fd) = dirs.mark_file.take() {
+        return close(fd);
+    }
+    if let Some(fd) = dirs.scanning.take() {
+        return close(fd);
+    }
+    if let Some(fd) = dirs.kept.take() {
+        return close(fd);
+    }
     if let Some(fd) = dirs.making.take() {
         return close(fd);
     }
@@ -328,9 +384,8 @@ fn layout(
     settings: &Settings,
 ) -> Action {
     let allowed = match stage {
-        Layout::Trash | Layout::NewStores => result == Err(Error::Exists),
-        Layout::Workspaces | Layout::Gitdirs | Layout::Making | Layout::Home => result == Err(Error::NotFound),
-        Layout::NewWorkspaces | Layout::NewGitdirs => dirs.keep && result == Err(Error::Exists),
+        Layout::Trash | Layout::NewStores | Layout::NewWorkspaces | Layout::NewGitdirs => result == Err(Error::Exists),
+        Layout::Making | Layout::Home => result == Err(Error::NotFound),
         Layout::OpenTrash
         | Layout::NewMaking
         | Layout::OpenMaking
@@ -348,14 +403,8 @@ fn layout(
         Layout::Trash => (Layout::OpenTrash, open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow)),
         Layout::OpenTrash => {
             dirs.trash = Some(fd(result).expect("successful open"));
-            if dirs.keep {
-                (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..])))
-            } else {
-                (Layout::Workspaces, dirs.rename(settings.root, Box::from(&b"workspaces"[..])))
-            }
+            (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..])))
         }
-        Layout::Workspaces => (Layout::Gitdirs, dirs.rename(settings.root, Box::from(&b"gitdirs"[..]))),
-        Layout::Gitdirs => (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..]))),
         Layout::Making => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
         Layout::Home => (Layout::NewWorkspaces, mkdir(settings.root, b"workspaces")),
         Layout::NewWorkspaces => (Layout::NewGitdirs, mkdir(settings.root, b"gitdirs")),
@@ -493,5 +542,47 @@ fn read_buffer(op: Op) -> Box<[u8]> {
         | Op::PipeRead { .. }
         | Op::PipeWrite { .. }
         | Op::Cancel { .. } => unreachable!("results read completion"),
+    }
+}
+
+fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {
+    let n = count(complete.result)?;
+    if n == 0 {
+        return Ok(Box::from(&b""[..]));
+    }
+    match complete.kind {
+        Op::List { entries, names, .. } => {
+            Ok(Box::from(entries.first().expect("nonempty listing").name(&names).expect("kernel entry name")))
+        }
+        Op::Lock { .. }
+        | Op::Socket { .. }
+        | Op::Bind { .. }
+        | Op::Listen { .. }
+        | Op::Accept { .. }
+        | Op::Connect { .. }
+        | Op::Recv { .. }
+        | Op::Send { .. }
+        | Op::Shutdown { .. }
+        | Op::Close { .. }
+        | Op::Open { .. }
+        | Op::Read { .. }
+        | Op::Write { .. }
+        | Op::Append { .. }
+        | Op::Truncate { .. }
+        | Op::Sync { .. }
+        | Op::Stat { .. }
+        | Op::HardLink { .. }
+        | Op::Rename { .. }
+        | Op::Remove { .. }
+        | Op::MakeDirectory { .. }
+        | Op::Spawn { .. }
+        | Op::Wait { .. }
+        | Op::Signal { .. }
+        | Op::Usage
+        | Op::Window { .. }
+        | Op::ReadSignal { .. }
+        | Op::PipeRead { .. }
+        | Op::PipeWrite { .. }
+        | Op::Cancel { .. } => unreachable!("sweep listing"),
     }
 }

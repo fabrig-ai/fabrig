@@ -1,9 +1,9 @@
 //! The checkout's capacity, whole (protocol/configuration/limits.md).
 //! Git's earlier check defers stdout here, where both links' rooms are known.
-use jig_protocol_worker_wire::Record;
 use super::{Problems, What};
 use crate::{limits, settings};
 use jig_protocol_config::{self as config, Path};
+use jig_protocol_worker_wire::Record;
 use temper_protocol_worker_wire::v1::{self as payload, Record};
 
 fn short(has: u64, needs: u64) -> Option<(u32, u32)> {
@@ -28,10 +28,10 @@ fn payload(checkout: &limits::Checkout) -> payload::Limits {
 /// Measure the same answer as jig's sizes, with its frame header. Other body
 /// fields remain at their ceilings: they do not occur in an Answer.
 fn answer(jig: &config::Limits, payload: &payload::Limits) -> Option<u64> {
-    use jig_protocol_worker_wire::{CEILINGS, v21};
+    use jig_protocol_worker_wire::{CEILINGS, v22};
     let saved = payload::Saved::encoded_bound(payload)?;
     let ceiling = u64::from(CEILINGS.work_saved_some);
-    let limits = v21::Limits {
+    let limits = v22::Limits {
         work_left_some: u32::try_from(payload::Left::encoded_bound(payload)?).ok()?,
         work_saved_some: u32::try_from(saved.min(ceiling)).ok()?,
         answer_refused: jig.core.tasks.run_inbox,
@@ -44,7 +44,7 @@ fn answer(jig: &config::Limits, payload: &payload::Limits) -> Option<u64> {
     // At the saved ceiling, the largest ending contains Work, not a refusal.
     // Any excess extends that same byte field; measure even a ceiling shortfall
     // so it cannot hide the rooms that must rise with it.
-    v21::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
+    v22::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
 }
 
 fn room(jig: Option<&config::Limits>, payload: &payload::Limits) -> Option<(u32, u32)> {
@@ -62,13 +62,13 @@ pub(super) fn capacity(
     problems: &mut Problems,
 ) {
     let checkout = &own.checkout;
-    
+
     let stdout = match temper_worker_protocol_git::limits::largest_output(&crate::worker_settings::checkout(*checkout))
     {
         Some(needs) => short(u64::from(own.git_component.stdout_bytes), u64::from(needs)),
         None => None, // The payload ceiling check names the checkout field.
     };
-    
+
     let paths = u64::from(checkout.conflicts).checked_mul(u64::from(checkout.path_bytes).saturating_add(1));
     let stdout_of: &'static [u8] = match stdout {
         Some((_, needs)) if paths == Some(u64::from(needs)) => b"checkout.conflicts * (checkout.path_bytes + 1)",
@@ -76,7 +76,7 @@ pub(super) fn capacity(
     };
     // These are the conflict and path rules of temper-worker-domain::unfit;
     // the remaining worker rules still run at their own construction phase.
-    
+
     let (agent_conflicts, agent_paths) = match agent {
         Some(agent) => (
             short(u64::from(agent.host_limits.conflicts), u64::from(checkout.conflicts)),

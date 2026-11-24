@@ -43,7 +43,7 @@ fn result(number: u64, words: &[u8]) -> Result {
     }
 }
 
-fn chip(_form: Form) -> Chip {
+fn chip() -> Chip {
     let mut chip = super::task().chip;
     chip.executor = ChipExecutor::Party { party: 7 };
     chip.phase = Phase::Active;
@@ -90,7 +90,7 @@ fn chip(_form: Form) -> Chip {
 }
 
 fn document(form: Form) -> ReadValue {
-    let chip = chip(form);
+    let chip = chip();
     let acts = list([Offered { effect: None, act: ActKind::Answer, admission: Admission::Allowed }]);
     let first = result(101, b"first whole report");
     let second = result(102, b"second whole report");

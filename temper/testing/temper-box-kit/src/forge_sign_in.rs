@@ -9,6 +9,28 @@ use std::{
 pub fn configure(directory: &Path, forge: &str, temper: &str, google: &str) {
     let path = directory.join(temper_config_shell::FILE);
     let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+    add_to_file(&mut file, forge, temper, google);
+    if !directory.join("forge-1/setup").exists() {
+        let address: std::net::SocketAddr = forge.parse().expect("fixture forge socket");
+        super::owned::setup(
+            directory,
+            &super::owned::Names {
+                forgejo: Path::new("/opt/forgejo"),
+                runner: None,
+                port: address.port(),
+                bot: "temper",
+                person: "sam",
+            },
+        );
+    }
+    write_private(&directory.join("google.secret"), GOOGLE_SECRET);
+    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
+}
+
+pub const GOOGLE_SECRET: &[u8] = b"throwaway-google-secret";
+
+/// Compose the Google member and Forgejo client over a fixture's configuration file.
+pub fn add_to_file(file: &mut temper_config_shell::File, forge: &str, temper: &str, google: &str) {
     file.owner = Some("sam@example.com".into());
     file.openid = Some(temper_config_shell::OpenId {
         key: Some("provider.key".into()),
@@ -33,21 +55,6 @@ pub fn configure(directory: &Path, forge: &str, temper: &str, google: &str) {
         keys: format!("http://{google}/keys"),
         transport: temper_config_shell::Transport::Plaintext,
     });
-    if !directory.join("forge-1/setup").exists() {
-        let address: std::net::SocketAddr = forge.parse().expect("fixture forge socket");
-        super::owned::setup(
-            directory,
-            &super::owned::Names {
-                forgejo: Path::new("/opt/forgejo"),
-                runner: None,
-                port: address.port(),
-                bot: "temper",
-                person: "sam",
-            },
-        );
-    }
-    write_private(&directory.join("google.secret"), b"throwaway-google-secret");
-    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
 }
 
 #[must_use]

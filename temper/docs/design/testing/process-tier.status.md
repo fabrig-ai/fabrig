@@ -1,6 +1,6 @@
 # process-tier: status
 
-2026-11-20. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-24. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
 
 
@@ -34,9 +34,9 @@ maintainer-role acceptance. These are scripted worlds on fake Forgejo.
 - **Not yet:** the whole document: the supplied inventory has no result for any of
   `ui-restart-red`'s five repaired process stories
   (`../protocol/setup/testing.status.md`, 4). The stock-purse regression and
-  late-handover tests are present, and the started-cut fixture uses
-  init's no-sign-in configuration while it holds the engine; none is a
-  recorded pass of the five stories.
+  late-handover tests are present; none is a recorded pass of the five
+  stories.
+
 
 `process-tier.md`'s *The fake box keeps two walks* has no known gap in its
 stories: the box keeps `here_key` and the browser tab, and each lower
@@ -68,14 +68,6 @@ the logged turn-away is the fake's own process story.
   walk now.
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-  the whole document: the cluster's 4.6 process story is ignored: its fixture
-  expects `engine.llm.models` in the startup configuration, which holds
-  no model since models became settings (`../protocol/configuration/README.md`,
-  section 2), so the story has not run since ws says it drains, and jig's
-  hub, translation and fleet tests alone hold the drain (jig's
-  `domain/engine/README.status.md`, its 8), where the request `ignored-misc` of
-  2026-11-08 asked that it run by name and pass, a test whose design has
-  moved being rewritten to it.
   the whole document: the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
   the whole document: Forgejo signing in through temper: the story's connect gives no
   `--web`, its `redirect_uri` being at `git`, where `temper help server`'s

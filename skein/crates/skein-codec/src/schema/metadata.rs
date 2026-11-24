@@ -38,31 +38,37 @@ fn member(shape: Shape, at: u32) -> Named {
     }
 }
 
-fn parts(shape: Shape) -> (u32, u32) {
-    match shape {
+fn parts(schema: &Schema, at: DeclIx, shape: Shape) -> [(u32, u32); 2] {
+    let (first, count) = match shape {
         Shape::Record { first, count, .. } => (first.index(), count),
         Shape::Enum { first, count } => (first.index(), count),
-    }
+    };
+    let (dropped, dropped_count) = schema.tombstones(at);
+    [(first, count), (dropped.index(), dropped_count)]
 }
 
 fn names(schema: &Schema) -> Result<(), SchemaError> {
     let capacity = u32::try_from(schema.text.len()).expect("schema text ceiling");
     let mut names = Set::with_capacity(capacity);
     for at in 0..schema.declarations() {
-        let declaration = schema.declaration(DeclIx::new(at));
+        let decl = DeclIx::new(at);
+        let declaration = schema.declaration(decl);
         names.insert((0, bytes::copy_of(schema.spelled(declaration.name)))).expect("text bounds names");
-        let (first, count) = parts(declaration.shape);
-        for index in first..add(first, count) {
-            let (name, _) = part(schema, member(declaration.shape, index));
-            names.insert((add(at, 1), bytes::copy_of(schema.spelled(name)))).expect("text bounds names");
+        for (first, count) in parts(schema, decl, declaration.shape) {
+            for index in first..add(first, count) {
+                let (name, _) = part(schema, member(declaration.shape, index));
+                names.insert((add(at, 1), bytes::copy_of(schema.spelled(name)))).expect("text bounds names");
+            }
         }
     }
     for at in 0..schema.declarations() {
-        former(schema, &mut names, 0, Named::Declaration(DeclIx::new(at)))?;
-        let shape = schema.declaration(DeclIx::new(at)).shape;
-        let (first, count) = parts(shape);
-        for index in first..add(first, count) {
-            former(schema, &mut names, add(at, 1), member(shape, index))?;
+        let decl = DeclIx::new(at);
+        former(schema, &mut names, 0, Named::Declaration(decl))?;
+        let shape = schema.declaration(decl).shape;
+        for (first, count) in parts(schema, decl, shape) {
+            for index in first..add(first, count) {
+                former(schema, &mut names, add(at, 1), member(shape, index))?;
+            }
         }
     }
     Ok(())
@@ -105,7 +111,11 @@ fn next(text: &[u8], offset: &mut usize) -> Option<Span> {
 }
 
 pub(super) fn check(schema: &mut Schema) -> Result<(), SchemaError> {
-    names(schema)?;
+    // Layout already checked current names. The metadata name table is only
+    // needed to check former names against them and against each other.
+    if !schema.former.is_empty() {
+        names(schema)?;
+    }
     let mut pool = core::mem::replace(&mut schema.pool, List::with_capacity(0));
     for at in 0..schema.fields.len() {
         let field = schema.field(FieldIx::new(at));

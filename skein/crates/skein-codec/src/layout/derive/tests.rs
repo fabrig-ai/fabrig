@@ -1,11 +1,11 @@
 //! Discovery order and fixed-point edges of layout derivation (data/codec/layouts.md, 2).
 #![expect(clippy::disallowed_macros, reason = "small schema fixtures are formatted inline")]
 use super::{At, Builder, Key, Location, Place, Policy, location};
-use crate::layout::{Kind, Node, Read, ReadKind};
-use crate::schema::{self, DeclIx, Span, TypeIx, VariantIx};
+use crate::layout::{Kind, Node, Read, ReadKind, Refused, Underived, Why};
+use crate::schema::{self, DeclIx, FieldIx, MAX_DECLARATIONS, Span, TypeIx, VariantIx};
 
-const FIRST: Place = Place { decl: Span { start: 1, end: 2 }, part: None, old: false };
-const LATER: Place = Place { decl: Span { start: 3, end: 4 }, part: None, old: true };
+const FIRST: Place = Place { decl: Span { start: 1, end: 2 }, part: None, old: false, field: None };
+const LATER: Place = Place { decl: Span { start: 3, end: 4 }, part: None, old: true, field: None };
 const ROOT: Location = Location { text: 0, at: At::Decl(DeclIx::new(0)), variant: None };
 const KEY: Key = Key { old: ROOT, new: ROOT, root: true };
 
@@ -29,10 +29,24 @@ fn keyed_requests_share_nodes_without_reordering_first_encounters() {
         assert_eq!(found, node, "{key:?}");
         assert_eq!(builder.plan.node(found).read, read, "{key:?}");
     }
-    assert_eq!(builder.places.get(0).expect("first conversion").error(super::Why::Deep), FIRST.error(super::Why::Deep));
+    assert_eq!(builder.places.get(0).expect("first conversion").error(Why::Deep), FIRST.error(Why::Deep));
+    assert_eq!(builder.read_places.get(0).expect("first reader").error(Why::Deep), FIRST.error(Why::Deep));
+}
+
+#[test]
+fn refusal_table_refuses_one_past_its_capacity() {
+    let old = schema::parse(b"family f 1 record R { f: u8 }").expect("fixture schema");
+    let decl = old.declaration(DeclIx::new(0)).name;
+    let part = old.field(FieldIx::new(0)).name;
+    let mut builder = Builder::new(Policy::Between(super::Mode::Keep), None, false, None);
+    for index in 0..MAX_DECLARATIONS {
+        let index = u16::try_from(index).expect("refusal index fits u16");
+        assert_eq!(builder.refusal(&old, decl, part, Refused::Field), Ok(index));
+        assert_eq!(builder.plan.refusal(index), Some((Refused::Field, "R", "f")));
+    }
     assert_eq!(
-        builder.read_places.get(0).expect("first reader").error(super::Why::Deep),
-        FIRST.error(super::Why::Deep)
+        builder.refusal(&old, decl, part, Refused::Field),
+        Err(Underived { why: Why::Deep, decl, part: Some(part), old: true }),
     );
 }
 
@@ -53,11 +67,11 @@ fn a_first_pass_complete_layout_keeps_its_literal_plan() {
     assert_eq!(builder.passes, 2);
     let plan = &builder.plan;
     assert_eq!((plan.root, plan.depth, plan.fields, plan.head, plan.old_head, plan.tag), (0, 1, 0, None, false, None));
-    assert!(plan.dropped.is_empty());
+    assert!(plan.refusals.is_empty());
     let [
         Node {
             read: 0,
-            kind: Kind::Record { old_head: false, head: None, fields, in_place: true },
+            kind: Kind::Record { old_head: false, head: None, fields, dropped, in_place: true },
             keeps: true,
             empty: true,
             depth: 1,
@@ -67,6 +81,7 @@ fn a_first_pass_complete_layout_keeps_its_literal_plan() {
         panic!("literal empty conversion: {:?}", plan.nodes);
     };
     assert!(fields.is_empty());
+    assert!(dropped.is_empty());
     let [Read { kind: ReadKind::Record { head: false, fields }, minimum: 0, depth: 1 }] = plan.reads.as_slice() else {
         panic!("literal empty reader: {:?}", plan.reads);
     };

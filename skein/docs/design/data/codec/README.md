@@ -77,7 +77,7 @@ records kept in files or stores.
   - `Record`, the trait each generated declaration implements, and the
     generic helpers that check, measure, encode and decode each kind of
     field (section 4);
-  - the walk that computes bounds from a module's table (section 4);
+  - the walk that computes bounds from a module's shapes (section 4);
   - the reasons a decoding fails, and the problem naming its path;
   - bounded reads of lengths, counts and text;
   - reading a versioned record's version;
@@ -182,7 +182,7 @@ enum Form {
   (../../../foundation/programming-model.md, section 9).
 - **Every field is present.** An absent value is an explicit `option`.
   A value's bytes hold every field of its layout, whatever its default.
-- **A default is the value an older layout's records take** for a field
+- **A default is the value another layout's records take** for a field
   their layout lacks (`layouts.md`, 2), written after the type:
   `infrastructure: u32 = 0`. An `option` without one defaults to none.
   Its forms are a patch's values (`patches.md`, 2), each checked against
@@ -205,6 +205,26 @@ enum Form {
   a record's fields', an enumeration's variants') and none of its other
   former names; it stays as long as a store may hold a layout that
   spells it. Like names, former names are in no fingerprint.
+- **A tombstone keeps a dropped field in its record's text:** `dropped
+  hint: text 256 = ""`, the word `dropped`, then the field as it was,
+  its former names among it, and its default, which it must have. It
+  takes no bytes, no generated code, no golden byte and no fingerprint:
+  it lets a plan toward a layout that still has the field write a value
+  there, in either mode (`layouts.md`, 2). Its type is one that takes a
+  default; its name and former names are none of its record's fields'
+  names or former names, nor another tombstone's. It stays until fabrig
+  keeps no code for a layout that has the field
+  (`temper/docs/design/draft/layouts-both-ways.md`, 7.4).
+- **`droppable`** before a field's name, `droppable hint: text 256`,
+  lets a plan in Keep mode from this layout drop the field whatever its
+  value, where the target lacks it (`layouts.md`, 2). Nothing else reads
+  it: it moves no byte, no generated code and no fingerprint.
+- **Both words are read from this grammar on.** A build before it
+  refuses a text that uses either, so a family's schema uses them once
+  dev.fabrig.ai runs a build that reads them: its store's registry, and
+  a peer it opens with, may hand that text to it
+  (`temper/docs/design/draft/layouts-both-ways.md`, 7.4). A field may
+  still be named `dropped` or `droppable` (`run-time.md`, 1.1).
 - **A variant holds one record, or nothing.** The record seals its own
   bounds, which an enum variant's fields could not.
 - **A variant marked `boxed`** (`report: boxed Report`) holds its record
@@ -262,7 +282,9 @@ enum Form {
 For each family:
 
 - **Its limits.** A plain struct with one limit per bound in the schema,
-  and a constant holding the schema's bounds as ceilings. A side's limits
+  its `u32` fields in schema order under `#[repr(C)]`, so that a bound's
+  table names a limit by its field (below), and a constant holding the
+  schema's bounds as ceilings. A side's limits
   may be smaller than the ceilings, never larger (../../../foundation/programming-model.md,
   section 7). One generated function checks a family's limits against
   its ceilings, naming the first past one; the family's owner calls it
@@ -270,7 +292,9 @@ For each family:
   only, never the limits: each value against its limit no higher than
   its ceiling, so no value past a ceiling becomes bytes or decodes,
   whatever limits they are given, and a call costs what its value holds,
-  not the family's size.
+  not the family's size. `Limits::at_most(&self, most: u32) -> Limits`
+  lowers each limit to at most `most`, so that a test takes a family's
+  limits at one clamp without naming them (`golden.md`, section 1).
 - **Its version.** `pub const VERSION: u16`, the schema's version, which
   its versioned records' encoding and decoding name; a hand-written
   constant that restates it is defined by it.
@@ -280,15 +304,16 @@ For each family:
   computed at run time with these limits (`run-time.md`, 1.3, `most_bytes_within`). A
   limit's name is the rule's `schema::limit_name` gives (`run-time.md`, 1.3), the one
   the generator names the field by.
-- **Its paths, as data.** A path is a declaration and a part of it, each
-  by its position in the schema: a record's fields, its version and its
-  trailing bytes, an enumeration's tag. The module's `paths` names each
-  one a constant, its schema name in capitals (`paths::SPEC_WORDS`,
-  `paths::ROW_VERSION`, `paths::ROW_TAIL`, `paths::PART_KIND_TAG`), and
-  `name(path)` reads its name from one table, as the schema spells it:
-  `Record.field`, `Record (version)`, `Record (tail)` and `Enum (tag)`,
-  so a step can name a refusal's field in its words without formatting
-  (`../../../foundation/programming-model.md`, 3). A problem is a path
+- **Its paths, by name.** A path is a part of a declaration (a
+  record's field, its version or its trailing bytes, an enumeration's
+  tag), held as its name as the schema spells it: `Record.field`,
+  `Record (version)`, `Record (tail)` and `Enum (tag)`. The module's
+  `paths` names each one a constant, its schema name in capitals
+  (`paths::SPEC_WORDS`, `paths::ROW_VERSION`, `paths::ROW_TAIL`,
+  `paths::PART_KIND_TAG`), and `Path::name` reads the name back, so a
+  step can name a refusal's field in its words without formatting
+  (`../../../foundation/programming-model.md`, 3). Two paths are equal
+  when their names are; no path holds a position. A problem is a path
   with `skein-codec`'s reason, both typed by the family's `Limits`
   (`pub type Problem = skein_codec::Problem<Limits>`, and `Path` so);
   the module re-exports `Record`. A `?` carrying one family's refusal
@@ -332,26 +357,43 @@ For each record and enumeration:
     a `boxed` variant's record counting its own size.
 
   Each is `None` for limits past a ceiling. Bounds are data: the module
-  holds one table of its declarations, their shapes and fields, in
-  schema order, one entry a line, with the size of each type a list or a
-  `boxed` variant holds, and one walk in `skein-codec` computes every
-  bound from it and the limits' values, with checked arithmetic, no
-  recursion and memory bounded by the table. It checks the family's
-  limits once, where it is asked: a bound costs the types it reaches,
-  not their number times the family's limits. The family's bounds are
-  the most of its declarations'.
+  holds one shape per declaration, `DECLARATIONS`, public, in the order
+  of their names: each a `skein_codec::bounds::Declaration`, the
+  declaration's name and its nodes in postorder, its own root last, with
+  the size of each type a list or a `boxed` variant holds. A node's
+  edges count within its declaration; a nested declaration is a node
+  naming it, and a limit is named by its field's offset in `Limits`
+  (`core::mem::offset_of!`), which the compiler places. One walk in
+  `skein-codec` computes every bound from the shapes and the limits'
+  values, finding a named declaration by its name, with checked
+  arithmetic, no recursion and memory bounded by the shapes. It checks
+  the family's limits once, where it is asked: a bound costs the types
+  it reaches, not their number times the family's limits. The family's
+  bounds are the most of its declarations'.
   The generator also computes each record's encoded bound at zero limits
-  from the same table and emits it as `ENCODED_AT_ZERO`.
+  from the same shapes and emits it as `ENCODED_AT_ZERO`.
+- **Stable under insertion.** No generated line spells a position in
+  its family: not a declaration's, a part's, a limit's, a node's outside
+  its own declaration, nor a maps file's line (`maps.md`, 4.1). Each
+  names what it means, and the compiler or the walk finds it. So
+  inserting a declaration adds its own lines and changes only those of
+  the declarations that name it, and a family-wide list gains one entry
+  a line. When paths and tables were positions, one new record
+  renumbered every later declaration's code, 1,718 lines once, and two
+  branches that each added one conflicted everywhere after it.
 
 ```rust
 // skein_codec; Path and Problem are Clone, Copy, Debug, equality and
 // Hash whatever L is: L, the family's Limits, is a marker, no bytes
-pub struct Path<L> { pub declaration: u16, pub part: u16, /* L */ }
+pub struct Path<L> { /* its name; L */ }
 pub struct Problem<L> { pub path: Path<L>, pub reason: Reason }
 impl<L> Path<L> {
-    pub const fn new(declaration: u16, part: u16) -> Self;
+    pub const fn new(name: &'static str) -> Self;   // as the schema spells it
+    pub const fn name(self) -> &'static str;
     pub const fn problem(self, reason: Reason) -> Problem<L>;
 }
+// skein_codec::bounds: one declaration's shape, as DECLARATIONS holds it
+pub struct Declaration { pub name: &'static str, pub nodes: &'static [Node] }
 pub trait Record: Sized {
     type Limits;                       // the family's
     fn measure(&self, limits: &Self::Limits) -> Result<u32, Problem<Self::Limits>>;

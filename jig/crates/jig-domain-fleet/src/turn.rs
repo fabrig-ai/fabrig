@@ -1,7 +1,7 @@
-//! Turns are opaque parent payloads. The fleet holds only their admission
-//! and committed prefix (domain/engine/executors-transcripts.md, 1 and domain/engine/fleet.md; domain/hosts/hub.md, section 4).
+//! Turns and parts are opaque parent payloads. The fleet holds only their admission
+//! and committed prefixes (domain/engine/executors-transcripts.md, 1 and domain/engine/fleet.md; domain/hosts/hub.md, section 4).
 //! A stray's body stays here until adoption; every body leaves exactly once
-//! in `Turned` or `Drop`. Handed admissions own no payload. Cleanup and
+//! in `Turned`, `Parted` or `Drop`. Handed admissions own no payload. Cleanup and
 //! adoption release one held body per resume, so each emits at most two
 //! requests, including an acknowledgement or busy notice and a drop.
 
@@ -12,6 +12,21 @@ use crate::boundary::Request;
 use crate::channel;
 use crate::domain::Domain;
 use crate::facts::Fact;
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(crate) enum Kind {
+    Turn,
+    Part,
+}
+
+impl Kind {
+    fn prefix(self, entry: &Attempt) -> u32 {
+        match self {
+            Self::Turn => entry.kept,
+            Self::Part => entry.kept_part,
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Pending {
@@ -51,12 +66,31 @@ fn drop(domain: &mut Domain, body: Token, out: &mut Queue<Request>) {
     out.push(Request::Drop { payload: body });
 }
 
-fn acknowledged(channel: Token, run: Token, attempt: Token, turn: u32, out: &mut Queue<Request>) {
-    out.push(Request::AcknowledgeTurn { channel, run, attempt, turn });
+fn acknowledged(kind: Kind, channel: Token, run: Token, attempt: Token, turn: u32, out: &mut Queue<Request>) {
+    out.push(match kind {
+        Kind::Turn => Request::AcknowledgeTurn { channel, run, attempt, turn },
+        Kind::Part => Request::AcknowledgePart { channel, run, attempt, part: turn },
+    });
 }
 
+fn handed(kind: Kind, run: Token, attempt: Token, turn: u32, body: Token) -> Request {
+    match kind {
+        Kind::Turn => Request::Turned { run, attempt, turn, body },
+        Kind::Part => Request::Parted { run, attempt, part: turn, body },
+    }
+}
+
+fn blocked(kind: Kind, channel: Token, run: Token, attempt: Token, turn: u32) -> Request {
+    match kind {
+        Kind::Turn => Request::TurnBusy { channel, run, attempt, turn },
+        Kind::Part => Request::PartBusy { channel, run, attempt, part: turn },
+    }
+}
+
+#[expect(clippy::too_many_arguments, reason = "one numbered payload admission carries its kind and fenced identity")]
 pub(crate) fn received(
     domain: &mut Domain,
+    kind: Kind,
     channel: Token,
     run: Token,
     attempt: Token,
@@ -69,7 +103,7 @@ pub(crate) fn received(
         return;
     }
     let Some(&id) = domain.names.get(&(run, attempt)) else {
-        acknowledged(channel, run, attempt, turn, out);
+        acknowledged(kind, channel, run, attempt, turn, out);
         drop(domain, body, out);
         return;
     };
@@ -78,12 +112,12 @@ pub(crate) fn received(
         drop(domain, body, out);
         return;
     }
-    let held = entry.kept;
+    let held = kind.prefix(entry);
     let pending = match face(domain, entry) {
         Face::Live { channel: Some(owned) } if owned == channel => Pending::Handed,
         Face::Stray { channel: Some(owned) } if owned == channel => Pending::Held { body },
         Face::Fenced { channel: Some(owned) } if owned == channel => {
-            acknowledged(channel, run, attempt, turn, out);
+            acknowledged(kind, channel, run, attempt, turn, out);
             drop(domain, body, out);
             return;
         }
@@ -93,42 +127,50 @@ pub(crate) fn received(
         }
     };
     if turn <= held {
-        acknowledged(channel, run, attempt, turn, out);
+        acknowledged(kind, channel, run, attempt, turn, out);
         drop(domain, body, out);
         return;
     }
-    if domain.turns.contains_key(&(id, turn)) {
+    if domain.turns.contains_key(&(id, kind, turn)) {
         drop(domain, body, out);
         return;
     }
-    match domain.turns.insert((id, turn), pending) {
+    match domain.turns.insert((id, kind, turn), pending) {
         Ok(None) => match pending {
-            Pending::Handed => out.push(Request::Turned { run, attempt, turn, body }),
+            Pending::Handed => out.push(handed(kind, run, attempt, turn, body)),
             Pending::Held { .. } => {}
         },
         Ok(Some(_)) => unreachable!("a duplicate admission was checked above"),
         Err(_) => {
-            out.push(Request::TurnBusy { channel, run, attempt, turn });
+            out.push(blocked(kind, channel, run, attempt, turn));
             drop(domain, body, out);
         }
     }
 }
 
-/// The parent commits a contiguous prefix, one turn at a time. A stale
+/// The parent commits turns consecutively and acknowledges parts in order. A stale
 /// completion after an attempt retires changes nothing. The admission is
 /// released even while its worker is away; replay uses the kept prefix.
-pub(crate) fn kept(domain: &mut Domain, run: Token, attempt: Token, turn: u32, out: &mut Queue<Request>) {
+pub(crate) fn kept(domain: &mut Domain, kind: Kind, run: Token, attempt: Token, turn: u32, out: &mut Queue<Request>) {
     let Some(&id) = domain.names.get(&(run, attempt)) else { return };
     let entry = domain.attempts.get_mut(id).expect("a named attempt is tracked");
-    if entry.job.is_some() || turn <= entry.kept {
+    if entry.job.is_some() || turn <= kind.prefix(entry) {
         return;
     }
-    assert!(entry.kept.checked_add(1) == Some(turn), "the parent commits turns consecutively");
-    entry.kept = turn;
+    match kind {
+        Kind::Turn => {
+            assert!(entry.kept.checked_add(1) == Some(turn), "the parent commits turns consecutively");
+            entry.kept = turn;
+        }
+        Kind::Part => {
+            assert!(entry.kept_part.checked_add(1) == Some(turn), "the parent keeps parts consecutively");
+            entry.kept_part = turn;
+        }
+    }
     // Handed metadata owns no payload. Held bodies are dropped by resume.
-    match domain.turns.get(&(id, turn)) {
+    match domain.turns.get(&(id, kind, turn)) {
         Some(Pending::Handed) => {
-            domain.turns.remove(&(id, turn));
+            domain.turns.remove(&(id, kind, turn));
         }
         Some(Pending::Held { .. }) => domain.turning = true,
         None => {}
@@ -137,7 +179,7 @@ pub(crate) fn kept(domain: &mut Domain, run: Token, attempt: Token, turn: u32, o
     match face(domain, entry) {
         Face::Live { channel: Some(channel) }
         | Face::Stray { channel: Some(channel) }
-        | Face::Fenced { channel: Some(channel) } => acknowledged(channel, run, attempt, turn, out),
+        | Face::Fenced { channel: Some(channel) } => acknowledged(kind, channel, run, attempt, turn, out),
         Face::Live { channel: None }
         | Face::Stray { channel: None }
         | Face::Fenced { channel: None }
@@ -145,17 +187,17 @@ pub(crate) fn kept(domain: &mut Domain, run: Token, attempt: Token, turn: u32, o
     }
 }
 
-pub(crate) fn busy(domain: &mut Domain, run: Token, attempt: Token, turn: u32, out: &mut Queue<Request>) {
+pub(crate) fn busy(domain: &mut Domain, kind: Kind, run: Token, attempt: Token, turn: u32, out: &mut Queue<Request>) {
     let Some(&id) = domain.names.get(&(run, attempt)) else { return };
-    match domain.turns.get(&(id, turn)) {
+    match domain.turns.get(&(id, kind, turn)) {
         Some(Pending::Handed) => {
-            domain.turns.remove(&(id, turn));
+            domain.turns.remove(&(id, kind, turn));
         }
         Some(Pending::Held { .. }) | None => return,
     }
     let entry = domain.attempts.get(id).expect("a named attempt is tracked");
     match face(domain, entry) {
-        Face::Live { channel: Some(channel) } => out.push(Request::TurnBusy { channel, run, attempt, turn }),
+        Face::Live { channel: Some(channel) } => out.push(blocked(kind, channel, run, attempt, turn)),
         Face::Live { channel: None } | Face::Stray { .. } | Face::Fenced { .. } | Face::Unplaced => {}
     }
 }
@@ -164,7 +206,7 @@ pub(crate) fn busy(domain: &mut Domain, run: Token, attempt: Token, turn: u32, o
 /// bodies wait; handed metadata waits for the parent. No ready spin while
 /// either waits. Every attempt transition schedules another scan.
 pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
-    let mut ready: Option<(Id<Attempt>, u32)> = None;
+    let mut ready: Option<(Id<Attempt>, Kind, u32)> = None;
     for (&key, pending) in &domain.turns {
         let action = match domain.attempts.get(key.0) {
             None => true,
@@ -173,9 +215,9 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
                 Face::Fenced { .. } => true,
                 Face::Live { .. } => match pending {
                     Pending::Held { .. } => true,
-                    Pending::Handed => key.1 <= entry.kept,
+                    Pending::Handed => key.2 <= key.1.prefix(entry),
                 },
-                Face::Stray { .. } => key.1 <= entry.kept,
+                Face::Stray { .. } => key.2 <= key.1.prefix(entry),
                 Face::Unplaced => false,
             },
         };
@@ -200,17 +242,18 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
                 drop(domain, body, out);
                 return;
             }
-            let (run, attempt, turn) = (entry.run, entry.token, key.1);
-            let kept = turn <= entry.kept;
+            let (run, attempt, turn) = (entry.run, entry.token, key.2);
+            let kind = key.1;
+            let kept = turn <= kind.prefix(entry);
             match face(domain, entry) {
                 Face::Live { .. } if !kept => {
                     let room = domain.turns.insert(key, Pending::Handed);
                     assert!(room == Ok(None), "removing the held body made room");
-                    out.push(Request::Turned { run, attempt, turn, body });
+                    out.push(handed(kind, run, attempt, turn, body));
                 }
                 Face::Live { channel } | Face::Stray { channel } | Face::Fenced { channel } => {
                     if let Some(channel) = channel {
-                        acknowledged(channel, run, attempt, turn, out);
+                        acknowledged(kind, channel, run, attempt, turn, out);
                     }
                     drop(domain, body, out);
                 }

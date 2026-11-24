@@ -83,6 +83,7 @@ const LIMITS: Limits = Limits {
 fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
+            results: None,
             host: format!(
                 "/{:h<width$}",
                 "",
@@ -346,6 +347,7 @@ fn fill_selected(limits: &Limits, selected: Option<&smith_domain_run::Convention
     for run in 0..limits.runs {
         let host_run = Token::new(u64::from(run));
         let start = Event::Start {
+            tell_parts: false,
             messages: Box::default(),
             workspace: Some(workspace()),
             reply_to: ReplyTo::new(host_run),
@@ -424,6 +426,7 @@ fn refuse_oversized_charter(limits: &Limits, env: &Env<Limits>, out: &mut Queue<
     let mut domain = Domain::new(&Limits { runs: 1, conversations: 2, ..*limits }, 0);
     let host_run = Token::new(0);
     let start = Event::Start {
+        tell_parts: false,
         messages: Box::default(),
         workspace: Some(workspace()),
         reply_to: ReplyTo::new(host_run),
@@ -631,6 +634,7 @@ fn full_receipt_delivery_settles_before_a_cancelled_answer() {
     let charter = full_delivery_charter(&limits);
     let host_run = Token::new(10);
     let (owner, _) = take(Event::Start {
+        tell_parts: false,
         messages: Box::default(),
         workspace: Some(full_delivery_workspace()),
         reply_to: ReplyTo::new(host_run),
@@ -679,6 +683,7 @@ fn full_receipt_delivery_settles_before_a_cancelled_answer() {
 fn full_delivery_workspace() -> Workspace {
     let directories: Box<[Directory]> = (0..smith_domain_run::MAX_DIRECTORIES)
         .map(|directory| Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::new([u8::try_from(directory + 64).expect("64 distinct names")]),
             root: Token::new(u64::from(directory)),
@@ -830,6 +835,7 @@ fn complete_declaration_and_maximum_opaque_input_answer_retries_reach_the_measur
     let (run, _) = take(
         &env,
         Some(Event::Start {
+            tell_parts: false,
             messages: Box::default(),
             workspace: mounted,
             reply_to: ReplyTo::new(Token::new(88)),
@@ -923,6 +929,7 @@ fn an_awaiting_run_retains_its_full_charter_without_allocating_a_session() {
         &mut out,
         &meter,
         Some(Event::Start {
+            tell_parts: false,
             resumed: false,
             messages: Box::default(),
             workspace: Some(workspace()),
@@ -993,6 +1000,7 @@ fn a_run_at_scalar_maxima_emits_its_largest_final_note_within_its_ownership_boun
         &mut domain,
         &env,
         Event::Start {
+            tell_parts: false,
             resumed: false,
             messages: Box::default(),
             workspace: Some(workspace()),

@@ -8,6 +8,8 @@ pub mod draw;
 pub mod limits;
 pub mod places;
 mod state;
+#[cfg(debug_assertions)]
+pub mod tree;
 mod view;
 pub use places::Place;
 pub use state::{Duties, Exchange, Record, Report, State, StreamDuty};

@@ -235,12 +235,16 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   default, an override of 3, and 0 and 65 refused.
 - **The engine's world:** the act through the root over its store, an
   owner's answered from the store's terminal, a non-owner's refused.
-- **The process tier,** written and compiled, run after landing: a
-  checkpoint over a stopped deployment, then `--hold` with a command
-  that lists it, then `--remove`; the act while the engine serves; a
-  checkpoint, a start that commits past it, a stop, `restore` of the
-  checkpoint and a start that finds its state, then `restore` of the
-  safety checkpoint and a start that finds the later state.
+- **The process tier,** written and compiled, run after landing, the
+  shipped commands' dispatch and one start on a restored generation: a
+  checkpoint over a stopped deployment, `--hold` with a command that
+  lists it, a start that commits past it, a stop, `restore` of the
+  checkpoint and a start that finds its state, then `--remove`, in
+  `a_stopped_checkpoint_is_held_restored_and_removed`; the act while
+  the engine serves. The safety checkpoint's
+  restore is the store's world's and the engine shell's real-loop
+  tests' (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`,
+  4).
 
 ## 6. Open questions
 

@@ -307,6 +307,7 @@ pub enum Event {
     Receive { channel: Token, payload: Payload },
     ResultRead { payload: Token, end: tasks::End },
     AnswerPayload { run: Token, attempt: Token, payload: Token, worker: Option<u32>, window: Duration },
+    PartPayload { run: Token, attempt: Token, part: u32, body: Token },
     TurnPayload { run: Token, attempt: Token, turn: u32, body: Token },
     AcceptedTurn { payload: Token, task: u64, attempt: u64, turn: u32, accepted: tasks::Accepted },
     RefusedPayload { request: Token, problem: tasks::Problem },
@@ -401,7 +402,7 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
             let (run, attempt, turn) = match &payload {
                 Payload::Turn { task, attempt, turn, .. } => (Token::new(*task), Token::new(*attempt), Some(*turn)),
                 Payload::Answer { task, attempt, .. } => (Token::new(*task), Token::new(*attempt), None),
-                Payload::Busy | Payload::SettledCall(_) | Payload::InboxWord(_) => {
+                Payload::Busy | Payload::Part(_) | Payload::SettledCall(_) | Payload::InboxWord(_) => {
                     unreachable!("turn or answer metadata")
                 }
             };
@@ -420,11 +421,23 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
         Event::AnswerPayload { run, attempt, payload, worker, window } => {
             answer(link, run, attempt, payload, worker, window, out);
         }
+        Event::PartPayload { run, attempt, part, body } => {
+            let Some(Payload::Part(record)) = link.take_payload(body) else { unreachable!("admitted part payload") };
+            assert!(
+                record.key == core::PartKey { task: run.raw(), attempt: attempt.raw(), number: part },
+                "fenced part identity"
+            );
+            out.push(Request::Core(core::Event::PartPayload { record }));
+        }
         Event::TurnPayload { run, attempt, turn, body } => {
             let value = link.payload(body).expect("fleet retained the turn body");
             let (cumulative, read, refused) = match value {
                 Payload::Turn { cumulative, read, refused, .. } => (*cumulative, *read, refused.clone()),
-                Payload::Busy | Payload::InboxWord(_) | Payload::SettledCall(_) | Payload::Answer { .. } => {
+                Payload::Busy
+                | Payload::Part(_)
+                | Payload::InboxWord(_)
+                | Payload::SettledCall(_)
+                | Payload::Answer { .. } => {
                     unreachable!("turn body family")
                 }
             };
@@ -436,7 +449,11 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
                 Payload::Turn { cumulative, read, transcript, opens_window, .. } => {
                     (cumulative, read, transcript, opens_window)
                 }
-                Payload::Busy | Payload::InboxWord(_) | Payload::SettledCall(_) | Payload::Answer { .. } => {
+                Payload::Busy
+                | Payload::Part(_)
+                | Payload::InboxWord(_)
+                | Payload::SettledCall(_)
+                | Payload::Answer { .. } => {
                     unreachable!("accepted turn body family")
                 }
             };
@@ -457,7 +474,7 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
                     Some(core::PayloadRefusal::Turn { task, attempt, turn })
                 }
                 Some(Payload::Answer { task, attempt, .. }) => Some(core::PayloadRefusal::Answer { task, attempt }),
-                Some(Payload::Busy | Payload::InboxWord(_) | Payload::SettledCall(_)) => {
+                Some(Payload::Busy | Payload::Part(_) | Payload::InboxWord(_) | Payload::SettledCall(_)) => {
                     unreachable!("turn or terminal")
                 }
                 None => None,
@@ -485,7 +502,7 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
             let answer = match link.take_payload(answer).expect("retained relay answer") {
                 Payload::Busy => None,
                 Payload::SettledCall(call) => Some(call),
-                Payload::Turn { .. } | Payload::Answer { .. } | Payload::InboxWord(_) => {
+                Payload::Part(_) | Payload::Turn { .. } | Payload::Answer { .. } | Payload::InboxWord(_) => {
                     unreachable!("relay answer family")
                 }
             };

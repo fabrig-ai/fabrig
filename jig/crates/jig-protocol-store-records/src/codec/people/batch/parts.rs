@@ -10,7 +10,7 @@ pub(super) fn encode_dependencies(
 ) -> Result<Box<[u8]>, wire::Problem> {
     let mut items = List::with_capacity(count(values.len())?);
     for value in values {
-        let value = mapped::dependency_to_record(value, limits)?;
+        let value = mapped::dependency_to_record(value);
         let writer = value.encode(limits)?;
         items.push(writer).expect("dependency count");
     }
@@ -24,7 +24,7 @@ pub(super) fn decode_dependencies(
     let mut values = List::with_capacity(count(bytes.len())?);
     for _ in 0..bytes.len() {
         let Some(bytes) = super::super::pieces::split(&mut reader)? else { break };
-        let value = mapped::dependency_to_domain(wire::Dependency::decode(limits, &mut Reader::new(&bytes))?, limits)?;
+        let value = mapped::dependency_to_domain(wire::Dependency::decode(limits, &mut Reader::new(&bytes))?);
         values.push(value).expect("framed dependency count");
     }
     if u64::from(values.len())

@@ -68,7 +68,7 @@ fn family_records(
         None
     } else {
         Some(
-            crate::upgrade::schemas::get(store.prepared_schemas, family.current.as_bytes(), &mut parsed)
+            crate::upgrade::schemas::frame(store.prepared_schemas, &[], family.current.as_bytes(), &mut parsed)
                 .ok_or(Failure::Open(OpenRefusal::Set { owner: set.owner }))?,
         )
     };

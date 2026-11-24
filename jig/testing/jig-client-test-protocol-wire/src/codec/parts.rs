@@ -13,7 +13,7 @@ pub(super) fn encode_key(value: &d::Key) -> w::Key {
     };
     w::Key { origin, deployment: value.deployment, task: value.task, purpose: value.purpose }
 }
-pub(super) fn decode_key(value: w::Key, _limits: &d::Limits) -> d::Key {
+pub(super) fn decode_key(value: w::Key) -> d::Key {
     let w::Key { origin, deployment, task, purpose } = value;
     let origin = match origin {
         w::Purpose::Procedure => d::Purpose::Procedure,
@@ -57,7 +57,7 @@ pub(super) fn encode_attempt(value: &d::Attempt) -> w::Attempt {
     let d::Attempt { number, sent, deadline } = value;
     w::Attempt { number: *number, sent: sent.as_nanos(), deadline: deadline.as_nanos() }
 }
-pub(super) fn decode_attempt(value: w::Attempt, _limits: &d::Limits) -> d::Attempt {
+pub(super) fn decode_attempt(value: w::Attempt) -> d::Attempt {
     let w::Attempt { number, sent, deadline } = value;
     d::Attempt { number, sent: Wall::from_nanos(sent), deadline: Wall::from_nanos(deadline) }
 }
@@ -106,7 +106,7 @@ pub(super) fn encode_application_object(value: &d::ApplicationObject) -> w::Appl
     let d::ApplicationObject { revision, value } = value;
     w::ApplicationObject { revision: *revision, value: *value }
 }
-pub(super) fn decode_application_object(value: w::ApplicationObject, _limits: &d::Limits) -> d::ApplicationObject {
+pub(super) fn decode_application_object(value: w::ApplicationObject) -> d::ApplicationObject {
     let w::ApplicationObject { revision, value } = value;
     d::ApplicationObject { revision, value }
 }
@@ -129,13 +129,13 @@ pub(super) fn decode_outbox_entry(value: w::OutboxEntry, limits: &d::Limits) -> 
     Ok(d::OutboxEntry {
         number,
         task,
-        key: decode_key(key, limits),
+        key: decode_key(key),
         effect: decode_effect(effect, limits)?,
         attempt: match attempt {
-            Some(value) => Some(decode_attempt(value, limits)),
+            Some(value) => Some(decode_attempt(value)),
             None => None,
         },
-        phase: decode_effect_phase(phase, limits),
+        phase: decode_effect_phase(phase),
     })
 }
 pub(super) fn encode_application_release(value: &d::ApplicationRelease) -> w::ApplicationRelease {
@@ -196,7 +196,7 @@ pub(super) fn encode_fact(value: &d::Fact) -> w::Fact {
         pending: *pending,
     }
 }
-pub(super) fn decode_fact(value: w::Fact, _limits: &d::Limits) -> d::Fact {
+pub(super) fn decode_fact(value: w::Fact) -> d::Fact {
     let w::Fact { state, observed, pending } = value;
     d::Fact {
         state: match state {
@@ -230,8 +230,8 @@ pub(super) fn decode_description(value: w::Description, limits: &d::Limits) -> R
         resources: decode_description_resources(resources, limits)?,
         purpose,
         condition,
-        form: decode_form(form, limits),
-        recovery: decode_recovery(recovery, limits),
+        form: decode_form(form),
+        recovery: decode_recovery(recovery),
         price: match price {
             Some(value) => Some(value),
             None => None,
@@ -258,10 +258,10 @@ pub(super) fn decode_client_resource(
     let w::ClientResource { path, role, hold, fact } = value;
     Ok(d::ClientResource {
         path: decode_resource_path(path, limits)?,
-        role: decode_resource_role(role, limits),
-        hold: decode_hold(hold, limits),
+        role: decode_resource_role(role),
+        hold: decode_hold(hold),
         fact: match fact {
-            Some(value) => Some(decode_fact(value, limits)),
+            Some(value) => Some(decode_fact(value)),
             None => None,
         },
     })
@@ -286,15 +286,15 @@ pub(super) fn encode_application_outcome(value: &d::ApplicationOutcome) -> w::Ap
         }
     }
 }
-pub(super) fn decode_application_outcome(value: w::ApplicationOutcome, limits: &d::Limits) -> d::ApplicationOutcome {
+pub(super) fn decode_application_outcome(value: w::ApplicationOutcome) -> d::ApplicationOutcome {
     match value {
         w::ApplicationOutcome::Changed(value) => {
             let w::ApplicationOutcomeChanged { object, now } = value;
-            d::ApplicationOutcome::Changed { object, now: decode_application_object(now, limits) }
+            d::ApplicationOutcome::Changed { object, now: decode_application_object(now) }
         }
         w::ApplicationOutcome::Moved(value) => {
             let w::ApplicationOutcomeMoved { object, now } = value;
-            d::ApplicationOutcome::Moved { object, now: decode_application_object(now, limits) }
+            d::ApplicationOutcome::Moved { object, now: decode_application_object(now) }
         }
         w::ApplicationOutcome::Role(value) => {
             let w::ApplicationOutcomeRole { held } = value;
@@ -304,7 +304,7 @@ pub(super) fn decode_application_outcome(value: w::ApplicationOutcome, limits: &
         w::ApplicationOutcome::Exhausted => d::ApplicationOutcome::Exhausted,
         w::ApplicationOutcome::CoreRefused(value) => {
             let w::ApplicationOutcomeCoreRefused { why } = value;
-            d::ApplicationOutcome::CoreRefused { why: decode_refusal(why, limits) }
+            d::ApplicationOutcome::CoreRefused { why: decode_refusal(why) }
         }
     }
 }
@@ -371,7 +371,7 @@ pub(super) fn encode_form(value: d::Form) -> w::Form {
         d::Form::Set => w::Form::Set,
     }
 }
-pub(super) fn decode_form(value: w::Form, _limits: &d::Limits) -> d::Form {
+pub(super) fn decode_form(value: w::Form) -> d::Form {
     match value {
         w::Form::Creation => d::Form::Creation,
         w::Form::Transition => d::Form::Transition,
@@ -386,7 +386,7 @@ pub(super) fn encode_recovery(value: d::Recovery) -> w::Recovery {
         d::Recovery::Unrecoverable => w::Recovery::Unrecoverable,
     }
 }
-pub(super) fn decode_recovery(value: w::Recovery, _limits: &d::Limits) -> d::Recovery {
+pub(super) fn decode_recovery(value: w::Recovery) -> d::Recovery {
     match value {
         w::Recovery::Keyed => d::Recovery::Keyed,
         w::Recovery::Conditional => d::Recovery::Conditional,
@@ -400,7 +400,7 @@ pub(super) fn encode_hold_mode(value: d::HoldMode) -> w::HoldMode {
         d::HoldMode::Wait => w::HoldMode::Wait,
     }
 }
-pub(super) fn decode_hold_mode(value: w::HoldMode, _limits: &d::Limits) -> d::HoldMode {
+pub(super) fn decode_hold_mode(value: w::HoldMode) -> d::HoldMode {
     match value {
         w::HoldMode::Refuse => d::HoldMode::Refuse,
         w::HoldMode::Wait => d::HoldMode::Wait,
@@ -413,15 +413,15 @@ pub(super) fn encode_hold(value: d::Hold) -> w::Hold {
         d::Hold::None => w::Hold::None,
     }
 }
-pub(super) fn decode_hold(value: w::Hold, limits: &d::Limits) -> d::Hold {
+pub(super) fn decode_hold(value: w::Hold) -> d::Hold {
     match value {
         w::Hold::Exclusive(value) => {
             let w::HoldExclusive { mode } = value;
-            d::Hold::Exclusive { mode: decode_hold_mode(mode, limits) }
+            d::Hold::Exclusive { mode: decode_hold_mode(mode) }
         }
         w::Hold::Pooled(value) => {
             let w::HoldPooled { mode } = value;
-            d::Hold::Pooled { mode: decode_hold_mode(mode, limits) }
+            d::Hold::Pooled { mode: decode_hold_mode(mode) }
         }
         w::Hold::None => d::Hold::None,
     }
@@ -431,10 +431,7 @@ pub(super) fn encode_diagnostic_availability(value: d::DiagnosticAvailability) -
         d::DiagnosticAvailability::NotKept => w::DiagnosticAvailability::NotKept,
     }
 }
-pub(super) fn decode_diagnostic_availability(
-    value: w::DiagnosticAvailability,
-    _limits: &d::Limits,
-) -> d::DiagnosticAvailability {
+pub(super) fn decode_diagnostic_availability(value: w::DiagnosticAvailability) -> d::DiagnosticAvailability {
     match value {
         w::DiagnosticAvailability::NotKept => d::DiagnosticAvailability::NotKept,
     }
@@ -449,7 +446,7 @@ pub(super) fn encode_effect_phase(value: d::EffectPhase) -> w::EffectPhase {
         d::EffectPhase::Held => w::EffectPhase::Held,
     }
 }
-pub(super) fn decode_effect_phase(value: w::EffectPhase, _limits: &d::Limits) -> d::EffectPhase {
+pub(super) fn decode_effect_phase(value: w::EffectPhase) -> d::EffectPhase {
     match value {
         w::EffectPhase::Kept => d::EffectPhase::Kept,
         w::EffectPhase::Sent => d::EffectPhase::Sent,
@@ -467,7 +464,7 @@ pub(super) fn encode_resource_role(value: d::ResourceRole) -> w::ResourceRole {
         d::ResourceRole::Unavailable => w::ResourceRole::Unavailable,
     }
 }
-pub(super) fn decode_resource_role(value: w::ResourceRole, _limits: &d::Limits) -> d::ResourceRole {
+pub(super) fn decode_resource_role(value: w::ResourceRole) -> d::ResourceRole {
     match value {
         w::ResourceRole::Owned => d::ResourceRole::Owned,
         w::ResourceRole::Participating => d::ResourceRole::Participating,

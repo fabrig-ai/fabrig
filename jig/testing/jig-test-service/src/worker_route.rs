@@ -12,6 +12,10 @@ pub(super) use jig_protocol_worker_agents::route::activity;
 
 pub(super) fn encode(value: Encodable, limits: &Limits, endpoints: &Endpoints) -> Encoded {
     match value {
+        Encodable::Part(part) => match route::encode_part(part, limits, endpoints) {
+            Some(part) => Encoded::Part(part),
+            None => Encoded::Undecodable,
+        },
         Encodable::Turn(turn) => match route::encode_turn(turn, limits, endpoints) {
             Some(turn) => Encoded::Turn(turn),
             None => Encoded::Undecodable,
@@ -120,6 +124,8 @@ mod tests {
                         panic!("fixture assignment")
                     };
                     let source = hub::Start {
+                        tell_parts: false,
+                        parts: Box::default(),
                         live: hub::LiveAsk { text, reasoning, input },
                         workspace: None,
                         charter: assignment.assignment.charter,

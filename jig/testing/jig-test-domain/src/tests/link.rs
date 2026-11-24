@@ -241,6 +241,7 @@ fn prepare_brief_assignment(
             transcript: fixture.transcript,
             saved: Box::default(),
             answered: Box::default(),
+            parts: Box::default(),
             grants: fixture.grants,
         }))),
         work,

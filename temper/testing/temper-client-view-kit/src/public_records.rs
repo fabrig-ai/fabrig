@@ -1,5 +1,4 @@
 //! Public wire records used by the anonymous view (temper/docs/design/client/web/public.md, 4).
-use self as records;
 use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{List, Queue, Time, Writer};
 use temper_client_domain::{
@@ -39,12 +38,11 @@ pub fn card() -> Box<[u8]> {
 }
 #[must_use]
 pub fn card_line(own: j::PublicLine) -> Box<[u8]> {
-    let card = j::PublicCard {
-        line: own,
-        lineage: List::from_boxed(Box::new([PROJECT])),
-        delegates: List::from_boxed(Box::new([line(true)])),
-        folded: 0,
-    };
+    card_with(own, List::from_boxed(Box::new([PROJECT])), line(true))
+}
+#[must_use]
+pub fn card_with(own: j::PublicLine, lineage: List<u64>, delegate: j::PublicLine) -> Box<[u8]> {
+    let card = j::PublicCard { line: own, lineage, delegates: List::from_boxed(Box::new([delegate])), folded: 0 };
     let mut writer = Writer::new(
         usize::try_from(card.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
             .expect("small card"),
@@ -62,12 +60,16 @@ pub fn change() -> Box<[u8]> {
 }
 #[must_use]
 pub fn change_commits(head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u8]> {
+    change_with_step(f::PublicStep::Checking, head, merge)
+}
+#[must_use]
+pub fn change_with_step(step: f::PublicStep, head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u8]> {
     let gate =
         f::PublicGate { number: 3, kind: f::PublicGateKind::Review, blocks: true, verdict: f::PublicVerdict::Approved };
     let change = f::PublicChange {
         task: 0,
         head,
-        step: f::PublicStep::Checking,
+        step,
         repair: None,
         merge,
         tiers: 0,
@@ -101,15 +103,25 @@ pub fn landings() -> Box<[u8]> {
 }
 #[must_use]
 pub fn landings_with(queue_present: bool, landed: bool) -> Box<[u8]> {
+    landings_record(queue_present, landed, if landed { Some(0) } else { None }, 0)
+}
+
+/// A stock queue may have a waiting member and a recent merge, but does not hold the turn.
+#[must_use]
+pub fn stock_landings(queue_present: bool, landed: bool) -> Box<[u8]> {
+    landings_record(queue_present, landed, None, 1)
+}
+
+fn landings_record(queue_present: bool, landed: bool, turn: Option<u16>, member: u16) -> Box<[u8]> {
     let queued = f::PublicQueued { task: 0, goal: 1, ready_since: 0 };
     let queue = f::PublicQueue { changes: List::from_boxed(Box::new([queued])) };
     let line = f::PublicLandingLine {
-        members: List::from_boxed(Box::new([0])),
+        members: List::from_boxed(Box::new([member])),
         phase: f::PublicLandingPhase::Landed,
         landed: List::from_boxed(Box::new([HEAD])),
     };
     let landings = f::PublicLandings {
-        turn: if landed { Some(0) } else { None },
+        turn,
         landings: if landed { List::from_boxed(Box::new([line])) } else { List::with_capacity(0) },
         queues: if queue_present { List::from_boxed(Box::new([queue])) } else { List::with_capacity(0) },
     };
@@ -121,17 +133,7 @@ pub fn landings_with(queue_present: bool, landed: bool) -> Box<[u8]> {
 // A stock queue merge has no turn, preparation, candidates or gate proofs.
 #[must_use]
 pub fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
-    let line = f::PublicLandingLine {
-        members: List::from_boxed(Box::new([1])),
-        phase: f::PublicLandingPhase::Landed,
-        landed: List::from_boxed(Box::new([HEAD])),
-    };
-    let landings =
-        f::PublicLandings { turn: None, landings: List::from_boxed(Box::new([line])), queues: List::with_capacity(0) };
-    let mut writer =
-        Writer::new(usize::try_from(landings.measure(&f::CEILINGS).expect("within ceilings")).expect("small landings"));
-    landings.write(&f::CEILINGS, &mut writer).expect("landings");
-    let list = application(writer.finish());
+    let list = stock_landings(false, true);
     let member = f::PublicMember {
         head: None,
         left: None,
@@ -234,11 +236,15 @@ pub fn projects() -> Box<[u8]> {
 }
 #[must_use]
 pub fn projects_with(present: bool) -> Box<[u8]> {
-    let project = j::PublicProject { project: PROJECT, name: b"A public project".as_slice().into() };
-    let projects = j::PublicProjects {
-        projects: if present { List::from_boxed(Box::new([project])) } else { List::with_capacity(0) },
-        max_age: 8,
-    };
+    projects_named(if present { &[(PROJECT, PROJECT_NAME)] } else { &[] })
+}
+#[must_use]
+pub fn projects_named(named: &[(u64, &[u8])]) -> Box<[u8]> {
+    let mut projects = List::with_capacity(u32::try_from(named.len()).expect("bounded project list"));
+    for &(project, name) in named {
+        projects.push(j::PublicProject { project, name: name.into() }).expect("one row per named project");
+    }
+    let projects = j::PublicProjects { projects, max_age: 8 };
     let mut writer = Writer::new(
         usize::try_from(projects.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
             .expect("small projects"),
@@ -248,6 +254,7 @@ pub fn projects_with(present: bool) -> Box<[u8]> {
 }
 
 pub const PROJECT: u64 = 0x3f2a_9c01_7654_3210;
+pub const PROJECT_NAME: &[u8] = b"A public project";
 
 pub const TASK: u64 = 0x9abc_def0_7654_3210;
 
@@ -265,11 +272,14 @@ pub fn answer(reader: &mut Reader, doc: Doc, heard: Heard) {
 
 #[must_use]
 pub fn board() -> Box<[u8]> {
-    let line = line(true);
-    let goal = j::PublicGoal { line, tree: List::from_boxed(Box::new([records::line(false)])), folded: 2 };
+    board_with(line(true), line(false))
+}
+#[must_use]
+pub fn board_with(line: j::PublicLine, delegate: j::PublicLine) -> Box<[u8]> {
+    let goal = j::PublicGoal { line, tree: List::from_boxed(Box::new([delegate])), folded: 2 };
     let board = j::PublicBoard {
         project: PROJECT,
-        name: b"A public project".as_slice().into(),
+        name: PROJECT_NAME.into(),
         live: List::from_boxed(Box::new([goal])),
         live_folded: 0,
         ended: List::with_capacity(0),

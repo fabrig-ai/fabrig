@@ -162,7 +162,7 @@ fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_r
     restore_local(&mut service);
     let link = service.links().pop().unwrap();
     let engine = service.engine.as_mut().unwrap();
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
     let j::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else { panic!("owner sign in") };

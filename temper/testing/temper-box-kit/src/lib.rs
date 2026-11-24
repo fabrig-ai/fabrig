@@ -1,8 +1,8 @@
 //! Shared processes, forges, people and fixtures for temper-box tests.
 //!
 //! Compiled once for the binaries (tools/crates/design.md, 3.2).
-mod admission;
-pub use admission::admission;
+pub mod admission;
+pub use admission::admission_over;
 pub mod account_move;
 pub mod account_transfer;
 pub mod batch_landing;
@@ -10,10 +10,11 @@ pub mod batch_landing;
 pub mod box_link;
 pub mod boxed;
 pub mod bundle_fixture;
-pub mod case;
 pub mod cluster;
 pub mod cluster_turn;
 pub mod configuration;
+mod recipe;
+pub use recipe::{Recipe, configuration, lay_configuration, prepare_agent, recipe};
 pub mod configuration_fixture;
 pub mod csv_repair;
 pub mod ctl;
@@ -78,9 +79,13 @@ pub fn reserve_listeners<const N: usize>(taken: &[SocketAddr]) -> [std::net::Tcp
     temper_fixtures::ports::reserve(taken)
 }
 
-/// Reserves every listener an init-made document names and moves its socket and HTTP URLs,
-/// keeping URL paths, so that no story depends on init's preferred ports.
-pub fn own_listeners(document: &mut serde_json::Value) {
+fn listener_addresses(document: &serde_json::Value) -> [SocketAddr; 2] {
+    ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
+        document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
+    })
+}
+
+fn move_listeners(document: &mut serde_json::Value, old: [SocketAddr; 2], drawn: [SocketAddr; 2]) {
     fn replace(value: &mut serde_json::Value, moves: &[(String, String)]) {
         match value {
             serde_json::Value::String(text) => {
@@ -103,10 +108,6 @@ pub fn own_listeners(document: &mut serde_json::Value) {
         }
     }
 
-    let old = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
-        document.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
-    });
-    let drawn = free_addresses::<2>(&old);
     let moves: Vec<_> =
         old.into_iter().zip(drawn).map(|(before, after)| (before.to_string(), after.to_string())).collect();
     replace(document, &moves);
@@ -116,8 +117,18 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 pub fn own_listener_files(directory: &Path) {
     let path = directory.join(temper_config_shell::FILE);
     let read = read_start(&path, temper_config_shell::Shape::Standalone);
+    let document = serde_json::from_slice(&read.document).expect("start document");
+    let drawn = free_addresses(&listener_addresses(&document));
+    let kept = move_listener_file(read, drawn);
+    write_file(&path, &kept, temper_config_shell::Shape::Standalone);
+}
+
+/// Move the effective listeners, retaining the file's explicit non-listener fields.
+#[must_use]
+pub fn move_listener_file(read: temper_config_shell::Read, drawn: [SocketAddr; 2]) -> temper_config_shell::File {
     let mut document = serde_json::from_slice(&read.document).expect("start document");
-    own_listeners(&mut document);
+    let old = listener_addresses(&document);
+    move_listeners(&mut document, old, drawn);
     let listener = |key: &str| {
         document["application"][key]["listener"]["socket"].as_str().expect("socket").parse().expect("address")
     };
@@ -127,7 +138,7 @@ pub fn own_listener_files(directory: &Path) {
     if kept.public.is_some() {
         kept.public = document["application"]["clients"]["public"].as_str().map(str::to_owned);
     }
-    write_file(&path, &kept, temper_config_shell::Shape::Standalone);
+    kept
 }
 
 /// Read retained file values without losing explicit keys or their absence.
@@ -139,12 +150,11 @@ pub fn read_file(path: &Path, shape: temper_config_shell::Shape) -> temper_confi
 #[must_use]
 pub fn read_start(path: &Path, shape: temper_config_shell::Shape) -> temper_config_shell::Read {
     let root = path.parent().expect("configuration directory");
-    let facts = temper_config_shell::Facts {
-        login: "ada".into(),
-        hostname: "fixture".into(),
-        provider_key: temper_agent_fixtures::data(root).join("provider.key").is_file(),
-    };
-    temper_config_shell::parse(&fs::read(path).expect("configuration file"), shape, &facts).expect("configuration")
+    configuration::parse_with_key(
+        &fs::read(path).expect("configuration file"),
+        shape,
+        temper_agent_fixtures::data(root).join("provider.key").is_file(),
+    )
 }
 
 /// A mixed-shape harness selects the table that accepts its explicit file keys.
@@ -179,42 +189,6 @@ pub fn write_private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
-#[expect(clippy::must_use_candidate, reason = "fixture writers are also called just for their file effects")]
-pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::documents::Configuration {
-    assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
-    for name in ["accounts", "secrets", "state"] {
-        fs::create_dir_all(directory.join(name)).expect("deployment directory");
-    }
-    for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
-        if name.starts_with(b"charters/") || name.as_ref() == b"agent.json" {
-            continue;
-        }
-        write_private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
-    }
-    write_private(&directory.join("worker.secret"), b"worker-secret");
-    write_private(&directory.join("secrets/forge-1.user"), b"42\n");
-    write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
-    write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
-    write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, mut value) = configuration::typed_documents(
-        directory,
-        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
-    );
-    forgejo::configuration(directory, forge, &mut value);
-    temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
-    let composed = temper_agent_fixtures::at(&value, directory);
-    configuration::turn_bounds::apply(&mut value, configuration::turn_bounds::turn_body(&composed));
-    temper_agent_fixtures::providers::keep(&mut value, &temper_agent_fixtures::data(directory));
-    let mut file = configuration::file();
-    file.listen = value["application"]["clients"]["listener"]["socket"].as_str().map(|v| v.parse().expect("clients"));
-    file.webhooks =
-        value["application"]["webhooks"]["listener"]["socket"].as_str().map(|v| v.parse().expect("webhooks"));
-    write_file(&directory.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
-    value.agent_bounds(&temper_agent_fixtures::prepared(directory).agent);
-    limit_settings::remember(directory, &value);
-    value
-}
-
 /// A subprocess story without a limit boundary uses the shipped agent's figures.
 pub fn stock_agent(directory: &Path) {
     let pending = directory.join("fixture-limits.json");
@@ -275,7 +249,7 @@ use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,
-    end_to_end::{Binary, Command, Expectation, Mode, Streams},
+    end_to_end::{Binary, Command, Mode, Streams},
     real,
 };
 
@@ -694,7 +668,6 @@ pub struct Seen {
 enum Ending {
     Stop,
     Box,
-    Crash,
 }
 enum ChatPhase {
     SettingUp,
@@ -705,7 +678,6 @@ enum ChatPhase {
 struct ChatJudge<'a> {
     failed: Option<String>,
     phase: ChatPhase,
-    ending: Ending,
     deadline: patience::Patience,
     forge: Option<&'a forgejo::Throwaway>,
     poll: Time,
@@ -756,10 +728,7 @@ impl Referee<Process> for ChatJudge<'_> {
                 let Process::Binary(binary) = &mut procs[0] else {
                     return Err(String::from("binary"));
                 };
-                match self.ending {
-                    Ending::Stop | Ending::Box => binary.signal(Signal::Terminate),
-                    Ending::Crash => binary.signal_tree(Signal::Kill),
-                }
+                binary.signal(Signal::Terminate);
                 for proc in procs {
                     if let Process::Peer(peer) = proc {
                         peer.shutdown();
@@ -815,20 +784,8 @@ impl Referee<Process> for ChatJudge<'_> {
         if binary.exit_status().is_some() && !self.stopping() {
             return Err(format!("temper serve failed: {}", String::from_utf8_lossy(binary.stderr())));
         }
-        match self.ending {
-            Ending::Stop | Ending::Box => {
-                if !binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)) {
-                    return Err(format!(
-                        "temper serve did not stop cleanly: {}",
-                        String::from_utf8_lossy(binary.stderr())
-                    ));
-                }
-            }
-            Ending::Crash => {
-                if binary.stderr_overflowed() {
-                    return Err(String::from("crashed temper serve overflowed stderr"));
-                }
-            }
+        if !binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)) {
+            return Err(format!("temper serve did not stop cleanly: {}", String::from_utf8_lossy(binary.stderr())));
         }
         if !matches!(self.phase, ChatPhase::Settled)
             && let Some(figures) = self.deadline.failed()
@@ -856,48 +813,15 @@ impl Referee<Process> for ChatJudge<'_> {
 }
 #[must_use]
 pub fn run(directory: &Path, script: person::Script, peer: Option<llm::Listening>, deadline: Duration) -> Seen {
-    run_story(directory, script, peer, deadline, None, Ending::Stop)
+    run_story(directory, script, peer, deadline, Ending::Stop)
 }
 /// Run the native person's script on the initialized box, including its demo setup.
 #[must_use]
 pub fn run_box(directory: &Path, script: person::Script, deadline: Duration) -> Seen {
-    run_story(directory, script, None, deadline, None, Ending::Box)
+    run_story(directory, script, None, deadline, Ending::Box)
 }
 /// testing/process-tier.md bounds each landing story at 360 seconds.
 pub const LANDING: Duration = Duration::from_secs(360);
-/// Past `LANDING`: poll, `poll_max` and slow ship at 5, 30 and 40 s; stall ships at 30 min.
-/// This sets the paces and stall to 600 s: above `LANDING`, but below the shipped 1800 s stall.
-pub const RAISED_MS: u64 = 600_000;
-const _: () = assert!(Duration::from_millis(RAISED_MS).as_nanos() > LANDING.as_nanos());
-// The hinted job's 5 s sleep outlasts settle (protocol/setup/webhooks.md, 1, protocol/setup/testing.md, 4).
-const HINTED_SETTLE_MS: u64 = 3000;
-
-/// Raises the three keep paces, lowers checking's bounds in proportion to a 600 s stall,
-/// and shortens the hinted story's settle.
-pub fn raise_paces(directory: &Path) {
-    let mut value = limit_settings::configuration(directory);
-    for name in [
-        "forge.client.poll_ms",
-        "forge.client.poll_max_ms",
-        "forge.client.slow_ms",
-        "forge.change_policy.stall_ms",
-        "forge.change_policy.unknown_grace_ms",
-    ] {
-        value.temper_over(name, RAISED_MS);
-    }
-    value.temper_over("forge.change_policy.runner_wait_ms", RAISED_MS.saturating_mul(8));
-    value.temper_over("forge.client.settle_ms", HINTED_SETTLE_MS);
-    limit_settings::remember(directory, &value);
-}
-#[must_use]
-pub fn run_until_landed(
-    directory: &Path,
-    script: person::Script,
-    peer: llm::Listening,
-    forge: &forgejo::Throwaway,
-) -> Seen {
-    run_story(directory, script, Some(peer), LANDING, Some(forge), Ending::Crash)
-}
 // Sign-in, inventory, whole template read, then one owner settings change.
 const NATIVE_SETUP_CALLS: usize = 4;
 fn native_settings_setup(directory: &Path, agents: Option<serde_json::Value>) -> Vec<ctl::Step> {
@@ -964,7 +888,6 @@ fn run_story(
     script: person::Script,
     peer: Option<llm::Listening>,
     deadline: Duration,
-    forge: Option<&forgejo::Throwaway>,
     ending: Ending,
 ) -> Seen {
     let clock = Clock::new();
@@ -980,10 +903,6 @@ fn run_story(
     let mut binary = match ending {
         Ending::Stop => serve(directory),
         Ending::Box => sign_in::start(directory),
-        Ending::Crash => {
-            Binary::start_with_tree(serve_command(directory), Mode::Pipes, 65_536, Expectation::Supervise, false)
-                .expect("temper serve starts for a whole-tree crash")
-        }
     };
     let streams = binary.take_streams().expect("binary pipes");
     let mut fds = streams.descriptors();
@@ -995,8 +914,7 @@ fn run_story(
     let mut world = real::World::new(ChatJudge {
         failed: None,
         phase: if setting_up { ChatPhase::SettingUp } else { ChatPhase::Running },
-        ending,
-        forge,
+        forge: None,
         poll: clock.now().now,
         merged: false,
         deadline: patience::Patience::watching(
@@ -1032,17 +950,12 @@ fn run_story(
     let Process::Binary(binary) = &outcome.procs[0] else {
         panic!("binary");
     };
-    if !matches!(ending, Ending::Crash) {
-        assert_eq!(
-            binary.exit_status(),
-            Some(Exit::Code(0)),
-            "native story drained: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
-    }
-    if matches!(ending, Ending::Crash) {
-        assert!(binary.counts().is_some(), "the crashed temper serve tree settled before the restart");
-    }
+    assert_eq!(
+        binary.exit_status(),
+        Some(Exit::Code(0)),
+        "native story drained: {}",
+        String::from_utf8_lossy(binary.stderr())
+    );
     let Process::Person(person) = &outcome.procs[1] else {
         panic!("native person");
     };

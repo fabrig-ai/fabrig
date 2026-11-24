@@ -62,6 +62,8 @@ pub enum Event {
         /// Tools-issued kit identity, valid until its close terminal.
         kit: Token,
     },
+    /// Cut this kit's commands, retaining output and elapsed time, then close it.
+    Cut { kit: Token },
     /// Cancel this kit's held jobs; `JobsCancelled` follows their settlement.
     CancelJobs { kit: Token },
     /// End this call's wait early; its existing answer right remains owed.
@@ -298,6 +300,8 @@ pub enum Done {
         /// Bytes omitted between the retained process output head and tail.
         dropped: u64,
     },
+    /// A cancelled command's retained output, before its pipes closed.
+    CommandCancelled { head: Box<[u8]>, tail: Box<[u8]>, dropped: u64 },
     /// Spawn: still running at its yield, now held under its owner token.
     Held { head: Box<[u8]>, tail: Box<[u8]>, dropped: u64 },
     /// A job act's answer, draining unread output and reporting its end.

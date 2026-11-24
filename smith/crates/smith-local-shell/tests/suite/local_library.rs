@@ -75,7 +75,9 @@ impl Invocation {
             config,
             Some(lower),
             Resources {
-                state_root: { sim.root(pid, skein_sim::Handle::new(state.raw())) },
+                files: smith_local_shell::testing::ProductFiles::store(
+                    sim.root(pid, skein_sim::Handle::new(state.raw())),
+                ),
                 input,
                 output,
                 signals,

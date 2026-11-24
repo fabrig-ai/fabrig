@@ -144,20 +144,18 @@ fn a_non_utf8_document_text_fails_translation() {
     for bytes in [&[0xc3_u8][..], &[255_u8, b'/'][..]] {
         let value = jig_domain_core_vocabulary::documents::Text { bytes: bytes.into(), cut: true };
         assert_eq!(
-            translate::owner::text(&value, &limits).unwrap().encode(&limits),
+            translate::owner::text(&value).encode(&limits),
             Err(w::Problem { path: w::paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Utf8 })
         );
     }
 }
 
 fn a_run_writing_with_a_call_becomes_its_run_state() {
-    let limits = fixtures::wire_limits();
     let source = fixtures::run_writing();
-    assert_eq!(translate::live::run(&source, &limits), Ok(jig_client_test_records::run_writing_record()));
+    assert_eq!(translate::live::run(&source), Ok(jig_client_test_records::run_writing_record()));
 }
 fn a_run_text_keeps_its_turn_retry_and_offsets() {
-    let limits = fixtures::wire_limits();
-    assert_eq!(translate::live::writing(&fixtures::writing(), &limits), Ok(jig_client_test_records::writing_record()));
+    assert_eq!(translate::live::writing(&fixtures::writing()), Ok(jig_client_test_records::writing_record()));
 }
 fn an_inbox_with_both_groups_becomes_its_record() {
     let limits = fixtures::wire_limits();
@@ -188,7 +186,7 @@ fn an_inbox_entry_33_goals_deep_encodes_at_the_wire_ceiling() {
     let mut selections = Reader::new(record.selection.as_ref().unwrap());
     let bytes = skein_codec::piece::split(&mut selections).unwrap().unwrap();
     let selection = w::InboxSelection::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    assert_eq!((&selection.cursor), &translate::inbox::cursor(expected.cursor, &w::CEILINGS).unwrap());
+    assert_eq!((&selection.cursor), &translate::inbox::cursor(expected.cursor));
     assert_eq!((&selection.goals), &expected.goals);
     assert!(selections.is_empty());
 }
@@ -359,7 +357,7 @@ fn creating_and_compound_capacity_refusals_keep_the_operations_kind() {
     let mut refusal = *deployment.person_room_refusals.get(0).unwrap();
     for (action, expected) in CREATION_CAPACITY {
         refusal.action = action;
-        let row = translate::deployment::person_refusal(&refusal, &fixtures::wire_limits()).unwrap();
+        let row = translate::deployment::person_refusal(&refusal);
         assert_eq!((&row.action), &expected);
         assert_eq!(row.key.person, refusal.key.person);
         assert_eq!((&row.key.key), &refusal.key.key);

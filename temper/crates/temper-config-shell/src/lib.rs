@@ -9,7 +9,7 @@ pub mod rows;
 mod source;
 mod template;
 
-pub use machine::{facts, read};
+pub use machine::{facts, read, read_with};
 pub use pages::{help, reference};
 pub use parse::{parse, patch};
 pub use render::render;

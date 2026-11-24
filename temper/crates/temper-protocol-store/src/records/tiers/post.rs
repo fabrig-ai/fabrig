@@ -5,25 +5,17 @@ pub(super) fn encode(posting: &d::TierPosting, failing: &p::Failures) -> w::Tier
     let context = super::super::Context { posted_failures: failing.clone(), ..super::super::Context::UNBOUNDED };
     let mut landings = List::with_capacity(u32::try_from(posting.landings.len()).expect(FITS));
     for landing in &posting.landings {
-        landings
-            .push(crate::generated::store::tier_posted_landing_to_record(landing, &context).expect(FITS))
-            .expect(FITS);
+        landings.push(crate::generated::store::tier_posted_landing_to_record(landing, &context)).expect(FITS);
     }
     let mut comments = List::with_capacity(u32::try_from(posting.comments.len()).expect(FITS));
     for comment in &posting.comments {
-        comments
-            .push(
-                crate::generated::store::tier_comment_to_record(comment, &super::super::Context::UNBOUNDED)
-                    .expect(FITS),
-            )
-            .expect(FITS);
+        comments.push(crate::generated::store::tier_comment_to_record(comment)).expect(FITS);
     }
     w::TierPosting {
         number: posting.number,
         tip: posting.tip,
         link: posting.link.clone(),
-        status: crate::generated::store::check_to_record(&posting.check, &super::super::Context::UNBOUNDED)
-            .expect(FITS),
+        status: crate::generated::store::check_to_record(&posting.check),
         description: posting.description.clone(),
         landings,
         comments,
@@ -72,8 +64,7 @@ pub(super) fn decode(posting: w::TierPosting, failing: &p::Failures) -> Result<d
     let landings = decoded.into_boxed();
     let mut decoded = List::with_capacity(comments.len());
     for comment in comments.into_boxed() {
-        let comment =
-            crate::generated::store::tier_comment_to_domain(comment, &super::super::Context::UNBOUNDED).expect(FITS);
+        let comment = crate::generated::store::tier_comment_to_domain(comment);
         match comment.kind {
             d::TierCommentKind::Verdict { at } => {
                 if landings.get(usize::from(at)).ok_or(Undecodable::Malformed)?.commit != comment.landing {
@@ -85,7 +76,7 @@ pub(super) fn decode(posting: w::TierPosting, failing: &p::Failures) -> Result<d
         decoded.push(comment).expect(FITS);
     }
     let comments = decoded.into_boxed();
-    let check = crate::generated::store::check_to_domain(status, &super::super::Context::UNBOUNDED).expect(FITS);
+    let check = crate::generated::store::check_to_domain(status);
     let count = u32::try_from(comments.len()).or(Err(Undecodable::Malformed))?;
     if next > count.checked_add(1).ok_or(Undecodable::Malformed)?
         || (entry.is_some() && next > count)
@@ -119,11 +110,9 @@ fn decode_blame(blame: w::TierPostedBlame, failing: &p::Failures) -> Result<p::B
     Ok(if suspect { p::Blame::Suspect(tests) } else { p::Blame::Owns(tests) })
 }
 
-pub fn tier_posted_blame_to_record(
-    value: &p::Blame,
-    context: &super::super::Context,
-) -> Result<w::TierPostedBlame, w::Problem> {
-    Ok(encode_blame(value, &context.posted_failures))
+#[must_use]
+pub fn tier_posted_blame_to_record(value: &p::Blame, context: &super::super::Context) -> w::TierPostedBlame {
+    encode_blame(value, &context.posted_failures)
 }
 pub fn tier_posted_blame_to_domain(
     value: w::TierPostedBlame,
