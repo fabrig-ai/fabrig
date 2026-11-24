@@ -891,3 +891,200 @@ fn the_live_temper_profile_selects_only_the_key_and_claude_code_stories() {
     );
     assert!(!filter.contains("chatgpt"));
 }
+
+#[test]
+fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LiveProfile};
+
+    let data = Path::new("/fixture/live-claude/data");
+    let executable = Path::new("/usr/bin/true");
+    let init = LiveProfile::compose(data, LiveModel::ChatGpt { account: None }, executable);
+    let login = data.join("programs/claude-login");
+    let claude = LiveProfile::compose(data, LiveModel::ClaudeCode { login: &login }, executable);
+    let agent = &claude.agent;
+    let demo = init.agent["endpoints"]
+        .as_array()
+        .expect("init endpoints")
+        .iter()
+        .find(|endpoint| endpoint["name"] == "demo")
+        .expect("init demo");
+    assert_eq!(agent["programs"], json!({"claude_code":{"path":"fetched", "directory":data.join("programs")}}));
+    assert_eq!(
+        agent["endpoints"],
+        json!([
+            {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
+                "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
+                "connect":10000, "handshake":10000, "headers":[],
+                "limits": {
+                    "window":1_048_576, "output":48_000, "reasoning_item":65536, "head":60000, "idle":300_000,
+                    "oversized_reasoning":"fail"}},
+            demo
+        ])
+    );
+    assert_eq!(agent["profile"], init.agent["profile"]);
+    assert_eq!(agent["environment"], init.agent["environment"]);
+    assert_eq!(
+        temper_agent_fixtures::providers::flat(&claude.providers),
+        json!({
+            "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
+                "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
+                "sources":{"programs":["claude_code"]}}],
+            "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
+                "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
+                "headers":[], "connect_ms":10000, "handshake_ms":10000}]
+        })
+    );
+    assert_eq!(claude.document["application"], init.document["application"], "including init's demo");
+    assert_eq!(claude.document["engine"]["limits"], init.document["engine"]["limits"]);
+    assert_eq!(claude.document["workers"], init.document["workers"]);
+    let prepared = support::prepare_agent(serde_json::to_vec(agent).expect("agent JSON").into());
+    assert_eq!(prepared.agent.bounds.program_endpoints.as_ref(), [2]);
+}
+
+#[test]
+fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LiveProfile};
+
+    let data = Path::new("/fixture/live-claude/data");
+    let login = data.join("programs/claude-login");
+    let profile = LiveProfile::compose(data, LiveModel::ClaudeCode { login: &login }, Path::new("/usr/bin/true"));
+    let (engine, given) = profile.engine(&data.with_file_name("config"));
+    let defaults = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).expect("stock");
+    let mut ordinary: Vec<_> = defaults
+        .models
+        .iter()
+        .filter(|entry| entry.number != 8)
+        .map(|entry| (entry.model.name.as_ref(), entry.model.endpoint))
+        .collect();
+    assert_eq!(ordinary.len(), 7);
+    ordinary.sort();
+    for charter in &defaults.charters {
+        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"demo".as_slice(), 3));
+        let resolved = jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
+            .expect("stock charter");
+        let mut alternatives: Vec<_> =
+            resolved.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
+        alternatives.sort();
+        assert_eq!(alternatives, ordinary);
+    }
+}
+
+#[test]
+fn a_key_configuration_changes_only_anthropics_list_policy() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LiveProfile};
+    use temper_agent_fixtures::providers;
+
+    let data = Path::new("/fixture/live-key/data");
+    let init = LiveProfile::compose(data, LiveModel::ChatGpt { account: None }, Path::new(""));
+    let key =
+        LiveProfile::compose(data, LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") }, Path::new(""));
+    let mut expected_providers = providers::flat(&init.providers);
+    let provider = expected_providers["providers"]
+        .as_array_mut()
+        .expect("providers")
+        .iter_mut()
+        .find(|provider| provider["name"] == "anthropic")
+        .expect("Anthropic")
+        .as_object_mut()
+        .expect("provider");
+    assert!(provider.remove("keep").is_some());
+    assert!(provider.remove("drop").is_some());
+    assert_eq!(providers::flat(&key.providers), expected_providers, "only Anthropic's list changes");
+    assert_eq!(key.document, init.document, "the startup document is unchanged");
+    assert_eq!(key.agent, init.agent, "Claude Code's program stays as init writes it");
+}
+
+#[test]
+fn held_login_returns_before_stop_on_each_ending() {
+    use skein_io::kernel::Exit;
+    use skein_lib::Time;
+    use std::path::Path;
+    use support::{
+        forge_land::{LiveModel, live_commands},
+        held_login::{End, Ending},
+    };
+
+    let record = "/fixture/held/record";
+    let model = LiveModel::ChatGpt { account: Some(Path::new(record)) };
+    for (failed_box, expected) in [
+        (None, vec![("connect-plan", Ok(())), ("restart-plan", Ok(()))]),
+        (Some(true), vec![("connect-plan", Err("run failed"))]),
+        (Some(false), vec![("connect-plan", Ok(())), ("restart-plan", Err("run failed"))]),
+    ] {
+        let mut ended = Vec::new();
+        for first in [true, false] {
+            let (commands, _) = live_commands(first, model);
+            let import =
+                commands.iter().find(|args| args.starts_with(&["account".into(), "import".into()])).expect("import");
+            assert_eq!(&import[..4], ["account", "import", record, "--key"], "first={first}");
+            let key = import[4].as_str();
+            let failed = failed_box == Some(first);
+            let now = Time::ZERO;
+            let mut ending = Ending::new(true, first, failed, now);
+            assert!(matches!(ending.next(now, false, None), End::Wait), "drain ctl before return: {key}");
+            assert!(matches!(ending.next(now, true, None), End::Return), "return before stop: {key}");
+            assert!(matches!(ending.next(now, true, None), End::Wait), "await give-back: {key}");
+            let End::Stop(return_failure) = ending.next(now, true, Some(Some(Exit::Code(0)))) else {
+                panic!("stop after the record returns: {key}");
+            };
+            let outcome = return_failure.or(failed.then_some("run failed")).map_or(Ok(()), Err);
+            ended.push((key.to_owned(), outcome));
+            if outcome.is_err() {
+                break;
+            }
+        }
+        let observations: Vec<_> = ended.iter().map(|(key, outcome)| (key.as_str(), *outcome)).collect();
+        assert_eq!(observations, expected, "failed_box={failed_box:?}");
+    }
+}
+
+#[test]
+fn held_login_calls_use_the_sittings_client_directory() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LivePlan};
+
+    let store = Path::new("/fixture/stores/forge-land");
+    let paths = ["config", "data", "cache"].map(|name| store.join(name));
+    let run = store.join("first");
+    let record = Path::new("/fixture/held/record");
+    let binary = Path::new("/fixture/ctl-stub's path");
+    let plan = LivePlan {
+        paths: &paths,
+        client: &run,
+        first: true,
+        kept: false,
+        model: LiveModel::ChatGpt { account: Some(record) },
+        address: None,
+        tasks: None,
+        baseline: None,
+        roots: None,
+        words: "",
+        line: "",
+    };
+    let client = run.join("client");
+    assert_eq!(plan.client_directory(), client);
+    let arguments = ["account", "import", "/fixture/held/record", "--key", "connect-plan"];
+    let import = plan.import_script(binary, &arguments);
+    assert_eq!(import.call.program(), Some(store.join("import-held").as_path()));
+    assert_eq!(import.call.arguments(), arguments.map(|word| Box::from(word.as_bytes())));
+    let ctl = format!("'/fixture/ctl-stub'\"'\"'s path' ctl '{}'", client.display());
+    assert!(import.script.lines().any(|line| line == format!("exec {ctl} \"$@\" </dev/null")));
+    let hook = plan.return_hook(binary).expect("held give-back");
+    assert_eq!(hook.path, store.join("give-back"));
+    assert!(hook.script.contains(&format!("rung_account=$({ctl} account list --json </dev/null | jq")));
+    assert!(
+        hook.script
+            .lines()
+            .any(|line| line == format!("  {ctl} account export \"$rung_account\" '/fixture/held/record' </dev/null"))
+    );
+    let call = plan.return_call();
+    assert_eq!(call.program(), Some(hook.path.as_path()));
+    assert_eq!(call.arguments(), [Box::from(b"--box-ended".as_slice())]);
+    let restart = LivePlan { first: false, ..plan };
+    let call = restart.return_call();
+    assert_eq!(call.program(), Some(hook.path.as_path()));
+    assert!(call.arguments().is_empty(), "the restart's give-back is terminal");
+}

@@ -1292,27 +1292,93 @@ pub fn retain_live_model(path: &std::path::Path, name: &str) {
     temper_agent_fixtures::providers::keep(&mut value, &data);
 }
 
+/// Apply a live overlay to the copies native init left, using the fixture writers.
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
-    if let LiveModel::AnthropicKey { .. } = model {
-        let data = temper_agent_fixtures::data(config);
-        let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
-        let provider = temper_agent_fixtures::providers::input(&mut value)["providers"]
-            .as_array_mut()
-            .expect("providers")
-            .iter_mut()
-            .find(|provider| provider["name"] == "anthropic")
-            .expect("init Anthropic provider")
-            .as_object_mut()
-            .expect("provider");
-        provider.remove("keep");
-        provider.remove("drop");
-        temper_agent_fixtures::providers::keep(&mut value, &data);
-        return;
+    use temper_agent_fixtures::providers;
+
+    match model {
+        LiveModel::ChatGpt { .. } => {}
+        LiveModel::AnthropicKey { .. } => {
+            let data = temper_agent_fixtures::data(config);
+            providers::remember(&data, &key_providers(providers::read(&data)));
+        }
+        LiveModel::ClaudeCode { login } => {
+            let data = temper_agent_fixtures::data(config);
+            let mut routes = providers::read(&data);
+            let mut agent = temper_agent_fixtures::read(config);
+            claude_overlay(&mut routes, &mut agent, login, executable);
+            providers::write(&data, &routes);
+            temper_agent_fixtures::install(config, &agent);
+        }
     }
-    let LiveModel::ClaudeCode { login } = model else { return };
-    let data = temper_agent_fixtures::data(config);
-    let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
-    let mut agent = temper_agent_fixtures::read(config);
+}
+
+/// The start and its prospective worker and provider copies, before any native writes.
+pub struct LiveProfile {
+    pub document: serde_json::Value,
+    pub providers: Box<[jig_protocol_config::ProviderSetting]>,
+    pub agent: serde_json::Value,
+}
+
+impl LiveProfile {
+    /// Boxed init with fixed listeners and the landing story's model overlay.
+    #[must_use]
+    pub fn compose(data: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) -> Self {
+        use temper_agent_fixtures::{providers, with_figures};
+
+        let mut document = serde_json::from_slice(&temper_config_shell::init_document(true)).expect("init start");
+        let mut agents = temper_service::stock::agents();
+        let mut providers = temper_service::stock::providers();
+        match model {
+            LiveModel::ChatGpt { .. } => {}
+            LiveModel::AnthropicKey { .. } => providers = key_providers(providers::flat(&providers)),
+            LiveModel::ClaudeCode { login } => {
+                let mut agent = with_figures(&document, &agents, data, &providers);
+                let mut routes = providers::flat(&providers);
+                claude_overlay(&mut routes, &mut agent, login, executable);
+                let setting =
+                    temper_agent_fixtures::compose_setting(&mut document, &agent, &providers::values(&routes));
+                (agents, providers) = (setting.figures, setting.providers);
+            }
+        }
+        let agent = with_figures(&document, &agents, data, &providers);
+        Self { document, providers, agent }
+    }
+
+    /// Admit the engine with the configured providers and the box's fixed demo route.
+    #[must_use]
+    pub fn engine(&self, config: &std::path::Path) -> (jig_protocol_config::Engine, temper_service::stock::Given) {
+        let bytes = serde_json::to_vec(&self.document["engine"]).expect("engine JSON");
+        let document =
+            jig_protocol_config::document(&bytes, &super::configuration_fixture::DOCUMENT).expect("engine document");
+        let given =
+            temper_agent_fixtures::providers::given_with(self.providers.clone(), Some(([127, 0, 0, 1], 8370).into()));
+        let directories = temper_box_shell::directories::jig_directories(&super::configuration::directories(config));
+        let engine = temper_service::startup::engine_with(&document, 0, &directories, &given).expect("engine schema");
+        (engine, given)
+    }
+}
+
+fn key_providers(mut providers: serde_json::Value) -> Box<[jig_protocol_config::ProviderSetting]> {
+    let provider = providers["providers"]
+        .as_array_mut()
+        .expect("providers")
+        .iter_mut()
+        .find(|provider| provider["name"] == "anthropic")
+        .expect("init Anthropic provider")
+        .as_object_mut()
+        .expect("provider");
+    provider.remove("keep");
+    provider.remove("drop");
+    temper_agent_fixtures::providers::values(&providers)
+}
+
+fn claude_overlay(
+    providers: &mut serde_json::Value,
+    agent: &mut serde_json::Value,
+    login: &std::path::Path,
+    executable: &std::path::Path,
+) {
     let mut endpoint = agent["endpoints"]
         .as_array()
         .expect("agent endpoints")
@@ -1327,7 +1393,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     endpoint["program"] = "claude_code".into();
     endpoint["address"] = "api.anthropic.com:443".into();
     endpoint["server_name"] = "api.anthropic.com".into();
-    let mut route = temper_agent_fixtures::providers::input(&mut value)["endpoints"]
+    let mut route = providers["endpoints"]
         .as_array()
         .expect("engine endpoints")
         .iter()
@@ -1343,8 +1409,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         "sources":{"programs":["claude_code"]}
     });
     for (table, field, replacement) in [("providers", "name", provider), ("endpoints", "name", route)] {
-        let entries =
-            temper_agent_fixtures::providers::input(&mut value)[table].as_array_mut().expect("init LLM table");
+        let entries = providers[table].as_array_mut().expect("init LLM table");
         entries
             .retain(|entry| entry[field] != "openai" && entry[field] != "anthropic" && entry[field] != "anthropic-api");
         entries.insert(0, replacement);
@@ -1360,8 +1425,6 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     agent["programs"]["claude_code"] = serde_json::json!({
         "path":executable, "directory":login.parent().expect("held login parent")
     });
-    temper_agent_fixtures::providers::keep(&mut value, &data);
-    temper_agent_fixtures::install(config, &agent);
 }
 
 /// A settings change a fresh sitting applies, and its `settings apply`'s key.
@@ -1460,27 +1523,36 @@ impl LivePlan<'_> {
     /// Install the held record's give-back in the story's store; `binary` is the temper
     /// the hook runs.
     pub fn install_return_hook(&self, binary: &std::path::Path) -> Result<(), String> {
-        if let LiveModel::ChatGpt { account: Some(account) } = self.model {
-            super::held_login::return_hook(
-                binary,
-                self.paths[0].parent().expect("store"),
-                &self.client_directory(),
-                account,
-            )?;
-        }
-        Ok(())
+        self.return_hook(binary).map_or(Ok(()), super::held_login::ReturnHook::install)
+    }
+
+    /// The give-back this sitting will install, if it holds a record.
+    #[must_use]
+    pub fn return_hook(&self, binary: &std::path::Path) -> Option<super::held_login::ReturnHook> {
+        let LiveModel::ChatGpt { account: Some(account) } = self.model else { return None };
+        Some(super::held_login::ReturnHook::compose(binary, self.store(), &self.client_directory(), account))
     }
 
     /// The held record's import as the sitting runs it, behind the give-back's lock.
     #[must_use]
     pub fn held_import(&self, binary: &std::path::Path, words: &[&str]) -> super::ctl::Call {
-        super::held_login::import_guard(binary, self.paths[0].parent().expect("store"), &self.client_directory(), words)
+        self.import_script(binary, words).write()
+    }
+
+    /// The held import's script and call before the wrapper is written.
+    #[must_use]
+    pub fn import_script(&self, binary: &std::path::Path, words: &[&str]) -> super::held_login::Import {
+        super::held_login::Import::compose(binary, self.store(), &self.client_directory(), words)
+    }
+
+    fn store(&self) -> &std::path::Path {
+        self.paths[0].parent().expect("store")
     }
 
     /// Return before this box stops; only the first box permits a later restart import.
     #[must_use]
     pub fn return_call(&self) -> super::ctl::Call {
-        let hook = self.paths[0].parent().expect("store").join("give-back");
+        let hook = self.store().join("give-back");
         super::ctl::Call::command(&hook, if self.first { &["--box-ended"] } else { &[] })
     }
 

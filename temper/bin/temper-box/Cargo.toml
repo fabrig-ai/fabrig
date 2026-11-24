@@ -40,6 +40,10 @@ path = "tests/proof_live.rs"
 name = "domain"
 path = "tests/domain/main.rs"
 
+[[test]]
+name = "system"
+path = "tests/system.rs"
+
 [dependencies]
 temper-version.workspace = true
 temper-box-shell.workspace = true

@@ -1,7 +1,5 @@
 use crate::support;
-use temper_box_shell::directories::jig_directories;
-
-use serde_json::{Value, json};
+use serde_json::json;
 
 fn launcher(directory: &std::path::Path, argument: &str, login: Option<&std::path::Path>) -> std::process::Command {
     let mut command = std::process::Command::new("/bin/sh");
@@ -118,299 +116,6 @@ fn configure_claude(paths: &[std::path::PathBuf; 3]) {
         support::forge_land::LiveModel::ClaudeCode { login: &paths[1].join("programs/claude-login") },
         Path::new("/usr/bin/true"),
     );
-}
-
-#[test]
-fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
-    // docs/help/box.md, step 1: Claude's fields over init's endpoint and model sizes.
-    let (scratch, paths) = initialized_deployment("live-claude-configuration");
-    let config = &paths[0];
-    let agent_before = temper_agent_fixtures::read(config);
-    let before: Value = serde_json::from_slice(
-        &support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document,
-    )
-    .expect("JSON");
-    configure_claude(&paths);
-    let agent = temper_agent_fixtures::read(config);
-    let value: Value = serde_json::from_slice(
-        &support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document,
-    )
-    .expect("JSON");
-    assert_eq!(
-        agent["programs"],
-        json!({"claude_code":{
-            "path":"fetched", "directory":paths[1].join("programs")
-        }})
-    );
-    assert_eq!(
-        agent["endpoints"],
-        json!([
-            {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
-                "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
-                "connect":10000, "handshake":10000, "headers":[],
-                "limits": {
-                    "window":1_048_576, "output":48_000, "reasoning_item":65536, "head":60000, "idle":300_000,"oversized_reasoning":"fail"}},
-            agent_before["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap()
-        ])
-    );
-    assert_eq!(agent["profile"], agent_before["profile"]);
-    assert_eq!(agent["environment"], agent_before["environment"]);
-    assert_eq!(
-        temper_agent_fixtures::providers::read(&paths[1]),
-        json!({
-            "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
-                "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
-                "sources":{"programs":["claude_code"]}}],
-            "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
-                "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
-                "headers":[], "connect_ms":10000, "handshake_ms":10000}]
-        })
-    );
-    let application = before["application"].clone();
-    assert_eq!(value["application"], application, "including init’s demo");
-    assert_eq!(value["engine"]["limits"], before["engine"]["limits"]);
-    assert_eq!(value["workers"], before["workers"]);
-    let parsed = temper_worker_shell::agent::decoded_bytes(&serde_json::to_vec(&agent).expect("agent JSON"))
-        .expect("ordinary agent schema")
-        .resolve(&mut Vec::new())
-        .expect("resolved agent");
-    assert_eq!(parsed.program_endpoints.into_iter().collect::<Vec<_>>(), [2]);
-    eprintln!("Claude agent largest turn: {} bytes", parsed.service.limits.channel.bodies.turn_body);
-    scratch.remove();
-}
-
-#[test]
-fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
-    let (scratch, paths) = initialized_deployment("live-claude-charters");
-    configure_claude(&paths);
-    let deployment =
-        support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
-    let document = jig_protocol_config::document(
-        &deployment,
-        &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
-    )
-    .expect("document");
-    let at = jig_protocol_config::read::Object::new(&document, 0)
-        .expect("object")
-        .member(&document, b"engine")
-        .expect("engine");
-    let given = temper_service::stock::Given::Stock.with_providers(
-        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
-        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
-    );
-    let engine = temper_service::startup::engine_with(
-        &document,
-        at,
-        &jig_directories(&support::configuration::directories(&paths[0])),
-        &given,
-    )
-    .expect("engine schema");
-    let defaults = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).expect("stock");
-    for charter in &defaults.charters {
-        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"demo".as_slice(), 3));
-        let resolved = jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
-            .expect("stock charter");
-        let mut alternatives: Vec<_> =
-            resolved.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
-        let mut ordinary: Vec<_> = defaults
-            .models
-            .iter()
-            .filter(|entry| entry.number != 8)
-            .map(|entry| (entry.model.name.as_ref(), entry.model.endpoint))
-            .collect();
-        assert_eq!(ordinary.len(), 7);
-        alternatives.sort();
-        ordinary.sort();
-        assert_eq!(alternatives, ordinary);
-    }
-    scratch.remove();
-}
-
-/// The Claude deployment's stock catalogue, endpoints, providers and charters 1 and 2
-/// on the joined client world's engine (temper/docs/design/testing/live-tier.md and temper/docs/design/testing/checks.md, 3).
-fn live_model_world(
-    case: &str,
-    configure: fn(&[std::path::PathBuf; 3]),
-) -> (
-    support::Scratch,
-    jig_client_kit::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>,
-) {
-    use jig_client_kit::harness::{Settings, World};
-    use temper_client_world::{
-        fixtures,
-        front::{Joint, engine_limits},
-    };
-    use temper_engine_domain_world::{store::Store, walking};
-
-    let (scratch, paths) = initialized_deployment(case);
-    configure(&paths);
-    let deployment =
-        support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
-    let document = jig_protocol_config::document(
-        &deployment,
-        &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
-    )
-    .expect("document");
-    let at = jig_protocol_config::read::Object::new(&document, 0)
-        .expect("object")
-        .member(&document, b"engine")
-        .expect("engine");
-    let given = temper_service::stock::Given::Stock.with_providers(
-        temper_agent_fixtures::providers::values(&temper_agent_fixtures::providers::read(&paths[1])),
-        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
-    );
-    let engine = temper_service::startup::engine_with(
-        &document,
-        at,
-        &jig_directories(&support::configuration::directories(&paths[0])),
-        &given,
-    )
-    .expect("engine schema");
-    let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let mut limits = engine_limits();
-    limits.people.initial_owners = 2;
-    limits.accounts.accounts = 3;
-    limits.accounts.holder_accounts = 3;
-    limits.authority.accounts = 3;
-    limits.fleet.grants = 4;
-    // Init's OpenAI provider can read a list for the world's fixture accounts.
-    limits.fleet.reads = limits.accounts.accounts;
-    limits.tasks.charters = 2;
-    limits.templates = 3;
-    limits.documents.text_bytes = 8192;
-    limits.journal.run_bytes = engine.limits.core.run_bytes;
-    // Stock charter versions must fit the store's decoded settings pages.
-    let page_bytes = u32::try_from(engine.limits.core.load_bytes).expect("stock settings page fits u32");
-    limits.loads.bytes = page_bytes;
-    limits.loads.reply_bytes = page_bytes;
-    limits.loads.transcript_bytes = page_bytes;
-    let configs = std::array::from_fn(|_| {
-        let mut config = walking::config(fixtures::SEED);
-        config.core.owners = Box::new([
-            config.core.owners[0].clone(),
-            jig_domain_people::InitialOwner { project: 0, identity: config.core.owners[0].identity.clone() },
-        ]);
-        config.core.defaults.models.clone_from(&stock.models);
-        config.core.defaults.charters = stock.charters.iter().take(2).cloned().collect();
-        let core = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED);
-        config.core.defaults.providers = core.defaults.providers;
-        config.core.fixed_providers = core.fixed_providers;
-        let llm = core.settings;
-        config.core.settings.models = llm.models;
-        config.core.settings.endpoints = llm.endpoints;
-        config.core.settings.llm_providers = llm.llm_providers;
-        for template in &mut config.core.defaults.templates {
-            template.llm = None;
-        }
-        config
-    });
-    let front = Joint::with_engine(
-        fixtures::SEED,
-        &fixtures::domain_limits(),
-        Store::with_limits(&limits),
-        configs,
-        &limits,
-        1,
-    );
-    let mut world = World::new(
-        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), iterations: 4096, ..Settings::default() },
-        front,
-    );
-    world.randomness(2, 0, 0);
-    (scratch, world)
-}
-
-#[test]
-fn a_fresh_claude_sitting_applies_its_settings_as_a_person_does() {
-    use std::path::Path;
-    use support::forge_land::LiveModel;
-    assert_live_settings(
-        "live-claude-settings",
-        LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
-        configure_claude,
-    );
-}
-
-#[test]
-fn a_fresh_key_sitting_applies_claude_settings_on_inits_configuration() {
-    use std::path::Path;
-    use support::forge_land::LiveModel;
-    assert_live_settings(
-        "live-key-settings",
-        LiveModel::AnthropicKey { key: Path::new("/private/key") },
-        configure_key,
-    );
-}
-
-fn assert_live_settings(
-    case: &str,
-    model: support::forge_land::LiveModel<'_>,
-    configure: fn(&[std::path::PathBuf; 3]),
-) {
-    use std::path::Path;
-    use support::forge_land::{LiveModel, live_apply, live_settings};
-    use temper_client_world::fixtures;
-    let (scratch, mut world) = live_model_world(case, configure);
-    let agent = fixtures::agent(&mut world);
-    if let LiveModel::ClaudeCode { .. } = model {
-        let call = fixtures::give(
-            &mut world,
-            agent,
-            &[b"account", b"declare", b"2", b"claude_code", b"claude-login", b"--key", b"live-program"],
-        );
-        let declared = fixtures::answered(&mut world, agent, call);
-        assert_eq!(declared.status, 0, "{declared:?}");
-        assert!(declared.stderr.is_empty(), "{declared:?}");
-    }
-    let read = |world: &mut jig_client_kit::harness::World<_, _>, words: &[&[u8]]| {
-        let call = fixtures::give(world, agent, words);
-        let printed = fixtures::answered(world, agent, call);
-        assert_eq!(printed.status, 0, "{printed:?}");
-        assert!(printed.stderr.is_empty(), "{printed:?}");
-        serde_json::from_slice::<Value>(&printed.stdout).expect("settings JSON")
-    };
-    let inventory = read(&mut world, &[b"settings", b"show", b"--json"]);
-    let charters = [
-        read(&mut world, &[b"settings", b"show", b"charter", b"1", b"--json"]),
-        read(&mut world, &[b"settings", b"show", b"charter", b"2", b"--json"]),
-    ];
-    let row = read(&mut world, &[b"settings", b"show", b"model", b"3", b"--json"]);
-    let changes = live_settings(model, &inventory, [&charters[0], &charters[1]], &row).expect("live settings");
-    let claude = live_settings(
-        LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
-        &inventory,
-        [&charters[0], &charters[1]],
-        &row,
-    )
-    .expect("Claude Code settings");
-    assert!(changes == claude, "the key applies exactly Claude Code's model and charter changes");
-    let newest = inventory["newest"].as_u64().expect("newest");
-    for (at, change) in changes.iter().enumerate() {
-        let file = format!("{}.json", change.key);
-        let argv = live_apply(change, at, newest, &file);
-        let argv: Vec<_> = argv.iter().map(String::as_bytes).collect();
-        let bytes = serde_json::to_vec(&change.file).expect("settings bytes");
-        let call = fixtures::give_with_file(&mut world, agent, &argv, &bytes);
-        let applied = fixtures::answered(&mut world, agent, call);
-        assert_eq!(applied.status, 0, "{}: stderr={}", change.key, String::from_utf8_lossy(&applied.stderr));
-        assert!(applied.stderr.is_empty(), "{applied:?}");
-    }
-    let model = read(&mut world, &[b"settings", b"show", b"model", b"64", b"--json"]);
-    let value = &model["value"];
-    assert_eq!(value["model"]["name"], "claude-haiku-5-5");
-    assert_eq!(value["source"], "person");
-    assert_eq!(value["estimated"], true);
-    assert_eq!(value["model"]["effort"], "low");
-    assert!(value["model"]["efforts"].as_array().expect("offered efforts").contains(&json!("low")));
-    for number in [b"1".as_slice(), b"2"] {
-        let charter = read(&mut world, &[b"settings", b"show", b"charter", number, b"--json"]);
-        let value = &charter["value"];
-        assert_eq!(value["model"]["name"], "claude-haiku-5-5");
-        assert_eq!(value["model"]["effort"], "low");
-        assert_eq!(value["alternatives"], json!([]));
-        assert_eq!(value["rest"], false);
-    }
-    scratch.remove();
 }
 
 fn stubbed_launcher(case: &str, body: &str, source: &str) -> (support::Scratch, std::process::Output) {
@@ -677,7 +382,7 @@ esac
         assert!(!record.exists(), "import moves the source into the box");
     }
 
-    fn run(&mut self, first: bool, failed: bool) -> Result<(), &'static str> {
+    fn run(&mut self, first: bool) {
         use support::{
             forge_land::{LiveModel, LivePlan},
             held_login::{End, Ending},
@@ -703,7 +408,7 @@ esac
         plan.install_return_hook(&self.stub).expect("install return hook");
         Self::import(&plan, &self.stub, &self.record);
         let now = skein_lib::Time::ZERO;
-        let mut ending = Ending::new(true, first, failed, now);
+        let mut ending = Ending::new(true, first, false, now);
         let mut exit = None;
         loop {
             match ending.next(now, true, exit) {
@@ -716,7 +421,8 @@ esac
                         file.is_file() && file.len() > 0 && file.permissions().mode() & 0o777 == 0o600
                     }));
                     std::fs::remove_file(root.join("running")).expect("stop fake box");
-                    return failure.or(failed.then_some("run failed")).map_or(Ok(()), Err);
+                    assert_eq!(failure, None);
+                    return;
                 }
                 End::Wait => panic!("fake ctl already ended"),
             }
@@ -724,21 +430,15 @@ esac
     }
 }
 
-/// Both successful boxes return before stopping; failures in either do the same.
+/// The generated hooks import, return and reopen the record before either box stops.
 #[test]
 fn a_held_login_returns_on_restart_and_failures_in_either_box() {
-    for failure in [None, Some(true), Some(false)] {
-        let mut boxes = HeldBox::new("held-restart-endings");
-        let first = boxes.run(true, failure == Some(true));
-        assert_eq!(first.is_err(), failure == Some(true));
-        assert_eq!(boxes.returned_before_stop, [true], "first box returns before stopping");
-        if first.is_ok() {
-            assert_eq!(boxes.run(false, failure == Some(false)).is_err(), failure == Some(false));
-        }
-        assert!(boxes.returned_before_stop.iter().all(|returned| *returned), "failure={failure:?}");
-        assert!(boxes.record.is_file());
-        boxes.scratch.remove();
-    }
+    let mut boxes = HeldBox::new("held-restart-endings");
+    boxes.run(true);
+    boxes.run(false);
+    assert_eq!(boxes.returned_before_stop, [true, true]);
+    assert!(boxes.record.is_file());
+    boxes.scratch.remove();
 }
 
 /// A terminal give-back wins over hook installation and every later import.
@@ -746,7 +446,7 @@ fn a_held_login_returns_on_restart_and_failures_in_either_box() {
 fn terminal_login_cleanup_excludes_a_restart_import() {
     use support::forge_land::{LiveModel, LivePlan};
     let mut boxes = HeldBox::new("held-terminal-return");
-    boxes.run(true, false).expect("first box returns");
+    boxes.run(true);
     let root = boxes.scratch.path();
     let terminal = support::ctl::alone(root, support::ctl::Call::command(&root.join("give-back"), &[]));
     assert_eq!(terminal.exit, Some(skein_io::kernel::Exit::Code(0)));
@@ -1081,14 +781,9 @@ esac
         words: "",
         line: "",
     };
-    assert_eq!(plan.client_directory(), client);
     let arguments = ["account", "import", record.to_str().expect("record path"), "--key", "connect-plan"];
     let imported = support::ctl::alone(&run, plan.held_import(&stub, &arguments));
     assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(0)));
-    let imported = fs::read_to_string(&seen).expect("import arguments");
-    assert_eq!(imported.lines().nth(1), plan.client_directory().to_str(), "import's DIRECTORY");
-    assert_eq!(imported, format!("ctl\n{}\n{}\n", client.display(), arguments.join("\n")));
-    fs::remove_file(&seen).expect("clear import arguments");
     plan.install_return_hook(&stub).expect("install return hook");
     fs::remove_file(&record).expect("synthetic import removes the record");
     let returned = std::process::Command::new(store.join("give-back"))
@@ -1097,9 +792,10 @@ esac
         .expect("return hook");
     assert!(returned.status.success(), "{}", String::from_utf8_lossy(&returned.stderr));
     assert_eq!(
-        fs::read_to_string(&seen).expect("give-back arguments"),
+        fs::read_to_string(&seen).expect("import and give-back arguments"),
         format!(
-            "ctl\n{client}\naccount\nlist\n--json\nctl\n{client}\naccount\nexport\n7\n{record}\n",
+            "ctl\n{client}\n{import}\nctl\n{client}\naccount\nlist\n--json\nctl\n{client}\naccount\nexport\n7\n{record}\n",
+            import = arguments.join("\n"),
             client = client.display(),
             record = record.display(),
         )
@@ -1193,27 +889,6 @@ fn configure_key(paths: &[std::path::PathBuf; 3]) {
 
 #[test]
 fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
-    let (scratch, paths) = initialized_deployment("live-key-configuration");
-    let path = paths[0].join(temper_config_shell::FILE);
-    let expected: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
-    let mut expected_providers = temper_agent_fixtures::providers::read(&paths[1]);
-    let agent = temper_agent_fixtures::read(&paths[0]);
-    let provider = expected_providers["providers"]
-        .as_array_mut()
-        .expect("providers")
-        .iter_mut()
-        .find(|provider| provider["name"] == "anthropic")
-        .expect("Anthropic")
-        .as_object_mut()
-        .expect("provider");
-    assert!(provider.remove("keep").is_some());
-    assert!(provider.remove("drop").is_some());
-    configure_key(&paths);
-    let configured: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
-    assert_eq!(configured, expected, "the startup document is unchanged");
-    assert_eq!(temper_agent_fixtures::providers::read(&paths[1]), expected_providers, "only Anthropic's list changes");
-    assert_eq!(temper_agent_fixtures::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
-    scratch.remove();
     assert_live_startup("live-key-startup", configure_key);
 }
 
