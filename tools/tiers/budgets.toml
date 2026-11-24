@@ -339,6 +339,12 @@ to = "temper.step"
 cpu_s = 0.1
 why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): default simulated fell 0.77 s as the two supplied-value referee controls left the simulated world for step binaries (the user, 2026-11-22)."
 
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.simulated"
+cpu_s = 20.5
+why = "The lower-tier stories in temper-real-loop-world's suite and live_text left the real loop, most for temper-one-process-world::suite (temper/docs/design/draft/slow-tests-down.md, 5.4; temper/docs/design/testing/real-loop.md, Moved below). The user's rule of 2026-11-24 for the goal's own move down sizes it at 67.39e9 instructions past the allowance, divided by main's 4.3794242372e9 instructions per CPU s, x1.33."
+
 [gate.default.hearth]
 ideal_s = 30
 
