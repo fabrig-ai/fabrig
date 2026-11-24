@@ -1,5 +1,5 @@
 //! Registry rows and their commit operations (protocol/store/layouts.md, 3 and 5).
-use super::{Layouts, Range, Row, RowKey, Text, Type, texts};
+use super::{Digest, Layouts, Order, Range, Row, RowKey, Text, Type, texts};
 use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
 use alloc::boxed::Box;
 use skein_codec::Record as _;
@@ -21,7 +21,10 @@ pub(super) fn open(store: &mut Store, layouts: &mut Layouts, empty: bool) -> Res
 }
 
 fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
-    let ranges = [skein_kv::Range { start: Box::from([0, 6]), end: Some(Box::from([0, 8])) }];
+    let ranges = [
+        skein_kv::Range { start: Box::from([0, 6]), end: Some(Box::from([0, 8])) },
+        skein_kv::Range { start: Box::from([0, 14]), end: Some(Box::from([0, 15])) },
+    ];
     let mut after = None;
     let mut count = 0_u64;
     for space in store.stores.store.census().keyspaces() {
@@ -36,6 +39,14 @@ fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
             }
         };
         for row in page.rows {
+            if row.row.key.starts_with(&[0, 14]) {
+                let key = keys::decode_order(&row.row.key).ok_or(OpenRefusal::Failed)?;
+                let value = wire::Order::decode(&wire::CEILINGS, &mut Reader::new(&row.row.value))
+                    .ok()
+                    .ok_or(OpenRefusal::Failed)?;
+                layouts.orders.insert(key, Order { value, dirty: false }).expect("uncapped orders");
+                continue;
+            }
             match keys::decode_own(&row.row.key) {
                 Some(keys::Own::Layout { family, number, id }) => {
                     let value = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(&row.row.value))
@@ -109,6 +120,8 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                 let value = made(layouts, binary, family, ty).ok_or(refusal.clone())?;
                 let version =
                     layouts.texts.get(&value.text).ok_or(refusal.clone())?.schema().ok_or(refusal.clone())?.version();
+                let fingerprint = value.layout;
+                changed |= order(layouts, family.name, ty.number, fingerprint);
                 let mut found = None;
                 let mut greatest = None;
                 let first = (Box::from(family.name), ty.number, u16::MIN);
@@ -152,6 +165,41 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
     }
     Ok(changed)
 }
+// Missing orders are seeded from the stored ids, before registration can insert a new row.
+fn order(layouts: &mut Layouts, family: &str, number: u16, fingerprint: Digest) -> bool {
+    let key = (Box::from(family), number);
+    if let Some(order) = layouts.orders.get_mut(&key) {
+        if remember(&mut order.value, fingerprint) {
+            order.dirty = true;
+            return true;
+        }
+        return false;
+    }
+    let mut value = wire::Order { layouts: List::with_capacity(wire::CEILINGS.order_layouts) };
+    let first = (Box::from(family), number, u16::MIN);
+    let last = (Box::from(family), number, u16::MAX);
+    for (_, row) in layouts.rows.range(first..=last) {
+        remember(&mut value, row.value.layout);
+    }
+    remember(&mut value, fingerprint);
+    layouts.orders.insert(key, Order { value, dirty: true }).expect("uncapped orders");
+    true
+}
+
+fn remember(order: &mut wire::Order, fingerprint: Digest) -> bool {
+    if order.layouts.as_slice().contains(&fingerprint) {
+        return false;
+    }
+    order.layouts.raise(wire::CEILINGS.order_layouts);
+    if order.layouts.push(fingerprint).is_err() {
+        let mut next = fingerprint;
+        for old in order.layouts.iter_mut().rev() {
+            core::mem::swap(old, &mut next);
+        }
+    }
+    true
+}
+
 fn key(key: &RowKey, limit: u32) -> Option<Box<[u8]>> {
     keys::encode_own(&keys::Own::Layout { family: key.0.clone(), number: key.1, id: key.2 }, limit)
 }
@@ -184,6 +232,14 @@ pub(super) fn operations(bound: u32, layouts: &mut Layouts) -> Result<(), OpenRe
             }
         } else if text.stored {
             layouts.pending.push(skein_kv::Op::Erase { key });
+        }
+    }
+    let orders = core::mem::replace(&mut layouts.orders, Map::uncapped());
+    for ((family, number), order) in &orders {
+        if order.dirty {
+            let key = keys::order(family, *number, bound).ok_or(OpenRefusal::Failed)?;
+            let value = order.value.encode(&wire::CEILINGS).ok().ok_or(OpenRefusal::Failed)?;
+            layouts.pending.push(skein_kv::Op::Put { key, value });
         }
     }
     // Stage the resulting registry for a later settling retirement. Keep the

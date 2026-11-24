@@ -1,6 +1,7 @@
 //! Refused-start stderr, including writes named before store decoding (protocol/binaries.md).
 use alloc::boxed::Box;
-use jig_protocol_store::OpenRefusal;
+use jig_protocol_store::{OpenRefusal, Unplanned};
+use skein_codec::layout::Refused;
 use skein_lib::{Decimal, Writer};
 
 /// Render jig's words followed by layout and job details, and the refused exit status.
@@ -64,14 +65,32 @@ fn render(lines: &mut Lines, why: &OpenRefusal, deployment: &[u8]) {
         lines.put(words.as_bytes());
     }
     lines.put(b"\n");
-    if let OpenRefusal::Layout { family, value_type, id, why: jig_protocol_store::Unplanned::Retired, .. } = why {
-        lines.put(b"temper serve: family ");
-        lines.put(family.as_bytes());
-        lines.put(b" value type ");
-        lines.number(u64::from(*value_type));
-        lines.put(b" layout ");
-        lines.number(u64::from(*id));
-        lines.put(b": the value type is retired, and its keys hold a value\n");
+    if let OpenRefusal::Layout { family, value_type, id, why, .. } = why {
+        match why {
+            Unplanned::Retired => {
+                layout(lines, family, *value_type, *id);
+                lines.put(b": the value type is retired, and its keys hold a value\n");
+            }
+            Unplanned::Unkept(unkept) => {
+                layout(lines, family, *value_type, *id);
+                lines.put(b": cannot keep ");
+                lines.number(unkept.refused);
+                lines.put(b" values; first refusal: ");
+                lines.put(unkept.declaration.as_bytes());
+                lines.put(b".");
+                lines.put(unkept.part.as_bytes());
+                lines.put(b": ");
+                let reason = match unkept.why {
+                    Refused::Field => "the field would be lost",
+                    Refused::Variant => "this build does not have that variant",
+                    Refused::Narrowed => "the value does not fit this build's bounds",
+                    Refused::Absent => "this build requires a value here",
+                };
+                lines.put(reason.as_bytes());
+                lines.put(b"\n");
+            }
+            Unplanned::Underived(_) | Unplanned::Text | Unplanned::Undeclared => {}
+        }
     }
     if let OpenRefusal::Job { owner, job, key, why } = why {
         let owner = match owner {
@@ -94,6 +113,14 @@ fn render(lines: &mut Lines, why: &OpenRefusal, deployment: &[u8]) {
         lines.put(why.as_bytes());
         lines.put(b"\n");
     }
+}
+fn layout(lines: &mut Lines, family: &str, value_type: u16, id: u16) {
+    lines.put(b"temper serve: family ");
+    lines.put(family.as_bytes());
+    lines.put(b" value type ");
+    lines.number(u64::from(value_type));
+    lines.put(b" layout ");
+    lines.number(u64::from(id));
 }
 fn hex(nibble: u8) -> u8 {
     *b"0123456789abcdef".get(usize::from(nibble)).expect("masked nibble")

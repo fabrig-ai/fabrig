@@ -353,13 +353,23 @@ pub enum OpenRefusal {
     /// patched from stays active, unchanged.
     Check { why: Check },
 }
-/// Why a layout cannot be planned (protocol/store/opening.md, 1.8).
+/// Why a layout cannot be read or kept (protocol/store/opening.md, 1.8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Unplanned {
     Underived(skein_codec::layout::Underived),
     Text,
     Undeclared,
     Retired,
+    Unkept(Unkept),
+}
+
+/// The later layout's refusals, with the first one's names (protocol/store/opening.md, 1.8).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Unkept {
+    pub refused: u64,
+    pub why: skein_codec::layout::Refused,
+    pub declaration: Box<str>,
+    pub part: Box<str>,
 }
 
 /// Join the bridge into a static piece, keeping deployment slots unchanged.
@@ -472,6 +482,11 @@ impl OpenRefusal {
                 " does not end at the commit its header records, so a file was lost, cut or restored apart from the others, and this start has changed nothing in it. Restore ",
                 " whole from one backup, or, to start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store.",
+            ],
+            Self::Layout { why: Unplanned::Unkept(_), .. } => &[
+                "",
+                " holds values a later build wrote that this build cannot keep, and this start has changed nothing in it. Start the later build again, or, with it, restore a checkpoint of ",
+                " taken before it started, then start this build.",
             ],
             Self::Layout { .. } => &[
                 "",

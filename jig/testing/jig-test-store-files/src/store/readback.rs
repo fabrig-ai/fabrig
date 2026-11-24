@@ -220,6 +220,9 @@ impl Store {
                 if log % 2 == 1 {
                     log_transcripts.insert(log / 2, codec::component::Transcript { length, window: length });
                 }
+            } else if keys::decode_order(key).is_some() {
+                protocol::registry_v1::Order::decode(&protocol::registry_v1::CEILINGS, &mut Reader::new(value))
+                    .map_err(|failure| inventory(key, format!("registry order: {failure:?}")))?;
             } else {
                 match keys::decode_own(key).ok_or_else(|| inventory(key, "recognized retained key"))? {
                     keys::Own::History { task } => {

@@ -6,6 +6,7 @@ use jig_test_layouts::layouts::{CHILD, CHILD_CURRENT, CHILD_WRITTEN, CURRENT, HO
 use skein_codec::Record as _;
 use skein_codec::schema::Schema;
 use skein_lib::{Buffer, Reader};
+mod back;
 mod edges;
 mod prepared;
 mod restoring;
@@ -110,7 +111,7 @@ fn a_new_value_type_registers_its_current_variant() {
     let set = OwnerSet { families: Box::leak(Box::new([family])), ..SET };
     let mut disk = Disk::new(&base(true));
     let mut store = store(&disk, set);
-    assert_opened(&disk.open(&mut store), 3);
+    assert_opened(&disk.open(&mut store), 4); // five registry puts over two commits, then the seal
     let layout = row(&mut store, 2, 2).unwrap();
     assert_eq!(layout.root.as_ref(), b"Row");
     assert_eq!(layout.variant.as_deref(), Some(b"later".as_slice()));
@@ -867,6 +868,11 @@ fn a_range_missing_from_current_refuses_its_owner_before_any_write() {
 }
 
 fn assert_unchanged_except_recovery(before: &Contents, disk: &mut Disk) {
+    let active = disk.bytes(b"active");
+    let generation = active.strip_suffix(b"\n").expect("active generation number");
+    let base = [b"generations/", generation, b"/"].concat();
+    let store = [base.as_slice(), b"store/log-"].concat();
+    let secrets = [base.as_slice(), b"secrets/log-"].concat();
     let after = disk.contents();
     for entry in before {
         assert!(after.contains(entry), "changed path {}", String::from_utf8_lossy(&entry.0));
@@ -875,8 +881,7 @@ fn assert_unchanged_except_recovery(before: &Contents, disk: &mut Disk) {
         if before.iter().any(|(old, ..)| old == path) {
             continue;
         }
-        let segment =
-            path.strip_prefix(b"generations/1/store/log-").or_else(|| path.strip_prefix(b"generations/1/secrets/log-"));
+        let segment = path.strip_prefix(store.as_slice()).or_else(|| path.strip_prefix(secrets.as_slice()));
         assert!(
             segment.is_some_and(|digits| digits.len() == 20 && digits.iter().all(u8::is_ascii_digit))
                 && *kind == Kind::File

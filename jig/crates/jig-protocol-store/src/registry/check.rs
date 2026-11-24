@@ -3,12 +3,13 @@ use super::{Layouts, Row, RowKey, texts};
 use crate::{OpenRefusal, Store, Unplanned};
 use alloc::boxed::Box;
 use skein_codec::{
-    layout::{Plan, Underived, Why, Workspace},
+    layout::{Mode, Plan, Underived, Why, Workspace},
     schema::Span,
 };
 use skein_lib::List;
 
 mod held;
+pub(super) mod later;
 pub use held::{HeldLayout, judge_held_layout};
 
 fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
@@ -90,6 +91,7 @@ fn derive(
     digest: super::Digest,
     ty: &crate::ValueType,
     held: &List<super::Digest>,
+    mode: Option<Mode>,
 ) -> Result<Option<Plan>, Unplanned> {
     let text = layouts.texts.get(&row.value.text).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
@@ -120,7 +122,11 @@ fn derive(
     }
     #[cfg(test)]
     super::counting::plan();
-    match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held.as_slice()) {
+    let plan = match mode {
+        Some(mode) => Plan::between(mode, old, old_root, old_held.as_slice(), new, new_root, new_held.as_slice()),
+        None => Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held.as_slice()),
+    };
+    match plan {
         Ok(plan) => Ok(Some(plan)),
         Err(why) => Err(Unplanned::Underived(why)),
     }
@@ -129,14 +135,14 @@ fn conversion(job: &crate::Job, family: &str, number: u16) -> Option<crate::Layo
     let converts = job.converts.as_ref()?;
     if converts.family == family && converts.value_type == number { Some(converts.from) } else { None }
 }
-fn job(store: &mut Store, key: &RowKey, row: &Row) -> Result<Option<&'static str>, OpenRefusal> {
+fn job(store: &mut Store, key: &RowKey, row: &Row, underived: bool) -> Result<Option<&'static str>, OpenRefusal> {
     let mut one = None;
     for set in store.owner_sets.sets {
         for job in set.jobs {
             if let Some(from) = conversion(job, &key.0, key.1) {
                 match from {
                     crate::Layouts::One(from) if row.value.layout == from => one = Some(job.name),
-                    crate::Layouts::Unplanned if !crate::jobs::kept::done(store, set.owner, job)? => {
+                    crate::Layouts::Unplanned if underived && !crate::jobs::kept::done(store, set.owner, job)? => {
                         return Ok(Some(job.name));
                     }
                     crate::Layouts::One(_) | crate::Layouts::Unplanned => {}
@@ -185,12 +191,31 @@ fn declaration(store: &Store, key: &RowKey) -> Option<(u32, &'static crate::Valu
     None
 }
 
+fn mode(layouts: &Layouts, key: &RowKey, row: &Row, binary: u16, held: bool) -> Option<Mode> {
+    if key.2 == binary {
+        return None;
+    }
+    let binary = layouts.rows.get(&(key.0.clone(), key.1, binary))?.value.layout;
+    let order = layouts.orders.get(&(key.0.clone(), key.1))?;
+    let mut after_binary = false;
+    for fingerprint in &order.value.layouts {
+        if *fingerprint == row.value.layout {
+            return if after_binary { Some(if held { Mode::Read } else { Mode::Keep }) } else { None };
+        }
+        if *fingerprint == binary {
+            after_binary = true;
+        }
+    }
+    None
+}
+
 pub(super) fn plans(
     store: &mut Store,
     layouts: &mut Layouts,
     binary: &mut texts::Binary,
     work: &mut Workspace,
-) -> Result<(), OpenRefusal> {
+) -> Result<later::Check, OpenRefusal> {
+    let mut later = later::Check::new();
     let mut keys = List::uncapped();
     for (key, _) in &layouts.rows {
         keys.push(key.clone()).expect("uncapped row keys");
@@ -205,7 +230,8 @@ pub(super) fn plans(
             Some((index, _)) => Some(index),
             None => None,
         };
-        let values = if history_type(&key.0, key.1) {
+        let held_outside_map = history_type(&key.0, key.1);
+        let values = if held_outside_map {
             None
         } else {
             match found {
@@ -230,8 +256,9 @@ pub(super) fn plans(
             let readable = texts::row(layouts, key);
 
             let row = layouts.rows.get(key).expect("held row");
+            let mode = mode(layouts, key, row, binary_id, held_outside_map);
             let plan = if readable.is_some() {
-                derive(binary, layouts, row, digest, declaration, &held)
+                derive(binary, layouts, row, digest, declaration, &held, mode)
             } else {
                 Err(Unplanned::Text)
             };
@@ -249,6 +276,14 @@ pub(super) fn plans(
                     continue;
                 }
                 Ok(Some(plan)) if key.2 == binary_id || plan.keeps() || work.fit(&plan) => {
+                    if mode == Some(Mode::Keep) {
+                        // A named written job may take a layout even when a plan reaches it.
+                        if let Some(name) = job(store, key, row, false)? {
+                            layouts.written.insert(key.clone(), name).expect("uncapped written ids");
+                            continue;
+                        }
+                        later.add(index, key, values);
+                    }
                     let ty = layouts.types.get_mut(index).expect("found type");
                     // A binary id is reheaded before any plan is consulted, but
                     // its row still needs the text and fingerprint checks above.
@@ -273,8 +308,8 @@ pub(super) fn plans(
             }
         }
         if let Unplanned::Underived(_) = why
-            && !history_type(&key.0, key.1)
-            && let Some(name) = job(store, key, layouts.rows.get(key).expect("held row"))?
+            && !held_outside_map
+            && let Some(name) = job(store, key, layouts.rows.get(key).expect("held row"), true)?
         {
             layouts.written.insert(key.clone(), name).expect("uncapped written ids");
             continue;
@@ -282,7 +317,7 @@ pub(super) fn plans(
         return Err(OpenRefusal::Layout { family: key.0.clone(), value_type: key.1, id: key.2, values, why });
     }
     texts::clear_all(layouts);
-    Ok(())
+    Ok(later)
 }
 
 pub(super) fn retired(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {

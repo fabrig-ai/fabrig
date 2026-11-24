@@ -19,4 +19,8 @@ pub const PATCH: &str = "patch 1\nowner fixture-layouts 1\nfamily fixture-layout
 pub const SETTLING_KEEPING: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { old: u16, choice: Choice, added: u8 }\nversioned record Stable { ok: bool }\n";
 pub const SETTLING_CONVERTING: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { old: u16, choice: Choice }\nversioned record Stable { ok: bool }\n";
 pub const SETTLING_DROPPING: &str = "family fixture-layouts 2\nenum Choice { kept, gone }\nversioned record Growing { n was old: u16, choice: Choice, added: u8 = 7 }\nversioned record Stable { ok: bool }\n";
+pub const BACK_EARLIER: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { n: u16, choice: Choice }\nversioned record Stable { ok: bool }\n";
+pub const BACK_LATER: &str = "family fixture-layouts 2\nenum Choice { kept, added }\nversioned record Growing { n: u16, choice: Choice, extra: u32 = 0, droppable hint: text 64 = \"\" }\nversioned record Stable { ok: bool }\n";
+pub const BACK_NEWEST: &str = "family fixture-layouts 2\nenum Choice { kept, added }\nversioned record Growing { n: u16, choice: Choice, extra: u32 = 0, droppable hint: text 64 = \"\", tail: u8 = 0 }\nversioned record Stable { ok: bool }\n";
+
 pub const SETTLED: &str = "family fixture-layouts 2\nenum Choice { kept }\nversioned record Growing { n was old: u16, choice: Choice, added: u8 = 7 }\nversioned record Stable { ok: bool }\n";

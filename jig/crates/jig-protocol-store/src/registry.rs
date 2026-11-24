@@ -32,9 +32,9 @@ impl ReadWork {
     fn fit(workspace: Workspace, bound: u32) -> Self {
         Self { workspace, buffer: Buffer::with_capacity(0), bound }
     }
-    fn convert(&mut self, plan: &Plan, value: &[u8]) -> bool {
+    fn convert(&mut self, plan: &Plan, value: &[u8]) -> Result<(), Misconverted> {
         if !self.workspace.fits(plan) {
-            return false;
+            return Err(Misconverted::Room);
         }
         let length = u32::try_from(value.len()).unwrap_or(self.bound);
         let twice = length.checked_mul(2).unwrap_or(self.bound);
@@ -45,30 +45,29 @@ impl ReadWork {
         // Even a Room unrelated to output space stops at the bound: at most 32 doublings of a u32 capacity.
         for _ in 0..=u32::BITS {
             match plan.convert(value, &mut self.buffer, &mut self.workspace) {
-                Ok(()) => return true,
-                Err(Misconverted::Room) => {
-                    if self.buffer.capacity() >= self.bound {
-                        return false;
-                    }
+                Err(Misconverted::Room) if self.buffer.capacity() < self.bound => {
                     let room = self.buffer.capacity().checked_mul(2).unwrap_or(self.bound).min(self.bound);
                     self.buffer = Buffer::with_capacity(room);
                 }
+                Ok(()) => return Ok(()),
                 Err(
-                    Misconverted::Short
+                    error @ (Misconverted::Short
                     | Misconverted::Tag
                     | Misconverted::Bool
                     | Misconverted::Bound
                     | Misconverted::Trailing
-                    | Misconverted::Refused(_),
-                ) => return false,
+                    | Misconverted::Room
+                    | Misconverted::Refused(_)),
+                ) => return Err(error),
             }
         }
-        false
+        Err(Misconverted::Room)
     }
 }
 
 type Digest = [u8; 32];
 type RowKey = (Box<str>, u16, u16);
+type OrderKey = (Box<str>, u16);
 #[derive(Debug)]
 struct Text {
     bytes: Box<[u8]>,
@@ -91,6 +90,11 @@ struct Row {
     retire: bool,
 }
 #[derive(Debug)]
+struct Order {
+    value: crate::registry_v1::Order,
+    dirty: bool,
+}
+#[derive(Debug)]
 struct Type {
     version: u16,
     binary: u16,
@@ -109,6 +113,7 @@ pub(crate) struct Layouts {
     types: List<Type>,
     ranges: Map<Box<[u8]>, Range>,
     rows: Map<RowKey, Row>,
+    orders: Map<OrderKey, Order>,
     retired: Map<Box<[u8]>, Box<[u8]>>,
     written: Map<RowKey, &'static str>,
     texts: Map<Digest, Text>,
@@ -122,6 +127,7 @@ impl Layouts {
             types: List::uncapped(),
             ranges: Map::uncapped(),
             rows: Map::uncapped(),
+            orders: Map::uncapped(),
             retired: Map::uncapped(),
             written: Map::uncapped(),
             texts: Map::uncapped(),
@@ -183,7 +189,7 @@ impl Layouts {
         let Some(plan) = ty.plans.get(&id) else {
             return value;
         };
-        if work.convert(plan, value) { work.buffer.as_slice() } else { value }
+        if work.convert(plan, value).is_ok() { work.buffer.as_slice() } else { value }
     }
     pub(crate) fn activate(&mut self) {
         self.active = true;
@@ -348,7 +354,9 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();
-    check::plans(store, &mut layouts, &mut binary, &mut work)?;
+    let later = check::plans(store, &mut layouts, &mut binary, &mut work)?;
+    let mut work = ReadWork::fit(work, store.limits.store.value);
+    later.run(store, &layouts, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
     rows::operations(store.limits.store.key, &mut layouts)?;
     if !writing && store.directory.patch.is_none() {
@@ -356,7 +364,8 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
         layouts.pending = Queue::uncapped();
     }
     layouts.active = seeded && !changed;
-    *store.layout_work = ReadWork::fit(work, store.limits.store.value);
+    work.buffer = Buffer::with_capacity(0);
+    *store.layout_work = work;
     *store.registry = layouts;
     Ok(writing)
 }

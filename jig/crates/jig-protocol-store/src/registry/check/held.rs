@@ -65,7 +65,7 @@ pub fn judge_held_layout(
     };
     let current = binary.text(family).ok_or(Unplanned::Text)?;
     let held = binary.held(&mut layouts, current).ok_or(Unplanned::Text)?;
-    let why = match derive(&mut binary, &layouts, &row, current, ty, &held) {
+    let why = match derive(&mut binary, &layouts, &row, current, ty, &held, None) {
         Ok(None) => return Ok(HeldLayout::Planned),
         Ok(Some(plan)) if plan.keeps() || Workspace::new().fit(&plan) => return Ok(HeldLayout::Planned),
         Ok(Some(_)) => {

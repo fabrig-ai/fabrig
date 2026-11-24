@@ -729,7 +729,7 @@ pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
     CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
     OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, Unready, WorkerOpening, Write,
+    SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WorkerOpening, Write,
 };
 
 #[cfg(test)]

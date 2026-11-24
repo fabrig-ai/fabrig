@@ -45,7 +45,12 @@ fn old_sets() -> OwnerSets {
         current: TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1,
         // Dev's core predates parts: keep only its registered types and key range.
         types: if family.name == "jig-store-core" { &family.types[..8] } else { family.types },
-        keys: if family.name == "jig-store-core" { &family.keys[..1] } else { family.keys },
+        keys: match family.name {
+            "jig-store-core" => &family.keys[..1],
+            // The kept registry text does not declare Order.
+            "jig-store-registry" => &family.keys[..3],
+            _ => family.keys,
+        },
         ..family
     });
     let smith = crate::KeptFamily {
@@ -310,13 +315,23 @@ fn read_back(disk: &mut Disk, store: &mut Store, calls: &[Record], activities: &
 #[test]
 fn dev_layouts_with_refusals_and_sharded_history_open_and_restore_twice() {
     let mut disk = Disk::new(&[]);
-    let mut old = store(&disk, old_sets());
+    let sets = old_sets();
+    let mut old = store(&disk, sets);
     opened(&disk.open(&mut old), false);
     // Use the registry's first-commit writer with the kept texts, rather than
     // duplicating its layout-row and held-text construction in the fixture.
     let committed = disk.request(&mut old, fixtures::commit(1, Box::new([fixtures::header(1)])));
     let [Event::Committed { number: 1, .. }] = committed.as_ref() else { panic!("old registry: {committed:?}") };
     registry(&mut old);
+    // The fixture uses today's first-commit writer. Drop the orders it wrote
+    // so that the kept generation has the registry dev's build could write.
+    let orders = sets
+        .sets
+        .iter()
+        .flat_map(|set| set.families)
+        .flat_map(|family| family.types.iter().map(move |ty| (family.name, ty.number)))
+        .map(|(family, number)| skein_kv::Op::Erase { key: keys::order(family, number, fixtures::KEY_LIMIT).unwrap() });
+    raw(&mut disk, &mut old, orders.collect());
     let calls = [refused(TASKS[0], tasks::Refusal::ResourceUnavailable), refused(TASKS[1], tasks::Refusal::Busy)];
     let mut activities = Vec::new();
     for (task, call) in TASKS.into_iter().zip(&calls) {
