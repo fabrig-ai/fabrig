@@ -8,6 +8,7 @@ mod locks;
 mod moves;
 mod opens;
 mod reach;
+mod table;
 
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -15,6 +16,7 @@ use alloc::format;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
+use table::Table;
 
 /// The longest name a directory holds (`NAME_MAX`).
 const LONGEST_NAME: usize = 255;
@@ -238,13 +240,15 @@ pub(crate) struct NodeState {
     links: u32,
 }
 
+type Entries = Table<Box<[u8]>, NodeId>;
+
+// Live and durable views share file bytes and directory entries until a
+// mutation splits the allocation.
 #[derive(Clone, Debug, Hash)]
 enum Body {
-    // Synced contents share their allocation with the durable node. A write,
-    // truncate or crash replay splits it before changing either view.
     File(Rc<Vec<u8>>),
     Directory {
-        entries: BTreeMap<Box<[u8]>, NodeId>,
+        entries: Rc<Entries>,
         removed: bool,
     },
     Link(Box<[u8]>),
@@ -274,11 +278,14 @@ struct Found {
     slash: bool,
 }
 
+// An unchanged inode is shared by its live and durable views, and by forks.
+type Nodes = Table<NodeId, Rc<NodeState>>;
+
 /// The fake filesystem. See the crate documentation.
 #[derive(Debug, Hash)]
 pub struct Machine {
-    pub(crate) nodes: BTreeMap<NodeId, NodeState>,
-    durable_nodes: BTreeMap<NodeId, NodeState>,
+    pub(crate) nodes: Nodes,
+    durable_nodes: Nodes,
     pending_writes: BTreeMap<NodeId, Vec<(u64, Vec<u8>)>>,
     pending_dirs: BTreeSet<NodeId>,
     /// New second names wait for their target directory to be synced.
@@ -310,17 +317,19 @@ impl Machine {
     /// A filesystem whose newly created nodes belong to this effective user.
     #[must_use]
     pub fn for_user(effective_user: u32) -> Machine {
-        let top = NodeState {
+        let top = Rc::new(NodeState {
             owner: effective_user,
-            body: Body::Directory { entries: BTreeMap::new(), removed: false },
+            body: Body::Directory { entries: Rc::default(), removed: false },
             mode: NEW_DIRECTORY,
             parent: None,
             named: true,
             links: 2,
-        };
+        });
+        let mut nodes = Nodes::default();
+        nodes.insert(0, top);
         Machine {
-            nodes: BTreeMap::from([(0, top.clone())]),
-            durable_nodes: BTreeMap::from([(0, top)]),
+            durable_nodes: nodes.clone(),
+            nodes,
             pending_writes: BTreeMap::new(),
             pending_dirs: BTreeSet::new(),
             pending_links: BTreeMap::new(),
@@ -361,7 +370,7 @@ impl Machine {
     pub fn lay(&mut self, items: &[Item]) -> Opened {
         let name = format!("root-{}", self.roots).into_bytes().into_boxed_slice();
         self.roots = self.roots.checked_add(1).expect("fewer than 2^32 roots");
-        let root = self.make(self.top, name, Body::Directory { entries: BTreeMap::new(), removed: false }, 0o755);
+        let root = self.make(self.top, name, Body::Directory { entries: Rc::default(), removed: false }, 0o755);
         for item in items {
             let mut parent = root;
             let mut names: Vec<&[u8]> = item.path.split(|&byte| byte == b'/').collect();
@@ -382,7 +391,7 @@ impl Machine {
                     continue;
                 }
                 Made::File(bytes) => Body::File(Rc::new(bytes.clone())),
-                Made::Directory => Body::Directory { entries: BTreeMap::new(), removed: false },
+                Made::Directory => Body::Directory { entries: Rc::default(), removed: false },
                 Made::Link(target) => Body::Link(target.clone().into_boxed_slice()),
                 Made::Fifo => Body::Special(Is::Fifo),
                 Made::Device => Body::Special(Is::Device),
@@ -390,7 +399,6 @@ impl Machine {
             let laid = self.make(parent, Box::from(last), body, item.mode);
             if let Some(owner) = item.owner {
                 self.node_mut(laid).owner = owner;
-                self.durable_nodes.get_mut(&laid).expect("laid durable node").owner = owner;
             }
         }
         // The laid scenario is the disk's initial durable state.
@@ -454,12 +462,13 @@ impl Machine {
     /// Makes this file's bytes or this directory's entries durable.
     pub fn sync(&mut self, file: Opened) {
         let id = self.handle(file).node;
-        if let Body::File(contents) = &mut self.node_mut(id).body
+        if let Body::File(contents) = &self.node_state(id).body
             && contents.capacity() > contents.len()
+            && let Body::File(contents) = &mut self.node_mut(id).body
         {
             Rc::make_mut(contents).shrink_to_fit();
         }
-        let node = self.node_state(id).clone();
+        let node = self.nodes.get(&id).expect("a held node").clone();
         match node.body {
             Body::File(_) => {
                 self.pending_writes.remove(&id);
@@ -492,7 +501,7 @@ impl Machine {
             let Some(node) = surviving.get_mut(id) else {
                 continue;
             };
-            let Body::File(contents) = &mut node.body else {
+            let Body::File(contents) = &mut Rc::make_mut(node).body else {
                 continue;
             };
             let mut chosen: Vec<&(u64, Vec<u8>)> = Vec::new();
@@ -520,11 +529,14 @@ impl Machine {
         }
         self.crash_moves(&mut surviving, &mut rng);
         for ((dir, name), linked) in &self.pending_links {
-            if let Some(NodeState { body: Body::Directory { entries, .. }, .. }) = surviving.get_mut(dir)
-                && entries.get(name) == Some(linked)
+            if let Some(node) = surviving.get_mut(dir)
+                && let Body::Directory { entries, .. } = &node.body
+                && entries.get(name.as_ref()) == Some(linked)
+                && let Body::Directory { entries, .. } = &mut Rc::make_mut(node).body
             {
+                let entries = Rc::make_mut(entries);
                 let previous = self.durable_nodes.get(dir).and_then(|node| match &node.body {
-                    Body::Directory { entries, .. } => entries.get(name).copied(),
+                    Body::Directory { entries, .. } => entries.get(name.as_ref()).copied(),
                     Body::File(_) | Body::Link(_) | Body::Special(_) => None,
                 });
                 if let Some(previous) = previous {
@@ -721,7 +733,7 @@ impl Machine {
         if !self.may(dir, WRITE) {
             return Err(Refusal::Permission);
         }
-        let body = Body::Directory { entries: BTreeMap::new(), removed: false };
+        let body = Body::Directory { entries: Rc::default(), removed: false };
         self.make(dir, Box::from(name), body, mode & !UMASK);
         Ok(())
     }
@@ -742,7 +754,7 @@ impl Machine {
         let mut listed = Vec::new();
         let mut left = skein_lib::usize_of(room);
         let most = skein_lib::usize_of(most);
-        for (name, &child) in entries {
+        for (name, &child) in entries.iter() {
             if after.as_ref().is_some_and(|after| name <= after) {
                 continue;
             }
@@ -935,32 +947,23 @@ impl Machine {
             Body::Directory { .. } => Some(parent),
             Body::File(_) | Body::Link(_) | Body::Special(_) => None,
         };
-        let durable_body = match &body {
-            Body::File(_) => Body::File(Rc::new(Vec::new())),
-            Body::Directory { .. } => Body::Directory { entries: BTreeMap::new(), removed: false },
-            Body::Link(target) => Body::Link(target.clone()),
-            Body::Special(is) => Body::Special(*is),
-        };
         let links = if parent_of.is_some() { 2 } else { 1 };
         if parent_of.is_some() {
             let parent = self.node_mut(parent);
             parent.links = parent.links.checked_add(1).expect("bounded directory links");
         }
-        self.durable_nodes.insert(
-            id,
-            NodeState {
-                owner: self.owner,
-                body: durable_body,
-                mode: mode & PERMISSIONS,
-                parent: parent_of,
-                named: true,
-                links,
-            },
-        );
-        self.nodes.insert(
-            id,
-            NodeState { owner: self.owner, body, mode: mode & PERMISSIONS, parent: parent_of, named: true, links },
-        );
+        let node = Rc::new(NodeState {
+            owner: self.owner,
+            body,
+            mode: mode & PERMISSIONS,
+            parent: parent_of,
+            named: true,
+            links,
+        });
+        // Creation supplies an empty inode (or a laid fixture's initial
+        // contents). Its name becomes durable with the directory, separately.
+        self.durable_nodes.insert(id, node.clone());
+        self.nodes.insert(id, node);
         let previous = self.entries_mut(parent).insert(name, id);
         assert!(previous.is_none(), "a name is made only where none is");
         id
@@ -1026,13 +1029,13 @@ impl Machine {
     }
 
     fn node_mut(&mut self, node: NodeId) -> &mut NodeState {
-        self.nodes.get_mut(&node).expect("a node the machine holds")
+        Rc::make_mut(self.nodes.get_mut(&node).expect("a node the machine holds"))
     }
 
-    fn entries_mut(&mut self, dir: NodeId) -> &mut BTreeMap<Box<[u8]>, NodeId> {
+    fn entries_mut(&mut self, dir: NodeId) -> &mut Entries {
         self.pending_dirs.insert(dir);
         match &mut self.node_mut(dir).body {
-            Body::Directory { entries, .. } => entries,
+            Body::Directory { entries, .. } => Rc::make_mut(entries),
             Body::File(_) | Body::Link(_) | Body::Special(_) => fail("only a directory holds names"),
         }
     }
@@ -1114,7 +1117,7 @@ fn fail(what: &str) -> ! {
 
 // Crash recovery follows the surviving namespace, rather than a stale inode
 // copy from before an unlink or directory move.
-fn recover_links(nodes: &mut BTreeMap<NodeId, NodeState>) {
+fn recover_links(nodes: &mut Nodes) {
     let mut counts = BTreeMap::<NodeId, u32>::new();
     for (&id, node) in nodes.iter() {
         if let Body::Directory { removed, .. } = &node.body {
@@ -1123,11 +1126,11 @@ fn recover_links(nodes: &mut BTreeMap<NodeId, NodeState>) {
     }
     for (&id, node) in nodes.iter() {
         if let Body::Directory { entries, .. } = &node.body {
-            for child in entries.values() {
-                let links = counts.entry(*child).or_default();
+            for (_, &child) in entries.iter() {
+                let links = counts.entry(child).or_default();
                 // A directory's parent name is already part of its two base
                 // links; its .. instead contributes to the parent's count.
-                if nodes.get(child).is_some_and(|node| matches!(node.body, Body::Directory { .. })) {
+                if nodes.get(&child).is_some_and(|node| matches!(node.body, Body::Directory { .. })) {
                     let links = counts.entry(id).or_default();
                     *links = links.checked_add(1).expect("bounded directory links");
                 } else {
@@ -1137,9 +1140,12 @@ fn recover_links(nodes: &mut BTreeMap<NodeId, NodeState>) {
         }
     }
     for (&id, node) in nodes.iter_mut() {
-        node.links = counts.get(&id).copied().unwrap_or(0);
-        if !matches!(node.body, Body::Directory { .. }) {
-            node.named = node.links > 0;
+        let links = counts.get(&id).copied().unwrap_or(0);
+        let named = if matches!(node.body, Body::Directory { .. }) { node.named } else { links > 0 };
+        if (node.links, node.named) != (links, named) {
+            let node = Rc::make_mut(node);
+            node.links = links;
+            node.named = named;
         }
     }
 }
