@@ -361,9 +361,13 @@ pub(super) fn issued(d: &mut Domain, env: &Env<Limits>, owner: Token) {
         advanced(d, env, &row);
     }
     if let Some(progress) = d.landing.progress.get_mut(&task) {
+        let was_paused = progress.paused;
         access(progress, env, repository, available);
         progress.reads = progress.reads.saturating_add(1);
         progress.last = Some(failure);
+        if was_paused != progress.paused {
+            crate::waits::changed(d, task);
+        }
     }
 }
 
@@ -388,15 +392,22 @@ fn access(progress: &mut Progress, env: &Env<Limits>, repository: Repository, av
 }
 
 pub(super) fn pause(d: &mut Domain, task: u64) {
-    if let Some(progress) = d.landing.progress.get_mut(&task) {
+    if let Some(progress) = d.landing.progress.get_mut(&task)
+        && !progress.paused
+    {
         progress.paused = true;
+        crate::waits::changed(d, task);
     }
 }
 
 pub(super) fn resume(d: &mut Domain, env: &Env<Limits>, task: u64, repository: Repository) {
     let available = connected(d, repository.forge);
     if let Some(progress) = d.landing.progress.get_mut(&task) {
+        let was_paused = progress.paused;
         access(progress, env, repository, available);
+        if was_paused != progress.paused {
+            crate::waits::changed(d, task);
+        }
     }
 }
 
@@ -415,7 +426,11 @@ pub(super) fn connection(d: &mut Domain, env: &Env<Limits>, forge: u16, availabl
             continue;
         }
         let progress = d.landing.progress.get_mut(&task).expect("affected clock");
+        let was_paused = progress.paused;
         access(progress, env, repository, available);
+        if was_paused != progress.paused {
+            crate::waits::changed(d, task);
+        }
     }
 }
 
@@ -436,6 +451,16 @@ pub(super) fn failed(d: &mut Domain, env: &Env<Limits>, row: &LandingRow, failur
     if let Some(progress) = d.landing.progress.get_mut(&task) {
         progress.wait = Some(Wait::Read(failure));
     }
+}
+
+pub(crate) fn read_change(d: &Domain, task: u64) -> Option<u64> {
+    if let Some(Wait::Read(failure)) = &d.landing.progress.get(&task)?.wait { failure.change } else { None }
+}
+
+pub(crate) fn reported_deadline(d: &Domain, task: u64) -> Option<Wall> {
+    let until = bound(d, task)?;
+    let clock = d.landing.progress.get(&task)?.clock;
+    Some(crate::waits::step_bound(clock.wall, elapsed(until, clock.since)))
 }
 
 pub(super) fn repository_waiting(d: &Domain, task: u64) -> Option<Repository> {
@@ -516,7 +541,12 @@ fn pending_merge(d: &Domain, row: &LandingRow) -> bool {
     false
 }
 
-fn gate_flight<'a>(d: &'a Domain, row: &LandingRow, member: u16, gate: u16) -> Option<&'a crate::runs::Follow> {
+pub(crate) fn gate_flight<'a>(
+    d: &'a Domain,
+    row: &LandingRow,
+    member: u16,
+    gate: u16,
+) -> Option<&'a crate::runs::Follow> {
     let position = (row.landing.task, member, gate);
     let placed = row.landing.members.get(usize::from(member))?;
     let name = &d.train_gates(row, repository(placed)).get(usize::from(gate))?.name;
@@ -728,9 +758,26 @@ pub(super) fn held(d: &mut Domain, env: &Env<Limits>, row: &mut LandingRow, out:
             None => (Box::from(b"a fresh read of its facts from the forge".as_slice()), Cause::Pending),
         },
     };
+    hold(progress, env, row, reading, &why.words(), out);
+}
+
+pub(super) fn room_held(d: &mut Domain, env: &Env<Limits>, row: &mut LandingRow, why: &[u8], out: &mut Queue<Request>) {
+    let reading = Box::from(b"room in the forge's outbox".as_slice());
+    let progress = d.landing.progress.get_mut(&row.landing.task).expect("room wait's landing clock");
+    hold(progress, env, row, reading, why, out);
+}
+
+fn hold(
+    progress: &mut Progress,
+    env: &Env<Limits>,
+    row: &mut LandingRow,
+    reading: Box<[u8]>,
+    why: &[u8],
+    out: &mut Queue<Request>,
+) {
     let elapsed = elapsed(env.now, progress.clock.since);
     let mut words = List::with_capacity(crate::history::REASON_BYTES);
-    for part in [b"read: ".as_slice(), &reading, b": ", &why.words()] {
+    for part in [b"read: ".as_slice(), &reading, b": ", why] {
         append_words(&mut words, part);
     }
     if progress.reads != 0 {

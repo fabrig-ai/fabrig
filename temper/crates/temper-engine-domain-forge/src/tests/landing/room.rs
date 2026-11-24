@@ -819,3 +819,59 @@ fn ending_a_landing_withdraws_its_unsent_write() {
         assert!(d.landing(TASK).unwrap().entries.is_empty());
     }
 }
+
+#[test]
+fn a_room_wait_holds_the_landing_at_the_ended_writers_bound() {
+    use jig_domain_core_vocabulary::waits::AtBound;
+    use outbox_room::later;
+    let mut d = full("open");
+    let joined = env();
+    let waiting = drive(&mut d, TASK, 91);
+    assert_room_report(&waiting, TASK, LANDING_ROOM, joined.wall, 1);
+    let writer = refusals::entry(1).task;
+    let ended = later(&joined, Duration::from_secs(1));
+    let mut out = Queue::uncapped();
+    step(&mut d, &ended, Event::ChangeEnding { task: writer, ending: Ending::Cancelled }, &mut out);
+    let waiting = collected(out);
+    let [record] = wait_report(&waiting, TASK).expect("finite room report") else { panic!("one room wait") };
+    let at = advanced_wall(ended.wall, ended.limits.waits.room);
+    assert_eq!(record.since, joined.wall);
+    assert_eq!(record.bound, ReportedBound::At { at, then: AtBound::Hold });
+    assert_eq!(d.inspection_room_wait(TASK), Some((at, true)));
+    let before = later(&ended, Duration::from_nanos(ended.limits.waits.room.as_nanos() - 1));
+    assert!(!asks(&fire_at(&mut d, &before, before.wall)).contains(&TASK));
+    let due = later(&ended, ended.limits.waits.room);
+    assert!(asks(&fire_at(&mut d, &due, due.wall)).contains(&TASK));
+
+    let mut out = Queue::uncapped();
+    step(&mut d, &due, Event::StepLanding { task: TASK, entry: 92, heard: preparing_heard(None) }, &mut out);
+    let held = collected(out);
+    let mut read_hold = false;
+    for request in &held {
+        read_hold |= matches!(
+            request,
+            Request::LandingDecision {
+                task: TASK,
+                decision: policy::Decision::Hold(policy::Hold::Read),
+                entry: None,
+                ..
+            }
+        );
+    }
+    assert!(read_hold);
+    assert_eq!(wait_report(&held, TASK), Some([].as_slice()));
+    let row = d.landing(TASK).unwrap();
+    assert_eq!(row.room, Some(1));
+    assert!(matches!(row.landing.phase, policy::Phase::Held { why: policy::Hold::Read, .. }));
+    let words = row.read_hold.as_deref().expect("room hold words");
+    let expected = format!("read: room in the forge's outbox: held by entry 1 of ended task {writer}");
+    assert!(words == expected.as_bytes() || words.starts_with(format!("{expected}; ").as_bytes()), "{words:?}");
+    let mut freed = Queue::uncapped();
+    step(&mut d, &due, Event::Withdraw { entry: 1 }, &mut freed);
+    assert!(!asks(&collected(freed)).contains(&TASK), "a held landing is passed over");
+    let mut released = Queue::uncapped();
+    let heard = LandingHeard { released: true, ..preparing_heard(None) };
+    step(&mut d, &due, Event::StepLanding { task: TASK, entry: 93, heard }, &mut released);
+    assert_eq!(d.landing(TASK).unwrap().room, Some(1), "release retains the landing's place");
+    assert!(asks(&collected(released)).contains(&TASK), "its place may be asked again");
+}

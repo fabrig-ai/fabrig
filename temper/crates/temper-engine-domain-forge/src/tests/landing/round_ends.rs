@@ -1,7 +1,9 @@
 //! Round cleanup leaves the next prepare or turn due (domain/landing-waits.md, 3).
 use super::*;
+use jig_domain_core_vocabulary::waits::{AtBound, Reported, ReportedBound, Thing, WaitKind, WaitObject};
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
 use skein_lib::List;
+use temper_client_protocol_wire::waits::{LANDING_ANCESTRY, LANDING_OPEN, LANDING_READ, THING_TASK};
 
 const TASK: u64 = 61;
 const GREEN: api::Commit = [11; 32];
@@ -67,6 +69,7 @@ struct World {
     history: PrefixHistory,
     prefix_pages: List<u32>,
     read_log: List<LandingReadNote>,
+    wait_report: Option<Box<[Reported]>>,
     held_news: List<u16>,
     refused_pull: Option<u64>,
     comparisons: List<(api::Commit, api::Commit)>,
@@ -101,6 +104,7 @@ impl World {
             history: PrefixHistory::Unscripted,
             prefix_pages: List::uncapped(),
             read_log: List::uncapped(),
+            wait_report: None,
             held_news: List::uncapped(),
             refused_pull: None,
             comparisons: List::uncapped(),
@@ -315,9 +319,11 @@ impl World {
     }
     #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture retains only the landing decision and client call")]
     fn drive(&mut self, mut out: Queue<Request>) -> policy::Decision {
+        self.wait_report = None;
         for _ in 0_u32..128 {
             while let Some(request) = out.pop() {
                 if let Request::LandingDecision { decision, entry: writing, .. } = request {
+                    self.take_wait_report(out);
                     if let Some(entry) = writing {
                         self.effect(entry);
                     }
@@ -338,6 +344,7 @@ impl World {
                         call = Some((token, op));
                     }
                     Request::LandingDecision { decision, entry: writing, .. } => {
+                        self.take_wait_report(out);
                         if let Some(entry) = writing {
                             self.effect(entry);
                         }
@@ -381,6 +388,14 @@ impl World {
             self.d.reclaim();
         }
         panic!("landing decides");
+    }
+    fn take_wait_report(&mut self, mut out: Queue<Request>) {
+        while let Some(request) = out.pop() {
+            if let Request::Waits { task: TASK, waits } = request {
+                assert!(self.wait_report.is_none(), "one replacement per step");
+                self.wait_report = Some(waits.into_boxed());
+            }
+        }
     }
     #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture rejects writes outside round cleanup and landing")]
     fn effect(&mut self, entry: u64) {
@@ -570,11 +585,14 @@ fn unchanged_comparisons_stall_across_ancestry_and_read_waits() {
     }
     landing::save(&mut w.d, &w.env, row, &mut Queue::uncapped());
     turn_rule(&mut w.d, b"main", &[1], false);
-    for (refused, on) in
-        [(None, Awaited::Ancestry { member: 0 }), (Some(2), Awaited::Read), (None, Awaited::Ancestry { member: 0 })]
-    {
+    for (refused, on, code, change) in [
+        (None, Awaited::Ancestry { member: 0 }, LANDING_ANCESTRY, 51),
+        (Some(2), Awaited::Read, LANDING_READ, 52),
+        (None, Awaited::Ancestry { member: 0 }, LANDING_ANCESTRY, 51),
+    ] {
         w.refused_pull = refused;
         assert!(matches!(w.decide_after(FIRST_POLL), Decision::Wait { on: got, .. } if got == on));
+        assert_eq!(w.wait_report.as_deref(), Some([forge_wait(code, change, since, STALL)].as_slice()));
     }
     assert_eq!(w.comparisons.as_slice(), &[(fixtures::BASE, fixtures::HEAD); 7]);
     assert_eq!(w.d.landing_advance(TASK), Some((since, READS)));
@@ -610,6 +628,18 @@ fn arming_a_prepare_retry_does_not_advance_the_landing() {
     assert_eq!(w.d.inspection_landing_bound(TASK), Some(bound));
 }
 
+fn forge_wait(step: u32, change: u64, since: Wall, stall: Duration) -> Reported {
+    Reported {
+        kind: WaitKind::Step,
+        object: WaitObject::Procedure {
+            step,
+            things: List::from_boxed(Box::new([Thing { what: THING_TASK, number: change, owner: None }])),
+        },
+        since,
+        bound: ReportedBound::At { at: advanced_wall(since, stall), then: AtBound::Hold },
+    }
+}
+
 #[test]
 fn an_unanswered_open_holds_at_the_stall_without_withdrawing_its_entry() {
     use crate::history::{Job, JobOutcome, JobStep};
@@ -627,12 +657,18 @@ fn an_unanswered_open_holds_at_the_stall_without_withdrawing_its_entry() {
     assert_eq!(w.decide_after(gap), Decision::Open);
     let entry = w.entry;
     let advanced = w.env.wall;
-    assert_eq!(w.decide_after(gap), Decision::Wait { until: None, on: Awaited::Open });
+    let waiting = Decision::Wait { until: None, on: Awaited::Open };
+    assert_eq!(w.decide_after(gap), waiting);
+    assert_eq!(w.wait_report.as_deref(), Some([forge_wait(LANDING_OPEN, 51, advanced, stall)].as_slice()));
+    assert_eq!(w.decide_after(gap), waiting);
+    assert_eq!(w.wait_report, None, "a repeated wait does not publish again");
     assert_eq!(w.d.landing_advance(TASK).unwrap().0, advanced);
     // The prepare's recorded end is real progress, but the open still owes an answer.
     w.clock(gap);
-    w.send(Event::JobHistory { task: TASK, job: JobStep { outcome: Some(JobOutcome::Done), ..job } });
+    let out =
+        collected(w.send(Event::JobHistory { task: TASK, job: JobStep { outcome: Some(JobOutcome::Done), ..job } }));
     assert_eq!(w.d.landing_advance(TASK), Some((w.env.wall, 0)));
+    assert_eq!(wait_report(&out, TASK), Some([forge_wait(LANDING_OPEN, 51, w.env.wall, stall)].as_slice()));
     w.d.wait_landing(&w.env, TASK, None);
     assert!(!has_wake(fixtures::advance(&mut w.d, &mut w.env, gap)));
     assert!(has_wake(fixtures::advance(

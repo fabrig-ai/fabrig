@@ -290,6 +290,7 @@ pub struct StoryLimits {
     pub dispatch_by_test: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
+    pub landing_gate_latency: Option<Duration>,
     /// Zero stages a waiting batch under the operator hold, with a one-member engine limit.
     pub landing_members: Option<u32>,
     pub landings: Option<u32>,
@@ -1560,8 +1561,8 @@ impl World {
                         select: timing.dispatch_by_test.then(|| b"temper_tests".as_slice().into()),
                         file: b"gate.yml".as_slice().into(),
                         jobs: Box::new([b"test".as_slice().into()]),
-                        latency_min: Duration::from_secs(1),
-                        latency_max: Duration::from_secs(1),
+                        latency_min: timing.landing_gate_latency.unwrap_or(Duration::from_secs(1)),
+                        latency_max: timing.landing_gate_latency.unwrap_or(Duration::from_secs(1)),
                         silent: 0,
                         passes: timing.dispatch_passes.unwrap_or(1000),
                         cue: timing.dispatch_tests.map(|path| raw::Cue::Tests { path: path.into() }),

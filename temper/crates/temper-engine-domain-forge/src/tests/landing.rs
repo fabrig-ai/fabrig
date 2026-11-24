@@ -9,6 +9,8 @@ mod room;
 mod round_ends;
 #[path = "landing/unreported.rs"]
 mod unreported;
+#[path = "landing/wait_reports.rs"]
+mod wait_reports;
 
 #[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
@@ -2730,6 +2732,21 @@ pub(super) fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
 }
 
 fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api::Run) -> policy::Decision {
+    poll_clocked_gate_with_report(d, clock, run).0
+}
+
+fn owned_wait_report(out: &[Request], task: u64) -> Option<Box<[jig_domain_core_vocabulary::waits::Reported]>> {
+    match wait_report(out, task) {
+        Some(report) => Some(report.into()),
+        None => None,
+    }
+}
+
+fn poll_clocked_gate_with_report(
+    d: &mut Domain,
+    clock: &Env<Limits>,
+    run: &skein_forge::api::Run,
+) -> (policy::Decision, Option<Box<[jig_domain_core_vocabulary::waits::Reported]>>) {
     use skein_forge::api::{Answer, Op, Read};
     let mut out = Queue::uncapped();
     step(
@@ -2768,10 +2785,10 @@ fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api
             }
             Op::Read(_) | Op::Write(_) => panic!("unexpected gate read {op:?}"),
         };
-        let mut answered = fixtures::answer_at(d, clock, call, Ok(answer));
-        while let Some(request) = answered.pop() {
+        let answered = collected(fixtures::answer_at(d, clock, call, Ok(answer)));
+        for request in &answered {
             if let Request::LandingDecision { decision, .. } = request {
-                return decision;
+                return (*decision, owned_wait_report(&answered, 61));
             }
         }
     }
@@ -3546,6 +3563,15 @@ pub(super) fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {
 }
 
 pub(super) fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_forge::api::Run) -> policy::Decision {
+    step_regate_with_report(d, task, entry, run).0
+}
+
+fn step_regate_with_report(
+    d: &mut Domain,
+    task: u64,
+    entry: u64,
+    run: &skein_forge::api::Run,
+) -> (policy::Decision, Option<Box<[jig_domain_core_vocabulary::waits::Reported]>>) {
     use skein_forge::api::{Answer, Op, Read};
     let mut requests = outputs(
         d,
@@ -3568,7 +3594,7 @@ pub(super) fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_for
     for _ in 0..20_u32 {
         for request in &requests {
             if let Request::LandingDecision { decision, .. } = request {
-                return *decision;
+                return (*decision, owned_wait_report(&requests, task));
             }
         }
         let (call, op) = fixtures::next_call(d);
@@ -3758,6 +3784,8 @@ fn only_a_regate_naming_the_failed_receipts_whole_key_and_run_supersedes_it() {
 
 #[test]
 fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_receipt() {
+    use jig_domain_core_vocabulary::waits::{Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
+    use temper_client_protocol_wire::waits::{LANDING_RECEIPT, THING_TASK};
     let (mut d, key, mut run) = regate_landing();
     dispatch_regate(&mut d, &key, &run);
     let mut waiter = d.landing.rows.get(&61).unwrap().clone();
@@ -3774,11 +3802,28 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
     d.landing.rows.insert(62, waiter).unwrap();
     run.state = skein_forge::api::RunState::Running;
     run.conclusion = None;
-    assert!(matches!(
-        step_regate(&mut d, 62, 93, &run),
-        policy::Decision::Wait { on: policy::Awaited::Receipt { .. }, .. }
-    ));
+    let (decision, report) = step_regate_with_report(&mut d, 62, 93, &run);
+    assert!(matches!(decision, policy::Decision::Wait { on: policy::Awaited::Receipt { .. }, .. }));
     assert_eq!(d.inspection_landing_bound(62), None, "another landing owns the run");
+    assert_eq!(
+        report.as_deref(),
+        Some(
+            [Reported {
+                kind: WaitKind::Step,
+                object: WaitObject::Procedure {
+                    step: LANDING_RECEIPT,
+                    things: skein_lib::List::from_boxed(Box::new([Thing {
+                        what: THING_TASK,
+                        number: 61,
+                        owner: None
+                    }])),
+                },
+                since: env().wall,
+                bound: ReportedBound::None(Unbounded::Behind(61)),
+            }]
+            .as_slice()
+        )
+    );
     assert_eq!(d.receipt(&key).unwrap().run.id, 41);
     run.state = skein_forge::api::RunState::Completed;
     run.conclusion = Some(skein_forge::api::Conclusion::Success);

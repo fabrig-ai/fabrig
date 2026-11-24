@@ -198,6 +198,25 @@ pub(crate) fn rerun_flake(follow: &mut Follow) {
 }
 
 impl Follow {
+    /// The deadline if the execution state in the last reading continues.
+    pub(crate) fn gate_deadline(&self, running: Duration, waiting: Duration) -> Option<Wall> {
+        let clock = self.clock?;
+        if self.outcome.is_some() {
+            return None;
+        }
+        let remaining = if clock.ran > running || clock.waited >= waiting {
+            0
+        } else {
+            match clock.seen {
+                // The run holds strictly past its running limit.
+                Execution::Running => running.as_nanos().saturating_sub(clock.ran.as_nanos()).saturating_add(1),
+                Execution::Waiting => waiting.as_nanos().saturating_sub(clock.waited.as_nanos()),
+                Execution::Unknown => return None,
+            }
+        };
+        Some(Wall::from_nanos(clock.at.as_nanos().saturating_add(remaining)))
+    }
+
     fn conflicts(
         &self,
         repository: api::Repository,

@@ -14,7 +14,7 @@ use temper_engine_domain_forge_landing as policy;
 pub use temper_engine_domain_forge_vocabulary::landing::*;
 
 #[path = "landing_read_wait.rs"]
-mod read_wait;
+pub(crate) mod read_wait;
 pub(crate) use read_wait::{clear as forget_progress, unavailable as read_unavailable};
 
 #[path = "landing_follow.rs"]
@@ -66,6 +66,7 @@ enum Ready {
 enum ReadStep {
     Failed(read_wait::Failure),
     Stalled,
+    RoomExpired(Box<[u8]>),
     Held { released: bool },
 }
 #[derive(Hash, Debug)]
@@ -801,6 +802,13 @@ impl Domain {
         read_wait::last_advance(self, task)
     }
 
+    pub(crate) fn landing_gate_timeout(&self, project: u32) -> skein_lib::Duration {
+        match self.landing.projects.get(&project) {
+            Some((_, _, _, _, _, settings, _)) => settings.gate_timeout,
+            None => policy::Project::DEFAULT.gate_timeout,
+        }
+    }
+
     /// The stall of the current forge wait, exposed to the world referee.
     #[must_use]
     pub fn inspection_landing_bound(&self, task: u64) -> Option<skein_lib::Time> {
@@ -1014,6 +1022,9 @@ pub(crate) fn save(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: &mut
     if advances {
         read_wait::advanced(d, env, &row);
     }
+    if row.waiting.is_some() {
+        crate::waits::changed(d, row.landing.task);
+    }
     save_row(d, row, out);
 }
 
@@ -1068,6 +1079,9 @@ pub(crate) fn save_row(d: &mut Domain, mut row: LandingRow, out: &mut Queue<Requ
         let mut tasks = List::with_capacity(crate::MARKED);
         for (other, saved) in &d.landing.rows {
             if *other != task && saved.landing.project == project {
+                if saved.waiting == Some(policy::Awaited::Turn) {
+                    d.wait_reports.changed(*other);
+                }
                 tasks.push(*other).expect("mark room");
                 if tasks.room() == 0 {
                     emit(out, Request::Marked { tasks: tasks.into_boxed() });
@@ -1322,6 +1336,14 @@ pub(crate) fn step(
         }
         return;
     }
+    if entry != 0
+        && !heard.cancelled
+        && !heard.released
+        && let Some(why) = crate::room::expired_landing(d, env, task)
+    {
+        read_ready(d, task, ReadStep::RoomExpired(why), out);
+        return;
+    }
     if let Some(token) = pending {
         let pending = d.landing.pending.get_mut(&token).expect("pending step");
         pending.entry = entry;
@@ -1532,12 +1554,28 @@ fn read_ready(d: &mut Domain, task: u64, step: ReadStep, out: &mut Queue<Request
 fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, out: &mut Queue<Request>) {
     let Some(mut row) = d.landing.rows.get(&task).cloned() else { return };
     let prior = row.clone();
+    // A hold must keep the room order, even if the holding task steps again.
+    if let ReadStep::Stalled | ReadStep::Failed(_) = &step {
+        leave_room(d, &mut row);
+    }
     let decision = match step {
+        ReadStep::RoomExpired(why) => {
+            if let Some(owner) = pending_for(d, task) {
+                d.landing.pending.remove(&owner);
+                d.read_line.leave(Waiter::Landing(owner));
+            }
+            d.landing.due.remove(&task);
+            crate::room::pass(d, task);
+            read_wait::room_held(d, env, &mut row, &why, out);
+            row.landing.phase = policy::Phase::Held { was: Box::new(row.landing.phase), why: policy::Hold::Read };
+            policy::Decision::Hold(policy::Hold::Read)
+        }
         ReadStep::Held { released } => {
             let stepped = policy::held(row.landing, released, env.wall);
             row.landing = stepped.landing;
             if released {
                 row.read_hold = None;
+                crate::room::release_place(d, crate::room::Waiter::Landing(task), env.wall);
             }
             stepped.decision
         }
@@ -1568,7 +1606,6 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
             }
         }
     };
-    leave_room(d, &mut row);
     if row != prior {
         crate::landing_history::transition(d, env.wall, &prior, &row, out);
         if row.landing.round.ending.is_some() && prior.landing.round.ending.is_none() {
@@ -1589,6 +1626,7 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
         }
     }
     emit_decision(out, Request::LandingDecision { task, decision, entry: None, evidence: None }, d, env);
+    crate::waits::changed(d, task);
 }
 
 pub(crate) fn read_deadline(d: &Domain) -> Option<skein_lib::Time> {
@@ -2580,7 +2618,7 @@ fn stack_candidate(row: &LandingRow) -> Option<api::Commit> {
     }
     top
 }
-fn round_effect_top(row: &LandingRow) -> u16 {
+pub(crate) fn round_effect_top(row: &LandingRow) -> u16 {
     if let Some(search) = &row.landing.round.search
         && policy::probe(&row.landing).is_none()
         && row.landing.round.ending != Some(policy::RoundEnd::Cut)
@@ -3086,13 +3124,10 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                     if let Some(run) = &flight.run {
                         fact.run = run.number;
                     }
-                    let settings = match d.landing.projects.get(&row.landing.project) {
-                        Some((_, _, _, _, _, settings, _)) => *settings,
-                        None => policy::Project::DEFAULT,
-                    };
+                    let gate_timeout = d.landing_gate_timeout(row.landing.project);
                     if row.room.is_none()
                         && let Some(clock) = flight.clock
-                        && (clock.ran(env.wall) > settings.gate_timeout
+                        && (clock.ran(env.wall) > gate_timeout
                             || clock.waited(env.wall) >= env.limits.change_policy.runner_wait)
                         && flight.outcome.is_none()
                         && flight.run.is_some()

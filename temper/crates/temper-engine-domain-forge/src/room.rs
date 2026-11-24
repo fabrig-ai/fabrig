@@ -1,5 +1,6 @@
 //! One first-come-first-served outbox line (domain/forge/room.md, 2–4).
 use crate::{Domain, Limits, Request};
+use alloc::boxed::Box;
 use jig_domain_core_vocabulary::waits::{AtBound, Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
 use skein_lib::{Decimal, Duration, Env, List, Map, Queue, Set, Token, Wall, bytes};
 use temper_client_protocol_wire::waits::THING_ENTRY;
@@ -111,9 +112,9 @@ impl Holders {
         Some(ReportedBound::At { at, then: AtBound::Hold })
     }
 
-    fn account(&self, step: &[u8], figure: Duration) -> Option<crate::EffectAccount> {
-        let (entry, holder) = if let [Some(first), ..] = self.entries {
-            (
+    fn oldest_words(&self) -> Option<(u64, Box<[u8]>)> {
+        if let [Some(first), ..] = self.entries {
+            Some((
                 first.number,
                 bytes::concat(&[
                     b"entry ",
@@ -121,10 +122,17 @@ impl Holders {
                     b" of ended task ",
                     Decimal::of(first.owner?).as_bytes(),
                 ]),
-            )
+            ))
         } else {
-            (0, bytes::concat(&[b"a reservation for ended task ", Decimal::of(self.oldest_reservation?).as_bytes()]))
-        };
+            Some((
+                0,
+                bytes::concat(&[b"a reservation for ended task ", Decimal::of(self.oldest_reservation?).as_bytes()]),
+            ))
+        }
+    }
+
+    fn account(&self, step: &[u8], figure: Duration) -> Option<crate::EffectAccount> {
+        let (entry, holder) = self.oldest_words()?;
         let words = bytes::concat(&[
             b"no progress at ",
             step,
@@ -304,6 +312,19 @@ pub(crate) fn bound(d: &Domain, limits: &Limits, waiter: Waiter) -> Option<Repor
     holders(d).bound(blocked_since(d, limits, waiter)?, limits.waits.room)
 }
 
+/// Recheck the deadline on the landing's admitted step, after any freeing of room.
+pub(crate) fn expired_landing(d: &Domain, env: &Env<Limits>, task: u64) -> Option<Box<[u8]>> {
+    let since = blocked_since(d, &env.limits, Waiter::Landing(task))?;
+    let holders = holders(d);
+    if let Some(ReportedBound::At { at, .. }) = holders.bound(since, env.limits.waits.room)
+        && at <= env.wall
+    {
+        let (_, holder) = holders.oldest_words()?;
+        return Some(bytes::concat(&[b"held by ", &holder]));
+    }
+    None
+}
+
 /// The room record for a procedure with a place in the line (waits.md, 7).
 pub(crate) fn waited(d: &Domain, env: &Env<Limits>, task: u64, step: u32) -> Option<Reported> {
     let mut since = None;
@@ -367,7 +388,16 @@ fn eligible(d: &Domain, waiter: Waiter) -> bool {
             Some(row) => row.releasing && !row.failed && row.pending.is_none(),
             None => false,
         },
-        Waiter::Landing(_) => false,
+        Waiter::Landing(task) => {
+            if d.landing_held() {
+                return false;
+            }
+            let Some(row) = d.landing.rows.get(&task) else { return false };
+            match row.landing.phase {
+                Phase::Held { .. } | Phase::Landed | Phase::Cancelled => false,
+                Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => true,
+            }
+        }
         Waiter::Making(owner) => match d.makings.get(&owner) {
             Some(pending) => pending.state == crate::domain::LostReadState::WaitingForOutbox,
             None => false,
@@ -398,6 +428,12 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     }
     let holders = holders(d);
     let (_, waiter) = next(d, &env.limits, &holders).expect("armed room wait");
+    if let Waiter::Landing(task) = waiter {
+        // The core must make a step due before a landing can commit its hold.
+        d.room.passed.insert(waiter).expect("one expiry per waiter");
+        out.push(Request::WakeProcedure { task });
+        return true;
+    }
     let step = match waiter {
         Waiter::Change(task) => d.changes.get(&task).expect("waiting change").change.state.step_name(),
         Waiter::Release(_) => b"release",
@@ -416,7 +452,11 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 
 /// A held change keeps its number but begins a fresh room wait on release.
 pub(crate) fn released(d: &mut Domain, task: u64, at: Wall) {
-    if let Some(place) = d.room.places.get_mut(&Waiter::Change(task)) {
+    release_place(d, Waiter::Change(task), at);
+}
+
+pub(crate) fn release_place(d: &mut Domain, waiter: Waiter, at: Wall) {
+    if let Some(place) = d.room.places.get_mut(&waiter) {
         place.since = at;
     }
 }
