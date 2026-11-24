@@ -7,6 +7,7 @@ use skein_lib::Time;
 use skein_world::{Delegate, Host, HostedProgram, Inherited, Memory, Referee, World};
 use skein_world_tests::hosted::{Act, RootMachine, Script};
 
+mod commands;
 mod keeps;
 mod peers {
     mod lending;
@@ -53,6 +54,7 @@ pub(super) struct Run {
     pub outcome: Outcome,
     pub end: Time,
     pub children: Vec<Script>,
+    pub killed: Vec<skein_world::Killed>,
 }
 
 pub(super) fn run<'a, 'p, 'l>(
@@ -77,6 +79,7 @@ pub(super) fn run<'a, 'p, 'l>(
     Run {
         outcome: hosted.finish(),
         end: settled.end,
+        killed: std::mem::take(&mut settled.killed),
         children: procs
             .map(|process| match process {
                 Process::Child(script) => *script,

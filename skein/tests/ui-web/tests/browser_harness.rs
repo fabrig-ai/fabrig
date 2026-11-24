@@ -95,9 +95,6 @@ fn a_framed_page_s_refusal_is_awaited_as_trouble() {
     ]));
     assert_eq!(skein_ui_web_tests::fixture_harness_with(&bundle, vec![origin]).run(&mut [&mut person]), Outcome::Done);
 }
-fn keep(selector: &[u8], attribute: Option<&[u8]>, name: &[u8]) -> harness::Step {
-    harness::Step::Keep { selector: selector.into(), attribute: attribute.map(Box::from), name: name.into() }
-}
 
 fn command(mode: &[&str], opens: bool) -> harness::Command {
     let mut args = vec!["command".into()];
@@ -148,11 +145,6 @@ fn a_command_receives_the_held_line_and_eof_without_a_page_visit() {
     assert!(harness.kept()[0].value.ends_with(b"/opened"));
 }
 #[test]
-fn closed_command_stdin_receives_only_eof() {
-    let mut person = command_story(command(&["closed"], false));
-    assert_eq!(command_harness(harness::Sent::Command).run(&mut [&mut person]), Outcome::Done);
-}
-#[test]
 fn an_exited_commands_printed_link_is_opened_and_kept_whole() {
     let mut harness = command_harness(harness::Sent::Page);
     let mut person = command_story(command(&["link", "http://{address}/opened?kept=whole"], true));
@@ -163,110 +155,9 @@ fn an_exited_commands_printed_link_is_opened_and_kept_whole() {
     assert!(harness.kept()[0].value.ends_with(b"/opened?kept=whole"));
 }
 #[test]
-fn a_command_without_the_link_fails_naming_the_command() {
-    let mut person = command_story(command(&["no-link"], true));
-    let Outcome::Failed { step: 0, report, .. } = command_harness(harness::Sent::Page).run(&mut [&mut person]) else {
-        panic!("missing command link fails")
-    };
-    assert!(report.contains("harness_fixture: exited without matching link"), "{report}");
-    assert!(report.contains("fixture exits without a link"), "command stderr retained: {report}");
-}
-#[test]
-fn exited_accepts_the_commands_expected_code() {
-    let mut person = Script::new(Box::new([harness::Step::Run(command(&["code", "7"], false)), exited(7)]));
-    assert_eq!(command_harness(harness::Sent::Page).run(&mut [&mut person]), Outcome::Done);
-}
-#[test]
-fn exited_rejects_a_different_code_naming_the_command() {
-    let mut person = Script::new(Box::new([harness::Step::Run(command(&["code", "7"], false)), exited(0)]));
-    let Outcome::Failed { step: 1, report, .. } = command_harness(harness::Sent::Page).run(&mut [&mut person]) else {
-        panic!("wrong exit code fails")
-    };
-    assert!(report.contains("harness_fixture: exited with code 7, expected 0"), "{report}");
-}
-#[test]
-fn a_live_command_at_story_end_fails_and_settles() {
-    let mut person = Script::new(Box::new([harness::Step::Run(command(&["wait"], false))]));
-    let Outcome::Failed { report, .. } = command_harness(harness::Sent::Page).run(&mut [&mut person]) else {
-        panic!("live command fails story end")
-    };
-    assert!(report.contains("harness_fixture still running at story end"), "{report}");
-    assert!(!report.contains("deadline passed"), "teardown settles: {report}");
-}
-#[test]
-fn a_person_runs_two_commands_in_turn() {
-    let mut person = Script::new(Box::new([
-        harness::Step::Run(command(&["code", "7"], false)),
-        exited(7),
-        harness::Step::Run(command(&["code", "8"], false)),
-        exited(8),
-    ]));
-    assert_eq!(command_harness(harness::Sent::Page).run(&mut [&mut person]), Outcome::Done);
-}
-#[test]
-fn a_second_run_while_the_command_runs_fails() {
-    let mut person = Script::new(Box::new([
-        harness::Step::Run(command(&["wait"], false)),
-        harness::Step::Run(command(&["code", "0"], false)),
-    ]));
-    let Outcome::Failed { step: 1, report, .. } = command_harness(harness::Sent::Page).run(&mut [&mut person]) else {
-        panic!("overlapping commands fail")
-    };
-    assert!(report.contains("harness_fixture: another Run before it settled"), "{report}");
-}
-#[test]
-fn a_link_keep_and_a_selector_keep_append_to_one_sequence() {
-    let mut harness = command_harness(harness::Sent::Page);
-    let mut person = Script::new(Box::new([
-        harness::Step::Run(command(&["link", "http://{address}/opened"], true)),
-        keep(b"input", None, b"field"),
-        exited(0),
-    ]));
-    assert_eq!(harness.run(&mut [&mut person]), Outcome::Done);
-    assert_eq!(
-        harness.kept().iter().map(|k| (k.person, k.name.as_ref())).collect::<Vec<_>>(),
-        vec![(0, b"link".as_slice()), (0, b"field".as_slice())]
-    );
-    assert_eq!(harness.kept()[1].value.as_ref(), b"fixture value");
-}
-#[test]
-fn two_peoples_commands_have_independent_status_and_keeps() {
-    let mut harness = command_harness(harness::Sent::Page);
-    let mut first = command_story(command(&["link", "http://{address}/first"], true));
-    let mut second = Script::new(Box::new([harness::Step::Run(command(&["code", "7"], false)), exited(7)]));
-    assert_eq!(harness.run(&mut [&mut first, &mut second]), Outcome::Done);
-    assert_eq!(harness.kept().len(), 1);
-    assert_eq!(harness.kept()[0].person, 0);
-    assert!(harness.kept()[0].value.ends_with(b"/first"));
-}
-#[test]
 fn a_command_waits_for_the_browsers_loopback_signal_before_exiting() {
     let mut person = command_story(command(&["wait", "{address}"], true));
     assert_eq!(command_harness(harness::Sent::Page).run(&mut [&mut person]), Outcome::Done);
-}
-
-#[test]
-fn a_missing_link_deadline_fails_and_command_teardown_settles() {
-    let mut cmd = command(&["wait"], true);
-    cmd.within = Duration::from_millis(50);
-    let mut person = command_story(cmd);
-    let Outcome::Failed { step: 0, report, .. } = command_harness(harness::Sent::Page).run(&mut [&mut person]) else {
-        panic!("missing link deadline fails")
-    };
-    assert!(report.contains("harness_fixture: Run missing-link/start deadline passed"), "{report}");
-    assert!(!report.contains("browser harness deadline passed"), "command teardown settles: {report}");
-}
-#[test]
-fn an_exited_deadline_fails_and_command_teardown_settles() {
-    let mut person = Script::new(Box::new([
-        harness::Step::Run(command(&["wait"], false)),
-        harness::Step::Exited { code: 0, within: Duration::from_millis(50) },
-    ]));
-    let Outcome::Failed { step: 1, report, .. } = command_harness(harness::Sent::Page).run(&mut [&mut person]) else {
-        panic!("exit deadline fails")
-    };
-    assert!(report.contains("harness_fixture: Exited deadline passed"), "{report}");
-    assert!(!report.contains("browser harness deadline passed"), "command teardown settles: {report}");
 }
 
 #[test]

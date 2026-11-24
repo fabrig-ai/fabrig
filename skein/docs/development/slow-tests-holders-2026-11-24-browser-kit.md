@@ -46,6 +46,17 @@ name.
 
 | Slow test (`browser_harness`) | Held by |
 |---|---|
+| `closed_command_stdin_receives_only_eof` | `skein-world-tests::simulated`, `harness::commands::closed_command_stdin_receives_only_eof` |
+| `a_command_without_the_link_fails_naming_the_command` | `skein-world-tests::simulated`, `harness::commands::a_command_without_the_link_fails_naming_the_command` |
+| `exited_accepts_the_commands_expected_code` | `skein-world-tests::simulated`, `harness::commands::exited_accepts_the_commands_expected_code` |
+| `exited_rejects_a_different_code_naming_the_command` | `skein-world-tests::simulated`, `harness::commands::exited_rejects_a_different_code_naming_the_command` |
+| `a_live_command_at_story_end_fails_and_settles` | `skein-world-tests::simulated`, `harness::commands::a_live_command_at_story_end_fails_and_settles` |
+| `a_person_runs_two_commands_in_turn` | `skein-world-tests::simulated`, `harness::commands::a_person_runs_two_commands_in_turn` |
+| `a_second_run_while_the_command_runs_fails` | `skein-world-tests::simulated`, `harness::commands::a_second_run_while_the_command_runs_fails` |
+| `a_link_keep_and_a_selector_keep_append_to_one_sequence` | `skein-world-tests::simulated`, `harness::commands::a_link_keep_and_a_selector_keep_append_to_one_sequence` |
+| `two_peoples_commands_have_independent_status_and_keeps` | `skein-world-tests::simulated`, `harness::commands::two_peoples_commands_have_independent_status_and_keeps` |
+| `a_missing_link_deadline_fails_and_command_teardown_settles` | `skein-world-tests::simulated`, `harness::commands::a_missing_link_deadline_fails_and_command_teardown_settles` |
+| `an_exited_deadline_fails_and_command_teardown_settles` | `skein-world-tests::simulated`, `harness::commands::an_exited_deadline_fails_and_command_teardown_settles` |
 
 ### 2.3 Lent peers and substituted addresses
 

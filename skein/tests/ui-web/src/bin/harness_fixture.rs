@@ -68,14 +68,7 @@ fn command(args: &[String]) {
             assert!(response.ends_with("held visit 1"), "blank page never visits held link");
             println!("http://{address}/opened");
         }
-        "closed" => {
-            let mut input = Vec::new();
-            std::io::stdin().read_to_end(&mut input).expect("closed stdin EOF");
-            assert!(input.is_empty(), "closed stdin has no held line");
-        }
         "link" => println!("{}", args[1]),
-        "no-link" => eprintln!("fixture exits without a link"),
-        "code" => std::process::exit(args[1].parse().expect("test code")),
         "wait" => {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("command signal listener");
             if let Some(address) = args.get(1) {

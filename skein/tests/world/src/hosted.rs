@@ -60,6 +60,12 @@ pub enum Act {
     ListenAndPrint { output: usize, prefix: &'static str, suffix: &'static str },
     /// Answers HTTP requests until a termination signal; requires `ListenAndPrint` first.
     AnswerRequests(u16),
+    /// Reads an inherited pipe until EOF, retaining every byte.
+    ReadToEnd(usize),
+    /// Prints an argument and a newline to an inherited pipe.
+    PrintArgument { output: usize, argument: usize },
+    /// Exits with this status after closing all descriptors.
+    ExitCode(u8),
     /// Connects to a launch address, sends the request and keeps the reply through EOF.
     Exchange { address: Address, request: &'static [u8] },
     /// Answers as `AnswerRequests` does, with a fixed response body.
@@ -78,6 +84,7 @@ pub struct Script {
     roots: Vec<Fd>,
     pub args: Box<[Box<[u8]>]>,
     waiting: bool,
+    reading_to_end: Option<usize>,
     next: u64,
     done: bool,
     pause: Option<Time>,
@@ -112,6 +119,7 @@ impl Script {
             roots: Vec::new(),
             args: Box::new([Box::from(&b"argument"[..])]),
             waiting: false,
+            reading_to_end: None,
             next: 1,
             done: false,
             pause: None,
@@ -197,6 +205,25 @@ impl Script {
         self.waiting = true;
     }
 
+    fn spawn(&self, program: &[u8], stderr: bool) -> Op {
+        let mut pipes =
+            vec![Pipe { child: 0, way: Way::In, parent: None }, Pipe { child: 1, way: Way::Out, parent: None }];
+        if stderr {
+            pipes.push(Pipe { child: 2, way: Way::Out, parent: None });
+        }
+        Op::Spawn {
+            spawn: Box::new(Spawn {
+                reach: None,
+                program: Box::from(program),
+                args: self.args.clone(),
+                env: Box::new([Box::from(&b"KEY=value"[..])]),
+                root: self.root.expect("parent root"),
+                dir: Box::new([]),
+                pipes: pipes.into_boxed_slice(),
+            }),
+        }
+    }
+
     fn answer_requests(&mut self, status: u16, body: &'static [u8]) {
         let mut server = self.server.take().expect("listen before serving");
         server.serve(self, status, body);
@@ -210,29 +237,9 @@ impl Script {
 
     fn start(&mut self, act: Act, now: Time) {
         let kind = match act {
-            Act::Spawn | Act::SpawnStderr | Act::SpawnProgram(_) => Op::Spawn {
-                spawn: Box::new(Spawn {
-                    reach: None,
-                    program: Box::from(match act {
-                        Act::SpawnProgram(program) => program,
-                        _ => &b"hosted"[..],
-                    }),
-                    args: self.args.clone(),
-                    env: Box::new([Box::from(&b"KEY=value"[..])]),
-                    root: self.root.expect("parent root"),
-                    dir: Box::new([]),
-                    pipes: {
-                        let mut pipes = vec![
-                            Pipe { child: 0, way: Way::In, parent: None },
-                            Pipe { child: 1, way: Way::Out, parent: None },
-                        ];
-                        if matches!(act, Act::SpawnStderr) {
-                            pipes.push(Pipe { child: 2, way: Way::Out, parent: None });
-                        }
-                        pipes.into_boxed_slice()
-                    },
-                }),
-            },
+            Act::Spawn => self.spawn(b"hosted", false),
+            Act::SpawnStderr => self.spawn(b"hosted", true),
+            Act::SpawnProgram(program) => self.spawn(program, false),
             Act::Write(at, bytes) => Op::PipeWrite { fd: self.fds[at], bytes: Box::from(bytes), from: 0 },
             Act::Read(at) | Act::ReadUntil(at, _) => {
                 if let Act::ReadUntil(_, bytes) = act {
@@ -300,6 +307,20 @@ impl Script {
             Act::AnswerRequests(status) => return self.answer_requests(status, b""),
             Act::AnswerRequestsWithBody { status, body } => return self.answer_requests(status, body),
             Act::Exchange { address, request } => self.start_exchange(address, request),
+            Act::ReadToEnd(at) => {
+                self.reading_to_end = Some(at);
+                Op::PipeRead { fd: self.fds[at], buf: Box::new([0; 32]) }
+            }
+            Act::PrintArgument { output, argument } => {
+                let mut bytes = self.args[argument].to_vec();
+                bytes.push(b'\n');
+                Op::PipeWrite { fd: self.fds[output], bytes: bytes.into_boxed_slice(), from: 0 }
+            }
+            Act::ExitCode(code) => {
+                self.terminal = Some(Exit::Code(code));
+                self.acts.clear();
+                return;
+            }
         };
         self.submit(kind);
     }
@@ -334,6 +355,7 @@ impl Host for Script {
                 }
                 continue;
             }
+            let reading_to_end = self.reading_to_end.take();
             match complete.result {
                 Ok(Done::Spawned { pidfd, .. }) => {
                     self.pidfd = Some(pidfd);
@@ -344,6 +366,11 @@ impl Host for Script {
                     if let Op::PipeRead { buf, .. } | Op::Read { buf, .. } = &complete.kind {
                         if matches!(self.acts.front(), Some(Act::ReadUntil(..))) {
                             assert_ne!(count, 0, "the pipe ended before its read marker");
+                        }
+                        if let Some(at) = reading_to_end
+                            && count != 0
+                        {
+                            self.acts.push_front(Act::ReadToEnd(at));
                         }
                         self.received.extend_from_slice(&buf[..usize::try_from(count).expect("small count")]);
                     }
@@ -367,6 +394,7 @@ impl Host for Script {
                         !matches!(self.acts.front(), Some(Act::ReadUntil(..))),
                         "the pipe failed before its read marker: {error:?}"
                     );
+                    assert!(reading_to_end.is_none(), "the pipe failed before EOF: {error:?}");
                 }
             }
             self.results.push(complete.result);
