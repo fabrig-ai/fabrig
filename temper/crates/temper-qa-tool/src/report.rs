@@ -1,4 +1,5 @@
 //! The pass report, built only from records (qa/passes.md, 8).
+use crate::faces::{DirectoryMode, FilesFace, WriteOptions};
 use crate::{Home, Ledger, Refusal, refused};
 use serde_json::{Value, json};
 
@@ -45,17 +46,16 @@ impl Ledger {
 }
 impl Home {
     /// Reads and writes under the ledger's read lock; the loop calls this after ending a session.
-    pub fn write_pass_report(&self, number: u64) -> Result<(), Refusal> {
-        self.read(|ledger| {
-            let report = ledger.report(number)?;
-            let directory = self.directory.join("passes").join(number.to_string());
-            let bytes = serde_json::to_vec_pretty(&report).map_err(|why| refused(format!("report: {why}")))?;
-            let write = || -> std::io::Result<()> {
-                std::fs::create_dir_all(&directory)?;
-                std::fs::write(directory.join("report.tmp"), bytes)?;
-                std::fs::rename(directory.join("report.tmp"), directory.join("report.json"))
-            };
-            write().map_err(|why| refused(format!("passes/{number}/report.json: {why}")))
-        })
+    pub fn write_pass_report(&self, number: u64, files: &mut impl FilesFace) -> Result<(), Refusal> {
+        let (_lock, ledger) = self.begin(files)?;
+        let report = ledger.report(number)?;
+        let directory = self.directory.join("passes").join(number.to_string());
+        let bytes = serde_json::to_vec_pretty(&report).map_err(|why| refused(format!("report: {why}")))?;
+        let mut write = || -> std::io::Result<()> {
+            files.directory(&directory, DirectoryMode::Parents)?;
+            files.write(&directory.join("report.tmp"), &bytes, WriteOptions::REPLACE, false)?;
+            files.rename(&directory.join("report.tmp"), &directory.join("report.json"))
+        };
+        write().map_err(|why| refused(format!("passes/{number}/report.json: {why}")))
     }
 }
