@@ -154,7 +154,7 @@ pub(super) struct HeaderField {
 /// Trust inputs retained from an endpoint's configuration, before any roots are loaded.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TrustDocument {
+pub(super) struct TrustDocument {
     /// Whether to include the machine's default roots.
     #[serde(default = "system_trust")]
     pub system: bool,
