@@ -49,6 +49,15 @@ fn worker_wire_schema_matches_generated_code() {
 }
 
 #[test]
+fn channel_translation_matches_its_maps() {
+    let schema = &values(smith_channel::CHANNEL_SCHEMA).schema;
+    let root = skein_scratch::paths::tree().join("crates/temper-worker-service");
+    let maps = fs::read_to_string(root.join("schema/channel.maps")).expect("read channel maps");
+    let output = skein_codegen::translate(schema, &maps).expect("channel maps valid");
+    check_text(&root.join("src/generated/channel.rs"), &output, temper_test_env::rewrite());
+}
+
+#[test]
 fn worker_wire_translations_match_generated_code() {
     let schema = &values(temper_protocol_worker_wire::SCHEMA).schema;
     let crates = skein_scratch::paths::tree().join("crates");

@@ -2761,6 +2761,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
  "smith-charter",
 ]
 
@@ -4640,6 +4641,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -4980,6 +4982,7 @@ name = "smith-host-protocol"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-io",
  "skein-json",
  "skein-lib",
@@ -5329,6 +5332,7 @@ name = "smith-protocol-channel"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -6666,6 +6670,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
  "temper-client-protocol-wire",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",

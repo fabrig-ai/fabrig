@@ -1,6 +1,6 @@
 //! Bounded account notices (smith/docs/design/protocol/channel.md, section 4).
 use super::Component;
-use crate::{Error, Heard};
+use crate::{Error, Heard, generated::channel};
 use alloc::boxed::Box;
 use skein_channel::{Lower, Request};
 use skein_lib::{Duration, Queue, Token};
@@ -18,7 +18,7 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = smith_channel::Unauthorized { account: name.account, generation: name.generation };
+        let record = channel::unauthorized_to_record(&name);
         match record.measure(&self.bodies) {
             Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
@@ -45,18 +45,7 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let state = match window.state {
-            smith_domain::UsageState::Open => smith_channel::UsageState::Open,
-            smith_domain::UsageState::Warned => smith_channel::UsageState::Warned,
-            smith_domain::UsageState::Limited => smith_channel::UsageState::Limited,
-        };
-        let window = smith_channel::UsageWindow {
-            label: window.label,
-            length: window.length,
-            used: window.used,
-            resets: window.resets,
-            state,
-        };
+        let window = channel::usage_window_to_record(&window);
         let record = smith_channel::Usage { account, window };
         match record.measure(&self.bodies) {
             Ok(_) => (),

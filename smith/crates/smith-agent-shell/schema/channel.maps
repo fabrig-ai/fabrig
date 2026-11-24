@@ -1,0 +1,9 @@
+records smith_channel::v14
+use llm = skein_llm
+use list = crate::list
+direction to domain
+
+enum Scheme = llm::Scheme
+record CredentialValue = llm::Credential { bytes = value via list::secret }
+record ListRow = llm::list::Listed to record { efforts slice }
+enum ListAnswer by hand

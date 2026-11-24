@@ -1415,13 +1415,7 @@ fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> O
     if value.scheme != scheme {
         return None;
     }
-    Some(smith_channel::CredentialValue {
-        scheme: match scheme {
-            Scheme::Bearer => smith_channel::Scheme::Bearer,
-            Scheme::Key => smith_channel::Scheme::Key,
-        },
-        bytes: value.token.clone(),
-    })
+    Some(crate::generated::channel::credential_value_to_record(value))
 }
 pub(crate) fn grant_value(table: &Table, grant: smith::Grant, now: Time) -> Option<host::Values> {
     let value = account(table, grant, now)?;

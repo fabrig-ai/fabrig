@@ -30,6 +30,18 @@ fn channel_schema_matches_generated_code() {
     check_bounds("channel", channel::DECLARATIONS, channel::CEILINGS.values().as_slice());
 }
 
+#[test]
+fn channel_translations_match_their_maps() {
+    let schema = &values(smith_channel::CHANNEL_SCHEMA).schema;
+    let crates = skein_scratch::paths::tree().join("crates");
+    for name in ["smith-host-protocol", "smith-protocol-translate", "smith-protocol-channel", "smith-agent-shell"] {
+        let root = crates.join(name);
+        let maps = fs::read_to_string(root.join("schema/channel.maps")).expect("read channel maps");
+        let output = translate(schema, &maps).unwrap_or_else(|error| panic!("{name}: {error:?}"));
+        check_artifact(&root.join("src/generated/channel.rs"), output.as_bytes());
+    }
+}
+
 fn assert_family(family: &str, version: u16, source: &'static str) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
     assert_eq!(values(source).schema.version, version, "current family version");

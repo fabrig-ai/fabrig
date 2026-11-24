@@ -5,6 +5,23 @@ use skein_codegen::{bounds_text, generate, translate, values};
 #[path = "../../../../testing/codec-drift.rs"]
 mod codec_drift;
 
+const AGAIN: &str =
+    "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-worker-wire-world --test suite -E 'test(drift::)'";
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh codec drift files")]
+fn channel_translations_match_their_maps() {
+    let schema = &values(smith_channel::CHANNEL_SCHEMA).schema;
+    let crates = skein_scratch::paths::tree().join("crates");
+    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    for name in ["jig-protocol-charter", "jig-protocol-worker-agents"] {
+        let root = crates.join(name);
+        let maps = std::fs::read_to_string(root.join("schema/channel.maps")).expect("read channel maps");
+        let output = translate(schema, &maps).unwrap_or_else(|error| panic!("{name}: {error:?}"));
+        codec_drift::check_text(&root.join("src/generated/channel.rs"), &output, write, AGAIN);
+    }
+}
+
 #[test]
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh codec drift files")]
 fn worker_wire_schema_matches_generated_records() {
@@ -14,9 +31,8 @@ fn worker_wire_schema_matches_generated_records() {
     let schema = &values(source).schema;
     let output = generate(schema);
     let path = crates.join("jig-protocol-worker-wire/src/generated/worker_wire.rs");
-    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-worker-wire-world --test suite -E 'test(drift::)'";
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    codec_drift::check_text(&path, &output.records, write, again);
+    codec_drift::check_text(&path, &output.records, write, AGAIN);
     for (end, maps) in [
         (
             "jig-protocol-engine-workers",
@@ -29,11 +45,11 @@ fn worker_wire_schema_matches_generated_records() {
     ] {
         let output = translate(schema, maps).unwrap_or_else(|error| panic!("{end}: {error}"));
         let path = crates.join(end).join("src/generated/worker_wire.rs");
-        codec_drift::check_text(&path, &output, write, again);
+        codec_drift::check_text(&path, &output, write, AGAIN);
     }
     let path = skein_scratch::paths::package().join("bounds/worker_wire.bounds");
     let bounds = bounds_text(codec::DECLARATIONS, codec::CEILINGS.values().as_slice());
-    codec_drift::check_text(&path, &bounds, write, again);
+    codec_drift::check_text(&path, &bounds, write, AGAIN);
 }
 
 #[test]
