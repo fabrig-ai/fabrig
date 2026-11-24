@@ -164,9 +164,8 @@ impl Connection {
             b"/jig/v1/sign-in/link" => {
                 let answer =
                     wire::SignInAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("sign-in reply bytes");
-                // NotReady asks the native caller to retry after startup. Only an
-                // actual SignedIn answer releases the referee's sign-in receipt.
-                if matches!(answer, wire::SignInAnswer::NotReady) {
+                // A startup retry or a spent link does not issue a sign-in receipt.
+                if matches!(answer, wire::SignInAnswer::NotReady | wire::SignInAnswer::LinkUsed) {
                     return;
                 }
                 let wire::SignInAnswer::SignedIn(value) = answer else { panic!("sign-in accepted: {answer:?}") };

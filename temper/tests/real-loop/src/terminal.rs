@@ -42,11 +42,6 @@ pub enum Act {
 pub fn open() -> crate::calls::Step {
     crate::calls::Step::Terminal(Act::Open { welcome: false })
 }
-/// Open the welcome through the native client's navigation entrance.
-#[must_use]
-pub fn open_welcome() -> crate::calls::Step {
-    crate::calls::Step::Terminal(Act::Open { welcome: true })
-}
 #[must_use]
 pub fn open_reading() -> crate::calls::Step {
     crate::calls::Step::Terminal(Act::OpenReading)

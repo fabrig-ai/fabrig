@@ -20,8 +20,6 @@ use std::{
 pub struct Dir(pub u8);
 pub const D1: Dir = Dir(1);
 pub const D2: Dir = Dir(2);
-/// The welcome story's first task, created by its model check.
-pub(crate) const TRIAL_TASK: u64 = 1;
 pub enum Arg {
     Lit(&'static str),
     Task(usize),
@@ -79,8 +77,6 @@ pub enum Step {
     WorkerCancelled {
         name: &'static str,
     },
-    /// Wait for the welcome story's trial task to commit its end in the engine.
-    TrialEnded,
     /// Drain a named worker while retaining its root for a restart.
     StopWorker {
         name: &'static str,
@@ -286,11 +282,6 @@ pub fn start_engine_after_failures(failures: u32) -> Step {
 pub fn worker_cancelled(name: &'static str) -> Step {
     Step::WorkerCancelled { name }
 }
-/// Join the welcome story's trial after the terminal has read Ready and closed.
-#[must_use]
-pub fn trial_ended() -> Step {
-    Step::TrialEnded
-}
 /// Terminate one worker and wait until its service and ring I/O settle.
 #[must_use]
 pub fn stop_worker(name: &'static str) -> Step {
@@ -341,14 +332,6 @@ pub fn held(name: &'static [u8]) -> Step {
 #[must_use]
 pub fn kill(call: usize) -> Step {
     Step::Kill { call }
-}
-#[must_use]
-pub fn listed(stdout: &[u8]) -> Vec<u64> {
-    std::str::from_utf8(stdout)
-        .expect("tasks page")
-        .lines()
-        .filter_map(|line| line.split_once(" · ").and_then(|(number, _)| number.parse().ok()))
-        .collect()
 }
 #[must_use]
 pub fn call(at: Dir, argv: Argv) -> Step {
@@ -516,7 +499,6 @@ pub(crate) struct Caller {
     pub(crate) worker_ready: Cell<bool>,
     pub(crate) engine_ready: Cell<bool>,
     pub(crate) contact_cancelled: Cell<bool>,
-    pub(crate) trial_ended: Cell<bool>,
     pub(crate) held_queries: Cell<usize>,
     pub(crate) llm_queries: Cell<usize>,
     pub(crate) held: Cell<bool>,
@@ -645,7 +627,6 @@ impl Caller {
             Some(Step::Authorize | Step::Return) => {
                 out.push_str("caller waits_for=issuer visit\n");
             }
-            Some(Step::TrialEnded) => out.push_str("caller waits_for=welcome trial's committed end\n"),
             Some(Step::Probe { .. } | Step::Release { .. }) => out.push_str("caller waits_for=directory lock\n"),
             Some(Step::Push { .. }) => out.push_str("caller waits_for=forge push\n"),
             Some(Step::FixtureReady) => out.push_str("caller waits_for=fixture provisioning\n"),
@@ -717,7 +698,6 @@ impl Caller {
             | Step::StopEngine
             | Step::StartEngine { .. }
             | Step::WorkerCancelled { .. }
-            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
@@ -776,10 +756,6 @@ impl Caller {
         self.steps.iter().filter(|step| matches!(step, Step::Kill { .. })).count()
     }
     pub(crate) fn provisioned(mut steps: Vec<Step>, scratch: PathBuf, root: Fd) -> Self {
-        // A welcome trial provisions its own account through the native form.
-        if steps.iter().any(|step| matches!(step, Step::TrialEnded)) {
-            return Self::new(steps, scratch, root);
-        }
         let Some((position, at)) = steps.iter().enumerate().find_map(|(index, step)| {
             if let Step::SignIn { at } | Step::SameParty { at } = step { Some((index, *at)) } else { None }
         }) else {
@@ -858,7 +834,6 @@ impl Caller {
             worker_ready: Cell::new(false),
             engine_ready: Cell::new(false),
             contact_cancelled: Cell::new(false),
-            trial_ended: Cell::new(false),
             held_queries: Cell::new(0),
             llm_queries: Cell::new(0),
             held: Cell::new(false),
@@ -925,7 +900,6 @@ impl Caller {
             | Step::StopEngine
             | Step::StartEngine { .. }
             | Step::WorkerCancelled { .. }
-            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
@@ -1508,13 +1482,11 @@ impl Caller {
             Step::AddWorker { .. } if !self.added.replace(false) => return,
             Step::StopEngine | Step::StartEngine { .. } if !self.engine_ready.replace(false) => return,
             Step::WorkerCancelled { .. } if !self.contact_cancelled.get() => return,
-            Step::TrialEnded if !self.trial_ended.get() => return,
             Step::StopWorker { .. } | Step::StartWorker { .. } if !self.worker_ready.replace(false) => return,
             Step::Push { .. } if !self.advanced.get() => return,
             Step::StopEngine
             | Step::StartEngine { .. }
             | Step::WorkerCancelled { .. }
-            | Step::TrialEnded
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
@@ -1582,7 +1554,6 @@ impl Caller {
             Some(Step::FixtureReady) => self.running.iter().all(Option::is_none),
             Some(Step::StopEngine | Step::StartEngine { .. }) => self.engine_ready.get(),
             Some(Step::WorkerCancelled { .. }) => self.contact_cancelled.get(),
-            Some(Step::TrialEnded) => self.trial_ended.get(),
             Some(Step::StopWorker { .. } | Step::StartWorker { .. }) => self.worker_ready.get(),
             Some(Step::Push { .. }) => self.advanced.get(),
             Some(Step::ReleaseHold { .. }) => self.hold_released.get(),

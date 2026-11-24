@@ -1,5 +1,5 @@
 //! The shipped ctl runs setup on the same simulated kernel as the native person.
-use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
+use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Reason, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
 use skein_world::{Inherited, StartupRoot};
@@ -79,6 +79,7 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
         seen: 0,
         observe: false,
         sign_in: spawn.args.get(1).is_some_and(|word| word.as_ref() == b"sign-in"),
+        answer_cut: None,
     }
 }
 
@@ -338,7 +339,7 @@ impl Host for Caller {
                     self.exit = Some(exit);
                     self.submit(Op::Close { fd: pidfd });
                 }
-                (Op::Close { .. }, Done::Nothing) => {}
+                (Op::Close { .. } | Op::Signal { .. }, Done::Nothing) => {}
                 (op, done) => panic!("setup completion {op:?}: {done:?}"),
             }
         }
@@ -407,9 +408,42 @@ pub(crate) struct Recorded {
     seen: usize,
     observe: bool,
     sign_in: bool,
+    answer_cut: Option<AnswerCut>,
+}
+
+/// Hold the response to this ctl's named POST at its receive boundary. The
+/// referee kills the child rather than returning the held bytes to the tools.
+#[derive(Default)]
+struct AnswerCut {
+    socket: Option<Fd>,
+    held: Option<Complete>,
+}
+impl AnswerCut {
+    fn hold(&mut self, completions: &mut Queue<Complete>) {
+        let count = completions.len();
+        for _ in 0..count {
+            let complete = completions.pop().expect("completion in batch");
+            match (&complete.kind, &complete.result) {
+                (Op::Send { fd, bytes, from: 0 }, Ok(Done::Count(_)))
+                    if bytes.starts_with(b"POST /jig/v1/request ") =>
+                {
+                    assert!(self.socket.replace(*fd).is_none(), "one named request on the cut caller");
+                }
+                (Op::Recv { fd, .. }, Ok(Done::Count(n))) if self.socket == Some(*fd) && *n > 0 => {
+                    assert!(self.held.replace(complete).is_none(), "receive remains held until the child is killed");
+                    continue;
+                }
+                _ => {}
+            }
+            completions.push(complete);
+        }
+    }
 }
 impl Host for Recorded {
     fn iterate(&mut self, now: Time, wall: Wall) {
+        if let Some(cut) = &mut self.answer_cut {
+            cut.hold(self.host.completions());
+        }
         for complete in self.host.completions().iter() {
             if self.sign_in || self.observe || crate::m15::observer::enabled() {
                 self.wire.complete(complete);
@@ -459,6 +493,17 @@ impl Caller {
 }
 
 impl Caller {
+    pub(crate) fn sign_in(&mut self, link: &[u8]) {
+        let mut command = Command::new(&[b"sign-in", b"-"]);
+        command.input = link.into();
+        self.commands.push_back(command);
+    }
+
+    pub(crate) fn kill_child(&mut self) {
+        let pidfd = self.pidfd.expect("active ctl before the answer");
+        self.submit(Op::Signal { pidfd, signal: Signal::Kill, to: Target::Child, reason: Reason::Asked });
+    }
+
     pub(crate) fn pending_answer(&self) -> String {
         format!(
             "exit={:?}, pending={}, stdout={}, stderr={}",
@@ -471,6 +516,22 @@ impl Caller {
 }
 
 impl Recorded {
+    pub(crate) fn with_answer_cut(mut self) -> Self {
+        self.answer_cut = Some(AnswerCut::default());
+        self
+    }
+
+    pub(crate) fn answer_held(&self) -> bool {
+        self.answer_cut.as_ref().is_some_and(|cut| cut.held.is_some())
+    }
+
+    pub(crate) fn signed_party(&self) -> Option<u64> {
+        self.wire.received.iter().find_map(|event| match event {
+            crate::referee::client::Received::SignedIn(party) => Some(*party),
+            _ => None,
+        })
+    }
+
     /// Decode this call's wire receipts for the story's referee, not the capture log.
     pub(crate) fn observing(mut self) -> Self {
         self.wire = crate::referee::client::Wire::default();

@@ -5,6 +5,7 @@ pub mod fixtures;
 pub mod golden;
 pub mod held_program;
 pub mod hung_model;
+pub mod lost;
 #[doc(hidden)]
 pub mod testing;
 pub mod upgrade;

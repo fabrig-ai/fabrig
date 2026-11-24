@@ -532,6 +532,10 @@ pub(crate) struct Person {
 }
 const CHAT_WITHIN: Duration = Duration::from_secs(5);
 impl Person {
+    pub(crate) fn tree(&self) -> &skein_ui::Tree {
+        self.client.as_ref().expect("native person is open").tree()
+    }
+
     /// Drive welcome forms before the first project exists.
     pub(crate) fn welcome(root: Fd, steps: Box<[Step<temper_client_domain::Address>]>) -> Self {
         let mut person = Self::pages(root, steps);

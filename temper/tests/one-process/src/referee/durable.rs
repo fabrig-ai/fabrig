@@ -150,6 +150,27 @@ impl Store {
     pub fn new() -> Self {
         Self::default()
     }
+    /// The party's original task number, from its synced named answer row.
+    pub(crate) fn created_task(&self, key: jig_domain_people::RequestKey) -> Option<u64> {
+        use jig_domain_people::{Key, Outcome, Stored};
+        match self.rows.get(&root::Key::Core(core::Key::People(Key::Answer(key))))? {
+            root::Record::Core(core::Record::People(Stored::Answer {
+                outcome: Outcome::Created { first, last, .. },
+                ..
+            })) if first == last => Some(*first),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn has_reply(&self, task: u64, reply: &[u8]) -> bool {
+        self.rows.values().any(|row| {
+            matches!(row,
+                root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn)))
+                    if turn.task == task && skein_lib::bytes::find(&turn.transcript, reply).is_some()
+            )
+        })
+    }
+
     /// A cold world's existing transcript files precede every recovered map row.
     pub(crate) fn transcript_file(&mut self, path: Vec<u8>, bytes: Vec<u8>) {
         self.files.insert(logs::path(&path).unwrap_or(path), bytes);

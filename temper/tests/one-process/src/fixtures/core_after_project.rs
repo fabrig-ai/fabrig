@@ -282,11 +282,6 @@ impl Judge {
         }
         self.stage = next;
     }
-    fn sign_in(caller: &mut Caller, link: &[u8]) {
-        let mut command = Command::new(&[b"sign-in", b"-"]);
-        command.input = link.into();
-        caller.commands.push_back(command);
-    }
     fn calls(&mut self, caller: &mut Caller) {
         let project = "3";
         self.queue(
@@ -433,7 +428,7 @@ impl Judge {
             if self.warm {
                 self.calls(caller);
             } else {
-                Self::sign_in(caller, &link);
+                caller.sign_in(&link);
                 if self.whole {
                     let commands = [
                         vec!["account", "add-key", "1", "/setup/llm.key", "--deployment", "--key", "incident-key"],
@@ -649,7 +644,7 @@ impl Judge {
                     );
                     self.seen.borrow_mut().calls = 4;
                     if !self.fresh_handed {
-                        Self::sign_in(fresh, &self.first_link);
+                        fresh.sign_in(&self.first_link);
                         self.fresh_handed = true;
                     }
                     eprintln!("core calls answered: {}; gate {}", self.seen.borrow().calls, self.seen.borrow().gate);
@@ -664,7 +659,7 @@ impl Judge {
                             self.deadline = now.saturating_add(ANSWER_BOUND);
                             Self::command(fresh, &["me"]);
                         } else if let Some(link) = service.service.links().pop() {
-                            Self::sign_in(fresh, &link);
+                            fresh.sign_in(&link);
                             self.fresh_at = 1;
                             self.deadline = now.saturating_add(ANSWER_BOUND);
                         }

@@ -20,6 +20,8 @@ use temper_playground::{
 };
 
 pub mod landing;
+mod model_check;
+pub use model_check::welcome_trial;
 
 const CLAUDE: &[u8] = b"/usr/bin/claude";
 const RELAY: &[u8] = b"/world/relay";
@@ -41,12 +43,15 @@ impl Harness for Held {
         value["world_settings"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
         value["world_settings"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
         value["world_settings"]["llm"]["endpoints"][0]["program"] = "claude_code".into();
+        if model_check::active() {
+            model_check::configure(value);
+        }
         if landing::active() {
             landing::configure(value);
         }
     }
     fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
-        let mut given = documents::given_with(document, false, false);
+        let mut given = documents::given_with(document, model_check::active(), false);
         if landing::active() {
             landing::give(&mut given);
         }
@@ -264,6 +269,60 @@ fn relay(spawn: &Spawn, inherited: &Inherited) -> Proc {
     ))))
 }
 
+fn host_programs<R: skein_world::Referee<Proc>>(simulation: &mut skein_world::World<Proc, R, ProgramMachine>) {
+    for (mut program, roots) in programs::programs::<Held>() {
+        if program.program.as_ref() == documents::PINNED_AGENT_PROGRAM {
+            program.make = agent;
+            program.operations =
+                smith_agent_service::program_operations(&agent_configuration()).expect("program operations") + 8;
+            simulation.host_roots(program, agent_roots);
+        } else {
+            simulation.host_roots(program, roots);
+        }
+    }
+    let factory = smith_fake_claude::hosted(CLAUDE);
+    simulation.host_startup(
+        skein_world::HostedProgram {
+            program: factory.program,
+            make: fake,
+            instances: 2,
+            operations: factory.operations,
+        },
+        |spawn| {
+            let launch = fake_launch(spawn);
+            smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
+        },
+        |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
+    );
+    simulation.host(skein_world::HostedProgram {
+        program: RELAY.into(),
+        make: relay,
+        instances: 1,
+        operations: smith_agent_shell::relay::operations(),
+    });
+}
+
+fn lay_source(disk: &mut skein_fake_machine::Machine, source: &str, story: &smith_fake_claude::Story) {
+    for (name, bytes) in
+        [(smith_fake_claude::STORY_FILE, story.encode()), (smith_fake_claude::LOGIN_FILE, b"claude.ai".to_vec())]
+    {
+        machine::lay_handover(disk, format!("/worker/programs/{source}/{name}").as_bytes(), &bytes);
+    }
+}
+
+fn observations(machine: &ProgramMachine, source: &str) -> Vec<u8> {
+    let mut disk = machine.0.0.borrow_mut();
+    let root = disk.reopen_root(1);
+    let file = disk
+        .open(root, format!("programs/{source}/{}", smith_fake_claude::OBSERVATIONS_FILE).as_bytes(), How::ReadNoFollow)
+        .expect("fake observations");
+    let size = u32::try_from(disk.stat(file).size).expect("bounded observations");
+    let bytes = disk.read(file, 0, size).expect("observations read");
+    disk.close(file);
+    disk.close(root);
+    bytes
+}
+
 struct Judge {
     controls: skein_world::Controls,
     stage: u32,
@@ -430,7 +489,7 @@ pub fn stop() {
     assert!(!programs.is_empty(), "the source ran its program");
     assert!(programs.iter().all(|program| program.exit().is_some()), "no hosted program survives serve");
     assert!(outcome.procs.iter().all(Host::is_empty), "held-program world drains every process");
-    let seen = smith_fake_claude::seen(&observations(&outcome.machine));
+    let seen = smith_fake_claude::seen(&observations(&outcome.machine, SOURCE));
     assert!(
         seen.contains(&smith_fake_claude::Seen::Interrupted),
         "agent's cancel must interrupt its program: {seen:?}"
@@ -451,11 +510,7 @@ fn run<R: skein_world::Referee<Proc>>(
 ) -> skein_world::Outcome<Proc, ProgramMachine> {
     let mut disk = machine::fresh();
     machine::setup(&mut disk);
-    for (name, bytes) in
-        [(smith_fake_claude::STORY_FILE, story.encode()), (smith_fake_claude::LOGIN_FILE, b"claude.ai".to_vec())]
-    {
-        machine::lay_handover(&mut disk, format!("/worker/programs/{SOURCE}/{name}").as_bytes(), &bytes);
-    }
+    lay_source(&mut disk, SOURCE, story);
     let caller = disk.reopen_root(2);
     let machine = Machine::new(disk);
     let parameters = world::parameters(&machine, transport.clone());
@@ -467,16 +522,7 @@ fn run<R: skein_world::Referee<Proc>>(
             judge,
         )
         .with_machine(ProgramMachine(machine));
-        for (mut program, roots) in programs::programs::<Held>() {
-            if program.program.as_ref() == documents::PINNED_AGENT_PROGRAM {
-                program.make = agent;
-                program.operations =
-                    smith_agent_service::program_operations(&agent_configuration()).expect("program operations") + 8;
-                simulation.host_roots(program, agent_roots);
-            } else {
-                simulation.host_roots(program, roots);
-            }
-        }
+        host_programs(&mut simulation);
         simulation.host_roots(
             crate::ctl::program(|spawn, inherited| {
                 Proc::Other(Local::World(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited).capturing()))))
@@ -488,29 +534,6 @@ fn run<R: skein_world::Referee<Proc>>(
         simulation.spawn_restartable(roots, service);
         simulation.spawn_root(skein_sim::Handle::new(caller.raw()), |root| {
             Proc::Other(Local::World(HarnessProcess::Calls(Box::new(Caller::scripted(root)))))
-        });
-        let factory = smith_fake_claude::hosted(CLAUDE);
-        simulation.host_startup(
-            skein_world::HostedProgram {
-                program: factory.program,
-                make: fake,
-                instances: 2,
-                operations: factory.operations,
-            },
-            |spawn| {
-                let launch = fake_launch(spawn);
-                smith_fake_claude::config_root(&launch)
-                    .into_iter()
-                    .chain(smith_fake_claude::mcp_root(&launch))
-                    .collect()
-            },
-            |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
-        );
-        simulation.host(skein_world::HostedProgram {
-            program: RELAY.into(),
-            make: relay,
-            instances: 1,
-            operations: smith_agent_shell::relay::operations(),
         });
         simulation.spawn(|| {
             Proc::Forge(Box::new(machine::SignalHost::new(
@@ -525,17 +548,4 @@ fn run<R: skein_world::Referee<Proc>>(
         }
         simulation.run()
     })
-}
-
-fn observations(machine: &ProgramMachine) -> Vec<u8> {
-    let mut disk = machine.0.0.borrow_mut();
-    let root = disk.reopen_root(1);
-    let file = disk
-        .open(root, format!("programs/{SOURCE}/{}", smith_fake_claude::OBSERVATIONS_FILE).as_bytes(), How::ReadNoFollow)
-        .expect("fake observations");
-    let size = u32::try_from(disk.stat(file).size).expect("bounded observations");
-    let bytes = disk.read(file, 0, size).expect("observations read");
-    disk.close(file);
-    disk.close(root);
-    bytes
 }

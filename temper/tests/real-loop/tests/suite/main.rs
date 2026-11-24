@@ -10,8 +10,6 @@ mod cluster;
 mod github_land;
 mod lifecycle;
 mod lock;
-mod lost;
-mod model_check;
 mod peers;
 mod restart;
 mod sample;

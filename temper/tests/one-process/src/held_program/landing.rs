@@ -262,7 +262,7 @@ pub fn reviewed_edit() {
         .find_map(|process| if let Proc::Peer(peer) = process { Some(peer) } else { None })
         .expect("direct peer hosted");
     assert!(peer.observations().is_empty(), "no direct request: {:?}", peer.observations());
-    check_program(&observations(&outcome.machine));
+    check_program(&observations(&outcome.machine, super::SOURCE));
 }
 
 fn check_chat(caller: &Caller) {
