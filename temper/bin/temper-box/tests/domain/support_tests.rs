@@ -8,6 +8,22 @@ use std::{
 use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
+fn holding_fixture_limits_creates_a_private_data_directory() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+
+    let scratch = skein_scratch::Scratch::new("fixture-limits-hold");
+    let data = scratch.path().join("data");
+    support::limit_settings::hold(&data, &[]);
+
+    let directory = fs::symlink_metadata(&data).expect("fixture data directory");
+    assert!(directory.is_dir());
+    assert_eq!(directory.permissions().mode() & 0o777, 0o700);
+    let held = fs::symlink_metadata(data.join("limits-held")).expect("fixture hold file");
+    assert!(held.is_file());
+    assert_eq!(held.permissions().mode() & 0o777, 0o600);
+}
+
+#[test]
 fn readiness_eof_reports_child_status_and_stderr() {
     use std::os::unix::process::ExitStatusExt;
     let finding = temper_box_kit::fake_readiness::read_with(&mut b"".as_slice(), &"fake fixture", |kind| {
