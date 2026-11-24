@@ -1,9 +1,15 @@
 //! The reference shell: start the parts, carry reports, apply the view's patches.
-#![cfg(target_arch = "wasm32")]
 #![forbid(unsafe_code)]
+
+pub mod duties;
+
+#[cfg(target_arch = "wasm32")]
 use skein_lib::Queue;
+#[cfg(target_arch = "wasm32")]
 use skein_ui::{Act, NodeId, Owner, Patch, Role, Style, View, look::Names};
+#[cfg(target_arch = "wasm32")]
 use skein_ui_example_view::{Report as ViewReport, State, limits, places};
+#[cfg(target_arch = "wasm32")]
 use skein_ui_web::{
     Look, fetch, history,
     inbox::Inbox,
@@ -14,23 +20,25 @@ use skein_ui_web::{
     transport::{self, Carried},
     wasm_bindgen,
 };
+#[cfg(target_arch = "wasm32")]
 use std::{cell::RefCell, rc::Rc};
 
-#[cfg(debug_assertions)]
+#[cfg(all(target_arch = "wasm32", debug_assertions))]
 mod copy_fixture;
-mod duties;
-#[cfg(debug_assertions)]
+#[cfg(all(target_arch = "wasm32", debug_assertions))]
 mod folds_fixture;
+#[cfg(target_arch = "wasm32")]
 mod grow;
-#[cfg(debug_assertions)]
+#[cfg(all(target_arch = "wasm32", debug_assertions))]
 mod log_fixture;
-#[cfg(debug_assertions)]
+#[cfg(all(target_arch = "wasm32", debug_assertions))]
 mod reading_fixture;
-#[cfg(debug_assertions)]
+#[cfg(all(target_arch = "wasm32", debug_assertions))]
 mod tab_fixture;
-#[cfg(debug_assertions)]
+#[cfg(all(target_arch = "wasm32", debug_assertions))]
 mod tree;
 
+#[cfg(target_arch = "wasm32")]
 const NAMES: &[Names<'_>] = &[Names {
     owner: Owner { number: 1 },
     prefix: b"notes",
@@ -38,6 +46,7 @@ const NAMES: &[Names<'_>] = &[Names {
     regions: &[],
 }];
 // Each part wraps its happening in the application's report type.
+#[cfg(target_arch = "wasm32")]
 enum Report {
     Start,
     Due,
@@ -47,6 +56,7 @@ enum Report {
     Place(Box<[u8]>),
     Returned(Box<[u8]>),
 }
+#[cfg(target_arch = "wasm32")]
 struct Shell {
     state: State,
     view: View,
@@ -60,6 +70,7 @@ struct Shell {
     title: title::web::Title,
 }
 
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn start() {
     let window = web_sys::window().expect("browser window");
@@ -152,6 +163,7 @@ pub fn start() {
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
 }
+#[cfg(target_arch = "wasm32")]
 impl Shell {
     fn turn(&mut self, inbox: &Inbox<Report>) {
         let (now, wall) = platform::clocks();

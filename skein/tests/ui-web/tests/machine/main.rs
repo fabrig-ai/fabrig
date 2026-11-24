@@ -1,6 +1,3 @@
-#[cfg(debug_assertions)]
-#[path = "../../../../examples/ui/shell-web/src/duties.rs"]
-mod duties;
 #[path = "../suite/pages.rs"]
 mod pages;
 

@@ -3,7 +3,9 @@ use skein_lib::Queue;
 use skein_ui_example_view::{Duties, StreamDuty};
 use skein_ui_web::{fetch, store, transport};
 
-pub(crate) fn empty() -> Duties {
+/// Make an empty set of duties for the view's next step.
+#[must_use]
+pub fn empty() -> Duties {
     Duties {
         writes: Queue::with_capacity(8),
         removes: Queue::with_capacity(8),
@@ -13,7 +15,9 @@ pub(crate) fn empty() -> Duties {
     }
 }
 
-pub(crate) fn requests(mut duties: Duties) -> transport::Requests {
+/// Turn the view's store, exchange and stream duties into transport requests.
+#[must_use]
+pub fn requests(mut duties: Duties) -> transport::Requests {
     let mut requests = transport::Requests::default();
     while let Some(record) = duties.writes.pop() {
         requests.writes.push(store::Record { key: record.key, value: record.value });

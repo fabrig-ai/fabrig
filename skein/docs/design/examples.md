@@ -55,17 +55,17 @@ The UI example's crates (section 9):
 ```
 examples/ui/view        skein-ui-example-view       the notes' state, view, drawing code, phrasebook, codec for places and records: step code
 examples/ui/view-codec  skein-ui-example-view-codec the notes' records' generated code, below the view: step code
-examples/ui/shell-web   skein-ui-example-shell-web  the reference shell: its start, its loop, its look and stylesheet, its component and its snippet; wasm32 only
+examples/ui/shell-web   skein-ui-example-shell-web  the reference shell for wasm32: its start, its loop, its look and stylesheet, its component and its snippet; its duties conversion builds for the host too
 examples/ui/server      skein-ui-example-server     its server on skein's HTTP: the bundle, its exchanges, its stream; the binary skein-ui-example
 tests/ui-web            skein-ui-web-tests          the browser parts' host tests, and the UI example's browser tier
 ```
 
 The view depends on lib, the codec and skein-ui, and builds for the host
-and for `wasm32-unknown-unknown`; the browser shell on the view and
-`skein-ui-web`, with the glue; the server on lib, io, HTTP, the shell
-kit and the view, whose records it exchanges. Neither the view nor the
-server depends on the browser shell, which the server serves as bytes in
-the bundle.
+and for `wasm32-unknown-unknown`. The browser shell depends on the view,
+lib and `skein-ui-web` on both targets, with skein-ui and the glue for
+wasm32 only. The server depends on lib, io, HTTP, the shell kit and the
+view, whose records it exchanges. Neither the view nor the server depends
+on the browser shell, which the server serves as bytes in the bundle.
 
 ## 3. The echo, before code
 
@@ -663,8 +663,10 @@ a service copies that.
 ### 9.4 Its browser shell, its component and its drawing
 
 - **The reference shell,** `skein-ui-example-shell-web`, built for
-  wasm32 only: its start makes skein's browser parts with its look and
-  starts its view, and its loop is the turn (ui/web/README.md, 3.1 and 4.2).
+  wasm32: its start makes skein's browser parts with its look and starts
+  its view, and its loop is the turn (ui/web/README.md, 3.1 and 4.2).
+  Its duties conversion also builds for the host, so the machine world
+  tests the shell's own code (ui/web/testing.md, 3).
   About 200 lines (a guide), commented to be copied: an application's
   browser shell starts as a copy of it.
 - **Its look** (ui/web/README.md, 3.2): the prefix `notes`, its tokens' and

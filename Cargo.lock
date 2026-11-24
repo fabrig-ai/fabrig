@@ -4407,6 +4407,7 @@ dependencies = [
  "skein-ui",
  "skein-ui-bundle",
  "skein-ui-example-server",
+ "skein-ui-example-shell-web",
  "skein-ui-example-view",
  "skein-ui-web",
 ]

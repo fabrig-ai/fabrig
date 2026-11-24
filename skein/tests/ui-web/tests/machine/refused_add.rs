@@ -1,5 +1,4 @@
 //! The notes example's write-before-send path (skein/docs/design/ui/web/testing.md, 3).
-use super::duties;
 use skein_fake_person::{Face, Find, Found, TreeFace};
 use skein_http::{
     Method, Version,
@@ -8,6 +7,7 @@ use skein_http::{
 use skein_lib::{Queue, Reader, Time, Wall, len_u64};
 use skein_ui::{Act, Role, View};
 use skein_ui_example_server::{State as Server, bundle::Bundle, routes};
+use skein_ui_example_shell_web::duties;
 use skein_ui_example_view::{
     Duties, Report, State, limits, places,
     records::{CEILINGS, Notes, Record as _},
