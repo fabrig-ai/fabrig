@@ -441,6 +441,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Stopping
         | core::Event::Parts { .. }
         | core::Event::PartsMarked { .. }
+        | core::Event::Waits { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::Read { .. }

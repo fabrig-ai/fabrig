@@ -310,6 +310,7 @@ fn outputs(
             | Request::CarriedUnused { .. }
             | Request::EraseCarried { .. }
             | Request::MilestoneMarked { .. }
+            | Request::Waits { .. }
             | Request::Marked { .. }
             | Request::FullTableFact { .. }
             | Request::MarkedForges

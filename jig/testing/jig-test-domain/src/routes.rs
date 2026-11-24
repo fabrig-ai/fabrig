@@ -153,6 +153,8 @@ fn route_ask(
             work.push(Work::Connector { number, event: connector::Event::StepMade { task, step, first, revisions } });
         }
         core::Ask::StepRefused { task, step, why } => crate::steps::refused(number, task, step, why, work),
+        core::Ask::WaitsRefused { task, why } => work
+            .push(Work::Connector { number, event: connector::Event::WaitsRefused { task, why: wait_refusal(why) } }),
 
         core::Ask::DropDocument { subject } => {
             if number == 1 || number == 2 {
@@ -687,6 +689,23 @@ pub(super) fn route_connector(
                 crate::topics::news(domain, number, topic, subscribers, work);
             }
             connector::Request::ReadAnswered { .. } => unreachable!("client read completes in its synchronous route"),
+            connector::Request::Waits { task, wait } => {
+                let waits = match wait {
+                    Some(wait) => List::from_boxed(Box::new([core::Reported {
+                        kind: core::WaitKind::Step,
+                        object: core::WaitObject::Procedure { step: wait.step, things: List::with_capacity(0) },
+                        since: wait.since,
+                        bound: core::ReportedBound::At { at: wait.at, then: core::AtBound::Hold },
+                    }])),
+                    None => List::with_capacity(0),
+                };
+                let event = core::Event::Waits { connector: number, task, waits };
+                if let Some(reports) = &mut domain.scripted_wait_reports {
+                    reports.push(event);
+                } else {
+                    work.push(Work::Core(event));
+                }
+            }
             connector::Request::Marked { subjects } => {
                 work.push(Work::Core(core::Event::Marked { connector: number, subjects }));
             }
@@ -880,6 +899,31 @@ pub(super) fn route_connector(
 }
 
 /// Translate the core's choice without choosing a judge or admitting a write.
+fn procedure_tasks(domain: &Domain, number: u16) -> Box<[u64]> {
+    let rows = domain.core.tasks.view_tasks();
+    let mut procedures = List::with_capacity(u32::try_from(rows.len()).expect("bounded live tasks"));
+    for row in rows {
+        if let Some(tasks::Executor::Procedure { connector, .. }) = domain.core.tasks.executor(row.number)
+            && connector == number
+        {
+            procedures.push(row.number).expect("one report per live task");
+        }
+    }
+    procedures.into_boxed()
+}
+
+const fn wait_refusal(why: core::ReportRefusal) -> &'static str {
+    match why {
+        core::ReportRefusal::NotLive => "not a live task",
+        core::ReportRefusal::NotProcedure => "not a procedure",
+        core::ReportRefusal::WrongConnector => "another connector owns the task",
+        core::ReportRefusal::TooManyWaits => "more than four waits",
+        core::ReportRefusal::TooManyThings => "more than four things",
+        core::ReportRefusal::WrongKindOrObject => "not a procedure's kind and object",
+        core::ReportRefusal::NoFigure => "the kind has no figure",
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive effect handoff dispatcher")]
 fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connector::Ask, work: &mut Queue<Work>) {
     let event = match ask {
@@ -954,7 +998,9 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
                 state: u64::from_be_bytes(bytes),
             }
         }
-        core::effects::connector::Ask::CatchUp => connector::Event::CatchUp,
+        core::effects::connector::Ask::CatchUp => {
+            connector::Event::CatchUp { procedures: procedure_tasks(domain, number) }
+        }
         core::effects::connector::Ask::Unname { task } => connector::Event::Unnamed { task },
         core::effects::connector::Ask::Names { .. }
         | core::effects::connector::Ask::Hold { .. }

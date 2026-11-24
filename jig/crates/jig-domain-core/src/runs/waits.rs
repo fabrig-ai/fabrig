@@ -2,6 +2,9 @@
 pub use jig_domain_core_vocabulary::runs::waits::*;
 
 mod own;
+mod reports;
+
+pub(crate) use reports::report;
 
 use crate::{Bound, Core, Limits, Nearest, Wait, WaitKind, WaitObject, Waits, documents::PhaseCounts};
 use jig_domain_fleet as fleet;

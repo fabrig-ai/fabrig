@@ -4232,6 +4232,13 @@ pub(crate) fn outputs(
             }
             forge::Request::MarkedForges => domain.mark_forges(),
             forge::Request::MilestoneMarked { task } => super::parts::marked(domain, task),
+            forge::Request::Waits { task, waits } => {
+                domain.work.push(Work::Core(jig_domain_core::Event::Waits {
+                    connector: domain.config.forge_connector,
+                    task,
+                    waits,
+                }));
+            }
             forge::Request::Marked { tasks } => {
                 const {
                     assert!(

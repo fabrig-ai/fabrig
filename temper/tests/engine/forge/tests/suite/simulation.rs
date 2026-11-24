@@ -1499,6 +1499,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
                 | top::Request::MarkedForges
+                | top::Request::Waits { .. }
                 | top::Request::MilestoneMarked { .. }
                 | top::Request::Marked { .. }
                 | top::Request::Erase { .. }

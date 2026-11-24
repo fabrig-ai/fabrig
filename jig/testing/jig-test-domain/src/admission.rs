@@ -95,7 +95,8 @@ fn connector_class(event: &connector::Event) -> Class {
         | connector::Event::Cut { .. }
         | connector::Event::Items { .. }
         | connector::Event::HandOver { .. }
-        | connector::Event::CatchUp
+        | connector::Event::CatchUp { .. }
+        | connector::Event::WaitsRefused { .. }
         | connector::Event::Restart(..)
         | connector::Event::Names { .. }
         | connector::Event::Unnamed { .. }

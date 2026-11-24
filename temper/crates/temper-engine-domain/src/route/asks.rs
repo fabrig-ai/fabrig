@@ -35,6 +35,12 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
+        core::Ask::WaitsRefused { task, why } => {
+            if connector == domain.config.forge_connector {
+                domain.work.push(Work::Forge(forge::Event::WaitsRefused { task, why }));
+            }
+            None
+        }
         core::Ask::StepMade { task, step, first, .. } => {
             step_made(domain, env, decision, task, step, first);
             None

@@ -528,6 +528,25 @@ fn durable_waits(row: &mut core::documents::Task) {
     row.wait_count = row.wait_count.saturating_sub(1);
 }
 
+fn procedure_wait(kind: core::WaitKind) -> bool {
+    matches!(kind, core::WaitKind::Step | core::WaitKind::Room | core::WaitKind::Turn | core::WaitKind::SignOff)
+}
+
+// Reported waits and their news fallback are the last group. If a report is
+// visible on either side, the entire durable prefix fits on that side; compare
+// that prefix without requiring the same last group after a cold start.
+fn without_report(row: &core::documents::Task) -> core::documents::Task {
+    let mut row = row.clone();
+    let prefix = row.waits.iter().take_while(|wait| !procedure_wait(wait.kind) && wait.kind != core::WaitKind::News);
+    row.wait_count = u32::try_from(prefix.count()).expect("bounded wait lines");
+    row.waits.truncate(row.wait_count);
+    if row.waits_on == core::documents::WaitsOn::News {
+        row.waits_on = core::documents::WaitsOn::Nothing;
+    }
+    row
+}
+
+#[expect(clippy::too_many_lines, reason = "field-level diagnostics enumerate both document contracts")]
 fn compare_answer(
     key: &(u64, Option<u64>),
     expected: &core::reads::Answer,
@@ -553,11 +572,18 @@ fn compare_answer(
     }
     if let (core::reads::Answer::Document(left), core::reads::Answer::Document(right)) = (expected, found) {
         if let (Document::Task(left), Document::Task(right)) = (&**left, &**right) {
+            let durable;
+            let (left, right) = if left.waits.iter().chain(&right.waits).any(|wait| procedure_wait(wait.kind)) {
+                durable = (without_report(left), without_report(right));
+                (&durable.0, &durable.1)
+            } else {
+                (left.as_ref(), right.as_ref())
+            };
             fields!(left, right;
-                settings,
                 waits_on,
                 waits,
                 wait_count,
+                settings,
                 label,
                 flags,
                 last_activity,
@@ -597,6 +623,9 @@ fn compare_answer(
                 proposals,
                 cut,
             );
+            if left == right {
+                return Ok(());
+            }
         }
         if let (Document::Frame(left), Document::Frame(right)) = (&**left, &**right) {
             fields!(left, right;

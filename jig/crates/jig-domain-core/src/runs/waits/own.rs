@@ -46,10 +46,11 @@ impl Own {
                 EntryKind::PersonTask => wait.task,
             },
             WaitObject::Question { number, .. } | WaitObject::Task(number) => number,
-            WaitObject::Resource { .. }
-            | WaitObject::Run(_)
-            | WaitObject::News { .. }
-            | WaitObject::Procedure { .. } => 0,
+            WaitObject::Resource { .. } | WaitObject::Run(_) | WaitObject::News { .. } => 0,
+            WaitObject::Procedure { ref things, .. } => match things.get(0) {
+                Some(thing) => thing.number,
+                None => 0,
+            },
         };
         let key = (group, wait.since, object, self.records.len());
         assert!(self.records.insert(key, wait).is_none(), "distinct wait position");
@@ -76,7 +77,15 @@ impl Own {
             self.run(core, limits, row, due_wait);
             if row.delegates.is_empty() {
                 if let Some(since) = parked {
-                    self.news(core, limits, row, since);
+                    if let Some(report) = core.reported_waits.get(&row.number) {
+                        for wait in report {
+                            let since = core.wait_since(wait.kind, wait.since);
+                            let bound = super::reports::bound(limits, row, wait, since);
+                            self.push(row.number, wait.kind, wait.object.clone(), since, bound);
+                        }
+                    } else {
+                        self.news(core, limits, row, since);
+                    }
                 }
             } else {
                 for number in &row.delegates {
@@ -279,7 +288,7 @@ fn proposal_passes(core: &Core, limits: &Limits, row: &TaskRecord, holder: tasks
     core.proposal_holder(limits, row.number, &proposal.action, Some(holder), core.run_wall).is_some()
 }
 
-fn clock(since: Wall, figure: Duration, deadline: Option<Wall>, then: AtBound) -> Bound {
+pub(super) fn clock(since: Wall, figure: Duration, deadline: Option<Wall>, then: AtBound) -> Bound {
     let due = Wall::from_nanos(since.as_nanos().saturating_add(figure.as_nanos()));
     Bound::At { at: due.min(deadline.unwrap_or(due)), then }
 }
