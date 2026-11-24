@@ -4,7 +4,17 @@ use std::path::PathBuf;
 
 use crate::{AttemptResult, CatalogueTask, Task};
 
-pub use crate::check::{check_task_with, seed_digest_with};
+pub use crate::check::seed_digest_with;
+
+/// Validate a parsed task with the caller's design text and seed fixtures.
+pub fn check_task_with(
+    file: &std::path::Path,
+    task: Task,
+    read_guard: impl Fn(&std::path::Path) -> std::io::Result<String>,
+    digest_seed: impl FnOnce(&std::path::Path) -> Result<String, crate::Refusal>,
+) -> Result<Task, crate::Refusal> {
+    crate::check::check_task_inputs(&crate::files::Native, file, task, read_guard, digest_seed)
+}
 pub use crate::formats::parse_document;
 pub use crate::suite::validate_suite_with;
 pub use crate::task::parse_task;

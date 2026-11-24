@@ -20,5 +20,5 @@ pub mod batch {
 pub mod task;
 
 pub mod validate {
-    pub use crate::validate::testing::validate_catalogue;
+    pub use crate::validate::testing::{ReplayPaths, validate_catalogue, validate_catalogue_with};
 }

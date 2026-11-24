@@ -26,6 +26,8 @@ fn facts_distinguish_a_link_from_its_target() {
         Item::link(b"shortcut", TARGET).owner(OWNER).mode(0o755),
     ]);
     let shortcut = Path::new("/shortcut");
+    assert_eq!(tree.read_link(shortcut).expect("unfollowed target"), Path::new("data-file"));
+    assert_eq!(tree.read_link(Path::new("/data-file")).expect_err("not a link").kind(), ErrorKind::InvalidInput);
     assert_eq!(
         tree.symlink_metadata(shortcut).expect("link facts"),
         Facts { kind: Kind::Link, mode: 0o755, size: skein_lib::len_u64(TARGET.len()), owner: OWNER },

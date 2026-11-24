@@ -5,9 +5,9 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io::{self, ErrorKind};
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -21,6 +21,8 @@ pub enum Operation {
     SymlinkMetadata,
     /// Inspect the target of the path.
     Metadata,
+    /// Read the target held by a symbolic link.
+    ReadLink,
     /// Resolve a path to its physical spelling.
     Canonicalize,
     /// Open and list the named directory.
@@ -187,6 +189,17 @@ impl Files for Tree {
 
     fn metadata(&self, path: &Path) -> io::Result<Facts> {
         Ok(self.inspect(Operation::Metadata, path, true)?.facts())
+    }
+
+    fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+        let mut disk = self.disk.borrow_mut();
+        let entry = self.resolve_read(&mut disk, Operation::ReadLink, path, false)?;
+        disk.open(&entry.path, How::PathNoFollow, |machine, handle| {
+            machine
+                .link_target(handle)
+                .map(|target| PathBuf::from(OsString::from_vec(target)))
+                .ok_or_else(|| ErrorKind::InvalidInput.into())
+        })
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {

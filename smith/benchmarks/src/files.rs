@@ -104,6 +104,9 @@ pub trait Files {
     /// Inspect an entry, following any links.
     fn metadata(&self, path: &Path) -> io::Result<Facts>;
 
+    /// Read the unfollowed final link's target path.
+    fn read_link(&self, path: &Path) -> io::Result<PathBuf>;
+
     /// Resolve an existing path to its absolute physical path.
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
 
@@ -167,6 +170,10 @@ impl Files for Native {
 
     fn metadata(&self, path: &Path) -> io::Result<Facts> {
         fs::metadata(path).map(Facts::from)
+    }
+
+    fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+        fs::read_link(path)
     }
 
     fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {

@@ -8,21 +8,26 @@ mod seed;
 pub use seed::{seed_digest, seed_digest_with};
 
 use std::collections::BTreeSet;
-use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use crate::task::{Kind, OutcomeCheck, Refusal, Task, read_task};
+use crate::files::{Files, Kind as FileKind, Native};
+use crate::task::{Kind, OutcomeCheck, Refusal, Task, read_task_with};
 
 // The shipped run budget in shell/settings.md, section 2.4.
 const RUN_DEFAULT_SECONDS: u64 = 3_600;
 
 /// Verify all task documents below a directory without running an agent.
 pub fn check_tree(directory: &Path, design: &Path) -> Result<usize, Refusal> {
+    check_tree_with(&Native, directory, design)
+}
+
+/// Verify a tree of task documents on the supplied filesystem.
+pub fn check_tree_with(files: &dyn Files, directory: &Path, design: &Path) -> Result<usize, Refusal> {
     let mut manifests = Vec::new();
-    find_manifests(directory, &mut manifests)?;
+    find_manifests(files, directory, &mut manifests)?;
     manifests.sort();
     for manifest in &manifests {
-        check_task(manifest, design)?;
+        check_task_with(files, manifest, design)?;
     }
     Ok(manifests.len())
 }
@@ -52,28 +57,39 @@ pub fn check_benchmark_tree_with_bundles(
     design: &Path,
     bundles: &Path,
 ) -> Result<ManifestCounts, Refusal> {
-    let tasks = crate::catalogue(&root.join("tasks"), design)?;
-    crate::bundle::check_repository_bundles(&tasks, bundles)?;
+    check_benchmark_tree_with(&Native, root, design, bundles)
+}
+
+/// Validate the benchmark inventory and its bundles on the supplied filesystem.
+pub fn check_benchmark_tree_with(
+    files: &dyn Files,
+    root: &Path,
+    design: &Path,
+    bundles: &Path,
+) -> Result<ManifestCounts, Refusal> {
+    let tasks = crate::catalogue_with(files, &root.join("tasks"), design)?;
+    crate::bundle::check_repository_bundles(files, &tasks, bundles)?;
     let agents = root.join("agents");
-    let models = crate::read_model_tiers(&agents.join("models.toml"))?;
+    let models = crate::read_model_tiers_with(files, &agents.join("models.toml"))?;
     for provider in [crate::Provider::Codex, crate::Provider::Anthropic] {
         models.lookup(&agents.join("models.toml"), "small", provider)?;
     }
     let mut configurations = 0;
-    for agent in fs::read_dir(&agents).map_err(|error| Refusal::new(&agents, "agents", error.to_string()))? {
+    for agent in files.read_dir(&agents).map_err(|error| Refusal::new(&agents, "agents", error.to_string()))? {
         let agent = agent.map_err(|error| Refusal::new(&agents, "agents", error.to_string()))?;
-        if !agent.file_type().map_err(|error| Refusal::new(&agent.path(), "agents", error.to_string()))?.is_dir() {
+        let directory = agent.path();
+        if agent.file_type().map_err(|error| Refusal::new(&directory, "agents", error.to_string()))?
+            != FileKind::Directory
+        {
             continue;
         }
-        for file in
-            fs::read_dir(agent.path()).map_err(|error| Refusal::new(&agent.path(), "agents", error.to_string()))?
-        {
-            let file = file.map_err(|error| Refusal::new(&agent.path(), "agents", error.to_string()))?;
-            if file.file_name().to_str().is_some_and(|name| name.ends_with(".pin.toml")) {
-                let pin = crate::read_configuration(&file.path())?;
+        for file in files.read_dir(&directory).map_err(|error| Refusal::new(&directory, "agents", error.to_string()))? {
+            let path = file.map_err(|error| Refusal::new(&directory, "agents", error.to_string()))?.path();
+            if path.file_name().and_then(std::ffi::OsStr::to_str).is_some_and(|name| name.ends_with(".pin.toml")) {
+                let pin = crate::read_configuration_with(files, &path)?;
                 let expected = agents.join(pin.pin.agent.directory()).join(format!("{}.pin.toml", pin.pin.name));
-                if expected != file.path() {
-                    return Err(Refusal::new(&file.path(), "name/agent", "pin path disagrees with its name or agent"));
+                if expected != path {
+                    return Err(Refusal::new(&path, "name/agent", "pin path disagrees with its name or agent"));
                 }
                 configurations += 1;
             }
@@ -81,11 +97,13 @@ pub fn check_benchmark_tree_with_bundles(
     }
     let mut suites = 0;
     let directory = root.join("suites");
-    for file in fs::read_dir(&directory).map_err(|error| Refusal::new(&directory, "suites", error.to_string()))? {
-        let file = file.map_err(|error| Refusal::new(&directory, "suites", error.to_string()))?;
-        if file.path().extension().is_some_and(|extension| extension == "toml") {
-            let suite = crate::read_suite(&file.path())?;
-            crate::validate_suite(&file.path(), &suite, &tasks, &agents, &models)?;
+    for file in files.read_dir(&directory).map_err(|error| Refusal::new(&directory, "suites", error.to_string()))? {
+        let path = file.map_err(|error| Refusal::new(&directory, "suites", error.to_string()))?.path();
+        if path.extension().is_some_and(|extension| extension == "toml") {
+            let suite = crate::read_suite_with(files, &path)?;
+            crate::suite::validate_suite_with(&path, &suite, &tasks, &agents, &models, |pin| {
+                crate::read_configuration_with(files, pin)
+            })?;
             suites += 1;
         }
     }
@@ -93,21 +111,21 @@ pub fn check_benchmark_tree_with_bundles(
     let mut baselines = 0;
     for (name, count) in [("summaries", &mut summaries), ("baselines", &mut baselines)] {
         let directory = root.join(name);
-        for file in fs::read_dir(&directory).map_err(|error| Refusal::new(&directory, name, error.to_string()))? {
-            let file = file.map_err(|error| Refusal::new(&directory, name, error.to_string()))?;
-            if file.path().extension().is_some_and(|extension| extension == "json") {
+        for file in files.read_dir(&directory).map_err(|error| Refusal::new(&directory, name, error.to_string()))? {
+            let path = file.map_err(|error| Refusal::new(&directory, name, error.to_string()))?.path();
+            if path.extension().is_some_and(|extension| extension == "json") {
                 if name == "summaries" {
-                    let summary = crate::read_summary(&file.path())?;
+                    let summary = crate::read_summary_with(files, &path)?;
                     if summary.suite == "parity-change" {
                         crate::parity::change::verify(&summary)
-                            .map_err(|reason| Refusal::new(&file.path(), "change", reason.detail))?;
+                            .map_err(|reason| Refusal::new(&path, "change", reason.detail))?;
                     }
                     if let Some(parity) = &summary.parity {
                         crate::parity::verify(&summary, &parity.smith_commit)
-                            .map_err(|reason| Refusal::new(&file.path(), "parity", reason.detail))?;
+                            .map_err(|reason| Refusal::new(&path, "parity", reason.detail))?;
                     }
                 } else {
-                    crate::read_baseline(&file.path())?;
+                    crate::read_baseline_with(files, &path)?;
                 }
                 *count += 1;
             }
@@ -116,21 +134,21 @@ pub fn check_benchmark_tree_with_bundles(
     Ok(ManifestCounts { tasks: tasks.len(), suites, configurations, summaries, baselines })
 }
 
-pub(crate) fn find_manifests(directory: &Path, manifests: &mut Vec<PathBuf>) -> Result<(), Refusal> {
-    let entries = fs::read_dir(directory).map_err(|error| Refusal::new(directory, "tasks", error.to_string()))?;
+pub(crate) fn find_manifests(files: &dyn Files, directory: &Path, manifests: &mut Vec<PathBuf>) -> Result<(), Refusal> {
+    let entries = files.read_dir(directory).map_err(|error| Refusal::new(directory, "tasks", error.to_string()))?;
     for entry in entries {
         let entry = entry.map_err(|error| Refusal::new(directory, "tasks", error.to_string()))?;
         let path = entry.path();
         let kind = entry.file_type().map_err(|error| Refusal::new(&path, "tasks", error.to_string()))?;
-        if kind.is_symlink() {
+        if kind == FileKind::Link {
             return Err(Refusal::new(&path, "tasks", "symlinks are not frozen task inputs"));
         }
-        if kind.is_dir() {
+        if kind == FileKind::Directory {
             // Hidden graders and solutions are never task catalogues.
-            if !matches!(entry.file_name().to_str(), Some("seed" | "grader" | "reference")) {
-                find_manifests(&path, manifests)?;
+            if !matches!(path.file_name().and_then(std::ffi::OsStr::to_str), Some("seed" | "grader" | "reference")) {
+                find_manifests(files, &path, manifests)?;
             }
-        } else if entry.file_name() == "task.toml" {
+        } else if path.file_name().is_some_and(|name| name == "task.toml") {
             manifests.push(path);
         }
     }
@@ -139,11 +157,22 @@ pub(crate) fn find_manifests(directory: &Path, manifests: &mut Vec<PathBuf>) -> 
 
 /// Verify one task's frozen inputs and return its parsed specification.
 pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
-    check_task_with(file, read_task(file)?, |path| fs::read_to_string(design.join(path)), seed_digest)
+    check_task_with(&Native, file, design)
 }
 
-/// Validate one task with the design texts and seed digest supplied by the caller.
-pub fn check_task_with(
+/// Verify a task document, its guards and frozen seed on the supplied filesystem.
+pub fn check_task_with(files: &dyn Files, file: &Path, design: &Path) -> Result<Task, Refusal> {
+    check_task_inputs(
+        files,
+        file,
+        read_task_with(files, file)?,
+        |path| files.read_to_string(&design.join(path)),
+        |path| seed_digest_with(files, path),
+    )
+}
+
+pub(crate) fn check_task_inputs(
+    files: &dyn Files,
     file: &Path,
     task: Task,
     read_guard: impl Fn(&Path) -> std::io::Result<String>,
@@ -214,7 +243,7 @@ pub fn check_task_with(
     match task.kind {
         Kind::Probe => {}
         Kind::Fixture | Kind::Repository => {
-            comparison_limits(file, &task)?;
+            comparison_limits(files, file, &task)?;
             if task.grade.is_empty() {
                 return Err(Refusal::new(file, "grade", "graded task requires a grader"));
             }
@@ -244,7 +273,7 @@ pub fn check_task_with(
     Ok(task)
 }
 
-fn comparison_limits(file: &Path, task: &Task) -> Result<(), Refusal> {
+fn comparison_limits(files: &dyn Files, file: &Path, task: &Task) -> Result<(), Refusal> {
     if task.deadline_seconds >= RUN_DEFAULT_SECONDS {
         return Err(Refusal::new(
             file,
@@ -252,7 +281,7 @@ fn comparison_limits(file: &Path, task: &Task) -> Result<(), Refusal> {
             "comparison deadline must be below the run default of 3600 seconds",
         ));
     }
-    let document: toml::Table = crate::formats::read_document(file)?;
+    let document: toml::Table = crate::formats::read_document_with(files, file)?;
     if document.contains_key("budget") {
         return Err(Refusal::new(file, "budget", "comparison task must not name a budget"));
     }
