@@ -13,19 +13,38 @@ pub enum Place {
     Panic,
 }
 
-#[must_use]
-pub fn parse(path: &[u8]) -> Place {
+#[cfg(debug_assertions)]
+const SMALL_STORE: &[u8] = b"/test/small-store";
+
+fn without_query(path: &[u8]) -> &[u8] {
     let end = match skein_lib::bytes::find(path, b"?") {
         Some(end) => end,
         None => path.len(),
     };
-    let path = path.get(..end).expect("query begins within path");
+    path.get(..end).expect("query begins within path")
+}
+
+/// The example's session-store bound at start (skein/docs/design/ui/web/testing.md, 3).
+#[must_use]
+pub fn small_store_bound(path: &[u8]) -> Option<u64> {
+    #[cfg(debug_assertions)]
+    if without_query(path) == SMALL_STORE {
+        return Some(0);
+    }
+    #[cfg(not(debug_assertions))]
+    let _ = path;
+    None
+}
+
+#[must_use]
+pub fn parse(path: &[u8]) -> Place {
+    let path = without_query(path);
     #[cfg(debug_assertions)]
     if path == b"/test/panic" {
         return Place::Panic;
     }
     #[cfg(debug_assertions)]
-    if path == b"/test/small-store" {
+    if path == SMALL_STORE {
         return Place::List;
     }
     if path == b"/" {

@@ -68,6 +68,7 @@ and Chromium's accessibility tree in the same revisions.
 
 | Slow test (`browser_stories`) | Held by |
 |---|---|
+| `a_refused_write_makes_no_note` | `skein-ui-example-view` lib: `tests::only_the_small_store_test_address_sets_a_bound`; `skein-ui-web-tests::machine`: `refused_add::a_refused_add_makes_no_note` and `refused_add::an_unbounded_add_is_sent_and_listed_once`; `skein-ui-web` lib: `tests::transport::a_refused_write_fails_every_exchange_of_its_step`, `tests::transport::a_refused_write_sends_no_exchange` and `tests::transport::writes_go_before_exchanges`. |
 
 ### 3.3 A note crossing pages
 

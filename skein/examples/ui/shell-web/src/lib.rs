@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 use skein_lib::Queue;
 use skein_ui::{Act, NodeId, Owner, Patch, Role, Style, View, look::Names};
-use skein_ui_example_view::{Duties, Report as ViewReport, State, limits, places};
+use skein_ui_example_view::{Report as ViewReport, State, limits, places};
 use skein_ui_web::{
     Look, fetch, history,
     inbox::Inbox,
@@ -11,13 +11,14 @@ use skein_ui_web::{
     platform::{self, Platform},
     store::Store,
     timer, title,
-    transport::{self, Carried, Requests},
+    transport::{self, Carried},
     wasm_bindgen,
 };
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(debug_assertions)]
 mod copy_fixture;
+mod duties;
 #[cfg(debug_assertions)]
 mod folds_fixture;
 mod grow;
@@ -111,10 +112,7 @@ pub fn start() {
     let inbox = Inbox::new();
     let fetch = fetch::web::Fetch::new(9, Rc::clone(&inbox), Report::Fetch);
     let platform = platform::Browser::new(fetch);
-    let bound = None;
-    #[cfg(debug_assertions)]
-    let bound = if path.split('?').next() == Some("/test/small-store") { Some(0) } else { bound };
-    let store = Store::new(b"notes-", bound);
+    let store = Store::new(b"notes-", places::small_store_bound(path.as_bytes()));
     let records: Vec<_> = store
         .read_all(&platform)
         .into_iter()
@@ -193,46 +191,14 @@ impl Shell {
                 Report::Carried(Carried::Refused { .. }) => Some(ViewReport::Failed { exchange: 0 }),
             };
             let Some(report) = report else { continue };
-            let mut duties = Duties {
-                writes: Queue::with_capacity(8),
-                removes: Queue::with_capacity(8),
-                exchanges: Queue::with_capacity(8),
-                show: None,
-                stream: None,
-            };
+            let mut duties = duties::empty();
             self.state.step(report, now, wall, &mut duties);
             if let Some((place, replace)) = duties.show {
                 self.history.show(&places::bytes(place), replace);
                 new_page = !replace;
             }
-            let mut requests = Requests::default();
-            while let Some(record) = duties.writes.pop() {
-                requests.writes.push(skein_ui_web::store::Record { key: record.key, value: record.value });
-            }
-            while let Some(key) = duties.removes.pop() {
-                requests.removes.push(key);
-            }
-            while let Some(exchange) = duties.exchanges.pop() {
-                requests.exchanges.push(fetch::Exchange {
-                    id: exchange.id,
-                    path: exchange.path,
-                    method: if exchange.post { "POST" } else { "GET" }.into(),
-                    headers: vec![("Content-Type".into(), "application/octet-stream".into())],
-                    body: exchange.body,
-                    bound: exchange.bound,
-                    pieces: None,
-                    cache: skein_ui_web::fetch::Cache::Browser,
-                    keep: &[],
-                });
-            }
-            requests.stream = duties.stream.map(|duty| match duty {
-                skein_ui_example_view::StreamDuty::Open { path, headers, bound } => {
-                    transport::StreamDuty::Open { path, headers: headers.into_vec(), bound }
-                }
-                skein_ui_example_view::StreamDuty::Close => transport::StreamDuty::Close,
-            });
             let mut carried = Vec::new();
-            transport::carry(requests, &mut self.store, &mut self.platform, &mut carried);
+            transport::carry(duties::requests(duties), &mut self.store, &mut self.platform, &mut carried);
             for report in carried {
                 inbox.raise(Report::Carried(report));
             }
