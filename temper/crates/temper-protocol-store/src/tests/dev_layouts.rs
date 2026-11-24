@@ -54,7 +54,7 @@ impl Dev {
         assert_eq!(Some(generic.tag(enumeration).unwrap()), old_root.variant, "dev's Row has the requested variant");
         JobRow { key: keys::encode(&d::stored_key(stored), u32::MAX).unwrap(), value }
     }
-    fn read(&mut self, row: &JobRow, variant: &str) -> d::Stored {
+    pub(super) fn read(&mut self, row: &JobRow, variant: &str) -> d::Stored {
         let old_root = self.old.root(b"Row", Some(variant.as_bytes())).unwrap();
         let binary_root = self.binary.root(b"Row", Some(variant.as_bytes())).unwrap();
         let plan = Plan::derive(&self.old, old_root, &[], &self.binary, binary_root, &[])
