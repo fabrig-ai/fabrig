@@ -61,6 +61,7 @@ enum Machine {
 
 pub enum Command {
     Client(Event),
+    Hello,
     Go(first::Address),
     JigInbox,
     ReplyRead(u32),
@@ -244,7 +245,7 @@ impl World {
         if self.unlinked {
             self.deliver(Event::Up { up: Up::Served { served: true, versions: None } });
         } else {
-            self.deliver(Event::Streamed { message: client::Streamed::Record(hello()) });
+            self.execute(Command::Hello);
         }
         if self.unlinked {
             let limits = test::limits().client.domain;
@@ -285,6 +286,7 @@ impl World {
     fn execute(&mut self, command: Command) {
         match command {
             Command::Client(event) => self.deliver(event),
+            Command::Hello => self.deliver(Event::Streamed { message: client::Streamed::Record(hello()) }),
             Command::Go(address) => {
                 self.root_event(root::Event::Went { place: root::Place::Address(root::Address::First(address)) });
             }
