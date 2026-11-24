@@ -514,10 +514,9 @@ fn a_lost_watch_exchange_discards_held_work_with_its_stream() {
 fn a_full_watch_table_still_refuses_busy_while_openings_wait() {
     let base = fixtures::limits();
     let limits = Limits::new(jig_client_domain::Limits { watches: 1, ..*base.client() }, 8).unwrap();
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     h.fill_reads();
     h.open(fixtures::WATCH, fixtures::application_subject());
-    h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
     h.clear();
     let refused = Token::new(42);
     h.open(refused, fixtures::application_subject());
