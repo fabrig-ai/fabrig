@@ -12,11 +12,4 @@
   - 9: no read lists a project's waits (`../client/ctl/tools-reads.md`, 1). `milestone show` gives no goal's wait, and a landing's wait has no since or bound in its reads (`../domain/landing-waits.md`, 4).
   - 12: failure-worlds' wait check asks for a wake, not a record and a bound (`failure-worlds.md`, 3.1; `../testing/engine-checks.md`, 2.2).
 - **Design departs:** none.
-- **Open:** the stock figures for the kinds that have no clock today, proposed here and the user's to set:
-  - `question` from a task to its requester: 2 h, then passed up.
-  - `party`, a question to a person: 8 h, then passed to the next holder. Escalations and proposals keep their 1 h stall.
-  - `news`, for a task with a deadline or one that isn't a standing role: 24 h.
-  - `host`, and `account` with no known reset: 2 h.
-  - `step` waiting on a read or read admission: 30 min.
-  - `room` behind an entry whose owner has ended: 30 min from that end.
-  - `sign-off`: 24 h, then overdue.
+- **Open:** none. The stock figures are the user's of 2026-11-24 (`bounded-waits.md`, 4.1).
