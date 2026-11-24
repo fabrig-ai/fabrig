@@ -47,7 +47,14 @@ value. jig's sources name no temper path or word (`testing-fakes.md`,
 | `NEVER_ANSWERS` | `never answering a question` |
 | `ANSWERS_TWICE` | `answering a question twice` |
 | `ANSWERS_AN_ENDED_RUN` | `answering a question of a run that has ended` |
-| `WORDS_TO_AN_ENDED_PRODUCER` | `words to a task whose producer has ended` |
+| `WORDS_AFTER_ITS_RUN_ENDED` | `words to a task whose run has ended` |
+
+A person's question is one a task asks its person by a person task
+addressed to its requester (`tasks/messages.md`, 5; `people/README.md`,
+7); the four answer acts are the party's report on that person task. A
+task's question to its requester task is answered by the requester's
+run, and is the parks' (section 4). jig keeps no producer, so its words
+act is to a task whose latest run has ended: parked, or the task ended.
 
 with `jig_core_kit::open`'s `AMENDS_A_PASSED_DEADLINE`,
 `WIDENS_GOAL_AUTHORITY` and `NEW_SERVICE_RUNS_ON_AN_ACCOUNT`.
@@ -78,16 +85,23 @@ force while the table is at its bound, recorded by
 ## 3. The core world's workload
 
 The module `workload` of `jig-core-kit`, over its `World`
-(`jig_core_kit::world::World`), at the core world's standard profile and
-the stock policy's funds, so that a goal's run and its delegates share
-its budget as a deployment's do (the draft, 4.7).
+(`jig_core_kit::world::World`), at the profile of the kit's planning
+fixture (`faults::plan_fixture`: five tasks a tree, two deep, three
+delegates and three worker slots), whose tables are still small, and the
+stock policy's funds, so that a goal's run and its delegates share its
+budget as a deployment's do (the draft, 4.7). The standard profile
+admits two tasks a tree, one deep, which can't hold a goal with its
+delegates. Goals start at once as far as the profile's live bound
+admits; a goal whose start the bound refuses is started by its party
+again once another goal ends, so every drawn goal runs.
 
 - **The draw,** from `Stream::Workload`, part `tasks`, alone: two parties,
   an owner and a member of one project; two to four goals, each a party's
   top task, its party drawn, both parties holding one once there are two;
   each goal zero to two delegates, each of which may have one of its own;
-  each task's run asking its requester one question with chance one
-  third, and taking a party's words with chance one quarter; each goal's
+  each task's run asking one question with chance one third (a goal its
+  person, by a person task; a delegate its requester task), and taking a
+  party's words with chance one quarter; each goal's
   budget drawn within the pool the profile gives, and its deadline drawn,
   short enough to pass before its work ends with chance one quarter.
   Tasks are named `t0`, `t0.0`, `t0.0.0` by their place, and the run keeps
@@ -131,10 +145,11 @@ pub enum Expect {
   and the moment.
 - **What a run asserts:** the `World`'s checks at every quiet point, as
   they stand; each task's expectation; each act's own outcome where the
-  design gives one: an answer twice reaches its question once, an answer
-  to an ended run is dropped and its sender told once
-  (`tasks/messages.md`), words to an ended producer take their route's
-  fallback.
+  design gives one: an answer twice reaches its asker once, an answer
+  after the asking run ended is dropped and its sender told once, as the
+  person task's design says (`people/README.md`, 7); words to a parked
+  task wait and its next run reads them once, and words to an ended task
+  are refused `Unknown`, nothing else changing (`people/acts.md`).
 
 ## 4. Runs that park, resume and move
 
