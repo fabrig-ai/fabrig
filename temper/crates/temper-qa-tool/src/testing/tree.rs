@@ -436,6 +436,11 @@ impl FilesFace for Tree {
         self.open_file(path, options)
     }
 
+    fn writer_permissions(&mut self, file: &FileHandle, mode: u32) -> io::Result<()> {
+        file.entry.borrow_mut().mode = mode;
+        Ok(())
+    }
+
     fn rename(&mut self, source: &Path, destination: &Path) -> io::Result<()> {
         self.fault(source, FileOp::Rename)?;
         if self.absolute(source) != self.absolute(destination) {
