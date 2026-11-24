@@ -235,6 +235,7 @@ pub(crate) fn delegate_holdings(
             let request =
                 core.fly(crate::routing::flight::Flight::Delegating { request, route: (flight.key, stubs, given) });
             work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(request),
@@ -404,6 +405,7 @@ pub(crate) fn procedure_step(
     match batch.as_ref() {
         [] => {
             work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
+                reads_project: false,
                 reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
                 task,
                 step,
@@ -603,6 +605,7 @@ pub(crate) fn procedure_holdings(
         decision.batch = flight.members;
         crate::admission::deadlines::resolve(&mut decision.batch, env.wall);
         work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
+            reads_project: false,
             reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
             task,
             step,
@@ -640,6 +643,7 @@ pub(crate) fn start_recurring(
     }
     let Some(number) = crate::fresh(&mut core.counters, crate::Family::Task) else { return };
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Admission)),

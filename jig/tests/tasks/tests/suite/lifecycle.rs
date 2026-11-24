@@ -61,6 +61,7 @@ fn a_verdicts_proposal_is_accepted_and_its_followups_run_before_result_delivery(
     let to = w.to();
     let key = to.into_token().raw();
     w.send(Event::MakeResultFollowups {
+        reads_project: false,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(key)),
         proposer: 1,
         proposal: 100,
@@ -234,6 +235,7 @@ fn a_plan_of_reports_a_choice_and_procedure_tasks_runs_in_dependency_order() {
     let to = w.to();
     let key = to.into_token().raw();
     w.send(Event::Procedure {
+        reads_project: false,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(key)),
         task: 3,
         step: 1,
@@ -923,6 +925,7 @@ fn open_park_keeps_saved_charge_and_delegates_then_cancel_wins() {
     let saved = Box::new([jig_domain_tasks::SavedResource { connector: 1, path: Box::new([Box::from([3])]) }]);
     let reply_to = w.to();
     w.send(Event::Activation {
+        reads_project: false,
         reply_to,
         task: 1,
         attempt: 1,
@@ -953,6 +956,7 @@ fn open_still_refuses_bad_saved_work_before_normalizing_a_finish() {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
     w.send(Event::Activation {
+        reads_project: false,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         task: 1,
         attempt: 1,

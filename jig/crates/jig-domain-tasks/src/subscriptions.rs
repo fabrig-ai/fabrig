@@ -89,7 +89,7 @@ pub(crate) fn subscribe(
     to: ReplyTo,
     number: u64,
     subscription: Subscription,
-    admission: Admission,
+    (admission, reads_project): (Admission, bool),
     out: &mut Queue<Request>,
 ) {
     let to = match entrance(domain, to, number) {
@@ -122,7 +122,12 @@ pub(crate) fn subscribe(
     }
     match subscription.kind {
         SubscriptionKind::Task { target, held, result } => {
-            if !crate::refs::allows(domain, number, target) || (!held && !result) {
+            let Some(watched) = record(domain, target) else {
+                return refused(to, Some(number), Refusal::Reference, out);
+            };
+            let reachable =
+                crate::refs::allows(domain, number, target) || reads_project && watched.project == task.project;
+            if !reachable || (!held && !result) {
                 return refused(to, Some(number), Refusal::Reference, out);
             }
         }
@@ -169,7 +174,7 @@ pub(crate) fn subscribe(
     arm(domain, env, subscription);
     match subscription.kind {
         SubscriptionKind::Task { target, held: true, .. } => {
-            let watched = record(domain, target).expect("referenced target live");
+            let watched = record(domain, target).expect("watched target live");
             match watched.phase {
                 Phase::Held { .. } => out.push(Request::Notify {
                     task: number,

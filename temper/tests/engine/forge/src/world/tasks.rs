@@ -29,6 +29,7 @@ pub(super) fn hold(domain: &mut tasks::Domain, now: Time, wall: Wall, number: u6
         domain,
         &env,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(number)),

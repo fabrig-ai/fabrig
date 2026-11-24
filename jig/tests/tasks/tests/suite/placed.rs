@@ -394,6 +394,7 @@ fn idle_procedures() -> World {
     for number in PROCEDURES {
         let reply_to = w.to();
         w.send(Event::Procedure {
+            reads_project: false,
             reply_to,
             task: number,
             step: WAITING_STEP,

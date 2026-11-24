@@ -408,10 +408,12 @@ fn check(
         Operation::Cancel(cancel) => {
             Ok(Plan::Cancel(Box::new(crate::control::check_cancel(domain, staged, env, by, cancel)?)))
         }
-        Operation::Amend(operation) => match crate::control::check_amend(domain, staged, env, by, operation, &[]) {
-            Ok(plan) => Ok(Plan::Amend(Box::new(plan))),
-            Err(problem) => Err(problem),
-        },
+        Operation::Amend(operation) => {
+            match crate::control::check_amend(domain, staged, env, by, operation, &[], false) {
+                Ok(plan) => Ok(Plan::Amend(Box::new(plan))),
+                Err(problem) => Err(problem),
+            }
+        }
         Operation::Release(operation) => {
             let task = operation.task;
             match crate::control::check_release(domain, staged, env, by, operation) {

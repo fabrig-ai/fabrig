@@ -23,6 +23,7 @@ fn procedure_fixture() -> (Core, Limits, connector::EffectDescription) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(120)),

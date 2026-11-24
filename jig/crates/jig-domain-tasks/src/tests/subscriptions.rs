@@ -42,7 +42,7 @@ fn subscribe(h: &mut Harness, subscription: Subscription) -> Vec<Request> {
     let event = match subscription.kind {
         SubscriptionKind::Topic { .. } => Event::SubscribeTopic { reply_to: to(), task: HOLDER, subscription },
         SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } => {
-            Event::Subscribe { reply_to: to(), task: HOLDER, subscription }
+            Event::Subscribe { reply_to: to(), task: HOLDER, subscription, reads_project: false }
         }
     };
     h.send(event)
@@ -90,6 +90,7 @@ fn fixture(others: usize) -> Harness {
     h.env.limits.inbox_bytes = 1024;
     h.make(vec![task(HOLDER, &[])]);
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -328,7 +329,12 @@ fn restored_timers_reserve_room_through_a_due_notice() {
     let mut cold = read_rows(&h, &Limits { tasks: 2, subscriptions: 1, ..h.env.limits });
     start(&mut cold);
     fire(&mut cold, DUE, 1);
-    let event = || Event::Subscribe { reply_to: to(), task: OTHER, subscription: timer(5, DUE + 1, None) };
+    let event = || Event::Subscribe {
+        reply_to: to(),
+        task: OTHER,
+        subscription: timer(5, DUE + 1, None),
+        reads_project: false,
+    };
     refused_at(&cold.send(event()), OTHER, Refusal::Busy, None);
     notice(&mut cold, 1, MessageKind::Timer { subscription: 1 });
     done(&cold.send(event()));

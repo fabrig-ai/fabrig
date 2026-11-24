@@ -91,8 +91,8 @@ pub fn render(part: &CallPart) -> Rendered {
         | CallPart::ProposalRefused(problem)
         | CallPart::ControlRefused(problem)
         | CallPart::MessageRefused(problem)
-        | CallPart::SubscriptionRefused(problem)
         | CallPart::DelegationRefused(problem) => task_problem(problem),
+        CallPart::SubscriptionRefused(problem) => subscription_refused(problem),
         CallPart::NoteRecalled { entries, more } => Rendered { error: false, text: notes(entries, *more) },
         CallPart::NoteRefused(why) => note_refused(why),
         CallPart::Revised { task, revision } => text(
@@ -292,6 +292,16 @@ fn finding_text(finding: &authority::Finding) -> &'static [u8] {
 
 fn person_answers(question: u64) -> Rendered {
     text(&[b"Refused: your person answers question ", Decimal::of(question).as_bytes(), b" in their inbox"], true)
+}
+
+fn subscription_refused(problem: &jig_domain_tasks::Problem) -> Rendered {
+    if problem.why == jig_domain_tasks::Refusal::Reference {
+        return text(
+            &[b"Refused: the target must be a task this one references or a live task of its project its tree's requester reads"],
+            true,
+        );
+    }
+    task_problem(problem)
 }
 
 fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
@@ -792,7 +802,7 @@ mod tests {
         }
         for (why, expected) in [
             (Refusal::Subscription, b"Refused: subscription".as_slice()),
-            (Refusal::Reference, b"Refused: reference".as_slice()),
+            (Refusal::Reference, b"Refused: the target must be a task this one references or a live task of its project its tree's requester reads".as_slice()),
             (Refusal::State, b"Refused: state".as_slice()),
             (Refusal::Busy, b"Refused: busy".as_slice()),
         ] {

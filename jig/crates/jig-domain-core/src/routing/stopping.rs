@@ -57,6 +57,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
             core,
             env,
             tasks::Event::Activation {
+                reads_project: false,
                 reply_to: ReplyTo::new(token),
                 task: run.raw(),
                 attempt: attempt.raw(),

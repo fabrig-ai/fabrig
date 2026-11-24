@@ -522,6 +522,7 @@ fn create_and_amend_refuse_an_authority_with_no_charter_model() {
         &mut core.tasks,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
         tasks::Event::Amend {
+            reads_project: false,
             reply_to: ReplyTo::new(HOST),
             by: tasks::Party::Person(1),
             places: Box::new([]),

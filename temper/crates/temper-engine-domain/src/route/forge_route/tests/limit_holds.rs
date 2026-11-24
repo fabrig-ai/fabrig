@@ -37,6 +37,7 @@ fn two_tasks_with_fresh_reads(read: bool) -> (crate::Domain, Env<crate::Limits>)
             &mut domain.core.tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(Token::new(number)),

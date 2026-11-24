@@ -772,9 +772,11 @@ impl World {
         if let Event::Procedure { task, step, read, .. } = &event {
             self.accounting_referee.procedure(*task, *step, *read);
         }
-        let (event, procedure_reply) = if let Event::Procedure { reply_to, task, step, read, decision } = event {
+        let (event, procedure_reply) = if let Event::Procedure { reply_to, task, step, read, decision, reads_project } =
+            event
+        {
             let token = reply_to.into_token();
-            (Event::Procedure { reply_to: ReplyTo::new(token), task, step, read, decision }, Some(token))
+            (Event::Procedure { reads_project, reply_to: ReplyTo::new(token), task, step, read, decision }, Some(token))
         } else {
             (event, None)
         };
@@ -1253,6 +1255,7 @@ impl World {
         let reply_to = self.to();
         let call = self.call;
         self.send(Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to,
@@ -1357,7 +1360,7 @@ impl World {
         let attempt = self.runs[&task];
         let reply_to = self.to();
         let call = self.call;
-        self.send(Event::Activation { reply_to, task, attempt, end, saved: None, cause });
+        self.send(Event::Activation { reads_project: false, reply_to, task, attempt, end, saved: None, cause });
         self.replies[&call].clone()
     }
 

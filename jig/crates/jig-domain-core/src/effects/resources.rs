@@ -37,9 +37,11 @@ impl Kind {
     }
     pub(crate) fn event(self, reply_to: ReplyTo, batch: Box<[tasks::New]>) -> tasks::Event {
         match self {
-            Kind::Creation { creator, maker, places } => tasks::Event::Make { reply_to, creator, maker, batch, places },
+            Kind::Creation { creator, maker, places } => {
+                tasks::Event::Make { reads_project: false, reply_to, creator, maker, batch, places }
+            }
             Kind::Result { proposer, proposal } => {
-                tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, batch }
+                tasks::Event::MakeResultFollowups { reads_project: false, reply_to, proposer, proposal, batch }
             }
         }
     }

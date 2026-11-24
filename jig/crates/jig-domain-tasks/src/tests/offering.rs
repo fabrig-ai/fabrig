@@ -115,7 +115,15 @@ fn claim_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
 
 fn end(h: &mut Harness, end: End) {
     let attempt = h.domain.task(TASK).expect("running fixture").attempt;
-    h.send(Event::Activation { reply_to: to(), task: TASK, attempt, end, saved: None, cause: crate::Cause::Unpriced });
+    h.send(Event::Activation {
+        reads_project: false,
+        reply_to: to(),
+        task: TASK,
+        attempt,
+        end,
+        saved: None,
+        cause: crate::Cause::Unpriced,
+    });
 }
 
 fn escalation(h: &mut Harness) -> Vec<Request> {
@@ -747,6 +755,7 @@ fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
         new.executor = crate::Executor::Person(crate::PersonAddress::Person(PERSON));
     }
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -765,6 +774,7 @@ fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
 fn repair_attempt(h: &mut Harness, attempt: u64) {
     start_task(h, REPAIR, attempt, R::ALL);
     let out = h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: REPAIR,
         attempt,
@@ -845,6 +855,7 @@ fn finish_follow_up(h: &mut Harness) -> Vec<Request> {
     delegate(h, TASK, FOLLOW_UP, false);
     start_task(h, FOLLOW_UP, FOLLOW_UP_ATTEMPT, R::ALL);
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: FOLLOW_UP,
         attempt: FOLLOW_UP_ATTEMPT,

@@ -220,6 +220,7 @@ fn running_at_a_wall() -> Harness {
 fn parked_at_a_wall() -> Harness {
     let mut h = running_at_a_wall();
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: super::revisions::to(),
         task: 1,
         attempt: 1,
@@ -317,6 +318,7 @@ fn a_tasks_deadline_moves_with_its_open_and_closed_suspensions() {
     let mut h = running_at_a_wall();
     h.env.wall = Wall::from_nanos(1020);
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: super::revisions::to(),
         task: 1,
         attempt: 1,
@@ -357,6 +359,7 @@ fn a_tasks_deadline_moves_with_its_open_and_closed_suspensions() {
 fn a_suspensions_window_rearms_on_restore_and_activates_once_at_its_end() {
     let mut h = running_at_a_wall();
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: super::revisions::to(),
         task: 1,
         attempt: 1,
@@ -431,6 +434,7 @@ fn a_zero_pace_amendment_is_refused_without_changing_the_task() {
         h.make(vec![task(1, &[])]);
         let before = h.domain.task(1).unwrap().clone();
         let out = h.send(Event::Amend {
+            reads_project: false,
             operation: crate::Amend {
                 funder: None,
                 task: 1,

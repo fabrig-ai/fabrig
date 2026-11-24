@@ -656,6 +656,7 @@ fn asks_cannot_be_amended() {
             reason: Box::new([]),
         };
         let reply = response(&mut world, |reply_to| Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task: ASKER,
@@ -699,6 +700,7 @@ fn asks_requires_room_for_the_fixed_answer_notice() {
         let mut new = task(REQUESTER, &[]);
         new.spec.asks = true;
         let reply = response(&mut world, |reply_to| Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to,
@@ -805,6 +807,7 @@ fn questions_while_awaiting(kind: SubscriptionKind) -> World {
     assert_eq!(world.record(REQUESTER).question_woken, 0);
     assert_eq!(
         response(&mut world, |reply_to| Event::Subscribe {
+            reads_project: false,
             reply_to,
             task: REQUESTER,
             subscription: Subscription { number: 1, kind },
@@ -905,6 +908,7 @@ fn keep_requester(world: &mut World) {
     };
     assert_eq!(
         response(world, |reply_to| Event::Amend {
+            reads_project: false,
             reply_to,
             by: PERSON_PARTY,
             operation: tasks::Amend {
@@ -1084,7 +1088,7 @@ fn only_timers_and_task_watches_count_as_pending_arrivals() {
         let reply = response(&mut world, |reply_to| match kind {
             SubscriptionKind::Topic { .. } => Event::SubscribeTopic { reply_to, task: ASKER, subscription },
             SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } => {
-                Event::Subscribe { reply_to, task: ASKER, subscription }
+                Event::Subscribe { reads_project: false, reply_to, task: ASKER, subscription }
             }
         });
         assert_eq!(reply, Reply::Done);
@@ -1135,7 +1139,7 @@ fn timer_interest(number: u64) -> Subscription {
 }
 
 fn subscribe_goal(world: &mut World, subscription: Subscription) -> Reply {
-    response(world, |reply_to| Event::Subscribe { reply_to, task: GOAL, subscription })
+    response(world, |reply_to| Event::Subscribe { reads_project: false, reply_to, task: GOAL, subscription })
 }
 
 fn subscription_full(world: &mut World, subscription: Subscription, cause: CapacityCause) {

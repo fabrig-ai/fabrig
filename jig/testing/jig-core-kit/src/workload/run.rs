@@ -819,6 +819,7 @@ fn park(row: &tasks::TaskRecord) -> root::Event {
     if row.subscriptions.is_empty() {
         let subscription = u64::MAX - row.number;
         root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(subscription)),
             task: row.number,
             subscription: tasks::Subscription {

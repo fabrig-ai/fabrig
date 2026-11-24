@@ -376,6 +376,7 @@ fn raw_amend(world: &mut World, person: u64) -> Option<Refusal> {
     let message = core::fresh(&mut world.domain.core_mut().counters, core::Family::Message).expect("message number");
     let amendment = task_amendment(world, person, PERSON_TASK);
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Amend {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(9053)),
         by: tasks::Party::Person(PERSON),
         places: Box::new([]),
@@ -423,6 +424,7 @@ fn raw_batch(world: &mut World, person: u64, field: BatchName) -> Option<Refusal
         BatchName::Requester => creator = tasks::Party::Person(person),
     }
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(9053)),
@@ -475,6 +477,7 @@ fn agent_new(world: &mut World) -> tasks::New {
 fn requester_agent(world: &mut World, person: u64) -> bool {
     let row = agent_new(world);
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(9053)),

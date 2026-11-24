@@ -110,7 +110,14 @@ pub(crate) fn apply(
     crate::routing::step::step_tasks(
         core,
         env,
-        tasks::Event::Procedure { reply_to: skein_lib::ReplyTo::new(token), task, step, read, decision },
+        tasks::Event::Procedure {
+            reads_project: false,
+            reply_to: skein_lib::ReplyTo::new(token),
+            task,
+            step,
+            read,
+            decision,
+        },
         &mut child,
     );
     let mut kept = Queue::uncapped();

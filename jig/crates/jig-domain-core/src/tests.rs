@@ -705,6 +705,7 @@ fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: t
         &mut core.tasks,
         &env,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -989,6 +990,7 @@ pub(crate) fn make_tree() -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -1005,6 +1007,7 @@ pub(crate) fn make_tree() -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -1079,6 +1082,7 @@ fn delegate_tree_row(core: &mut Core, limits: &Limits, parent: u64, number: u64)
         core,
         limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(number)),
@@ -1204,6 +1208,7 @@ fn documents_part_keys_are_preserved_or_refused_whole() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -1290,6 +1295,7 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -1303,6 +1309,7 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(2)),
@@ -1370,6 +1377,7 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Amend {
+            reads_project: false,
             operation: tasks::Amend { funder: None, task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(5)),
@@ -1706,6 +1714,7 @@ fn documents_person_task_has_the_current_revision_holder_and_answer_form() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(70)),
@@ -2082,6 +2091,7 @@ fn documents_inbox_keeps_two_projects_groups_order_and_exact_cursor() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(102)),
@@ -2588,6 +2598,7 @@ fn a_watch_whose_task_has_an_oversized_whole_value_is_refused_unknown() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -3552,6 +3563,7 @@ fn deployment_capacity_carries_direct_batch_refusals_and_task_history_cut() {
             &mut core,
             &Env { now: Time::ZERO, wall: Wall::from_nanos(number), limits },
             Event::Tasks(tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(Token::new(number)),
@@ -3587,6 +3599,7 @@ fn approval_documents_keep_opaque_state_whole_and_refuse_a_smaller_bound() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(450)),
@@ -3627,6 +3640,7 @@ fn verdict_documents_preserve_machine_field_rules_and_values_whole() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(461)),
@@ -3903,6 +3917,7 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
         &mut core,
         &limits,
         tasks::Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task: 1,

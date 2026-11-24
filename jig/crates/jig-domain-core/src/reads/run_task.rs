@@ -947,6 +947,7 @@ mod tests {
             core,
             limits,
             tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(skein_lib::Token::new(number)),
@@ -980,6 +981,7 @@ mod tests {
             },
             tasks::Event::Started { task, attempt: FIRST_ATTEMPT },
             tasks::Event::Activation {
+                reads_project: false,
                 reply_to: to(),
                 task,
                 attempt: FIRST_ATTEMPT,

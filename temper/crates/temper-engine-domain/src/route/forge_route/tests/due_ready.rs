@@ -67,6 +67,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: super::super::super::internal(u64::MAX),
@@ -104,6 +105,7 @@ pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Procedure {
+            reads_project: false,
             reply_to: super::super::super::internal(u64::MAX),
             task,
             step,

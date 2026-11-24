@@ -671,8 +671,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::recurring::make_batch(domain, env, task, period, &numbers, out);
         }
         Event::CloserBatch { task, number } => crate::closer::make(domain, env, task, number, out),
-        Event::Procedure { reply_to, task, step, read, decision } => {
-            crate::procedure::stepped(domain, env, reply_to, task, (step, read), decision, out);
+        Event::Procedure { reply_to, task, step, read, decision, reads_project } => {
+            crate::procedure::stepped(domain, env, reply_to, task, (step, read), decision, reads_project, out);
         }
         Event::TakePerson { reply_to, task, person } => {
             crate::person::take(domain, env, reply_to, task, person, out);
@@ -715,21 +715,21 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Release { reply_to, by, operation } => {
             crate::control::release(domain, env, reply_to, by, operation, out);
         }
-        Event::Amend { reply_to, by, operation, places } => {
-            crate::control::amend(domain, env, reply_to, by, operation, &places, out);
+        Event::Amend { reply_to, by, operation, places, reads_project } => {
+            crate::control::amend(domain, env, reply_to, by, operation, &places, reads_project, out);
         }
         Event::Move { reply_to, operation, person, period, pool_budget, period_budget } => {
             let funding = crate::moving::Funding { person, period, pool_budget, period_budget };
             crate::moving::apply(domain, env, reply_to, operation, funding, out);
         }
-        Event::Subscribe { reply_to, task, subscription } => {
+        Event::Subscribe { reply_to, task, subscription, reads_project } => {
             crate::subscriptions::subscribe(
                 domain,
                 env,
                 reply_to,
                 task,
                 subscription,
-                crate::subscriptions::Admission::Own,
+                (crate::subscriptions::Admission::Own, reads_project),
                 out,
             );
         }
@@ -740,7 +740,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 reply_to,
                 task,
                 subscription,
-                crate::subscriptions::Admission::Topic,
+                (crate::subscriptions::Admission::Topic, false),
                 out,
             );
         }
@@ -796,14 +796,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ResizePeriod { reply_to, project, period, budget } => {
             crate::funders::resize_period(domain, reply_to, project, period, budget, out);
         }
-        Event::Make { reply_to, creator, maker, batch, places } => {
+        Event::Make { reply_to, creator, maker, batch, places, reads_project } => {
             let owner = reply_to.into_token();
-            make(domain, env, ReplyTo::new(owner), creator, maker, batch, &places, out);
+            make(domain, env, ReplyTo::new(owner), creator, maker, batch, &places, reads_project, out);
             domain.unpin_reports(owner);
         }
-        Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
+        Event::MakeResultFollowups { reply_to, proposer, proposal, batch, reads_project } => {
             let owner = reply_to.into_token();
-            make_result_followups(domain, env, ReplyTo::new(owner), proposer, proposal, batch, out);
+            make_result_followups(domain, env, ReplyTo::new(owner), proposer, proposal, batch, reads_project, out);
             domain.unpin_reports(owner);
         }
         Event::Message { reply_to, project, operation } => {
@@ -902,7 +902,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Refusals { task, attempt, refused, offered } => {
             crate::admission::answer_refusals(domain, env, task, attempt, &refused, offered, out);
         }
-        Event::Activation { reply_to, task, attempt, end, saved, cause } => match cause {
+        Event::Activation { reply_to, task, attempt, end, saved, cause, reads_project } => match cause {
             crate::Cause::Priced { cumulative } => {
                 crate::admission::activation(
                     domain,
@@ -910,6 +910,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                     reply_to,
                     crate::run::Ended { number: task, attempt, end, saved },
                     cumulative,
+                    reads_project,
                     out,
                 );
             }
@@ -1475,9 +1476,10 @@ pub(crate) fn make(
     maker: Option<u64>,
     batch: Box<[New]>,
     places: &[crate::DependencyPlace],
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
-    if let Err(problem) = domain.check_make(&env.limits, creator, maker, &batch, places) {
+    if let Err(problem) = domain.check_make(&env.limits, creator, maker, &batch, places, reads_project) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     let numbers = make_admitted(domain, env, creator, batch, out);
@@ -1499,6 +1501,10 @@ pub(crate) fn make(
     out.push(Request::Made { reply_to: to, tasks: numbers });
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "result follow-ups carry the proposal fence and the core's current reading judgment"
+)]
 fn make_result_followups(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -1506,14 +1512,20 @@ fn make_result_followups(
     proposer: u64,
     proposal: u64,
     batch: Box<[New]>,
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
         return refused(to, Some(proposer), Refusal::NotReady, out);
     }
-    if let Err(problem) =
-        crate::batch::check_result_followups(domain, &env.limits, Party::Task(proposer), proposal, &batch)
-    {
+    if let Err(problem) = crate::batch::check_result_followups(
+        domain,
+        &env.limits,
+        Party::Task(proposer),
+        proposal,
+        &batch,
+        reads_project,
+    ) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     remember_result_followups(domain, &env.limits, proposer, &batch);

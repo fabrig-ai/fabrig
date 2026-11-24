@@ -43,6 +43,7 @@ fn family(open_owner: bool, procedure: bool) -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Amend {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(2)),
             by: tasks::Party::Person(OTHER),
             places: Box::new([]),

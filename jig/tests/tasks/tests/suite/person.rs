@@ -61,6 +61,7 @@ fn a_person_report_outside_its_bounds_refuses_the_whole_batch() {
                 batch.push(new);
                 let reply_to = world.to();
                 world.stage(Event::Make {
+                    reads_project: false,
                     reply_to,
                     maker: None,
                     places: Box::new([]),

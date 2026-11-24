@@ -271,6 +271,7 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
                 },
             });
             routed.work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+                reads_project: false,
                 maker: match beneath {
                     Some(_) => Some(person),
                     None => None,

@@ -46,6 +46,7 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
     h.route(1, crate::EscalationHolder::Person(9), 1);
     h.restart();
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         attempt: 1,

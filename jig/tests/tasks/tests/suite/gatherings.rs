@@ -217,6 +217,7 @@ fn an_amendment_cannot_add_a_dependency_to_a_gathering() {
     let before = world.records.clone();
     assert!(matches!(
         response(&mut world, |reply_to| Event::Amend {
+            reads_project: false,
             reply_to,
             by: PERSON_PARTY,
             places: Box::new([]),

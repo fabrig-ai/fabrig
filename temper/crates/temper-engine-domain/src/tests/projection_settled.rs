@@ -29,6 +29,7 @@ pub(crate) fn make_task(
         tasks::Event::Restored,
         tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(2)), project: 1, period: 1, budget: 100 },
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(3)),

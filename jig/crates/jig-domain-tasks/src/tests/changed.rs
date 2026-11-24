@@ -19,6 +19,7 @@ fn changed_tracks_creation_real_changes_backward_walls_restore_and_ending() {
     let mut test = Harness::new();
     test.env.wall = Wall::from_nanos(100);
     test.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -60,6 +61,7 @@ fn duplicate_live_publication_does_not_replace_the_last_change_wall() {
         Some(Box::new(RecurringTemplate { key: 1, batch: Box::new([task(1, &[])]), overlap: RecurringOverlap::Skip }));
     test.env.wall = Wall::from_nanos(100);
     test.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -111,6 +113,7 @@ fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_en
     let mut made = task(7, &[]);
     made.spec.words = vec![b'w'; 4096].into();
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -169,6 +172,7 @@ fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_en
             _ => amendment.instructions = Some(Box::from(b"instructions".as_slice())),
         }
         let out = h.send(Event::Amend {
+            reads_project: false,
             reply_to: to(),
             by: Party::Person(9),
             places: Box::new([]),
@@ -183,6 +187,7 @@ fn live_saves_put_cold_only_at_creation_or_a_cold_amendment_and_erase_both_at_en
         assert_eq!(part_saves(&out, 7), [Key::Live(7), Key::LiveCold(7)], "field {field}: {out:?}");
     }
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 7,
         attempt: 1,
@@ -219,7 +224,7 @@ fn procedure_words_and_funding_transfers_save_the_cold_part() {
     h.make(vec![procedure]);
     let mut decision = crate::ProcedureDecision::new(crate::ProcedureEnd::Wait);
     decision.words = Some(Box::from(b"procedure words".as_slice()));
-    let out = h.send(Event::Procedure { reply_to: to(), task: 1, step: 1, read: None, decision });
+    let out = h.send(Event::Procedure { reads_project: false, reply_to: to(), task: 1, step: 1, read: None, decision });
     assert_eq!(part_saves(&out, 1), [Key::Live(1), Key::LiveCold(1)]);
     h.make(vec![task(2, &[])]);
     h.send(Event::Prepare { reply_to: to(), task: 2 });
@@ -237,6 +242,7 @@ fn procedure_words_and_funding_transfers_save_the_cold_part() {
         session_end: None,
     });
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: 2,
         attempt: 1,
@@ -246,6 +252,7 @@ fn procedure_words_and_funding_transfers_save_the_cold_part() {
     });
     h.send(Event::CarvePool { reply_to: to(), project: 1, person: 9, period: 0, budget: 100 });
     let out = h.send(Event::Amend {
+        reads_project: false,
         reply_to: to(),
         by: Party::Person(9),
         places: Box::new([]),

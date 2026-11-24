@@ -34,6 +34,7 @@ fn running_holder() -> Harness {
     child.numbers.budget = CHILD_BUDGET;
     child.authority.budget.spend = CHILD_BUDGET;
     h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
