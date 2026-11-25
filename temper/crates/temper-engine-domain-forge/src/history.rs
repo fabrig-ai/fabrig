@@ -84,7 +84,7 @@ impl Domain {
             if let Some(row) = self.landing.rows.get_mut(&landing.task) {
                 row.last_event = Some(wall);
                 let row = row.clone();
-                crate::landing::save(self, row, out);
+                crate::landing::save_row(self, row, out);
             }
             save(out, Stored::HistoryLanding(LandingIndex { project, landing: landing.task, number, change }));
         }

@@ -21,8 +21,8 @@ use temper_engine_domain_forge as forge;
 pub enum StartStop {
     /// jig's start refused a fit at this phase (jig/docs/design/domain/engine/restart.md).
     Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
-    /// A current charter leaves too little brief room (temper/docs/design/domain/agent/tools.md).
-    Room(crate::room::Short),
+    /// A restored charter does not fit (temper/docs/design/domain/agent/room.md, 4.1).
+    Room(crate::room::Refusal),
     /// A startup page could not be read.
     Load(loads::RestoreFailure),
     /// A stored change is missing one part.
@@ -521,7 +521,7 @@ impl Domain {
         );
         forge_config.namespace = Box::from(config.core.deployment);
         let mut forge = forge::Domain::new(
-            &limits.forge,
+            &crate::translate::forge_limits(limits),
             config.core.seed,
             forge_config,
             &config.identities,
@@ -810,11 +810,11 @@ impl Domain {
         }
     }
 
-    /// Check the settings after `LoadCore` restores their changes, before jig
+    /// Check fixed parts and rendered room after `LoadCore` restores settings, before jig
     /// switches to stored defaults for the held-version plan. An overlay is judged
     /// over the supplied default its runs will read after the release links
-    /// (temper/docs/design/domain/agent/tools.md).
-    pub(crate) fn check_room(&self) -> Result<(), crate::room::Short> {
+    /// (temper/docs/design/domain/agent/room.md, 4.1).
+    pub(crate) fn check_room(&self) -> Result<(), crate::room::Refusal> {
         use jig_domain_core::settings::{Setting, Value, overlaid};
         let host = self.host_part;
         for setting in self.core.current.offered().into_boxed() {
@@ -824,9 +824,9 @@ impl Domain {
                         // Jig refuses a stored overlay whose supplied default is absent.
                         continue;
                     };
-                    host.check_rendered(&overlaid(default, overlay))?;
+                    host.check(&overlaid(default, overlay))?;
                 } else if let Some(charter) = self.core.current.charter(number) {
-                    host.check_rendered(charter)?;
+                    host.check(charter)?;
                 }
             }
         }
@@ -1650,7 +1650,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     );
     forge_config.namespace = Box::from(config.core.deployment);
     let Ok(_forge) = forge::Domain::new(
-        &limits.forge,
+        &crate::translate::forge_limits(limits),
         config.core.seed,
         forge_config,
         &config.identities,

@@ -146,10 +146,13 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 - **It reads a screenshot at a given width,** keeping the last successful
   viewport's height and restoring its width and height before completing,
   including after a refused image or a cancelled look.
-- **An incremental harness session** pumps the browser and caller-owned
-  process pipes on one ring, with the caller's profile and environment;
-  it allocates no scratch directory and imposes no whole-run horizon.
-  Its caller owns the step deadlines and explicit close and drain. It
+- **An incremental harness session** pumps the browser, caller-owned
+  process pipes, and any caller-owned device operations on one ring,
+  with the caller's profile and environment; it allocates no scratch
+  directory and imposes no whole-run horizon. It waits for a completion
+  or the earliest deadline when neither the transport nor the caller
+  has work to take. Its caller owns the step deadlines and explicit
+  close and drain. It
   reports each trouble the kit sees in the page as the kit gives it,
   its kind, its text and its resource's URL, apart from its own
   trouble (Chromium's exit or failure, a page it could not open), and
@@ -187,8 +190,10 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   URL may be good once, or, when the test says so, holds the line back
   from Chromium for a command's standard input (below), the person's
   page then blank until a step opens a link; runs each person's script
-  through the face;
-  fails a test on any trouble the kit reports that the story did not
+  through the face. Each player names its next due turn or deadline,
+  including its active script's retry or bound when it wraps a script.
+  No default clock wake is armed; browser and io events also wake the
+  loop. The harness fails a test on any trouble the kit reports that the story did not
   expect, a policy violation, an exception or a native dialog
   (../../testing/browser.md, section 7); and writes the accessibility snapshot, a
   screenshot, and Chromium's and the binary's stderr's tails on a
@@ -219,7 +224,14 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     as its step begins, at its page's first step and each time its
     position (`Play::at`) moves, watching the server's, Chromium's and
     the person's command's processes (../../testing/service-tiers.md,
-    1). It classifies the step's expiry against that account with the
+    1). Step and command waits begun in the same dispatch share their
+    scheduler origin and the snapshot of their common roots, not their
+    bounds. On Linux, the run reuses procfs thread record descriptors
+    for these common roots across dispatches, not the figures they read.
+    A spawn supplies one sample to the accounts watching it,
+    without changing when those waits began. Opening the command's link
+    keeps its Chromium watch if the process identity is unchanged.
+    The harness classifies the step's expiry against that account with the
     bound the expiry passed (`Deadline::expired_for`, there). Starved,
     the harness ends what it owns and the story ends as a starved pass,
     its one line naming the figures, counted as every starved pass is;

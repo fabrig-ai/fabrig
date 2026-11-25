@@ -3,13 +3,16 @@ use crate::{Tier, WITHIN, configuration, temper};
 use serde_json::{Value, json};
 use std::{
     fs,
+    io::Read as _,
+    os::fd::AsRawFd as _,
     path::Path,
-    process::{Command, Stdio},
+    process::{ChildStdout, Command, Stdio},
 };
 
 pub(crate) const SCRIPTS: &str = "browser-scripts.json";
 pub(crate) const KEY: &str = "browser-model.key";
 pub(crate) const PROVIDER: u16 = 4;
+const READY: &str = "browser model ";
 
 pub(crate) fn document(socket: &str, key: &Path) -> Value {
     json!({"listen":{"socket":socket}, "key":key, "tls":null,
@@ -81,34 +84,64 @@ impl Tier {
             settings["items"].as_array_mut().expect("items").push(json!({"setting":{"kind":"limits"},"set":values}));
         }
         let log = directory.join("browser-model.log");
-        let output = fs::File::create(&log).expect("model log");
         let mut command = Command::new(temper());
         command
             .args(["fake", "llm", "--document"])
             .arg(doc)
             .arg("--scripts")
             .arg(directory.join(SCRIPTS))
-            .args(["--ready", "browser model "])
+            .args(["--ready", READY])
             .stdin(Stdio::null())
-            .stdout(output.try_clone().expect("log clone"))
-            .stderr(output);
-        let child = spawn_model(&mut command).expect("standalone scripted model");
+            .stdout(Stdio::piped())
+            .stderr(fs::File::create(&log).expect("model log"));
+        let mut child = spawn_model(&mut command).expect("standalone scripted model");
         let mut patience = temper_box_kit::patience::Patience::arm("the browser's scripted model", WITHIN);
         patience.watch_process(child.id());
+        let ready = child.stdout.take().expect("model readiness pipe");
         let guard = temper_box_kit::parent::Guard::new(child);
-        loop {
-            let text = fs::read_to_string(&log).expect("model readiness log");
-            if text.contains("browser model ") {
-                break;
-            }
-            if let Some(figures) = patience.failed() {
-                panic!("scripted model did not listen: {text}; {figures}");
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
+        if let Err(why) = model_ready(ready, &mut patience, format!("{READY}{socket}\n").as_bytes()) {
+            let stderr = fs::read(&log).expect("model log");
+            panic!("scripted model did not listen: {why}; {}", temper_box_kit::without_secrets(&stderr));
         }
         bootstrap(directory, settings, charter);
         guard
     }
+}
+
+// The fake flushes one address line after listening. Read it with the setup's
+// patience even if the pipe splits the line, leaving stderr with the fixture.
+fn model_ready(
+    mut pipe: ChildStdout,
+    patience: &mut temper_box_kit::patience::Patience,
+    line: &[u8],
+) -> Result<(), String> {
+    let fd = skein_io::kernel::Fd::new(pipe.as_raw_fd());
+    let mut received = vec![0; line.len()];
+    let mut filled = 0;
+    while filled < received.len() {
+        let remaining = patience.socket_timeout().map_or(WITHIN, |left| {
+            skein_lib::Duration::from_nanos(u64::try_from(left.as_nanos()).expect("readiness patience fits"))
+        });
+        if !skein_shell::keeper::wait_readable(fd, remaining)
+            .map_err(|errno| std::io::Error::from_raw_os_error(errno).to_string())?
+        {
+            if let Some(figures) = patience.failed() {
+                return Err(figures.to_string());
+            }
+            continue;
+        }
+        let count = match pipe.read(&mut received[filled..]) {
+            Ok(0) => return Err("readiness pipe closed before the address line".into()),
+            Ok(count) => count,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error.to_string()),
+        };
+        filled += count;
+        if received[..filled] != line[..filled] {
+            return Err("unexpected address line on readiness pipe".into());
+        }
+    }
+    Ok(())
 }
 
 fn spawn_model(command: &mut Command) -> std::io::Result<std::process::Child> {

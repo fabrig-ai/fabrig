@@ -220,6 +220,7 @@ pub(super) fn read_designs(d: &mut Domain, env: &Env<Limits>, task: u64, attempt
                     comparison: None,
                     baseline,
                     state: LostReadState::Asked,
+                    last_answer: None,
                     kind: LostWriterKind::Design,
                 },
             )

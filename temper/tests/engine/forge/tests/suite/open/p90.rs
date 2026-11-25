@@ -41,7 +41,7 @@ fn a_refused_close_of_an_open_pull_holds_with_words() {
         .seen()
         .iter()
         .find_map(|request| match request {
-            top::Request::ReleaseFailed { task: 51, account } => account.as_ref(),
+            top::Request::ReleaseFailed { task: 51, account, .. } => account.as_ref(),
             _ => None,
         })
         .expect("a refused close holds with an account");

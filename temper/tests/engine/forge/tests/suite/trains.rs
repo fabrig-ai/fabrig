@@ -171,10 +171,11 @@ fn an_aged_low_priority_change_is_next_ahead_of_a_later_high_priority_change() {
     let mut world = world();
     let mut root = Trains::default();
     landings::ready_on(&mut world, CHANGE, b"temper/51", b"main");
-    root.judge(&mut world);
     landings::ready_on(&mut world, 52, b"temper/52", b"main");
     world.event(top::Event::Priority { task: 52, priority: 9 });
+    // Age the queued change before creating a landing the fixture has to step.
     world.run_for(31);
+    root.judge(&mut world);
     landings::ready_on(&mut world, 53, b"temper/53", b"main");
     world.event(top::Event::Priority { task: 53, priority: 0 });
     root.judge(&mut world);

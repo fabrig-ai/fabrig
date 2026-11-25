@@ -233,8 +233,13 @@ impl<'a> BrowserFace<'a> {
     fn look_due(&mut self, find: &Find) -> bool {
         // Taking an answer does not start another find. Keep an overdue wake
         // so the script can take another turn instead of waiting for its bound.
-        self.look_wake = self.look_again.as_ref().and_then(|(looked, again)| (looked == find).then_some(*again));
+        self.look_wake = self.look_again_at(find);
         self.look_wake.is_none_or(|again| self.now >= again)
+    }
+    /// The earliest another semantic look for this same query can start.
+    #[must_use]
+    pub fn look_again_at(&self, find: &Find) -> Option<Time> {
+        self.look_again.as_ref().and_then(|(looked, again)| (looked == find).then_some(*again))
     }
     pub(crate) fn clear_look_wake(&mut self) {
         self.look_wake = None;

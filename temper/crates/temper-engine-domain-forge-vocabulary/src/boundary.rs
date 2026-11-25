@@ -1595,7 +1595,7 @@ pub struct LandingReadNote {
 pub enum LandingReadNoteKind {
     Started { why: Box<[u8]> },
     Read { elapsed: skein_lib::Duration },
-    Held { elapsed: skein_lib::Duration, why: Box<[u8]> },
+    Held { elapsed: skein_lib::Duration, words: Box<[u8]> },
 }
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -2750,6 +2750,11 @@ pub enum Event {
         task: u64,
         relay: temper_engine_domain_forge_closer::relay::Relay,
     },
+    /// Park without a closer read.
+    ParkCloser {
+        task: u64,
+        wait: crate::closer::CloserPark,
+    },
     /// Read the next pending CI selection for the closer report.
     ReadCloserSelection {
         task: u64,
@@ -3281,10 +3286,11 @@ pub enum Request {
         root: u64,
         resource: Name,
     },
-    /// A cleanup effect failed and the closing task needs a person's decision.
+    /// Cleanup failed and the closing task needs a person's decision.
     ReleaseFailed {
         task: u64,
         account: Option<EffectAccount>,
+        reason: Option<Box<[u8]>>,
     },
     /// A connector-described projection candidate, awaiting core admission.
     ProjectionEffect {

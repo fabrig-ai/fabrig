@@ -1,7 +1,7 @@
 //! Durable job attempts and their read-back (domain/landing-history.md, 3.2–3.3).
-use crate::{Domain, LandingRow, Request, history as h};
+use crate::{Domain, LandingRow, Limits, Request, history as h};
 use alloc::boxed::Box;
-use skein_lib::{List, Queue, Wall};
+use skein_lib::{Env, List, Queue, Wall};
 use temper_engine_domain_forge_landing as policy;
 
 fn event(
@@ -35,7 +35,8 @@ fn end_record(old: &mut h::JobRecord, step: h::JobStep) -> bool {
     true
 }
 
-pub(crate) fn heard(d: &mut Domain, wall: Wall, task: u64, step: h::JobStep, out: &mut Queue<Request>) {
+pub(crate) fn heard(d: &mut Domain, env: &Env<Limits>, task: u64, step: h::JobStep, out: &mut Queue<Request>) {
+    let wall = env.wall;
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {
         if step.outcome.is_some() {
             let Some(job) = row.job.as_mut() else { return };
@@ -70,7 +71,7 @@ pub(crate) fn heard(d: &mut Domain, wall: Wall, task: u64, step: h::JobStep, out
             write_prepare(d, wall, &row, &job, &[], out);
             row.job = Some(job);
         }
-        crate::landing::save(d, row, out);
+        crate::landing::save(d, env, row, out);
         out.push(Request::WakeProcedure { task });
     } else if let Some(mut row) = d.changes.get(&task).cloned() {
         if step.outcome.is_some() {
@@ -107,14 +108,21 @@ pub(crate) fn heard(d: &mut Domain, wall: Wall, task: u64, step: h::JobStep, out
     }
 }
 /// A suspended attempt has no result to read back, nor a loss to infer at its next claim.
-pub(crate) fn suspended(d: &mut Domain, task: u64, child: u64, attempt: u32, out: &mut Queue<Request>) {
+pub(crate) fn suspended(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    child: u64,
+    attempt: u32,
+    out: &mut Queue<Request>,
+) {
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {
         if let Some(job) = &row.job
             && job.step.task == child
             && job.step.attempt == attempt
         {
             row.job = None;
-            crate::landing::save(d, row, out);
+            crate::landing::save(d, env, row, out);
         }
     } else if let Some(mut row) = d.changes.get(&task).cloned()
         && let Some(job) = &row.job

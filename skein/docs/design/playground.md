@@ -339,6 +339,8 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
   reaches its stamp's, at its instant; what the world said since the
   input before, its visitor's reports, its lines and its stop, is
   folded as the page folds it and checked against the entry's digest.
+  Replay formats each output's canonical text once: it folds the whole
+  line, then keeps the diagnostic prefix from that same text.
 - **The application's referee** observes each turn through the world's
   `Turns`, as in the harness's run, and the harness's heap meter may
   measure it; at the log's end the world is handed back unsettled, as

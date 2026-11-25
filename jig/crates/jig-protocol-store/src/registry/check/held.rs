@@ -101,10 +101,7 @@ pub fn judge_held_layout(
 
 fn insert(layouts: &mut Layouts, bytes: &[u8]) -> Result<super::super::Digest, Unplanned> {
     let digest = texts::digest(bytes);
-    layouts
-        .texts
-        .insert(digest, Text { bytes: Box::from(bytes), schema: None, stored: true, current: false })
-        .expect("uncapped texts");
+    layouts.texts.insert(digest, Text { verified: true, ..Text::stored(Box::from(bytes)) }).expect("uncapped texts");
     texts::parse(layouts, digest).ok_or(Unplanned::Text)?;
     Ok(digest)
 }

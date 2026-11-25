@@ -65,7 +65,7 @@ impl Domain {
         }
         Some(Document::Change(self.panel(subject, scope, now, limits)?))
     }
-    fn turn_holder(&self, project: u32) -> Option<u64> {
+    pub(crate) fn turn_holder(&self, project: u32) -> Option<u64> {
         for (task, row) in &self.landing.rows {
             if row.landing.project == project && matches_turn(&row.landing.phase) {
                 return Some(*task);

@@ -87,6 +87,12 @@ pub(super) fn until(d: &Domain, task: u64) -> Option<Wall> {
     if session.exempt { None } else { Some(session.until) }
 }
 
+/// The active read count is independent of any wait the policy last took.
+pub(crate) fn counting(d: &Domain, task: u64) -> Option<(Wall, Wall)> {
+    let until = inspection_bound(d, task)?;
+    Some((d.read_sessions.get(&task)?.since, until))
+}
+
 pub(super) fn inspection_bound(d: &Domain, task: u64) -> Option<Wall> {
     if !d.read_sessions.get(&task)?.started {
         return None;

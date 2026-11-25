@@ -220,7 +220,10 @@ opens nothing, and needs no ctl directory and no way to push.
 ## 6. A request against the print
 
 - **Drawn on main's pages as they stand** (`web/look-requests.md`, 2):
-  the writer's last print, never a walk of the person's.
+  the writer's last print, where a journey shows the state. Where none
+  does, the request adds a walk, which the person prints with
+  `temper-client-walk print`; it lands as its sources, and the writer
+  prints its pages after the landing (section 2).
 - **The refresh goes by the print** (`web/journeys.md`, 7):
   `look-refresh.sh`, which runs the journeys tool's `look-refresh`
   command as the writer's script runs `writer` (section 4), reads
@@ -240,9 +243,10 @@ opens nothing, and needs no ctl directory and no way to push.
 - **Whoever lands a request** prints every journey into scratch in its
   own tree, `cargo run -p temper-client-walk -- print --out DIR`, and
   compares each page the request changes with the request's commit's,
-  equal where their facts agree (`journey-walks.md`, 5.1). It commits
-  no written file. The print needs no box and reads no committed
-  recording or page.
+  read from `docs/look/NAME`, equal where their facts agree
+  (`journey-walks.md`, 5.1; `web/look-requests.md`, 3). It commits
+  no written file, and its last commit carries `Look-landed: NAME`.
+  The print needs no box and reads no committed recording or page.
 - **The render check follows the writer's change** that prints the
   landing (`web/look-requests.md`, 4).
 

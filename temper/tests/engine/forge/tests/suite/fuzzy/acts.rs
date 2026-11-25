@@ -211,19 +211,35 @@ fn cancel_change(world: &mut World, task: u64, entry: u64) {
     });
     world.run_for(1);
     world.event(top::Event::SettleEffects { task, root: task, ending: top::ReleaseEnding::Cancelled });
-    world.event(top::Event::Release {
-        task,
-        root: task,
-        ending: top::ReleaseEnding::Cancelled,
-        reason: None,
-        entry: entry + 1,
-    });
-    world.event(top::Event::Committed { entry: entry + 1 });
-    for index in 2..20 {
-        world.run_for(5);
-        world.event(top::Event::ContinueRelease { task, entry: entry + index });
-        world.event(top::Event::Committed { entry: entry + index });
+    // Follow cleanup as it becomes due instead of idling the live landing past its forge stall.
+    let mut released = false;
+    'release: for entry in entry + 1..entry + 20 {
+        world.run_for(1);
+        for request in world.take_seen() {
+            match request {
+                top::Request::EffectsSettled { task: settled } if settled == task => {
+                    world.event(top::Event::Release {
+                        task,
+                        root: task,
+                        ending: top::ReleaseEnding::Cancelled,
+                        reason: None,
+                        entry,
+                    });
+                    world.event(top::Event::Committed { entry });
+                }
+                top::Request::ContinueRelease { task: due } if due == task => {
+                    world.event(top::Event::ContinueRelease { task, entry });
+                    world.event(top::Event::Committed { entry });
+                }
+                top::Request::Released { task: ended } if ended == task => {
+                    released = true;
+                    break 'release;
+                }
+                _ => {}
+            }
+        }
     }
+    assert!(released, "cancelled change {task} releases");
     assert_eq!(world.change(task).ending, Some(top::Ending::Cancelled));
 }
 

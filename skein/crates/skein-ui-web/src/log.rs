@@ -48,10 +48,22 @@ impl Saying {
         Saying { reports: Sha256::new(), lines: Sha256::new(), stopped: false }
     }
     pub fn report(&mut self, report: &fetch::Report) {
-        self.reports.update(text::report(report).as_bytes());
+        self.report_with_line(report);
+    }
+    /// Fold a report and return the same canonical line for replay diagnostics.
+    pub fn report_with_line(&mut self, report: &fetch::Report) -> String {
+        let line = report_line(report);
+        self.reports.update(line.as_bytes());
+        line
     }
     pub fn printed(&mut self, printed: &bridge::Printed) {
-        self.lines.update(text::printed(printed).as_bytes());
+        self.printed_with_line(printed);
+    }
+    /// Fold a printed line and return the same canonical line for replay diagnostics.
+    pub fn printed_with_line(&mut self, printed: &bridge::Printed) -> String {
+        let line = printed_line(printed);
+        self.lines.update(line.as_bytes());
+        line
     }
     pub fn stopped(&mut self) {
         self.stopped = true;

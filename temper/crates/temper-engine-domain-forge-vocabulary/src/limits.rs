@@ -12,6 +12,20 @@ pub const CONNECT_WHY_BYTES: usize = 256;
 /// Admin connects carry names checked at the wire ceiling, independently of the engine's setup name limit.
 pub const FIRST_NAME_BYTES: u32 = 1024;
 
+use jig_domain_core_vocabulary::waits::Figures;
+
+/// Figures for a forge used without a core. The root supplies its own instead.
+pub const STANDALONE_WAIT_FIGURES: Figures = Figures {
+    question: skein_lib::Duration::from_secs(2 * 3600),
+    party: skein_lib::Duration::from_secs(8 * 3600),
+    news: skein_lib::Duration::from_secs(24 * 3600),
+    host: skein_lib::Duration::from_secs(2 * 3600),
+    account: skein_lib::Duration::from_secs(2 * 3600),
+    step: skein_lib::Duration::from_secs(30 * 60),
+    room: skein_lib::Duration::from_secs(30 * 60),
+    sign_off: skein_lib::Duration::from_secs(24 * 3600),
+};
+
 /// Capacity of each durable top table and its child.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
@@ -96,6 +110,8 @@ pub struct Limits {
     /// Maximum bytes retained for one gathered brief section.
     pub brief_bytes: u32,
     pub issue_policy: temper_engine_domain_forge_issues::Limits,
+    /// The same wait figures as the core (domain/forge/waits.md, 2).
+    pub waits: Figures,
     pub change_policy: temper_engine_domain_forge_change::Limits,
     pub queue_window: skein_lib::Duration,
     /// Gap between sittings (temper/docs/design/domain/forge/attention.md, 2).

@@ -4,18 +4,31 @@
 
 - **Patches applied in place** by the page part (../README.md, section 7):
   - *an insert* creates a subtree's elements under its parent, before
-    its sibling or at the end; each link gets its `href` in the turn
-    (`README.md`, section 7), each drawing its scene (`svg.md`, section 1) or its component
-    (`elements.md`, 5);
+    its sibling or at the end. After the first mount it registers only
+    the new subtree, after its labels and descriptions are in place,
+    without looking through the siblings already mounted. Each link gets
+    its `href` in the turn (`README.md`, section 7), each drawing its
+    scene (`svg.md`, section 1) or its component (`elements.md`, 5);
   - *a remove* removes the element and its subtree;
   - *a move* moves them, and gives back the focus and the selection of a
     field it moved;
   - *a text* replaces a node's runs;
-  - *an attribute* sets or removes what changed: a drawing whose data
+  - *an attribute* sets or removes what changed. For the same element,
+    the page compares its old and new own content; if it did not change,
+    the browser applies attributes without walking or rebuilding that
+    content. This includes a log's busy or away state, without changing
+    how the log is measured or its view restored. A drawing whose data
     changed is drawn again, and a role or a list's order whose element
     differs makes the new element, the children moved into it;
   - *a value* writes a field's value, which comes only from the owner's
     write (../tree.md, 1.4).
+  - *an empty batch* leaves the page part's option bindings, list sizes
+    and order of links alone. An address supplied by the shell can still
+    change a link's `href`, without remapping the element's other attributes.
+    A shell that supplies its binding revision walks no links when both the
+    patches and a change in that revision are absent. The page rebuilds the
+    preorder of internal links only when a patch can change their membership
+    or order; resolving their addresses is separate.
 - **Never replaced while it can be updated:** focus, caret, selection,
   composition and scroll stay. A removal that takes the focus moves it
   to the nearest remaining ancestor that can take it, a disclosure on
@@ -91,7 +104,9 @@
   items `option`s, and its field the text box that controls it,
   `aria-autocomplete="list"`, `aria-controls` naming the list and
   `aria-activedescendant` its active option, `aria-selected` on that
-  option alone. The active option starts at the item the tree marks
+  option alone. The page tracks whether any options menu is mounted,
+  so patches visit no nodes to sync options when there are no menus or
+  previous field associations. The active option starts at the item the tree marks
   selected, or the first enabled one, and stays while that item stays in
   the list across an apply; otherwise it starts again. While the field
   holds the focus and its list an enabled option: ArrowDown and ArrowUp
@@ -149,7 +164,8 @@
     doesn't continue; one that continues is away, as one scrolled up is. An
     end request that moves (../tree.md, 1.2), or a press *to log end*, has it
     follow, across whatever reads bring its end, until the person scrolls
-    up.
+    up. To go to the end, the platform asks the browser to clamp a position
+    past the end; it does not read the height just to compute that position.
   - *The view stays:* across an apply, a log not following keeps the words
     being read where they were on the screen, to the pixel a scroll position
     can say, whatever the patches inserted or removed above them, in every
@@ -157,9 +173,13 @@
     reach into the view and where each stands; after it, it moves the scroll
     by as far as the first of them still there has moved. A browser's own
     scroll anchoring (`overflow-anchor`) has by then done its part or, as
-    in Safari, has none to do, so the two never add up. A status is no entry:
-    it may stay at the head while entries arrive below it. Any other node
-    there would be what holds, so an owner draws none.
+    in Safari, has none to do, so the two never add up. Following and
+    restoring run after the patch replay's DOM writes (including link
+    addresses, tree groups and modal opening), before its measurements.
+    The page keeps no geometry from one turn to the next for that work.
+    A status is no entry: it may stay at the head while entries arrive
+    below it. Any other node there would be what holds, so an owner draws
+    none.
   - *Keys:* PageUp and PageDown, with no modifier, scroll the page's first
     log with more than its screen to show, by its screen less a line, from
     anywhere on the page, the focus in a field or on nothing among it, their

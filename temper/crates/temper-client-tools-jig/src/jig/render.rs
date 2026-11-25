@@ -291,6 +291,14 @@ pub trait Parts: core::fmt::Debug {
     fn setting_name(&self, setting: contract::Setting, out: &mut Text) -> bool;
     /// Encode a known application value, returning false without writing for other kinds.
     fn setting_value(&self, kind: u32, bytes: &[u8], out: &mut Encoder) -> bool;
+    /// Name a procedure step for text; none leaves the code numeric.
+    fn wait_step(&self, _code: u32) -> Option<&'static [u8]> {
+        None
+    }
+    /// Name a procedure thing and give the separator before its number; none leaves the code numeric.
+    fn wait_thing(&self, _code: u32) -> Option<(&'static [u8], &'static [u8])> {
+        None
+    }
     fn task_next(&self, task: &contract::Task, out: &mut Text);
     fn owner_part(&self, part: &contract::Part, out: &mut Text);
     fn part(&self, part: &contract::ApplicationPart, out: &mut Text);

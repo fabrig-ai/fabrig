@@ -25,8 +25,9 @@ cleanup wait the same way, in the same line.
   again, and journals its entry before the client sends it, as every
   write does (section 3).
 - **A wait is no failure:** it counts against no allowance and no
-  stall, keeps its place across a restart, and a cancel ends it
-  (section 4).
+  stall, keeps its place across a restart, and a cancel ends it; it is
+  bounded by its holders' owners, and held only once they have all
+  ended (section 4).
 - **Agent calls do not wait:** a call that finds no room is answered
   `Unavailable` at once, and the room its check finds is its own until
   its entry is kept (section 5).
@@ -138,7 +139,17 @@ outbox whose eight places cancelled landings held, and no line said so.
 - **No allowance, no stall:** a wait spends none of a change's or a
   landing's allowances (repairs, resolutions, updates), and its time
   counts toward no stall: a change holding a place is never held
-  `Stalled` for the time it waits.
+  `Stalled` for the time it waits behind live writers.
+- **Its bound is its holders' owners'** (2026-11-24,
+  `../../draft/bounded-waits.md`, 4.1): while an entry or a reservation
+  holding the room is a live task's, the waiter waits behind that task,
+  whose own waits bound it, so a stall holds where it is. Once every
+  holder's owner has ended, as a cancelled landing's write still in
+  flight outlives it (P124), nobody's wait ends the room's, so the waiter
+  takes the room figure, `waits.room_ms`, from the latest of those ends
+  and is held there, naming the room, the entry and its ended owner
+  (`waits.md`, 7). Its record names the entries holding the room, as a
+  full outbox's report names its holders (2.1).
 - **Restart:** the places restored with their records are the line, a
   place on the record of a task that has ended dropped; makings rejoin
   it behind them as they meet no room. No ask survives a restart: from

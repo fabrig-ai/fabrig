@@ -197,6 +197,7 @@ fn lost_read_at_capacity_still_completes_the_report() {
                 comparison: None,
                 baseline: None,
                 state: LostReadState::Asked,
+                last_answer: None,
                 kind: LostWriterKind::Slot,
             },
         )
@@ -345,7 +346,7 @@ fn a_sweep_keeps_unsettled_branch_writes_and_pending_lost_reads() {
             failures: 0,
             queued: false,
         };
-        d.entries.insert(1, Outboxed { entry, held: true, handoff: Handoff::Handed }).unwrap();
+        d.entries.insert(1, Outboxed { entry, owner_ended: None, held: true, handoff: Handoff::Handed }).unwrap();
         d.lost
             .insert(
                 Token::new(2),
@@ -356,6 +357,7 @@ fn a_sweep_keeps_unsettled_branch_writes_and_pending_lost_reads() {
                     comparison: None,
                     baseline: None,
                     state: LostReadState::Asked,
+                    last_answer: None,
                     kind: LostWriterKind::Slot,
                 },
             )

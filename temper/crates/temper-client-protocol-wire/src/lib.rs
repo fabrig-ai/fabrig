@@ -53,6 +53,7 @@ pub mod public_v1 {
 
 pub mod goals;
 pub mod source;
+pub mod waits;
 
 mod public;
 pub use public::{public_bounds, public_limits};

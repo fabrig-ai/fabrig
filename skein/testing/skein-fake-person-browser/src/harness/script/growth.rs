@@ -4,6 +4,8 @@ use skein_fake_person::{Find, Found};
 use skein_lib::{Duration, Time};
 
 const GROWTH_BOUND: Duration = Duration::from_secs(1);
+// A boxed find reports the current geometry, not later growth.
+const GROWTH_POLL: Duration = Duration::from_millis(10);
 
 pub(super) struct Growth {
     find: Find,
@@ -41,7 +43,7 @@ impl Growth {
             if height > before {
                 return true;
             }
-            self.poll = now.saturating_add(super::super::POLL);
+            self.poll = now.saturating_add(GROWTH_POLL);
         } else {
             self.before = Some(height);
             self.until = Some(now.saturating_add(GROWTH_BOUND));

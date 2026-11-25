@@ -59,6 +59,9 @@ impl Play for Sequence<'_> {
         }
         Next::Done
     }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        self.parts.get(self.part).and_then(|part| part.next_wake(face, now, runnable))
+    }
     fn at(&self) -> u32 {
         self.parts.iter().map(|part| part.at()).sum()
     }

@@ -81,6 +81,7 @@ fn setup(count: usize) -> Domain {
                     comparison: None,
                     baseline: None,
                     state: LostReadState::Asked,
+                    last_answer: None,
                     kind: LostWriterKind::Written,
                 },
             )

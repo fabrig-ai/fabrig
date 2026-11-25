@@ -157,6 +157,11 @@ impl<T> List<T> {
         self.items.into_boxed_slice()
     }
 
+    /// Give the buffer to a queue without copying or sizing the allocation down.
+    pub(crate) fn into_queue(self) -> crate::Queue<T> {
+        crate::Queue::from_items(self.items, self.capacity)
+    }
+
     /// A copy of the items in a box of exactly their number: copy at emission.
     #[must_use]
     pub fn to_boxed(&self) -> Box<[T]>
