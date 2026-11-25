@@ -1,11 +1,8 @@
 //! Structure and codec of kind 12 (temper/docs/design/domain/forge/follows.md, 2).
-use super::{Bounds, Follow, FollowCheck, FollowOwner, FollowSource, FollowStart, FollowTarget, Refusal, within};
-use skein_lib::{
-    List,
-    bytes::{decimal, find},
-};
+use super::{Bounds, Follow, Refusal, within};
+use crate::generated::client_wire::{follow_to_domain, follow_to_record};
+use skein_lib::bytes::{decimal, find};
 use temper_client_protocol_wire::v1 as w;
-use temper_engine_domain_forge_tiers::Format;
 use w::Record;
 
 pub(super) fn judge(value: &Follow, bounds: &Bounds) -> Result<(), Refusal> {
@@ -94,74 +91,13 @@ fn entry_number(entry: &[u8]) -> Option<u8> {
 /// The kind's wire record, shared by its entrances and store's matching record.
 #[must_use]
 pub fn follow_record(value: &Follow) -> Option<w::Follow> {
-    let mut paths = List::with_capacity(u32::try_from(value.source.paths.len()).ok()?);
-    for path in &value.source.paths {
-        paths.push(path.clone()).ok()?;
-    }
-    let source = w::FollowSource {
-        repository: repository_record(value.source.repository),
-        branch: value.source.branch.clone(),
-        paths,
-    };
-    let target =
-        w::FollowTarget { repository: repository_record(value.target.repository), branch: value.target.branch.clone() };
-    let owner = match value.owner {
-        FollowOwner::Person(person) => w::FollowOwner::Person(w::FollowPerson { person }),
-        FollowOwner::Task(task) => w::FollowOwner::Task(w::FollowOwnerTask { task }),
-    };
-    let start = match value.start {
-        FollowStart::Owner => w::FollowStart::Owner,
-        FollowStart::Code => w::FollowStart::Code,
-    };
-    let check = w::FollowCheck {
-        workflow: value.check.workflow.clone(),
-        artifact: value.check.artifact.clone(),
-        format: match value.check.format {
-            Format::Junit => w::FollowFormat::Junit,
-            Format::Lines => w::FollowFormat::Lines,
-        },
-    };
-    let record = w::Follow { source, target, owner, start, producer: value.producer.clone(), verification: check };
+    let record = follow_to_record(value).ok()?;
     record.measure(&w::CEILINGS).ok()?;
     Some(record)
-}
-
-fn repository_record(repository: skein_forge::api::Repository) -> w::FollowRepository {
-    w::FollowRepository { forge: repository.forge, repository: repository.repository }
 }
 
 /// Move a decoded kind 12 into the domain, leaving judgement to its owner.
 #[must_use]
 pub fn follow_from(value: w::Follow) -> Follow {
-    let w::Follow { source, target, owner, start, producer, verification: check } = value;
-
-    Follow {
-        source: FollowSource {
-            repository: repository_from(source.repository),
-            branch: source.branch,
-            paths: source.paths.into_boxed(),
-        },
-        target: FollowTarget { repository: repository_from(target.repository), branch: target.branch },
-        owner: match owner {
-            w::FollowOwner::Person(person) => FollowOwner::Person(person.person),
-            w::FollowOwner::Task(task) => FollowOwner::Task(task.task),
-        },
-        start: match start {
-            w::FollowStart::Owner => FollowStart::Owner,
-            w::FollowStart::Code => FollowStart::Code,
-        },
-        producer,
-        check: FollowCheck {
-            workflow: check.workflow,
-            artifact: check.artifact,
-            format: match check.format {
-                w::FollowFormat::Junit => Format::Junit,
-                w::FollowFormat::Lines => Format::Lines,
-            },
-        },
-    }
-}
-
-fn repository_from(value: w::FollowRepository) -> skein_forge::api::Repository {
-    skein_forge::api::Repository { forge: value.forge, repository: value.repository }
+    follow_to_domain(value)
 }

@@ -25,11 +25,11 @@ it.
   by variant, through nested declarations, options, lists and boxes; a
   **converter** where a scalar's meaning changes; **by hand** where the
   shape is the owner's own (3.3).
-- **Both directions, exhaustive,** as plain functions in the translation
-  crate's generated module (4). Either direction may refuse, naming the
-  record's field by its path; one that can't refuse returns its value,
-  and only one that reaches the owner's use of the context is given it
-  (4.1).
+- **Both directions, or the one the owner uses, exhaustive,** as plain
+  functions in the translation crate's generated module (4). Either
+  direction may refuse, naming the record's field by its path; one that
+  can't refuse returns its value, and only one that reaches the owner's
+  use of the context is given it (4.1).
 - **Mixed families:** generated code calls the owner's translation of a
   `by hand` declaration, and the owner's code calls the generated
   functions, under one naming rule and one signature (4.1, 4.2).
@@ -38,7 +38,8 @@ it.
   makes a conflicted translation module again from them (7).
 - **Its users:** jig's store, its translation crates
   `jig-protocol-store-records` and `jig-protocol-store`, and temper's
-  store, `temper-protocol-store`. The wires follow (9).
+  store, `temper-protocol-store`; and every wire, each crate that
+  translates a wire's records keeping its own maps file (9).
 
 ## 2. The maps file
 
@@ -65,6 +66,9 @@ path as the translation crate names it, and may start with an alias.
   function once.
 - `with context PATH`: a by-hand pair's direction that takes the
   context; one not marked takes none. Any number, each function once.
+- `direction to record`, `direction to domain`: the direction of each
+  mapped declaration whose line names none (4.1). Once; absent, such a
+  declaration is translated both ways.
 
 A marked `PATH` names the function as the generated code calls it,
 through the aliases: `s::text_to_domain`, `h::pattern_to_domain` for
@@ -73,13 +77,18 @@ through the aliases: `s::text_to_domain`, `h::pattern_to_domain` for
 **Declaration lines,** one for each declaration the file maps and each
 the owner translates by hand, in the schema's order:
 
-- `record NAME = PATH`, `enum NAME = PATH`: the declaration mirrors the
-  domain's struct or enumeration at `PATH`.
-- `record NAME stands for FIELD [via PATH]`: a record of one field that
-  the domain holds as that field's value, wherever it holds the record:
-  a list of `Reference { task }` as a list of task numbers, a variant's
-  payload `Words { words }` as the variant's bytes. It has no domain
-  type and no functions of its own.
+- `record NAME = PATH [DIRECTION]`, `enum NAME = PATH [DIRECTION]`: the
+  declaration mirrors the domain's struct or enumeration at `PATH`.
+  `DIRECTION` is `to record`, `to domain` or `both ways`, over the
+  header's `direction`. A declaration may have two lines, one `to
+  record` and one `to domain`, each mirroring its own domain type, where
+  the owner sends one type and receives another.
+- `record NAME stands for FIELD [via PATH] [slice]`: a record of one
+  field that the domain holds as that field's value, wherever it holds
+  the record: a list of `Reference { task }` as a list of task numbers,
+  a variant's payload `Words { words }` as the variant's bytes. `slice`:
+  the field is a list the domain holds as a boxed slice (3.1). It has no
+  domain type and no functions of its own.
 - `record NAME`: a variant's payload with no domain type, given a line
   only for its block (3.2).
 - `record NAME by hand`, `enum NAME by hand`: the owner's own shape.
@@ -201,10 +210,19 @@ only for a shape that recurs (9).
   No comment ties a function to a line of the maps file: its name says
   its declaration, and a line number would move with every line above
   it ([README.md](README.md), section 4, "Stable under insertion").
-- **A pair for each mapped declaration** with a domain type, in the
-  schema's order:
+- **A function for each direction of each mapped declaration** with a
+  domain type, in the schema's order, both by default:
   - `<decl>_to_record(value: &D[, context: &C]) -> R`, or `Result<R, Problem>`;
   - `<decl>_to_domain(record: R[, context: &C]) -> D`, or `Result<D, Problem>`;
+- **A direction's reach stays in it:** a function of one direction calls
+  only functions of that direction, so each mapped declaration it
+  reaches is generated in that direction too, or is the owner's (4.2).
+  A function names every field of both sides and every variant the
+  schema holds, so a field or a variant added to the schema, or a field
+  added to the domain's type, fails the build of every direction that
+  translates it; a variant added to the domain's enumeration fails a
+  function `to record`, which matches on it, and no function `to
+  domain`, which only builds it.
 - **A function's signature is what it reaches,** each direction judged
   alone, through the generated functions it calls: it returns a
   `Result` when it reaches a list conversion that can refuse (3.1) or a
@@ -251,7 +269,8 @@ only for a shape that recurs (9).
   one reaches is translated by the owner's pair in the header's `by
   hand` module, with the names of 4.1 and the signature its marks say:
   a direction that can refuse is marked `refuses`, one that reads the
-  context `with context` (2).
+  context `with context` (2). The owner writes only the directions
+  generated functions reach.
 - **Calling generated code:** the owner's translation calls the
   generated pairs for what they cover. A family's root, its routing by
   key and its framing into bytes stay the owner's.
@@ -301,10 +320,17 @@ schema's name, for:
   a declaration;
 - a block on a `tuple` variant, or an inline payload whose record is
   `by hand`;
-- `slice` on a field whose value, or an option's, isn't a list; `boxed`
-  on a field whose value, or an option's, isn't a mapped declaration's
-  domain type, or on a variant without `tuple`;
-- a mapped record with a field of pieces.
+- `slice` on a field whose value, or an option's, isn't a list, or on a
+  `stands for` whose field isn't one; `boxed` on a field whose value,
+  or an option's, isn't a mapped declaration's domain type, or on a
+  variant without `tuple`;
+- a mapped record with a field of pieces;
+- a direction on a line that has no functions (`stands for`, a
+  payload's `record NAME`, `by hand`); `both ways` with no header
+  `direction`; a second line for a declaration in a direction it
+  already has;
+- a function of one direction that reaches, through a field or a
+  `tuple` payload, a mapped declaration not generated in that direction.
 
 ## 7. Command, drift and merges
 
@@ -337,7 +363,9 @@ schema's name, for:
   checks the module; a domain value taken to its record, to bytes and
   back is the value it was; a converter's refusal names its field.
 - **The generator's tests:** each refusal of 6, on a maps text; each
-  direction's signature by what it reaches (4.1); a declaration and its
+  direction's signature by what it reaches (4.1); a declaration of one
+  direction, and one with a line per direction, generating only their
+  directions' functions; a declaration and its
   maps line inserted, leaving every line of the module generated before
   in the new one, in order ([golden.md](golden.md), section 1).
 - **The merge job's test** with the real generator: two clean edits, to
@@ -346,14 +374,55 @@ schema's name, for:
 - **Each owner's tests** of its translation stand: the same bytes, the
   same domain values, the same refusals at its entries.
 
-## 9. Later and open questions
+## 9. The wires' ends
 
-- **The wires' translation** takes this format once their versions
-  freeze (`temper/docs/design/draft/layouts-both-ways.md`), each end
-  with its own maps file.
+A wire's record is the one type its two sides share, each translating
+it into its own vocabulary (`temper/docs/design/draft/codec-shape.md`,
+4.4). Its versions are frozen and its layouts named by fingerprint
+(`temper/docs/design/draft/layouts-both-ways.md`, 3), so a map is
+written once against the family's text and moves with it.
+
+- **A maps file for each crate that translates:** a crate that
+  translates a wire family's records to and from types of its own keeps
+  its maps file for that family, `schema/<module>.maps` in its own
+  directory, and its generated module, `src/generated/<module>.rs`;
+  `<module>` is the records' module name ([README.md](README.md),
+  section 4), and the header's `records` names that module in the
+  records' crate. An end may be several crates, each with its own file;
+  no two crates share one.
+- **Its own module:** an end's generated module is private to its crate,
+  so a generated function nothing calls fails the workspace's lints.
+  Each line therefore says the direction the end uses, and the header
+  the one most of its lines take: an engine sends most of what a client
+  receives, and a worker's wire carries each message one way.
+- **What keeps no maps file:** a crate that uses a wire's records as its
+  own vocabulary, or routes their bytes; and one whose every translated
+  declaration is its own shape, as jig's display of smith's turns in
+  `jig-protocol-transcript`.
+- **The owner's part** (4.2): the family's root, its envelopes and
+  dispatch by kind, framing into bytes and pieces, budgets charged as
+  values are written, lookups that write to state (a public index for a
+  name, the room a list has left) and checks across fields. A function
+  that writes to state keeps its own signature and is called by the
+  owner, since the context generated code passes on is shared and read
+  only (4.1).
+- **Checked with its family:** the family's drift test checks each end's
+  module beside the records' (7); an end in a tree the family's own tree
+  may not name (smith's families at jig's and temper's crates) is
+  checked by its own tree's drift world. Each end's module has its own row
+  in `tools/merge/codecs.txt`: the family's schema texts in command
+  order, then that end's maps file. No byte, bound, fingerprint or
+  layout moves.
+
+## 10. Later and open questions
+
 - **The grammar grows by count:** a by-hand shape that recurs across
-  owners (a positional tuple, a split variant) earns a form of 2 when
-  its count says so, not before.
+  owners earns a form of 2 when its count says so, not before. The
+  wires' count earned the directions and `slice` on `stands for`
+  (`temper/docs/development/layouts-both-ways-l5-count.md`, 3); a
+  positional tuple, a variant's payload held in a named field, and a
+  value from mutable state stay the owner's, too few or too joined with
+  the owner's checks to pay for a form.
 - **Domain types that copy a record field for field** with no rule of
   their own, such as jig's component manifests in its records crate,
   could be the records themselves; each owner judges its own.

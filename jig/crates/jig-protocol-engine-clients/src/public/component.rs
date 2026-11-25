@@ -5,13 +5,11 @@ use super::{
 };
 use crate::{
     PublicRead, PublicReply,
-    public::{Names, Of, PublicKind},
+    public::{Names, Of, PublicKind, records},
 };
 use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::{self as wire, public_v1};
 use skein_lib::{List, Secret, Wall, Writer, length::len_u64};
-#[path = "records.rs"]
-mod records;
 
 #[derive(Debug)]
 enum Key {

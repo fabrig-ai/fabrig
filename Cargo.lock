@@ -2041,6 +2041,7 @@ dependencies = [
  "jig-domain-link",
  "jig-domain-tasks",
  "jig-protocol-tools",
+ "skein-codec",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -2316,6 +2317,7 @@ dependencies = [
  "jig-domain-host",
  "jig-domain-link",
  "jig-protocol-charter",
+ "skein-codec",
  "skein-io",
  "skein-lib",
  "smith-agent-profile",
@@ -2757,6 +2759,8 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
+ "smith-charter",
 ]
 
 [[package]]
@@ -4624,6 +4628,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -4958,6 +4963,7 @@ name = "smith-host-protocol"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-io",
  "skein-json",
  "skein-lib",
@@ -5307,6 +5313,7 @@ name = "smith-protocol-channel"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -5474,6 +5481,7 @@ name = "smith-protocol-translate"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-codegen",
  "skein-lib",
  "smith-channel",
@@ -6022,6 +6030,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-records",
+ "skein-codec",
  "skein-lib",
  "skein-ui",
  "temper-client-protocol-wire",
@@ -6631,6 +6640,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
  "temper-client-protocol-wire",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
@@ -6802,6 +6812,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-tasks-kit",
+ "skein-codec",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",
@@ -7366,6 +7377,7 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-engine-service-startup",
@@ -8024,6 +8036,7 @@ dependencies = [
 name = "temper-protocol-reaches"
 version = "0.0.0"
 dependencies = [
+ "skein-codec",
  "skein-lib",
  "temper-client-protocol-wire",
 ]
@@ -8678,6 +8691,7 @@ dependencies = [
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-io",
  "skein-json",
  "skein-lib",

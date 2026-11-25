@@ -1,0 +1,26 @@
+records temper_client_protocol_wire::v1
+use c = jig_client::contract
+use f = temper_client_domain_forge::forge
+by hand crate::settings
+direction to domain
+
+enum Role = f::Role
+record Adopt = f::Adoption { checks slice }
+record ManagedForge by hand
+enum Making by hand
+record SetUp by hand
+record Connect by hand
+record Install by hand
+record Accept by hand
+record HandFinding by hand
+record FileFinding by hand
+enum Triage by hand
+record TriageFinding by hand
+record SettingAnswer by hand
+record SettingValue by hand
+enum SettingEdit = c::SettingEdit { set tuple }
+record ProposalItem by hand
+record ProposalItemsAnswer by hand
+enum Read by hand
+enum ForgeRefusal by hand
+enum Outcome by hand

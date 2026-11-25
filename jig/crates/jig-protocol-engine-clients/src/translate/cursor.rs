@@ -1,31 +1,24 @@
 //! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
 use crate::cursor_v2::{self as c, CEILINGS as C};
+use crate::generated::cursor as map;
 use alloc::boxed::Box;
 use c::Record as _;
+use documents::{ExecutorKind, PhaseClass, QueryOrder};
 use jig_domain_core_vocabulary::{Key, documents, reads};
-use jig_domain_notes as notes;
-use jig_domain_people as people;
-use skein_lib::{Reader, Wall, Writer};
+use jig_domain_tasks::Party;
+use skein_codec::Reason;
+use skein_lib::{Reader, Writer};
 
 /// The cursor family version checked at the client boundary.
 pub const CURSOR_VERSION: u16 = 2;
 
 pub fn encode(value: &reads::Cursor, limit: u32) -> Option<Box<[u8]>> {
-    let cursor = match value.clone() {
-        reads::Cursor::Live { scope, after, store_after } => c::Cursor::Live(c::LiveCursor {
-            scope: put_scope(scope)?,
-            after: put_document(after),
-            store_after: put_position(store_after)?,
-        }),
-        reads::Cursor::Store { scope, after } => {
-            c::Cursor::Store(c::StoreCursor { scope: put_scope(scope)?, after: put_position(after)? })
-        }
-    };
+    let cursor = map::cursor_to_record(value).ok()?;
     let owner = c::Owner { cursor };
     write(c::Form::Owner(owner), limit)
 }
 pub(crate) fn encode_tree(value: &documents::Cursor, task: u64, window: u32, limit: u32) -> Option<Box<[u8]>> {
-    let tree = c::Tree { task, window, after: put_document(*value) };
+    let tree = c::Tree { task, window, after: map::document_cursor_to_record(value) };
     write(c::Form::Tree(tree), limit)
 }
 fn write(form: c::Form, limit: u32) -> Option<Box<[u8]>> {
@@ -52,33 +45,15 @@ pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
         c::Form::Owner(owner) => owner,
         c::Form::Tree(_) => return None,
     };
-    Some(match owner.cursor {
-        c::Cursor::Live(value) => {
-            let c::LiveCursor { scope, after, store_after } = value;
-            reads::Cursor::Live {
-                scope: take_scope(scope)?,
-                after: take_document(after),
-                store_after: take_position(store_after)?,
-            }
-        }
-        c::Cursor::Store(value) => {
-            let c::StoreCursor { scope, after } = value;
-            reads::Cursor::Store { scope: take_scope(scope)?, after: take_position(after)? }
-        }
-    })
+    map::cursor_to_domain(owner.cursor).ok()
 }
 /// Decode one document continuation carried by a family window.
 pub(crate) fn decode_window(bytes: &[u8]) -> Option<documents::Cursor> {
-    Some(take_document(c::DocumentCursor::decode(&C, &mut Reader::new(bytes)).ok()?))
+    Some(map::document_cursor_to_domain(c::DocumentCursor::decode(&C, &mut Reader::new(bytes)).ok()?))
 }
-fn number(value: u64) -> c::Number {
-    c::Number { value }
-}
-fn project(value: u32) -> c::Project {
-    c::Project { value }
-}
-fn put_scope(value: reads::Scope) -> Option<c::Scope> {
-    Some(match value {
+
+pub(crate) fn scope_to_record(value: &reads::Scope) -> Result<c::Scope, c::Problem> {
+    Ok(match value {
         reads::Scope::TaskText { .. }
         | reads::Scope::EndedTasks
         | reads::Scope::TaskSummaries
@@ -87,34 +62,40 @@ fn put_scope(value: reads::Scope) -> Option<c::Scope> {
         | reads::Scope::ProposalRemains { .. }
         | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
-        | reads::Scope::SettingsHistory { .. } => return None,
-        reads::Scope::Task { task } => c::Scope::Task(number(task)),
-        reads::Scope::Proposal { proposer, proposal } => c::Scope::Proposal(put_proposal(proposer, proposal)),
-        reads::Scope::Escalation { task } => c::Scope::Escalation(number(task)),
-        reads::Scope::Question { task, message } => c::Scope::Question(c::Question { task, message }),
-        reads::Scope::PersonTask { task } => c::Scope::PersonTask(number(task)),
-        reads::Scope::Result { task } => c::Scope::Result(number(task)),
-        reads::Scope::Reply { task, activity } => c::Scope::Reply(c::Reply { task, activity }),
-        reads::Scope::Turn { task, attempt, turn } => c::Scope::Turn(c::Turn { task, attempt, number: turn }),
-        reads::Scope::EndedDelegates { task } => c::Scope::EndedDelegates(number(task)),
-        reads::Scope::History { task, subtree } => c::Scope::History(c::History { task, subtree }),
-        reads::Scope::Activity { task } => c::Scope::Activity(number(task)),
+        | reads::Scope::SettingsHistory { .. } => return Err(c::paths::SCOPE_TAG.problem(Reason::Tag)),
+        reads::Scope::Task { task } => c::Scope::Task(c::Number { value: *task }),
+        reads::Scope::Proposal { proposer, proposal } => {
+            c::Scope::Proposal(c::Proposal { proposer: map::proposer_to_record(proposer), number: *proposal })
+        }
+        reads::Scope::Escalation { task } => c::Scope::Escalation(c::Number { value: *task }),
+        reads::Scope::Question { task, message } => c::Scope::Question(c::Question { task: *task, message: *message }),
+        reads::Scope::PersonTask { task } => c::Scope::PersonTask(c::Number { value: *task }),
+        reads::Scope::Result { task } => c::Scope::Result(c::Number { value: *task }),
+        reads::Scope::Reply { task, activity } => c::Scope::Reply(c::Reply { task: *task, activity: *activity }),
+        reads::Scope::Turn { task, attempt, turn } => {
+            c::Scope::Turn(c::Turn { task: *task, attempt: *attempt, number: *turn })
+        }
+        reads::Scope::EndedDelegates { task } => c::Scope::EndedDelegates(c::Number { value: *task }),
+        reads::Scope::History { task, subtree } => c::Scope::History(c::History { task: *task, subtree: *subtree }),
+        reads::Scope::Activity { task } => c::Scope::Activity(c::Number { value: *task }),
         reads::Scope::Inbox { group, filter } => {
-            let filter = c::Filter { project: filter.project, goal: filter.goal };
-            c::Scope::Inbox(c::Inbox { group: put_group(group), filter })
+            c::Scope::Inbox(c::Inbox { group: map::group_to_record(group), filter: map::filter_to_record(filter) })
         }
-        reads::Scope::Notes { project: value } => c::Scope::Notes(project(value)),
-        reads::Scope::ScopedNotes { scope, description } => {
-            c::Scope::ScopedNotes(c::ScopedNotes { scope: put_note_scope(scope), description })
-        }
-        reads::Scope::Spend { project: value } => c::Scope::Spend(project(value)),
-        reads::Scope::Tasks { query } => c::Scope::Tasks(put_query(query)?),
+        reads::Scope::Notes { project } => c::Scope::Notes(c::Project { value: *project }),
+        reads::Scope::ScopedNotes { scope, description } => c::Scope::ScopedNotes(c::ScopedNotes {
+            scope: map::note_scope_to_record(scope)?,
+            description: description.clone(),
+        }),
+        reads::Scope::Spend { project } => c::Scope::Spend(c::Project { value: *project }),
+        reads::Scope::Tasks { query } => c::Scope::Tasks(map::query_to_record(query)?),
     })
 }
-fn take_scope(value: c::Scope) -> Option<reads::Scope> {
-    Some(match value {
+pub(crate) fn scope_to_domain(value: c::Scope) -> Result<reads::Scope, c::Problem> {
+    Ok(match value {
         c::Scope::Task(v) => reads::Scope::Task { task: v.value },
-        c::Scope::Proposal(v) => reads::Scope::Proposal { proposer: take_proposer(v.proposer), proposal: v.number },
+        c::Scope::Proposal(v) => {
+            reads::Scope::Proposal { proposer: map::proposer_to_domain(v.proposer), proposal: v.number }
+        }
         c::Scope::Escalation(v) => reads::Scope::Escalation { task: v.value },
         c::Scope::Question(v) => reads::Scope::Question { task: v.task, message: v.message },
         c::Scope::PersonTask(v) => reads::Scope::PersonTask { task: v.value },
@@ -124,294 +105,110 @@ fn take_scope(value: c::Scope) -> Option<reads::Scope> {
         c::Scope::EndedDelegates(v) => reads::Scope::EndedDelegates { task: v.value },
         c::Scope::History(v) => reads::Scope::History { task: v.task, subtree: v.subtree },
         c::Scope::Activity(v) => reads::Scope::Activity { task: v.value },
-        c::Scope::Inbox(v) => reads::Scope::Inbox {
-            group: take_group(v.group),
-            filter: reads::Filter { project: v.filter.project, goal: v.filter.goal },
-        },
+        c::Scope::Inbox(v) => {
+            reads::Scope::Inbox { group: map::group_to_domain(v.group), filter: map::filter_to_domain(v.filter) }
+        }
         c::Scope::Notes(v) => reads::Scope::Notes { project: v.value },
         c::Scope::ScopedNotes(v) => {
             let c::ScopedNotes { scope, description } = v;
-            reads::Scope::ScopedNotes { scope: take_note_scope(scope), description }
+            reads::Scope::ScopedNotes { scope: map::note_scope_to_domain(scope), description }
         }
         c::Scope::Spend(v) => reads::Scope::Spend { project: v.value },
-        c::Scope::Tasks(v) => reads::Scope::Tasks { query: take_query(v)? },
+        c::Scope::Tasks(v) => reads::Scope::Tasks { query: map::query_to_domain(v)? },
     })
 }
-#[expect(clippy::option_option, reason = "outer absence is malformed; inner absence is an owner's absent field")]
-fn put_position(value: Option<reads::Position>) -> Option<Option<c::Position>> {
-    Some(match value {
-        None => None,
-        Some(reads::Position::Owner(key)) => Some(c::Position::Owner(put_key(&key)?)),
-        Some(reads::Position::Inbox { at, task, object, key }) => Some(c::Position::Inbox(c::InboxPosition {
-            at: wall(at),
-            task,
-            object: put_inbox(object),
-            key: put_key(&key)?,
-        })),
-    })
+pub(crate) fn owner_key_to_record(value: &Key) -> Result<c::OwnerKey, c::Problem> {
+    let value = jig_protocol_store::keys::encode(value, super::w::CEILINGS.cursor_value)
+        .ok_or(c::paths::OWNER_KEY_VALUE.problem(Reason::Bound))?;
+    Ok(c::OwnerKey { value })
 }
-#[expect(clippy::option_option, reason = "outer absence is malformed; inner absence is an owner's absent field")]
-fn take_position(value: Option<c::Position>) -> Option<Option<reads::Position>> {
-    Some(match value {
-        None => None,
-        Some(c::Position::Owner(key)) => Some(reads::Position::Owner(jig_protocol_store::keys::decode(&key.value)?)),
-        Some(c::Position::Inbox(v)) => {
-            let c::InboxPosition { at, task, object, key } = v;
-            Some(reads::Position::Inbox {
-                at: take_wall(at),
-                task,
-                object: take_inbox(object),
-                key: jig_protocol_store::keys::decode(&key.value)?,
-            })
-        }
-    })
+pub(crate) fn owner_key_to_domain(value: c::OwnerKey) -> Result<Key, c::Problem> {
+    jig_protocol_store::keys::decode(&value.value).ok_or(c::paths::OWNER_KEY_VALUE.problem(Reason::Malformed))
 }
-fn put_key(value: &Key) -> Option<c::OwnerKey> {
-    let value = jig_protocol_store::keys::encode(value, super::w::CEILINGS.cursor_value)?;
-    Some(c::OwnerKey { value })
-}
-fn wall(value: Option<Wall>) -> Option<u64> {
-    match value {
-        None => None,
-        Some(value) => Some(value.as_nanos()),
-    }
-}
-fn take_wall(value: Option<u64>) -> Option<Wall> {
-    match value {
-        None => None,
-        Some(value) => Some(Wall::from_nanos(value)),
-    }
-}
-fn put_document(value: documents::Cursor) -> c::DocumentCursor {
-    match value {
-        documents::Cursor::Number { number: value } => c::DocumentCursor::Number(number(value)),
-        documents::Cursor::Inbox { task, object, at } => {
-            c::DocumentCursor::Inbox(c::InboxCursor { task, object: put_inbox(object), at: wall(at) })
-        }
-    }
-}
-fn take_document(value: c::DocumentCursor) -> documents::Cursor {
-    match value {
-        c::DocumentCursor::Number(v) => documents::Cursor::Number { number: v.value },
-        c::DocumentCursor::Inbox(v) => {
-            let c::InboxCursor { task, object, at } = v;
-            documents::Cursor::Inbox { task, object: take_inbox(object), at: take_wall(at) }
-        }
-    }
-}
-fn put_proposal(proposer: people::Proposer, value: u64) -> c::Proposal {
-    let proposer = match proposer {
-        people::Proposer::Task(v) => c::Proposer::Task(number(v)),
-        people::Proposer::Party(v) => c::Proposer::Party(number(v)),
-    };
-    c::Proposal { proposer, number: value }
-}
-fn take_proposer(value: c::Proposer) -> people::Proposer {
-    match value {
-        c::Proposer::Task(v) => people::Proposer::Task(v.value),
-        c::Proposer::Party(v) => people::Proposer::Party(v.value),
-    }
-}
-fn put_inbox(value: documents::InboxObject) -> c::InboxObject {
-    match value {
-        documents::InboxObject::Question { message } => c::InboxObject::Question(number(message)),
-        documents::InboxObject::Proposal { proposer, number } => {
-            c::InboxObject::Proposal(put_proposal(proposer, number))
-        }
-        documents::InboxObject::Escalation { revision } => c::InboxObject::Escalation(number(revision)),
-        documents::InboxObject::PersonTask => c::InboxObject::PersonTask,
-        documents::InboxObject::Reply { message } => c::InboxObject::Reply(number(message)),
-        documents::InboxObject::Result { position } => c::InboxObject::Result(number(position)),
-    }
-}
-fn take_inbox(value: c::InboxObject) -> documents::InboxObject {
-    match value {
-        c::InboxObject::Question(v) => documents::InboxObject::Question { message: v.value },
-        c::InboxObject::Proposal(v) => {
-            documents::InboxObject::Proposal { proposer: take_proposer(v.proposer), number: v.number }
-        }
-        c::InboxObject::Escalation(v) => documents::InboxObject::Escalation { revision: v.value },
-        c::InboxObject::PersonTask => documents::InboxObject::PersonTask,
-        c::InboxObject::Reply(v) => documents::InboxObject::Reply { message: v.value },
-        c::InboxObject::Result(v) => documents::InboxObject::Result { position: v.value },
-    }
-}
-fn put_group(value: reads::Group) -> c::Group {
-    match value {
-        reads::Group::Needs => c::Group::Needs,
-        reads::Group::Updates => c::Group::Updates,
-        reads::Group::Proposals => c::Group::Proposals,
-        reads::Group::Escalations => c::Group::Escalations,
-        reads::Group::Questions => c::Group::Questions,
-        reads::Group::PersonTasks => c::Group::PersonTasks,
-        reads::Group::Results => c::Group::Results,
-        reads::Group::Replies => c::Group::Replies,
-    }
-}
-fn take_group(value: c::Group) -> reads::Group {
-    match value {
-        c::Group::Needs => reads::Group::Needs,
-        c::Group::Updates => reads::Group::Updates,
-        c::Group::Proposals => reads::Group::Proposals,
-        c::Group::Escalations => reads::Group::Escalations,
-        c::Group::Questions => reads::Group::Questions,
-        c::Group::PersonTasks => reads::Group::PersonTasks,
-        c::Group::Results => reads::Group::Results,
-        c::Group::Replies => reads::Group::Replies,
-    }
-}
-fn put_note_scope(value: notes::Scope) -> c::NoteScope {
-    match value {
-        notes::Scope::Party { party } => c::NoteScope::Party(c::NoteScopeParty { party }),
-        notes::Scope::Deployment => c::NoteScope::Deployment,
-        notes::Scope::Project { project: v } => c::NoteScope::Project(project(v)),
-        notes::Scope::Goal { project, goal } => c::NoteScope::Goal(c::Goal { project, goal }),
-        notes::Scope::Resources { project, connector, pattern } => {
-            let last = match pattern.last {
-                notes::Last::Exact(value) => c::Last::Exact(c::Blob { value }),
-                notes::Last::Open(value) => c::Last::Open(c::Blob { value }),
-            };
-            let segments = skein_lib::List::from_boxed(pattern.segments);
-            let pattern = c::Pattern { segments, last };
-            c::NoteScope::Resources(c::Resources { project, connector, pattern })
-        }
-    }
-}
-fn take_note_scope(value: c::NoteScope) -> notes::Scope {
-    match value {
-        c::NoteScope::Party(value) => notes::Scope::Party { party: value.party },
-        c::NoteScope::Deployment => notes::Scope::Deployment,
-        c::NoteScope::Project(v) => notes::Scope::Project { project: v.value },
-        c::NoteScope::Goal(v) => notes::Scope::Goal { project: v.project, goal: v.goal },
-        c::NoteScope::Resources(v) => {
-            let c::Resources { project, connector, pattern } = v;
-            let c::Pattern { segments, last } = pattern;
-            let last = match last {
-                c::Last::Exact(v) => notes::Last::Exact(v.value),
-                c::Last::Open(v) => notes::Last::Open(v.value),
-            };
-            notes::Scope::Resources {
-                project,
-                connector,
-                pattern: notes::Pattern { segments: segments.into_boxed(), last },
-            }
-        }
-    }
-}
-fn put_query(query: documents::TaskQuery) -> Option<c::Query> {
-    use documents::{ExecutorKind as E, PhaseClass as P, QueryOrder as O};
-    let requester = match query.requester {
+#[expect(clippy::ref_option, reason = "the by-hand maps signature borrows the entire requester field")]
+pub(crate) fn requester_to_record(value: &Option<Party>) -> Result<c::Requester, c::Problem> {
+    Ok(match value {
         None => c::Requester::None,
-        Some(jig_domain_tasks::Party::Person(v)) => c::Requester::Person(number(v)),
-        Some(jig_domain_tasks::Party::Task(v)) => c::Requester::Task(number(v)),
-        Some(jig_domain_tasks::Party::Deployment { .. }) => return None,
-    };
-    let phase = match query.phase {
-        None => None,
-        Some(v) => Some(match v {
-            P::Working => 0,
-            P::Waiting => 1,
-            P::Held => 2,
-            P::Closing => 3,
-            P::Ended => 4,
-        }),
-    };
-    let executor = match query.executor {
-        None => None,
-        Some(v) => Some(match v {
-            E::Agent => 0,
-            E::Procedure => 1,
-            E::Person => 2,
-            E::Job => 3,
-        }),
-    };
-    let tracked = match query.tracked {
-        None => None,
-        Some(v) => Some(u32::from(v)),
-    };
-    let order = match query.order {
-        O::Number => 0,
-        O::Changed => 1,
-        O::Activity => 2,
-        O::Priority => 3,
-        O::Ended => 4,
-    };
-    Some(c::Query {
-        project: query.project,
-        requester,
-        root: query.root,
-        parent: query.parent,
-        label: query.label,
-        phase,
-        executor,
-        tracked,
-        order,
-        parts: {
-            let mut parts = skein_lib::List::with_capacity(query.parts.len());
-            for ask in &query.parts {
-                parts.push(c::PartAsk { owner: ask.owner, kind: ask.kind, version: ask.version }).ok()?;
-            }
-            parts
-        },
+        Some(Party::Person(v)) => c::Requester::Person(c::Number { value: *v }),
+        Some(Party::Task(v)) => c::Requester::Task(c::Number { value: *v }),
+        Some(Party::Deployment { .. }) => return Err(c::paths::REQUESTER_TAG.problem(Reason::Tag)),
     })
 }
-fn take_query(value: c::Query) -> Option<documents::TaskQuery> {
-    use documents::{ExecutorKind as E, PhaseClass as P, QueryOrder as O};
-    let c::Query { project, requester, root, parent, label, phase, executor, tracked, order, parts } = value;
-    let requester = match requester {
+pub(crate) fn requester_to_domain(value: c::Requester) -> Option<Party> {
+    match value {
         c::Requester::None => None,
-        c::Requester::Person(v) => Some(jig_domain_tasks::Party::Person(v.value)),
-        c::Requester::Task(v) => Some(jig_domain_tasks::Party::Task(v.value)),
-    };
-    let phase = match phase {
-        None => None,
-        Some(0) => Some(P::Working),
-        Some(1) => Some(P::Waiting),
-        Some(2) => Some(P::Held),
-        Some(3) => Some(P::Closing),
-        Some(4) => Some(P::Ended),
-        Some(_) => return None,
-    };
-    let executor = match executor {
-        None => None,
-        Some(0) => Some(E::Agent),
-        Some(1) => Some(E::Procedure),
-        Some(2) => Some(E::Person),
-        Some(3) => Some(E::Job),
-        Some(_) => return None,
-    };
-    let tracked = match tracked {
-        None => None,
-        Some(0) => Some(false),
-        Some(1) => Some(true),
-        Some(_) => return None,
-    };
-    let order = match order {
-        0 => O::Number,
-        1 => O::Changed,
-        2 => O::Activity,
-        3 => O::Priority,
-        4 => O::Ended,
-        _ => return None,
-    };
-    Some(documents::TaskQuery {
-        parts: {
-            let mut asks = skein_lib::List::with_capacity(parts.len());
-            for ask in &parts {
-                asks.push(documents::PartAsk { owner: ask.owner, kind: ask.kind, version: ask.version }).ok()?;
-            }
-            asks
-        },
-        project,
-        requester,
-        root,
-        parent,
-        label,
-        phase,
-        executor,
-        tracked,
-        order,
-    })
+        c::Requester::Person(v) => Some(Party::Person(v.value)),
+        c::Requester::Task(v) => Some(Party::Task(v.value)),
+    }
+}
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps converters borrow domain values uniformly")]
+pub(crate) fn phase_to_record(value: &PhaseClass) -> u32 {
+    match value {
+        PhaseClass::Working => 0,
+        PhaseClass::Waiting => 1,
+        PhaseClass::Held => 2,
+        PhaseClass::Closing => 3,
+        PhaseClass::Ended => 4,
+    }
+}
+pub(crate) fn phase_to_domain(value: u32) -> Result<PhaseClass, Reason> {
+    match value {
+        0 => Ok(PhaseClass::Working),
+        1 => Ok(PhaseClass::Waiting),
+        2 => Ok(PhaseClass::Held),
+        3 => Ok(PhaseClass::Closing),
+        4 => Ok(PhaseClass::Ended),
+        _ => Err(Reason::Tag),
+    }
+}
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps converters borrow domain values uniformly")]
+pub(crate) fn executor_to_record(value: &ExecutorKind) -> u32 {
+    match value {
+        ExecutorKind::Agent => 0,
+        ExecutorKind::Procedure => 1,
+        ExecutorKind::Person => 2,
+        ExecutorKind::Job => 3,
+    }
+}
+pub(crate) fn executor_to_domain(value: u32) -> Result<ExecutorKind, Reason> {
+    match value {
+        0 => Ok(ExecutorKind::Agent),
+        1 => Ok(ExecutorKind::Procedure),
+        2 => Ok(ExecutorKind::Person),
+        3 => Ok(ExecutorKind::Job),
+        _ => Err(Reason::Tag),
+    }
+}
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps converters borrow domain values uniformly")]
+pub(crate) fn tracked_to_record(value: &bool) -> u32 {
+    u32::from(*value)
+}
+pub(crate) fn tracked_to_domain(value: u32) -> Result<bool, Reason> {
+    match value {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(Reason::Bool),
+    }
+}
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "maps converters borrow domain values uniformly")]
+pub(crate) fn order_to_record(value: &QueryOrder) -> u32 {
+    match value {
+        QueryOrder::Number => 0,
+        QueryOrder::Changed => 1,
+        QueryOrder::Activity => 2,
+        QueryOrder::Priority => 3,
+        QueryOrder::Ended => 4,
+    }
+}
+pub(crate) fn order_to_domain(value: u32) -> Result<QueryOrder, Reason> {
+    match value {
+        0 => Ok(QueryOrder::Number),
+        1 => Ok(QueryOrder::Changed),
+        2 => Ok(QueryOrder::Activity),
+        3 => Ok(QueryOrder::Priority),
+        4 => Ok(QueryOrder::Ended),
+        _ => Err(Reason::Tag),
+    }
 }
 
 #[cfg(test)]

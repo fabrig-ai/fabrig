@@ -1,0 +1,53 @@
+records temper_client_protocol_wire::v1
+use s = crate::settings
+use c = temper_engine_domain_forge_change
+use l = temper_engine_domain_forge_landing
+use t = temper_engine_domain_forge_tiers
+use convert = skein_codec::convert
+use landing = crate::settings::landing
+
+direction to record
+
+record MilestoneLanding = crate::MilestoneLanding { at via convert::wall }
+record MilestoneTotals = crate::MilestoneTotals { ended via convert::wall }
+record GoalReport by hand
+record GoalPart by hand
+record ChatPart by hand
+record MilestoneGoal by hand
+record MilestonePart by hand
+
+enum QuestionsRoute = c::Route
+record ProjectQuestions by hand
+
+enum SettingsLandingWay = c::Way both ways
+enum SettingsLandingWait = c::Wait both ways
+enum SettingsCombine = l::Combine both ways
+record NamedModel = s::NamedModel both ways
+record NamedLater = s::NamedLater both ways { subagents slice }
+record NamedLlm = s::NamedLlm both ways { subagents slice }
+record RepairGoalSettings = s::RepairGoalSettings both ways
+record RepairSettings = s::RepairSettings both ways
+record ProjectLanding = s::ProjectLanding both ways
+enum SettingsReportFormat = t::Format both ways
+record SettingsGateReport = l::GateReport both ways
+record SettingsGate = l::Gate both ways { ignored slice }
+record SettingsBranch stands for name
+enum SettingsFollows = crate::Follows both ways { branch tuple }
+record SettingsTier = crate::Tier both ways { ignored slice, span_ms = span via landing::span }
+record RepositoryGates by hand
+record ProjectGates by hand
+record ProjectWays = s::ProjectWays
+
+record FollowRepository = skein_forge::api::Repository both ways
+record FollowSource = s::FollowSource both ways { paths slice }
+record FollowTarget = s::FollowTarget both ways
+record FollowPerson stands for person
+record FollowOwnerTask stands for task
+enum FollowOwner = s::FollowOwner both ways { person tuple, task tuple }
+enum FollowStart = s::FollowStart both ways
+enum FollowFormat = t::Format both ways
+record FollowCheck = s::FollowCheck both ways
+record Follow = s::Follow both ways { verification = check }
+
+record LimitOverride = jig_domain_core_vocabulary::settings::Override both ways
+record LimitOverrides by hand

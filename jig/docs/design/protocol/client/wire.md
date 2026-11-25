@@ -41,7 +41,9 @@
   wire and `jig-client`'s; the application's protocol layer between its
   wire and its connectors' vocabularies, and the application between
   its wire and its own. Each is a module of small total functions,
-  exhaustive both ways, as the channel's are (`../channel/README.md`, section 3).
+  exhaustive both ways, as the channel's are (`../channel/README.md`, section 3),
+  generated where the two sides match from the crate's own maps file
+  (skein's `data/codec/maps.md`, 9), mostly one way at each end.
 - **A project document** carries each adopted resource's connector part,
   role and independent `home` boolean. A fork retains its fork role.
   Ownership and live hold reports imply no home (`../../domain/model.md`,

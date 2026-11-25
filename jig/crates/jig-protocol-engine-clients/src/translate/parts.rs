@@ -1,5 +1,6 @@
 //! Query parts are checked at admission and restored in place on every row (client/domain/contract/parts.md, 2–3).
 use super::w;
+use crate::generated::client as mapped;
 use jig_domain_core_vocabulary::{documents as d, reads};
 use skein_lib::List;
 
@@ -69,13 +70,9 @@ pub(crate) fn row(value: &List<d::RowPart>, slots: &List<Slot>) -> Result<List<w
                     record: skein_lib::bytes::copy_of(bytes),
                 }),
                 d::RowPart::Unknown => w::RowPart::Unknown,
-                d::RowPart::Failed(why) => w::RowPart::Failed(w::PartFailed {
-                    why: match why {
-                        d::PartFailure::Busy => w::PartFailure::Busy,
-                        d::PartFailure::TooLarge => w::PartFailure::TooLarge,
-                        d::PartFailure::Unreadable => w::PartFailure::Unreadable,
-                    },
-                }),
+                d::RowPart::Failed(why) => {
+                    w::RowPart::Failed(w::PartFailed { why: mapped::part_failure_to_record(why) })
+                }
             },
         };
         parts.push(part).expect("one part per slot");

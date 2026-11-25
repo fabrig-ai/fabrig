@@ -102,7 +102,7 @@ mod tests {
                 }
             }
         }
-        // 66 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per fixed-rule value.
-        assert_eq!(cases, 458_848);
+        // 69 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 cases for each of 406 fixed-rule values.
+        assert_eq!(cases, 479_656);
     }
 }
