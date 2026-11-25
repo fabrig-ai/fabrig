@@ -315,7 +315,7 @@ fn apply_with(
     ));
     steps.push(Step::Run(Call::new(&["sign-out"]).in_directory("limit-owner")));
     let command = skein_world::end_to_end::Command {
-        program: skein_scratch::paths::binary("temper-box").with_file_name(match shape {
+        program: skein_scratch::paths::built("temper-box", "temper-box").with_file_name(match shape {
             temper_config_shell::Shape::Standalone => "temper-box",
             temper_config_shell::Shape::EngineAlone => "temper-engine",
             temper_config_shell::Shape::WorkerAlone => panic!("a worker alone has no limit settings store"),

@@ -177,7 +177,10 @@ Where no directory above holds the file, `built` fails naming the
 test's executable and the command that builds it. Every world that
 starts another package's binary takes it from `built`: jig's and
 temper's browser worlds, skein's browser suite and the UI example's
-tier. None counts directories up from its executable.
+tier. None counts directories up from its executable. A kit under a
+tree's `testing/`, which any package's test may call, takes every
+binary from `built`, its own callers' package's too, and never from
+`paths::binary` (`tools/crates/design.md`, 3.2).
 
 A fake that runs as a step machine, as `skein-echo-client` does,
 is held to the subset instead (../../foundation/testing-strategy.md, 4): it has no

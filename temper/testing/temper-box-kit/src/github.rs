@@ -75,8 +75,11 @@ pub fn restart() {
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
     let engine = description.dir("engine").join("config").join(temper_config_shell::FILE);
-    std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), description.dir("w1").join("git"))
-        .expect("worker's fake git");
+    std::os::unix::fs::symlink(
+        skein_scratch::paths::built("temper-box", "temper-box"),
+        description.dir("w1").join("git"),
+    )
+    .expect("worker's fake git");
     let (mut members, hosts) = description.members();
     members.up(&["forge", "llm"]);
     let mut world = real::World::new(Judge {

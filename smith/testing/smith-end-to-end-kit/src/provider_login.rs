@@ -165,7 +165,7 @@ pub fn run(
 
 fn start(scratch: &Scratch, name: &str, logout: bool, mode: Mode) -> Binary {
     let mut command = Command {
-        program: skein_scratch::paths::binary("smith"),
+        program: skein_scratch::paths::built("smith", "smith"),
         arguments: vec![if logout { "logout".into() } else { "login".into() }, name.into()],
         environment: vec![
             ("HOME".into(), scratch.path().into()),
