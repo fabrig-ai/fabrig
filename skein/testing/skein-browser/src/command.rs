@@ -56,6 +56,7 @@ pub fn command(program: &[u8], profile: &[u8]) -> Command {
         b"--disable-default-apps",
         b"--disable-features=MediaRouter",
         b"--metrics-recording-only",
+        b"--js-flags=--liftoff-only",
     ] {
         args.push(Box::from(arg)).expect("the argument list has room");
     }
@@ -86,6 +87,20 @@ pub fn command(program: &[u8], profile: &[u8]) -> Command {
 #[cfg(test)]
 mod tests {
     use super::{Direction, command};
+
+    #[test]
+    fn chromium_keeps_wasm_in_the_baseline_tier() {
+        const ONE_V8_FLAG_ARGUMENT: usize = 1;
+        let command = command(b"/usr/bin/chromium", b"/tmp/fresh-profile");
+        let mut flags = 0;
+        for arg in &command.args {
+            if arg.starts_with(b"--js-flags=") {
+                assert_eq!(arg.as_ref(), b"--js-flags=--liftoff-only");
+                flags += 1;
+            }
+        }
+        assert_eq!(flags, ONE_V8_FLAG_ARGUMENT);
+    }
 
     #[test]
     fn chromium_pipe_command() {

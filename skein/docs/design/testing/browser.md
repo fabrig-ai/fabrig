@@ -98,6 +98,10 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   - quiet and offline: no first run, no default-browser check, no
     background networking, sync, extensions, component updates or
     default apps;
+  - `--js-flags=--liftoff-only`: V8 compiles WebAssembly with its baseline
+    compiler and does not recompile hot functions in its optimizing tier.
+    On the playground walk, the optimizing tier costs more than it saves.
+    The Wasm and the stories' checks are unchanged;
   - `about:blank` as the first page.
 
   The environment is minimal, and it is the child's whole environment
