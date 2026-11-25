@@ -242,6 +242,7 @@ pub(crate) mod capacity;
 pub(crate) mod closing;
 mod lines;
 mod peers;
+mod preview;
 pub(crate) use lines::{opening, restart, server_pipes, substitute};
 pub use lines::{page_with_query, printed, with_query};
 pub(crate) use peers::fixture as peer_fixture;
@@ -441,7 +442,7 @@ impl Runtime {
         matches!(self.browser, BrowserEnd::Chromium(_))
     }
     fn ask(&mut self, request: Request) {
-        self.asked = format!("{request:?}").chars().take(200).collect();
+        preview::record(&mut self.asked, &request);
         match &mut self.browser {
             BrowserEnd::Chromium(browser) => {
                 browser::down(browser, &self.benv, request, &mut self.events, &mut self.down);
