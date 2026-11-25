@@ -292,6 +292,14 @@ impl<T: Transport> Git<T> {
             self.file_complete(pending, complete.kind, complete.result);
         }
     }
+    fn scanned_directory(&mut self, mut path: &[u8]) {
+        self.checkout.mkdir(path);
+        // A successful no-follow open also proves the ancestors exist. They
+        // must not appear to the disk diff as newly created directories.
+        while !path.is_empty() && self.before.insert(path.to_vec(), k::Kind::Directory).is_none() {
+            path = path.rsplitn(2, |byte| *byte == b'/').nth(1).unwrap_or(b"");
+        }
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "the file completion table includes discovering alternate object directories"
@@ -300,10 +308,8 @@ impl<T: Transport> Git<T> {
         match (pending, kind, result) {
             (Pending::Metadata(at), _, Ok(Done::Fd(fd))) => {
                 let git = path(&at, b".git");
-                self.before.insert(at, k::Kind::Directory);
                 self.owned.insert(fd);
-                self.before.insert(git.clone(), k::Kind::Directory);
-                self.checkout.mkdir(&git);
+                self.scanned_directory(&git);
                 self.jobs.push_front(Job::List(git, fd));
             }
             (Pending::Metadata(at), _, Err(k::Error::NotFound)) => {
@@ -313,8 +319,7 @@ impl<T: Transport> Git<T> {
             }
             (Pending::Scan(path), _, Ok(Done::Fd(fd))) => {
                 self.owned.insert(fd);
-                self.before.insert(path.clone(), k::Kind::Directory);
-                self.checkout.mkdir(&path);
+                self.scanned_directory(&path);
                 self.jobs.push_front(Job::List(path, fd));
             }
             (Pending::Scan(_), _, Err(k::Error::NotFound)) => {}
