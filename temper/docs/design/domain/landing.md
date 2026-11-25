@@ -271,8 +271,15 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     L1, L2`, `JOB: blocked by the jobs it needs`, `JOB: running at step
     N, NAME`, `JOB: pending, its job unread`;
   - an effect refused at admission or failed at the forge, but its
-    merge, naming the operation, its resource and the refusal or forge
-    answer, with its outbox entry and the task's release command;
+    merge and its round's cleanup, naming the operation, its resource
+    and the refusal or forge answer, with its outbox entry and the
+    task's release command;
+  - its round's close or a branch's deletion refused or failed at the
+    forge, or a round's branch another task holds
+    (`landing-prepare.md`, 1.1), `cleanup: ACCOUNT`, ACCOUNT as
+    `forge/releases.md`, 2 words it, once: the landing's own hold, which
+    the store keeps as its own hold `cleanup`. On the client's wires it
+    reads as a `read` hold does, by its words, so no client wire moves;
   - its pull request refused for a cause not stale, `turn: WHY`; its
     merge not made, read again at the round's base with its pull request
     not closed, refused or past its bound (`landing-turn.md`, section 1), `turn: merge of #N: WHY;
