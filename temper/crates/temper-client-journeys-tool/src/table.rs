@@ -338,7 +338,7 @@ pub(crate) const WRITER: Command = Command {
     forms: &[
         "[--project PROJECT (--budget AMOUNT | --as-allowed)] [--branch NAME] [--push REMOTE] [--prepared DIR] [--within DURATION]",
     ],
-    line: "Print journey pages on main's fetched tip and offer the changed files.",
+    line: "Print main's journey pages when due, check landed look requests, and offer the changed files.",
     settings: &[&WRITER_FLAGS],
     switches: &[Switch {
         name: "as-allowed",
@@ -346,7 +346,7 @@ pub(crate) const WRITER: Command = Command {
         line: "Open with the project's allowance instead of an explicit budget.",
         notes: "Requires --project.",
     }],
-    variables: &[&BUNDLE, &PATH],
+    variables: &[&BUNDLE, &PATH, &CHROMIUM],
     notes: "--prepared DIR and --within DURATION have no effect: temper-client-walk pages walks no box",
     ..BASE
 };
@@ -354,7 +354,7 @@ pub(crate) const WRITER: Command = Command {
 pub(crate) const LOOK_REFRESH: Command = Command {
     reach: Reach::Words(&["look-refresh"]),
     line: "Rebase the checked-out look-requests or tui-requests branch on origin/main and push with its saved lease.",
-    notes: "Takes no arguments. Fetches main alone and drops requests covered by main's last valid print. Exit 0: pushed; 1: git failed or a rebase stopped for you to resolve; 2: refused; 3: the remote branch moved beyond the lease.",
+    notes: "Takes no arguments. Fetches main alone and drops a landed request once main holds its verdict. Requests without a Look-landed trailer still follow main's last valid print. Exit 0: pushed; 1: git failed or a rebase stopped for you to resolve; 2: refused; 3: the remote branch moved beyond the lease.",
     ..BASE
 };
 

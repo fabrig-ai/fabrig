@@ -18,7 +18,7 @@ use crate::{
 
 mod css;
 mod pages;
-mod request;
+pub(crate) mod request;
 
 pub(crate) fn run(arguments: &[Box<[u8]>], host: &mut Host) -> u8 {
     let request = match request::read(arguments, host) {

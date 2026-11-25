@@ -37,6 +37,7 @@ pub(super) fn ask(environment: &[EnvironmentEntry], ask: Ask) -> Answer {
             Ok(live) => Answer::Is(live),
             Err(error) => Answer::Failed(format!("cannot check process {pid}: {error:?}")),
         },
+        Ask::Clock => Answer::Seconds(skein_shell::Clock::new().now().wall.as_secs()),
     }
 }
 

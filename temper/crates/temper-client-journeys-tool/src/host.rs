@@ -16,6 +16,7 @@ pub(crate) enum Ask {
     Remove(PathBuf),
     Exists(PathBuf),
     Alive(u32),
+    Clock,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -57,6 +58,7 @@ pub(crate) enum Answer {
     Done,
     Missing,
     Failed(String),
+    Seconds(u64),
 }
 
 #[derive(Debug, PartialEq, Eq)]

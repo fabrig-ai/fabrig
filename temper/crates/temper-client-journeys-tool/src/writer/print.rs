@@ -17,12 +17,12 @@ pub(super) fn paths(status: &[u8]) -> Result<Vec<u8>, Stop> {
 fn written(path: &[u8]) -> bool {
     let Some(relative) = path.strip_prefix(b"temper/docs/design/client/") else { return false };
     let (tui, relative) = if let Some(web) = relative.strip_prefix(b"web/journeys/") {
-        if matches!(web, b"skein-ui.css" | b"journey.js") {
+        if matches!(web, b"skein-ui.css" | b"journey.js" | b"looks.html") {
             return true;
         }
         (false, web)
     } else if let Some(tui) = relative.strip_prefix(b"tui/journeys/") {
-        if matches!(tui, b"theme.css" | b"tui-journey.js") {
+        if matches!(tui, b"theme.css" | b"tui-journey.js" | b"looks.html") {
             return true;
         }
         (true, tui)
@@ -59,14 +59,18 @@ fn quoted(path: &[u8]) -> Vec<u8> {
     shown
 }
 
-pub(super) fn body(stdout: &[u8], tip: &[u8]) -> Vec<u8> {
-    let mut body = Vec::new();
+pub(super) fn body(checks: &[u8], stdout: &[u8], tip: &[u8]) -> Vec<u8> {
+    let mut body = checks.to_vec();
+    if !checks.is_empty() {
+        body.push(b'\n');
+    }
+    let start = body.len();
     for line in stdout.split(|&b| b == b'\n').filter(|line| line.starts_with(b"stopped ")) {
         let end = line.windows(b"; scratch kept at ".len()).position(|bytes| bytes == b"; scratch kept at ");
         body.extend_from_slice(&line[..end.unwrap_or(line.len())]);
         body.push(b'\n');
     }
-    if !body.is_empty() {
+    if body.len() != start {
         body.push(b'\n');
     }
     body.extend_from_slice(b"Printed: ");

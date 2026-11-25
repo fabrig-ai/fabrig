@@ -5,7 +5,12 @@ use std::{
     borrow::Cow, collections::BTreeMap, ffi::OsStr, fmt::Write as _, os::unix::ffi::OsStrExt as _, path::PathBuf,
 };
 
-use crate::host::{Answer, Ask, Host, Program, Ran, Stream};
+use crate::{
+    host::{Answer, Ask, Host, Program, Ran, Stream},
+    looks,
+};
+
+pub(crate) use crate::looks::valid_name;
 
 const MAIN: &str = "origin/main";
 const TODO: &str = "LOOK_REFRESH_TODO";
@@ -49,11 +54,23 @@ fn refresh(arguments: &[Box<[u8]>], host: &mut Host, pid: u32) -> Result<(), Sto
     git_to_err(host, &["fetch", "origin", "main"])?;
 
     let requests = requests(host, branch)?;
+    let (landed, verdicts) = landed_on_main(host, branch, &requests)?;
     let landings = git_text(host, &["log", "--format=commit %H%n%(trailers:key=Look-request,valueonly)", MAIN])?;
     let done = done_on_main(&landings);
     let (printed, mut report) = printed_on_main(host)?;
     let mut todo = String::new();
     for (commit, name) in &requests {
+        if let Some(landing) = landed.iter().find(|landing| landing.name == *name) {
+            let l = &landing.commit;
+            if let Some(result) = verdicts.result(name, l) {
+                writeln!(todo, "drop {commit}").expect("write to String");
+                writeln!(report, "dropped {name}, landed by {l:.12}, checked: {result}").expect("write to String");
+            } else {
+                writeln!(todo, "pick {commit}").expect("write to String");
+                writeln!(report, "kept {name}, landed by {l:.12}, not yet checked").expect("write to String");
+            }
+            continue;
+        }
         let done_by = done.get(name.as_str());
         if let (Some(done_by), Some(printed)) = (done_by, &printed)
             && ancestor(host, done_by, printed)?
@@ -124,10 +141,30 @@ fn requests(host: &mut Host, branch: &str) -> Result<Vec<(String, String)>, Stop
     Ok(requests)
 }
 
-pub(crate) fn valid_name(name: &str) -> bool {
-    let word_byte = |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit();
-    let mut bytes = name.bytes();
-    bytes.next().is_some_and(word_byte) && bytes.all(|byte| word_byte(byte) || byte == b'-')
+fn landed_on_main(
+    host: &mut Host,
+    branch: &str,
+    requests: &[(String, String)],
+) -> Result<(Vec<looks::Landing>, looks::Page), Stop> {
+    if requests.is_empty() {
+        return Ok((Vec::new(), looks::Page::default()));
+    }
+    let log = checked_git(host, &["log", "--topo-order", "-z", looks::LANDINGS, MAIN])?;
+    let mut landed = looks::landings(&log).map_err(|why| {
+        diagnostic(host, &why);
+        Stop::Failed
+    })?;
+    landed.retain(|landing| requests.iter().any(|(_, name)| landing.name == *name));
+    let verdicts = if landed.is_empty() {
+        looks::Page::default()
+    } else {
+        let path = looks::path(branch == "tui-requests");
+        looks::Page::at(host, None, MAIN, &path, "look-refresh").map_err(|why| {
+            diagnostic(host, &why);
+            Stop::Failed
+        })?
+    };
+    Ok((landed, verdicts))
 }
 
 fn done_on_main(log: &str) -> BTreeMap<&str, &str> {
