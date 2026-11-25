@@ -108,7 +108,7 @@ Help lists these.
 | `owner` | S E | an address, 3 to 254 visible ASCII bytes with one `@` | the process's user's login at `localhost`, as `init` derives it (`../setup/init.md`, 5) | the first owner, read at the first start alone; later owners are the store's |
 | `workers` | E | a socket address on loopback | none: required | the workers' listener |
 | `engine` | W | a socket address on loopback | none: required | its engine's workers' listener |
-| `name` | W | 1 to `link.name` bytes (32 in the stock) | the host's name, as the kernel gives it | the name its setting has (jig's `domain/engine/workers.md`, 2) |
+| `name` | W | 1 to `link.name` bytes (32 in the stock) | the host's name, as the kernel gives it, never shortened; one past that bound refused as `temper.toml: name (its default): the host's name is N bytes, past its bound of B; give name explicitly`, N its length and B the bound | the name its setting has (jig's `domain/engine/workers.md`, 2) |
 | `[sign_in.google]` `client`, `secret` | S E | `client` 1 to 256 visible ASCII bytes; `secret` a data path | none: no Google sign-in | Google's sign-in: its client and its secret's file |
 | `[[sign_in.members]]` `address`, `login` | S E | as `application.sign_in.members` (`engine.md`), 1 to 64 entries; with `[sign_in.google]` alone | none; required with `[sign_in.google]` | each person who may sign in with Google |
 | `[[sign_in.forges]]` `forge`, `client` | S E | as `application.sign_in.forges` (`../openid-provider.md`, 7); with `[sign_in.google]` alone | none | each Forgejo whose sign-in goes through temper, by its forge's number and its client |
@@ -428,7 +428,9 @@ are written and compiled, and run after landing.
   `temper.toml`.
 - **The machine's facts:** the host's name is the shell kit's, read
   with no `/proc`, so the same test holds on macOS; on Linux it is
-  also `/proc/sys/kernel/hostname`'s answer before its line feed.
+  also `/proc/sys/kernel/hostname`'s answer before its line feed. A
+  host's name at `name`'s bound is the worker's name, and one a byte
+  past it refuses with 3.1's line unless `name` is given.
 - **The renderer, fuzzy:** for any `File` of a shape within its bounds,
   `parse` of `render` gives it back.
 - **The pages:** `help` of each shape and `reference` equal the
