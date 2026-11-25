@@ -119,10 +119,10 @@ impl Core {
 
     /// Retain only activity named by an unanswered question's durable position.
     pub(crate) fn remember_question(&mut self, line: &tasks::ActivityLine) -> bool {
-        let Some(owner) = self.tasks.task(line.task) else { return false };
         let tasks::Line::Words { message, kind: tasks::MessageKind::Question, .. } = &line.line else {
             return false;
         };
+        let Some(owner) = self.tasks.task(line.task) else { return false };
         let mut named = false;
         if matches_person(owner.requester) {
             for position in &owner.question_lines {
@@ -141,13 +141,14 @@ impl Core {
     }
 
     pub(crate) fn prune_questions(&mut self, task: u64) {
+        if self.question_activity.is_empty() {
+            return;
+        }
+        let owner = self.tasks.task(task);
         let mut stale = List::with_capacity(self.question_activity.capacity());
-        for (key, _) in &self.question_activity {
-            if key.0 != task {
-                continue;
-            }
+        for (key, _) in self.question_activity.range((task, 0)..=(task, u64::MAX)) {
             let mut keep = false;
-            if let Some(owner) = self.tasks.task(task) {
+            if let Some(owner) = owner {
                 if questions_live(&owner.phase) && matches_person(owner.requester) {
                     for position in &owner.question_lines {
                         keep |= position.line == key.1 && position.answer.is_none();

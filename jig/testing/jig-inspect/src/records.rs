@@ -21,7 +21,7 @@ pub fn records(core: &Core, moment: Moment, wall: Wall) -> Result<(), String> {
         check_records(
             row.number,
             adapter.waits(),
-            &core.inspection_wait_records(row),
+            &core.inspection_wait_facts(row),
             held_at_holder,
             moment,
             wall,

@@ -1,12 +1,9 @@
 //! Connector-configured, whole-set hold admission and bounded waiting
 //! (domain/tasks/holds.md, 2, 5, 6 and 7). Names are opaque; the hub orders tasks and
 //! never interprets a connector's path.
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::result_large_err,
-        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
-    )
+#![expect(
+    clippy::result_large_err,
+    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
 )]
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{

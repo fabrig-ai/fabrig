@@ -1,8 +1,5 @@
 //! Indexed dependency, delegate and threshold queue waits (domain/tasks/holds.md, 2, 6 and 7).
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")
-)]
+#![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
 
 use crate::compound::Staged;
 use crate::domain::{Domain, publish, record, task_mut};

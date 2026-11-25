@@ -108,8 +108,9 @@ impl Alarms {
     }
 
     fn cancel(&mut self, task: u64) {
-        self.timers.cancel(task);
-        let _previous = self.armed.remove(&task);
+        if self.armed.remove(&task).is_some() {
+            self.timers.cancel(task);
+        }
     }
 
     fn arm(&mut self, task: u64, at: Option<Wall>, env: &Env<Limits>) {
@@ -134,7 +135,7 @@ pub(crate) fn restore(core: &mut Core, env: &Env<Limits>) {
 
 /// Recompute after the decision's sibling routes have updated their facts.
 pub(crate) fn refresh(core: &mut Core, env: &Env<Limits>) {
-    if !core.start_opened() {
+    if (!core.wait_alarms.run_waits_changed && core.wait_alarms.dirty.is_empty()) || !core.start_opened() {
         return;
     }
     if core::mem::replace(&mut core.wait_alarms.run_waits_changed, false) {
@@ -143,8 +144,7 @@ pub(crate) fn refresh(core: &mut Core, env: &Env<Limits>) {
         }
     }
     for _ in 0..core.wait_alarms.dirty.len() {
-        let task = *core.wait_alarms.dirty.first().expect("one update per dirty task");
-        core.wait_alarms.dirty.remove(&task);
+        let task = core.wait_alarms.dirty.pop_first().expect("one update per dirty task");
         let Some(row) = core.tasks.task(task) else {
             core.wait_alarms.forget(task);
             continue;
@@ -249,7 +249,15 @@ fn agenda(core: &Core, row: &TaskRecord, observed: (bool, Option<Wall>)) -> Opti
         Some(at) if row.suspension.is_some() && at > core.run_wall => (None, Some(at)),
         Some(_) | None => (deadline, None),
     };
-    let waits = core.own_waits(row, observed);
+    // Without a question or a deadline, only news and next-run clocks
+    // can give this alarm work. The other waits have their own owners.
+    if row.questions.is_empty()
+        && row.question_lines.is_empty()
+        && (!may_hold || (deadline.is_none() && !may_wait_for_run_or_news(row, observed.1)))
+    {
+        return None;
+    }
+    let waits = core.own_waits(row, observed, false);
     let mut first = None;
     for wait in waits.values() {
         if let Some(next) = dispatch(wait, core.wait_limits.waits, moving, may_hold) {
@@ -266,6 +274,24 @@ fn agenda(core: &Core, row: &TaskRecord, observed: (bool, Option<Wall>)) -> Opti
     }
     // The actions coalesce into one hold bearing the words of all the waits.
     Some(Agenda { first: first?, waits, deadline, attempt: tasks::run_attempt(&row.phase) })
+}
+
+fn may_wait_for_run_or_news(row: &TaskRecord, parked: Option<Wall>) -> bool {
+    if parked.is_some() {
+        return true;
+    }
+    match row.phase {
+        Phase::Active(Active::Due) => match row.executor {
+            tasks::Executor::Agent { .. } => true,
+            tasks::Executor::Job { .. } | tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } => false,
+        },
+        Phase::Active(Active::BackingOff { .. }) => true,
+        Phase::Active(Active::Idle | Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
+        | Phase::Waiting
+        | Phase::Held { .. }
+        | Phase::Closing(_)
+        | Phase::Ended(_) => false,
+    }
 }
 
 fn priority(action: Action) -> u8 {

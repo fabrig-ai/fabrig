@@ -97,6 +97,10 @@ impl Own {
         Self { records: Records::new(), hears: Hears::Unread }
     }
 
+    pub(super) const fn unaddressed() -> Self {
+        Self { records: Records::new(), hears: Hears::Read(None) }
+    }
+
     pub(super) fn hears(&mut self, core: &Core, limits: &Limits, row: &TaskRecord) -> Option<Holder> {
         if let Hears::Read(hears) = self.hears {
             return hears;
@@ -163,9 +167,10 @@ impl Own {
                 }
             }
         }
-        if self.records.len() != 0 {
-            let hears = self.hears(core, limits, row);
-            self.records.address(hears);
+        if self.records.len() != 0
+            && let Some(hears) = self.hears(core, limits, row)
+        {
+            self.records.address(Some(hears));
         }
     }
 

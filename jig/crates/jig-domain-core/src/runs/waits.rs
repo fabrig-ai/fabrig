@@ -58,12 +58,23 @@ impl Core {
     /// A task's own records for the quiet-point check, including those beyond document lines.
     #[must_use]
     pub fn inspection_wait_records(&self, row: &tasks::TaskRecord) -> Box<[Wait]> {
-        self.own_waits(row, activity(self, row)).into_boxed()
+        self.own_waits(row, activity(self, row), true).into_boxed()
     }
 
-    fn own_waits(&self, row: &tasks::TaskRecord, (working, parked): (bool, Option<Wall>)) -> own::Records {
+    /// The same wait objects and clocks without a projection of who would hear about a hold.
+    #[must_use]
+    pub fn inspection_wait_facts(&self, row: &tasks::TaskRecord) -> Box<[Wait]> {
+        self.own_waits(row, activity(self, row), false).into_boxed()
+    }
+
+    fn own_waits(
+        &self,
+        row: &tasks::TaskRecord,
+        (working, parked): (bool, Option<Wall>),
+        address: bool,
+    ) -> own::Records {
         let limits = &self.wait_limits;
-        let mut own = own::Own::new();
+        let mut own = if address { own::Own::new() } else { own::Own::unaddressed() };
         for fact in &own::party_entries(self, limits, row) {
             own.party(self, limits, row, fact);
         }

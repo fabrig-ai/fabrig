@@ -1,12 +1,6 @@
 //! A batch names only people held by the core before any task child changes
 //! (jig/docs/design/domain/engine/decisions.md, 1.1).
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::result_large_err,
-        reason = "batch admission keeps the task child's exact refusal without allocation"
-    )
-)]
+#![expect(clippy::result_large_err, reason = "batch admission keeps the task child's exact refusal without allocation")]
 use crate::Core;
 use jig_domain_tasks as tasks;
 
